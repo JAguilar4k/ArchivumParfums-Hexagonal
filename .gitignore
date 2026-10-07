@@ -1,0 +1,11 @@
+# Official course brief: kept locally, never versioned
+docs/enunciado.pdf
+
+# Credentials live only in .env files; .env.example is versioned
+.env
+.env.*
+!.env.example
+
+# Operating system files
+.DS_Store
+Thumbs.db
