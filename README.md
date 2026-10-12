@@ -11,6 +11,7 @@ La estructura, la arquitectura y la forma de trabajo siguen el proyecto guía de
 | [`docs/especificacion.md`](docs/especificacion.md) | Roles, glosario, reglas de negocio (R1–R56), estados, modelo de datos y API. |
 | [`docs/plan.md`](docs/plan.md) | Módulos, etiquetas, forma de trabajo y cortes. |
 | [`CLAUDE.md`](CLAUDE.md) | Instrucciones del proyecto para los asistentes de IA. |
+| [`scripts/`](scripts/) | Instalador del entorno de desarrollo para Windows. |
 | [`.github/`](.github/) | Plantillas de issue y de pull request. La integración continua y Dependabot llegan con [M03](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/3). |
 | `archivum-api-hexagonal/` | API REST en Laravel 13 sobre PostgreSQL 18. Llega con [M01](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/1). |
 | `archivum-web/` | Cliente web en Vue 3 con TypeScript. Llega con [M16](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/16). |
@@ -46,7 +47,15 @@ Al cerrar un módulo se actualiza esta sección.
 
 ## Puesta en marcha
 
-Los pasos de instalación estarán en `archivum-api-hexagonal/README.md` cuando exista el proyecto base ([M01](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/1)). Necesitará PHP 8.4 con `pdo_pgsql`, `intl` y `mbstring`, Composer 2 y PostgreSQL 18. En resumen:
+Los pasos de instalación estarán en `archivum-api-hexagonal/README.md` cuando exista el proyecto base ([M01](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/1)). Necesitará PHP 8.4 con `pdo_pgsql`, `intl` y `mbstring`, Composer 2 y PostgreSQL 18.
+
+En Windows, `scripts/instalar-entorno-windows.cmd` deja todo listo: instala Laravel Herd (que administra PHP y trae Composer, el instalador de Laravel y Node), activa PHP 8.4 con sus extensiones, instala PostgreSQL 18.6 con `psql` en el PATH y comprueba `curl`. Se puede ejecutar varias veces; con `-SoloVerificar` solo muestra qué está instalado. Las versiones se cambian al inicio de `scripts/instalar-entorno-windows.ps1`.
+
+```powershell
+.\scripts\instalar-entorno-windows.ps1 -SoloVerificar
+```
+
+Con el entorno listo, en resumen:
 
 ```bash
 cd archivum-api-hexagonal
