@@ -74,10 +74,19 @@ El código, la base de datos y los comentarios están en inglés. Las rutas, los
 
 ## Uso de IA
 
-El enunciado permite usar asistentes de IA con una condición: cada integrante debe entender lo que se entrega y poder modificarlo en vivo. Esta tabla declara qué partes se generaron con asistencia y qué verificó el equipo. Quien integre trabajo asistido actualiza su fila en el mismo pull request.
+El enunciado permite usar asistentes de IA con una condición: cada integrante debe entender lo que se entrega y poder modificarlo en vivo. Declararlo no baja la nota; ocultarlo tiene consecuencias. Esta tabla declara qué partes se generaron con asistencia y qué verificó el equipo, y cómo.
 
 | Parte | Asistente | Qué generó la IA | Qué verificó el equipo |
 | --- | --- | --- | --- |
-| README, `.gitignore` y plantillas de `.github/` | Claude Code (Claude Opus 5.5) | Redacción adaptada del proyecto guía. | Pendiente |
-| Etiquetas, milestones, issues y tablero | Claude Code (Claude Opus 5.5) | Redacción de milestones e issues a partir de la especificación, el plan y el enunciado, y su creación con `gh`. | Pendiente |
-| `docs/especificacion.md`, `docs/plan.md` y `CLAUDE.md` | Por declarar | Por declarar | Por declarar |
+| README, `.gitignore` y plantillas de `.github/` (commit inicial) | Claude Code | Redacción adaptada del proyecto guía. | Por confirmar con Julián. |
+| Etiquetas, milestones e issues | Claude Code | Redacción de los 29 milestones y los 196 issues a partir de la especificación, el plan y el enunciado, con el estilo descriptivo del proyecto guía, y su creación con `gh`. El tablero KanbanBoard lo creó Julián. | Julián revisó la tabla de los issues y aprobó su creación el 10/10/2026. |
+| `docs/especificacion.md`, `docs/plan.md` y `CLAUDE.md` | Claude Code | La especificación, el plan y las instrucciones del proyecto (commit inicial), y la regla de `CLAUDE.md` de seguir el proyecto guía en cada parte ([#199](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/pull/199)). | Por confirmar con Julián. Julián revisó y fusionó #199. |
+| Proyecto base y configuración de la API: Laravel 13 sobre la rama de Nelson (#1), PostgreSQL 18 (#2), roles (#3), zona horaria (#5), español (#6), estructura hexagonal (#7), `/api/v1` (#8), Pint (#11), Larastan (#12) e integración continua (#15) | Claude Code | El código, la configuración, las pruebas de Pest y los commits de los pull requests #200 a #209, sobre el commit de Nelson. | Pest, Pint, Larastan y `composer audit` pasan en la integración continua de #206, que contiene los anteriores, y de #208 y #209. Revisión de otra persona del equipo: pendiente. |
+| Documentación: `docs/database.md` (#4), `docs/ubiquitous-language.md` (#9), `docs/architecture.md`, `docs/adr/` y `docs/patterns.md` (#10), README de la API (#18) y esta sección (#19) | Claude Code | La redacción, adaptada del proyecto guía y de la especificación, y la prueba de reversibilidad de las migraciones (#4). | Revisión de otra persona del equipo: pendiente. Los pasos de instalación los debe seguir alguien que no los escribió (#18). |
+
+Cómo se mantiene:
+
+- Cada pull request con trabajo asistido marca la casilla "Si usé IA" de la plantilla y agrega o actualiza su fila en el mismo pull request.
+- La verificación se describe con hechos comprobables: qué pruebas se corrieron y quién revisó el pull request. Cuando la revisión ocurre, quien revisó actualiza la columna.
+- Abarca el código, las pruebas, la documentación y la redacción de los issues, no solo el código.
+- Antes de crear cada etiqueta de entrega (`v-avance1`, `v-avance2`, `v-final`), la tabla cubre todos los pull requests fusionados del corte.
