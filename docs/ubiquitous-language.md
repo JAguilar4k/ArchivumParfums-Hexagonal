@@ -124,7 +124,7 @@ El dominio y la base guardan el estado en inglés. La API lo muestra en español
 
 - **Sin sufijo de tipo**: las interfaces, los objetos de valor, los DTO y los casos de uso no lo llevan (`AppointmentRepository`, `Price`, `BookAppointment`). Las excepciones terminan en `Exception` (`InvalidValueException`) y los modelos de Eloquent en `Model` (`AppointmentModel`). Las clases del framework en `Infrastructure` conservan el sufijo de Laravel (`AppointmentController`, `AppointmentResource`).
 - **Casos de uso con verbo**: una clase por acción, nombrada con lo que hace (`BookAppointment`, `CancelOrder`, `ImportCatalog`).
-- **Puertos con el nombre del concepto**: `AppointmentRepository`, `PaymentGateway`, `BusinessContext`. El adaptador antepone la tecnología o el proveedor (`EloquentAppointmentRepository`, `OnvoPaymentGateway`).
+- **Puertos con el nombre del concepto**: `AppointmentRepository`, `PaymentGateway`, `BusinessContext`. El adaptador lleva el nombre de la tecnología o del proveedor (`EloquentAppointmentRepository`, `OnvoGateway`, `LaravelAiRecommender`).
 - **Un solo nombre por concepto**, en todo el proyecto:
 
 | Concepto | Nombre único | Para no usar |
