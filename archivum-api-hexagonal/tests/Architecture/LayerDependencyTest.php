@@ -37,37 +37,37 @@ function foreignModules(string $domain): array
 }
 
 foreach (layerNamespaces('Domain') as $domain) {
-    arch("the domain {$domain} does not depend on the framework")
-        ->expect($domain)
-        ->not->toUse(['Illuminate', 'Laravel']);
+    arch("the domain {$domain} does not depend on the framework", function () use ($domain) {
+        expect($domain)->not->toUse(['Illuminate', 'Laravel']);
+    });
 
     $outer = [...layerNamespaces('Application'), ...layerNamespaces('Infrastructure')];
 
     if ($outer !== []) {
-        arch("the domain {$domain} does not depend on application or infrastructure code")
-            ->expect($domain)
-            ->not->toUse($outer);
+        arch("the domain {$domain} does not depend on application or infrastructure code", function () use ($domain, $outer) {
+            expect($domain)->not->toUse($outer);
+        });
     }
 
     $foreign = foreignModules($domain);
 
     if ($foreign !== []) {
-        arch("the domain {$domain} only knows its module and the shared kernels")
-            ->expect($domain)
-            ->not->toUse($foreign);
+        arch("the domain {$domain} only knows its module and the shared kernels", function () use ($domain, $foreign) {
+            expect($domain)->not->toUse($foreign);
+        });
     }
 }
 
 foreach (layerNamespaces('Application') as $application) {
-    arch("the application layer {$application} does not depend on the framework")
-        ->expect($application)
-        ->not->toUse(['Illuminate', 'Laravel']);
+    arch("the application layer {$application} does not depend on the framework", function () use ($application) {
+        expect($application)->not->toUse(['Illuminate', 'Laravel']);
+    });
 
     $infrastructure = layerNamespaces('Infrastructure');
 
     if ($infrastructure !== []) {
-        arch("the application layer {$application} does not depend on infrastructure code")
-            ->expect($application)
-            ->not->toUse($infrastructure);
+        arch("the application layer {$application} does not depend on infrastructure code", function () use ($application, $infrastructure) {
+            expect($application)->not->toUse($infrastructure);
+        });
     }
 }

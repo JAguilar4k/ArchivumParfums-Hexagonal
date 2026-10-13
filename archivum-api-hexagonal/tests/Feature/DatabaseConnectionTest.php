@@ -29,5 +29,5 @@ it('generates uuid version 7 in the database', function () {
 });
 
 it('reads the ssl mode from the environment', function () {
-    expect(config('database.connections.pgsql.sslmode'))->toBe(env('DB_SSLMODE', 'prefer'));
+    expect(config('database.connections.pgsql.sslmode'))->toBe($_ENV['DB_SSLMODE'] ?? 'prefer');
 });
