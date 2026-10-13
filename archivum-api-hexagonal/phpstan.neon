@@ -8,3 +8,8 @@ parameters:
         - src
         - database
         - tests
+    ignoreErrors:
+        # Pest applies the test traits with pest()->use(), which PHPStan cannot follow.
+        -
+            identifier: trait.unused
+            path: tests/Support/*
