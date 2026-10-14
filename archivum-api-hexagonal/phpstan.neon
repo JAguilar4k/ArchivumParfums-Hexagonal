@@ -1,0 +1,15 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 8
+    paths:
+        - app
+        - src
+        - database
+        - tests
+    ignoreErrors:
+        # Pest applies the test traits with pest()->use(), which PHPStan cannot follow.
+        -
+            identifier: trait.unused
+            path: tests/Support/*
