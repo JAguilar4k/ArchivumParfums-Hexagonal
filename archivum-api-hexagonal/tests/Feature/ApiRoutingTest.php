@@ -2,23 +2,25 @@
 
 declare(strict_types=1);
 
+use function Pest\Laravel\get;
+
 it('serves the api under the v1 prefix', function () {
-    $this->get('/api/v1')
+    get('/api/v1')
         ->assertOk()
         ->assertExactJson(['nombre' => 'ArchivumParfums', 'version' => 'v1']);
 });
 
 it('does not route unversioned api paths', function () {
-    $this->get('/api')->assertNotFound();
+    get('/api')->assertNotFound();
 });
 
 it('serves the health check outside the prefix', function () {
-    $this->get('/up')->assertOk();
-    $this->get('/api/v1/up')->assertNotFound();
+    get('/up')->assertOk();
+    get('/api/v1/up')->assertNotFound();
 });
 
 it('answers unknown api routes in json even without an accept header', function () {
-    $this->get('/api/v1/desconocido')
+    get('/api/v1/desconocido')
         ->assertNotFound()
         ->assertHeader('Content-Type', 'application/json');
 });
@@ -37,6 +39,9 @@ it('only includes module route files from routes/api.php', function () {
         fn (string $line): bool => ! in_array($line, ['', '<?php', 'declare(strict_types=1);'], true),
     );
 
-    expect($statements)->not->toBeEmpty()
-        ->each->toMatch("#^require base_path\\('src/.+/Infrastructure/Http/routes\\.php'\\);$#");
+    expect($statements)->not->toBeEmpty();
+
+    foreach ($statements as $statement) {
+        expect($statement)->toMatch("#^require base_path\\('src/.+/Infrastructure/Http/routes\\.php'\\);$#");
+    }
 });
