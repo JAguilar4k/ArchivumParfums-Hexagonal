@@ -24,36 +24,27 @@ Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macO
    cd ArchivumParfums-Hexagonal/archivum-api-hexagonal
    ```
 
-2. Crear los dos roles y las dos bases de datos, la de desarrollo y la de pruebas. Se hace una sola vez por servidor, con el superusuario de PostgreSQL y con dos contraseñas propias, una para cada rol:
-
-   ```bash
-   psql -U postgres -v owner_password='una-clave' -v app_password='otra-clave' -f database/roles.sql
-   ```
-
-   Si `psql` responde que el rol o la base ya existen, ese paso ya se hizo en esta computadora.
-
-3. Instalar las dependencias y crear el archivo de entorno:
+2. Instalar las dependencias y preparar el entorno:
 
    ```bash
    composer install
-   cp .env.example .env
-   php artisan key:generate
    ```
 
-   En `cmd` de Windows, `cp` se escribe `copy`.
+   Al terminar de instalar, Composer ejecuta `php artisan archivum:install`, que deja todo listo en este orden: crea `.env` a partir de `.env.example`, genera la clave de la aplicación, crea los roles `archivum_owner` y `archivum_app` y las bases de desarrollo y de pruebas igual que `database/roles.sql`, migra con el rol dueño y carga los datos de demostración. Las contraseñas de los dos roles se generan y quedan en `.env`.
 
-4. Escribir en `.env` las dos contraseñas del paso 2:
-
-   ```dotenv
-   DB_PASSWORD=otra-clave
-   DB_ADMIN_PASSWORD=una-clave
-   ```
-
-5. Crear el esquema con el rol dueño, cargar los datos de demostración y levantar el servidor:
+3. La primera vez hace falta la contraseña del superusuario `postgres` para crear los roles y las bases. Se pide sin mostrarla y no se guarda. En Windows, Composer no deja escribir en sus scripts: la instalación termina con un aviso y basta ejecutar una vez
 
    ```bash
-   php artisan migrate --database=pgsql_admin
-   php artisan db:seed
+   php artisan archivum:install
+   ```
+
+   que sí la pide. Si el superusuario tiene otro nombre, se indica con `--superuser=nombre`; en un script, la contraseña puede venir de la variable de entorno `DB_SUPERUSER_PASSWORD`.
+
+4. Volver a ejecutar `composer install` no borra nada: no cambia `.env` ni la clave, aplica solo las migraciones pendientes y no vuelve a sembrar. En la integración continua, con `composer install --no-dev` o con `APP_ENV` distinto de `local`, `archivum:install` no hace nada.
+
+5. Levantar el servidor:
+
+   ```bash
    php artisan serve
    ```
 
@@ -72,6 +63,7 @@ La aplicación se conecta con `archivum_app`, que no puede cambiar el esquema; l
 
 | Comando | Qué hace |
 |---|---|
+| `php artisan archivum:install` | Prepara el entorno local paso a paso. Lo ejecuta `composer install`; a mano solo hace falta para escribir la contraseña de `postgres` en Windows. |
 | `composer test` | Ejecuta las pruebas de Pest contra la base `archivum_hexagonal_testing`. |
 | `composer lint` | Verifica el estilo con Laravel Pint, sin modificar archivos. |
 | `composer format` | Corrige el estilo. |
