@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: archivum-api-hexagonal
+
+jobs:
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_HOST: 127.0.0.1
+      # Single-use passwords for the ephemeral service, not repository secrets.
+      DB_PASSWORD: app-secret
+      DB_ADMIN_PASSWORD: owner-secret
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: intl, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Locate the Composer cache
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-${{ hashFiles('archivum-api-hexagonal/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Validate the Composer manifest
+        run: composer validate --strict
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Prepare the environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Create the database roles and databases
+        env:
+          PGPASSWORD: postgres
+        run: >-
+          psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1
+          -v owner_password="$DB_ADMIN_PASSWORD" -v app_password="$DB_PASSWORD"
+          -f database/roles.sql
+
+      - name: Run the migrations as the schema owner
+        run: php artisan migrate --database=pgsql_admin --force
+
+      - name: Check the code style
+        run: composer lint
+
+      - name: Run static analysis
+        run: composer analyse
+
+      - name: Run the test suite
+        run: composer test
+
+      - name: Audit dependencies
+        run: composer audit --locked --ignore-severity=low --ignore-severity=medium
