@@ -8,6 +8,12 @@ use Tests\Support\RefreshDatabaseAsOwner;
 
 pest()->use(RefreshDatabaseAsOwner::class);
 
+it('runs after every composer install', function () {
+    $composer = json_decode((string) file_get_contents(base_path('composer.json')), true);
+
+    expect($composer['scripts']['post-install-cmd'] ?? [])->toContain('@php artisan archivum:install --ansi');
+});
+
 it('leaves the environment alone outside development', function () {
     expect(Artisan::call('archivum:install'))->toBe(0)
         ->and(Artisan::output())->toContain(__('install.skipped_outside_development'));
