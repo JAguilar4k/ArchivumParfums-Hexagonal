@@ -89,3 +89,24 @@ it('keeps the phone of a customer as text for its encrypted value', function () 
 it('rejects a customer of a business that does not exist', function () {
     insertCustomer((string) Str::uuid7(), insertCustomerAccount());
 })->throws(QueryException::class, 'customers_business_id_foreign');
+
+it('deletes the customer records of a business with the business', function () {
+    $businessId = insertStore();
+    insertCustomer($businessId, insertCustomerAccount());
+
+    DB::table('businesses')->where('id', $businessId)->delete();
+
+    expect(DB::table('customers')->count())->toBe(0)
+        ->and(DB::table('users')->count())->toBe(1);
+});
+
+it('deletes the customer records of an account with the account', function () {
+    $userId = insertCustomerAccount();
+    insertCustomer(insertStore('archivum'), $userId);
+    insertCustomer(insertStore('otra-tienda'), $userId);
+
+    DB::table('users')->where('id', $userId)->delete();
+
+    expect(DB::table('customers')->count())->toBe(0)
+        ->and(DB::table('businesses')->count())->toBe(2);
+});

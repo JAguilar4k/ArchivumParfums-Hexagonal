@@ -128,3 +128,23 @@ it('declares the business and id pair unique so children can use composite forei
 it('rejects a member of a business that does not exist', function () {
     insertMember((string) Str::uuid7(), insertUserAccount('persona@archivum.test'));
 })->throws(QueryException::class, 'members_business_id_foreign');
+
+it('deletes the staff of a business with the business', function () {
+    $businessId = insertBusiness();
+    insertMember($businessId, insertUserAccount('duena@archivum.test'), 'owner');
+
+    DB::table('businesses')->where('id', $businessId)->delete();
+
+    expect(DB::table('members')->count())->toBe(0)
+        ->and(DB::table('users')->count())->toBe(1);
+});
+
+it('deletes the membership of an account with the account', function () {
+    $userId = insertUserAccount('asesor@archivum.test');
+    insertMember(insertBusiness(), $userId);
+
+    DB::table('users')->where('id', $userId)->delete();
+
+    expect(DB::table('members')->count())->toBe(0)
+        ->and(DB::table('businesses')->count())->toBe(1);
+});
