@@ -1,58 +1,124 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# archivum-api-hexagonal
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+API REST de ArchivumParfums. Laravel 13, PHP 8.4 y PostgreSQL 18.
 
-## About Laravel
+## Requisitos
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+| Herramienta | Versión |
+|---|---|
+| PHP | 8.4 o superior, con las extensiones `pdo_pgsql`, `intl` y `mbstring` |
+| Composer | 2.x |
+| PostgreSQL | 18 o superior, con la extensión `btree_gist` del paquete `contrib` |
+| Git | Cualquier versión reciente |
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+`php -v`, `php -m`, `composer --version` y `psql --version` muestran lo instalado.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+## Instalación
 
-## Learning Laravel
+Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macOS.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+1. Clonar el repositorio y entrar al proyecto:
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+   ```bash
+   git clone https://github.com/JAguilar4k/ArchivumParfums-Hexagonal.git
+   cd ArchivumParfums-Hexagonal/archivum-api-hexagonal
+   ```
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+2. Crear los dos roles y las dos bases de datos, la de desarrollo y la de pruebas. Se hace una sola vez por servidor, con el superusuario de PostgreSQL y con dos contraseñas propias, una para cada rol:
 
-## Agentic Development
+   ```bash
+   psql -U postgres -v owner_password='una-clave' -v app_password='otra-clave' -f database/roles.sql
+   ```
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+   Si `psql` responde que el rol o la base ya existen, ese paso ya se hizo en esta computadora.
 
-```bash
-composer require laravel/boost --dev
+3. Instalar las dependencias y crear el archivo de entorno:
 
-php artisan boost:install
+   ```bash
+   composer install
+   cp .env.example .env
+   php artisan key:generate
+   ```
+
+   En `cmd` de Windows, `cp` se escribe `copy`.
+
+4. Escribir en `.env` las dos contraseñas del paso 2:
+
+   ```dotenv
+   DB_PASSWORD=otra-clave
+   DB_ADMIN_PASSWORD=una-clave
+   ```
+
+5. Crear el esquema con el rol dueño, cargar los datos de demostración y levantar el servidor:
+
+   ```bash
+   php artisan migrate --database=pgsql_admin
+   php artisan db:seed
+   php artisan serve
+   ```
+
+6. Comprobar que todo responde:
+
+   ```bash
+   curl http://localhost:8000/api/v1
+   composer test
+   ```
+
+   La primera petición devuelve `{"nombre":"ArchivumParfums","version":"v1"}` y las pruebas deben pasar todas.
+
+La aplicación se conecta con `archivum_app`, que no puede cambiar el esquema; las migraciones corren con `archivum_owner` a través de la conexión `pgsql_admin`. Por eso `php artisan migrate` sin `--database=pgsql_admin` falla con `Insufficient privilege` en cuanto hay una tabla que crear o cambiar. El motivo está en [docs/database.md](../docs/database.md).
+
+## Comandos
+
+| Comando | Qué hace |
+|---|---|
+| `composer test` | Ejecuta las pruebas de Pest contra la base `archivum_hexagonal_testing`. |
+| `composer lint` | Verifica el estilo con Laravel Pint, sin modificar archivos. |
+| `composer format` | Corrige el estilo. |
+| `composer analyse` | Análisis estático con Larastan en nivel 8. |
+| `composer openapi` | Regenera el contrato `openapi/v1.json`. Llega con #50. |
+| `composer audit` | Revisa vulnerabilidades conocidas en las dependencias. |
+
+Antes de abrir un pull request deben pasar `composer lint`, `composer analyse` y `composer test`. Si cambió un endpoint, hay que regenerar el contrato con `composer openapi` y versionarlo. La integración continua ejecuta los mismos pasos, más `composer audit`, en cada pull request.
+
+## Endpoints
+
+| Método | Ruta | Quién | Descripción |
+|---|---|---|---|
+| GET | `/up` | Cualquiera | Estado de la aplicación, fuera del prefijo `/api/v1`. |
+| GET | `/api/v1` | Cualquiera | Nombre y versión de la API. |
+
+Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial).
+
+## Datos de demostración
+
+`php artisan db:seed` crea una cuenta ficticia, `test@example.com`, con la contraseña `password`. Las tiendas de demostración y su personal llegan con #27. Todos los datos de los sembradores son ficticios y sus contraseñas son conocidas: `db:seed` nunca se ejecuta en producción.
+
+## Variables de entorno
+
+`.env.example` lista todas las variables que lee la aplicación. Las propias del producto:
+
+| Variable | Uso |
+|---|---|
+| `APP_TIMEZONE` | Zona horaria de la aplicación y de las dos conexiones de PostgreSQL. Por defecto, `America/Costa_Rica`. |
+| `DB_DATABASE` | Base de desarrollo, `archivum_hexagonal`. Las pruebas usan `archivum_hexagonal_testing`, fijada en `phpunit.xml`. |
+| `DB_USERNAME`, `DB_PASSWORD` | Rol de la aplicación, `archivum_app`, y su contraseña. Atiende las peticiones. |
+| `DB_ADMIN_USERNAME`, `DB_ADMIN_PASSWORD` | Rol dueño del esquema, `archivum_owner`, y su contraseña. Lo usa la conexión `pgsql_admin` para migrar. |
+| `DB_SSLMODE` | Modo SSL de las dos conexiones. Por defecto, `prefer`. |
+
+El código nunca lee variables de entorno directamente: lo hacen los archivos de `config/`, y Larastan falla si una llamada a `env()` aparece fuera de ellos. `.env` nunca se versiona; `.env.example` se actualiza en el mismo pull request que agrega una variable.
+
+## Estructura
+
+```
+app/         Arranque del framework
+bootstrap/   Rutas, middleware y proveedores de la aplicación
+config/      Configuración: aplicación, base de datos y colas
+database/    Roles (roles.sql), migraciones, factories y seeders
+lang/        Mensajes al usuario en español, con el inglés como respaldo
+routes/      Punto de entrada de las rutas de cada módulo
+src/         Código del producto por contexto y módulo: Domain, Application e Infrastructure
+tests/       Pruebas unitarias, de funcionalidad y de arquitectura
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+La arquitectura se describe en [docs/architecture.md](../docs/architecture.md).

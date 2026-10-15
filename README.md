@@ -13,10 +13,15 @@ La estructura, la arquitectura y la forma de trabajo siguen el proyecto guía de
 | [`docs/especificacion.md`](docs/especificacion.md) | Roles, glosario, reglas de negocio (R1–R56), estados, modelo de datos y API. |
 | [`docs/plan.md`](docs/plan.md) | Módulos, etiquetas, forma de trabajo y cortes. |
 | [`CLAUDE.md`](CLAUDE.md) | Instrucciones del proyecto para los asistentes de IA. |
-| [`.github/`](.github/) | Plantillas de issue y de pull request e integración continua ([`ci.yml`](.github/workflows/ci.yml)). Dependabot llega con [M03](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/3). |
-| `archivum-api-hexagonal/` | API REST en Laravel 13 sobre PostgreSQL 18. Llega con [M01](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/1). |
+| [`.github/`](.github/) | Plantillas de issue y de pull request, integración continua ([`ci.yml`](.github/workflows/ci.yml)) y Dependabot ([`dependabot.yml`](.github/dependabot.yml)). |
+| [`archivum-api-hexagonal/`](archivum-api-hexagonal/) | API REST en Laravel 13 sobre PostgreSQL 18. |
 | `archivum-web/` | Cliente web en Vue 3 con TypeScript. Llega con [M16](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/16). |
-| `docs/architecture.md`, `docs/database.md`, `docs/data-model.md`, `docs/ubiquitous-language.md`, `docs/patterns.md` y `docs/adr/` | Arquitectura, base de datos, modelo de datos, lenguaje ubicuo, patrones y decisiones de arquitectura. Llegan con los primeros módulos. |
+| [`docs/architecture.md`](docs/architecture.md) | Estructura, capas, contextos, regla de dependencias y recorrido de una petición. |
+| [`docs/database.md`](docs/database.md) | Roles, migraciones y convenciones de la base de datos. |
+| `docs/data-model.md` | Modelo de datos en tercera forma normal. Llega con [#35](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/35). |
+| [`docs/ubiquitous-language.md`](docs/ubiquitous-language.md) | Glosario del negocio, estados y convenciones de nombres. |
+| [`docs/patterns.md`](docs/patterns.md) | Patrones de diseño usados, previstos y descartados. |
+| [`docs/adr/`](docs/adr/) | Registro de las decisiones de arquitectura. |
 
 ## Arquitectura
 
@@ -34,34 +39,25 @@ Cada tienda ve solo sus datos gracias a dos barreras: el puerto `BusinessContext
 
 ## Estado
 
-Al 7 de octubre de 2026 el repositorio tiene la especificación, el plan y las plantillas: todavía no hay código ni despliegue. El trabajo está planificado en 29 milestones, uno por módulo, en el [tablero del proyecto](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/projects).
+Avance 1 está en curso y todavía no hay módulos cerrados. El proyecto base de la API, su configuración (PostgreSQL 18, zona horaria y español), la estructura hexagonal, la API bajo `/api/v1`, Pint, Larastan y la integración continua están en pull requests en revisión. El despliegue en una dirección pública está pendiente ([#21](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/21)). El trabajo está planificado en 29 milestones, uno por módulo, en el [tablero del proyecto](https://github.com/users/JAguilar4k/projects/4).
 
 | Corte | Fecha | Qué se entrega | Estado |
 | --- | --- | --- | --- |
-| Avance 1 | 21/10/2026 | Issues `avance-1`: proyecto base, arquitectura, calidad, despliegue, multi-inquilino, catálogo, vitrina, horarios y citas (M01 a M09). | Pendiente |
+| Avance 1 | 21/10/2026 | Issues `avance-1`: proyecto base, arquitectura, calidad, despliegue, multi-inquilino, catálogo, vitrina, horarios y citas (M01 a M09). | En curso |
 | Investigación 1 | 28/10/2026 | Issues `investigacion-1`: botellas, pedidos y cobro con ONVO y PayPal, más el informe de pasarelas (M10 a M12). | Pendiente |
 | Avance 2 | 18/11/2026 | Issues `avance-2`: pagos por webhook, cuentas y roles, seguridad, IA, cliente web y agenda del personal (M12 a M17). | Pendiente |
 | Investigación 2 | 25/11/2026 | Issues `investigacion-2`: auditoría cruzada (M14). | Pendiente |
 | Entrega final | 07/12/2026 | Issues `entrega-final`: paquetes, lista de espera, colas, avisos, agenda en vivo, proveedores y observabilidad, y los hallazgos de la auditoría corregidos. | Pendiente |
 
-Al cerrar un módulo se actualiza esta sección.
+Al cerrar un módulo se actualiza esta sección con lo que quedó listo.
 
 ## Puesta en marcha
 
-Los pasos de instalación estarán en `archivum-api-hexagonal/README.md` cuando exista el proyecto base ([M01](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/1)). Necesitará PHP 8.4 con `pdo_pgsql`, `intl` y `mbstring`, Composer 2 y PostgreSQL 18. En resumen:
-
-```bash
-cd archivum-api-hexagonal
-psql -U postgres -v owner_password='una-clave' -v app_password='otra-clave' -f database/roles.sql
-composer install && cp .env.example .env && php artisan key:generate
-php artisan migrate --database=pgsql_admin
-php artisan db:seed
-php artisan serve
-```
+Los requisitos, los pasos de instalación, los comandos y los endpoints están en [archivum-api-hexagonal/README.md](archivum-api-hexagonal/README.md).
 
 ## Forma de trabajo
 
-- **Planificación:** cada requisito es un issue dentro de un milestone, uno por módulo, con seguimiento en el [tablero del proyecto](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/projects).
+- **Planificación:** cada requisito es un issue dentro de un milestone, uno por módulo, con seguimiento en el [tablero del proyecto](https://github.com/users/JAguilar4k/projects/4).
 - **Ramas:** cada issue se trabaja en su propia rama, creada desde el issue con *Create a branch*. Sale de `main` y lleva el número y el título del issue (`23-reservar-una-cita-de-prueba`).
 - **Commits:** [Conventional Commits](https://www.conventionalcommits.org/es/v1.0.0/), uno por cambio lógico, con la referencia al issue en el pie (`Refs: #23`).
 - **Pull requests:** uno por issue, enlazado con `Closes #N`. Todo cambio entra a `main` por pull request, con la integración continua en verde y la aprobación de otra persona del equipo. Se fusiona con merge commit para conservar los commits atómicos.
@@ -74,7 +70,7 @@ php artisan serve
 
 ## Idioma
 
-El código, la base de datos y los comentarios están en inglés. Las rutas, los atributos JSON y los mensajes al usuario están en español. El glosario está en la sección 4 de [docs/especificacion.md](docs/especificacion.md) y pasará a `docs/ubiquitous-language.md`.
+El código, la base de datos y los comentarios están en inglés. Las rutas, los atributos JSON y los mensajes al usuario están en español. La convención completa está en [docs/ubiquitous-language.md](docs/ubiquitous-language.md).
 
 ## Uso de IA
 
