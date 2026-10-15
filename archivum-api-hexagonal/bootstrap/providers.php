@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Providers\AppServiceProvider;
+use Src\Accounts\Sessions\Infrastructure\SessionsServiceProvider;
 use Src\Accounts\Users\Infrastructure\UsersServiceProvider;
 use Src\Businesses\Members\Infrastructure\MembersServiceProvider;
 use Src\Businesses\Profile\Infrastructure\ProfileServiceProvider;
@@ -13,5 +14,6 @@ return [
     SharedServiceProvider::class,
     MembersServiceProvider::class,
     ProfileServiceProvider::class,
+    SessionsServiceProvider::class,
     UsersServiceProvider::class,
 ];

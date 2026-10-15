@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);
         $middleware->redirectGuestsTo(null);
+        $middleware->trimStrings(except: ['contrasena']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(new ProblemDetailsRenderer);

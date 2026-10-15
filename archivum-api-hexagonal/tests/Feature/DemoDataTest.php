@@ -9,6 +9,7 @@ use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 use function Pest\Laravel\assertDatabaseCount;
+use function Pest\Laravel\postJson;
 use function Pest\Laravel\seed;
 
 pest()->use(RefreshDatabaseAsOwner::class);
@@ -102,6 +103,14 @@ it('gives every demo account the password of the configuration', function () {
 
     foreach (UserModel::query()->get() as $user) {
         expect(Hash::check('clave-de-demostracion', $user->password))->toBeTrue();
+    }
+});
+
+it('lets every demo account sign in with the password of the configuration', function () {
+    seed();
+
+    foreach (DB::table('users')->pluck('email') as $email) {
+        postJson('/api/v1/sesiones', ['correo' => $email, 'contrasena' => 'clave-de-demostracion'])->assertCreated();
     }
 });
 
