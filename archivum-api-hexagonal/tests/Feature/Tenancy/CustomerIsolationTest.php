@@ -48,7 +48,7 @@ beforeEach(function () {
 
     // An example of the routes of /api/v1/cuenta until the first resource of a customer exists (#59): a listing
     // that reads one business at a time and a resource whose business comes from fn_customer_resource_business.
-    Route::prefix('api/v1/cuenta/pruebas/clientes')->middleware(['api', 'auth:sanctum'])->group(function (): void {
+    Route::prefix('api/v1/cuenta/pruebas/clientes')->middleware(['api', 'auth:sanctum', 'role:customer'])->group(function (): void {
         Route::get('/', fn (Request $request, CustomerBusinessContext $context) => ['data' => Arr::flatten(
             $context->eachBusiness(fn (BusinessId $businessId): array => DB::table('customers')
                 ->where('business_id', $businessId->value)
