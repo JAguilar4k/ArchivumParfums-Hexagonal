@@ -9,5 +9,6 @@ use Src\Accounts\Sessions\Infrastructure\Http\Controllers\SessionController;
 Route::post('sesiones', [SessionController::class, 'store'])->name('accounts.sessions.store');
 
 Route::middleware('auth:sanctum')->group(function (): void {
+    Route::delete('sesiones/actual', [SessionController::class, 'destroy'])->name('accounts.sessions.destroy');
     Route::get('cuenta', [CurrentAccountController::class, 'show'])->name('accounts.current.show');
 });
