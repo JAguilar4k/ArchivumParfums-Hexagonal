@@ -127,9 +127,9 @@ it('rejects a second business for the same staff member', function () {
     insertMember(insertBusiness('otra-tienda'), $userId);
 })->throws(UniqueConstraintViolationException::class, 'members_user_id_unique');
 
-it('declares the business and id pair unique so children can use composite foreign keys', function () {
+it('declares the id and business pair unique so children can use composite foreign keys', function () {
     $unique = collect(Schema::getIndexes('members'))
-        ->first(fn (array $index): bool => $index['unique'] && $index['columns'] === ['business_id', 'id']);
+        ->first(fn (array $index): bool => $index['unique'] && $index['columns'] === ['id', 'business_id']);
 
     expect($unique)->not->toBeNull();
 });
