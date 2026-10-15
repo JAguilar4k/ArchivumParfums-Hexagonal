@@ -8,6 +8,6 @@ use Src\Shared\Domain\ValueObjects\BusinessId;
 
 interface BusinessContext
 {
-    /** Business that the current operation belongs to. */
-    public function businessId(): BusinessId;
+    /** Identify the business the current operation belongs to. */
+    public function current(): BusinessId;
 }
