@@ -5,7 +5,10 @@ declare(strict_types=1);
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Request;
+use Src\Accounts\Sessions\Infrastructure\Http\Middleware\RequireAccountRole;
+use Src\Shared\Infrastructure\Http\Middleware\AssignRequestId;
+use Src\Shared\Infrastructure\Http\Problem\ProblemDetailsRenderer;
+use Src\Shared\Infrastructure\Tenancy\ScopeRequestToBusiness;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -15,10 +18,15 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api/v1',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->prepend(AssignRequestId::class);
+        $middleware->redirectGuestsTo(null);
+        $middleware->trimStrings(except: ['contrasena']);
+
+        $middleware->alias([
+            'business' => ScopeRequestToBusiness::class,
+            'role' => RequireAccountRole::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->shouldRenderJsonWhen(
-            fn (Request $request): bool => $request->is('api/*') || $request->expectsJson(),
-        );
+        $exceptions->render(new ProblemDetailsRenderer);
     })->create();
