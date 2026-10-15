@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Src\Accounts\Sessions\Infrastructure\Http\Middleware\RequireAccountRole;
 use Src\Shared\Infrastructure\Http\Middleware\AssignRequestId;
 use Src\Shared\Infrastructure\Http\Problem\ProblemDetailsRenderer;
 use Src\Shared\Infrastructure\Tenancy\ScopeRequestToBusiness;
@@ -23,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'business' => ScopeRequestToBusiness::class,
+            'role' => RequireAccountRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
