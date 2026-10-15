@@ -10,6 +10,7 @@ use Src\Businesses\Members\Domain\Contracts\MemberRepository;
 use Src\Businesses\Members\Domain\Entities\Member;
 use Src\Businesses\Members\Domain\Exceptions\AlreadyAMemberException;
 use Src\Businesses\Members\Domain\ValueObjects\MemberRole;
+use Src\Businesses\Members\Domain\ValueObjects\Membership;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\UserId;
@@ -33,18 +34,13 @@ final readonly class EloquentMemberRepository implements MemberRepository
     }
 
     /**
-     * Find the membership of an account by members_user_id_unique. It is the one read without a business,
-     * because the business of a person is what it finds; #32 moves it to fn_member_business.
+     * Find the business and role of an account through fn_member_business: members only shows the rows of the
+     * business pinned in the transaction, and the business of a person is what this lookup finds.
      */
-    public function findByUser(UserId $userId): ?Member
+    public function findByUser(UserId $userId): ?Membership
     {
-        $model = MemberModel::query()->where('user_id', $userId->value)->first();
+        $row = DB::selectOne('select business_id, role from fn_member_business(?)', [$userId->value]);
 
-        return $model === null ? null : Member::reconstitute(
-            new UserId($model->user_id),
-            new BusinessId($model->business_id),
-            MemberRole::from($model->role),
-            $model->attends_appointments,
-        );
+        return $row === null ? null : new Membership(new BusinessId($row->business_id), MemberRole::from($row->role));
     }
 }

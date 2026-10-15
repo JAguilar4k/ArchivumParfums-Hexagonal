@@ -34,6 +34,8 @@ final class TwoBusinesses
 
     public const string CUSTOMER = 'mariana@clientes.test';
 
+    public const string CUSTOMER_OF_BOTH = 'sofia@clientes.test';
+
     /** Seed both businesses with their staff and customers. */
     public static function seed(): void
     {
@@ -46,6 +48,12 @@ final class TwoBusinesses
     public static function idOf(string $slug): string
     {
         return BusinessModel::query()->where('slug', $slug)->sole()->id;
+    }
+
+    /** Identifier of the account of an email. */
+    public static function userIdOf(string $email): string
+    {
+        return UserModel::query()->where('email', $email)->sole()->id;
     }
 
     /** Send the next requests with a real token of the account of an email, as after signing in. */
