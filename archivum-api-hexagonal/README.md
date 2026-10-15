@@ -169,7 +169,9 @@ La segunda tienda sirve para demostrar el aislamiento entre tiendas: el dueño d
 | `DB_SSLMODE` | Modo SSL de las dos conexiones. Por defecto, `prefer`. |
 | `ARCHIVUM_DEMO_PASSWORD` | Contraseña de las cuentas de los [datos de demostración](#datos-de-demostración). Se deja vacía fuera del desarrollo local. |
 
-El código nunca lee variables de entorno directamente: lo hacen los archivos de `config/`, y Larastan falla si una llamada a `env()` aparece fuera de ellos. `.env` nunca se versiona; `.env.example` se actualiza en el mismo pull request que agrega una variable.
+El código nunca lee variables de entorno directamente: lo hacen los archivos de `config/`, porque con `php artisan config:cache` en producción `env()` devuelve `null` fuera de ellos. `tests/Architecture/EnvironmentConfigurationTest.php` falla si se llama `env()` fuera de `config/`, si `config/` lee una variable que `.env.example` no lista o si `.env.example` trae el valor de una llave, un secreto, un token o una contraseña; Larastan también rechaza `env()` fuera de `config/`. `config/` solo guarda los archivos que cambian algo del framework, y `.env.example` solo las variables que la API usa: el issue que agrega un servicio (correo, colas en Redis, pasarelas, IA) agrega sus variables a `.env.example` y a esta tabla en el mismo pull request. `.env` nunca se versiona, y las credenciales de producción se cargan en la plataforma de despliegue, nunca en el repositorio.
+
+Los ajustes de cada tienda no son variables de entorno: se guardan en `businesses.settings` y se cambian con `PATCH /api/v1/panel/tienda`. `APP_TIMEZONE` es solo la zona de la instalación; la de cada tienda está en `businesses.timezone`. La configuración del producto que no depende de la tienda, como el tiempo máximo de 10 s de la IA, está fija en `config/archivum.php`.
 
 ## Estructura
 
