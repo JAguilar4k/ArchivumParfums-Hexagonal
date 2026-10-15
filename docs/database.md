@@ -88,7 +88,7 @@ Se crea con `CREATE EXTENSION IF NOT EXISTS` y ninguna reversión la borra, porq
 
 Es la segunda barrera del aislamiento entre tiendas. La primera está en el código: el puerto `BusinessContext` dice a qué tienda pertenece la operación y cada repositorio filtra por `business_id`. Si una consulta olvida ese filtro, PostgreSQL igual devuelve solo las filas de la tienda en curso.
 
-La forma de las políticas y la función común `fn_current_business()` que usa cada una se documentan en esta sección con #32.
+La forma de las políticas se documenta en esta sección con #32.
 
 ## Reparto de responsabilidades
 
