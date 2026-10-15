@@ -9,7 +9,10 @@ use Illuminate\Support\Facades\DB;
 use Src\Businesses\Members\Domain\Contracts\MemberRepository;
 use Src\Businesses\Members\Domain\Entities\Member;
 use Src\Businesses\Members\Domain\Exceptions\AlreadyAMemberException;
+use Src\Businesses\Members\Domain\ValueObjects\MemberRole;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
+use Src\Shared\Domain\ValueObjects\BusinessId;
+use Src\Shared\Domain\ValueObjects\UserId;
 
 final readonly class EloquentMemberRepository implements MemberRepository
 {
@@ -27,5 +30,18 @@ final readonly class EloquentMemberRepository implements MemberRepository
         } catch (UniqueConstraintViolationException) {
             throw AlreadyAMemberException::create();
         }
+    }
+
+    /** Find the membership of an account by members_user_id_unique. */
+    public function findByUser(UserId $userId): ?Member
+    {
+        $model = MemberModel::query()->where('user_id', $userId->value)->first();
+
+        return $model === null ? null : Member::reconstitute(
+            new UserId($model->user_id),
+            new BusinessId($model->business_id),
+            MemberRole::from($model->role),
+            $model->attends_appointments,
+        );
     }
 }

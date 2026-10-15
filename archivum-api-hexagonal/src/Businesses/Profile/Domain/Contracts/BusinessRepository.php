@@ -19,4 +19,7 @@ interface BusinessRepository
      * @throws SlugAlreadyInUseException
      */
     public function save(Business $business): void;
+
+    /** Find a business by its identity. */
+    public function find(BusinessId $id): ?Business;
 }
