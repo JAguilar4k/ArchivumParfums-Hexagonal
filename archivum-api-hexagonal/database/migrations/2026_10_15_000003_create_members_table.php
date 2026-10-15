@@ -20,7 +20,7 @@ return new class extends Migration
             $table->boolean('attends_appointments')->default(false);
             $table->timestampsTz();
 
-            $table->unique(['business_id', 'id']);
+            $table->unique(['id', 'business_id']);
         });
 
         DB::statement("ALTER TABLE members ADD CONSTRAINT members_role_check CHECK (role IN ('owner', 'staff'))");
