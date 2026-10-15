@@ -60,12 +60,12 @@ it('rejects an appointment place that is too long', function (): void {
 it('starts settings with the specification defaults', function (): void {
     $settings = BusinessSettings::defaults();
 
-    expect($settings->interviewMarginColones)->toBe(5000)
+    expect($settings->bottleMarginColones)->toBe(5000)
         ->and($settings->decantSizesMl)->toBe([2, 5, 10]);
 });
 
 it('rejects a negative margin', function (): void {
-    new BusinessSettings(interviewMarginColones: -1);
+    new BusinessSettings(bottleMarginColones: -1);
 })->throws(InvalidValueException::class, 'businesses.margin_negative');
 
 it('rejects empty decant sizes', function (): void {
