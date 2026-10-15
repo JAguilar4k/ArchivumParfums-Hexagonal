@@ -43,7 +43,7 @@ final readonly class EloquentUserRepository implements UserRepository
     /** Find the account by its normalised email. */
     public function findByEmail(Email $email): ?User
     {
-        $model = UserModel::query()->whereRaw('lower(email) = ?', [$email->value])->first();
+        $model = UserModel::query()->where('email', $email->value)->first();
 
         return $model === null ? null : $this->toDomain($model);
     }
