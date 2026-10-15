@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
     'name_invalid' => 'El nombre de la tienda es obligatorio y no puede superar los :max caracteres.',
-    'slug_invalid' => 'El slug solo puede tener minúsculas, dígitos y guiones.',
+    'slug_invalid' => 'El slug solo puede tener minúsculas, dígitos y guiones, y no puede superar los :max caracteres.',
     'timezone_invalid' => 'La zona horaria no es un identificador IANA válido.',
     'appointment_place_invalid' => 'El lugar de la cita no puede estar vacío ni superar los :max caracteres.',
     'margin_negative' => 'El margen no puede ser negativo.',

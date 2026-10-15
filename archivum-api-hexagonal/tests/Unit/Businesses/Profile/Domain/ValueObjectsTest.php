@@ -25,9 +25,12 @@ it('rejects an empty or oversized business name', function (string $name): void 
     'too long' => str_repeat('a', 101),
 ])->throws(InvalidValueException::class, 'businesses.name_invalid');
 
-it('accepts a valid slug', function (): void {
-    expect((new BusinessSlug('mi-tienda-2'))->value)->toBe('mi-tienda-2');
-});
+it('accepts a valid slug of up to 100 characters', function (string $slug): void {
+    expect((new BusinessSlug($slug))->value)->toBe($slug);
+})->with([
+    'letters, digits and hyphens' => 'mi-tienda-2',
+    '100 characters' => str_repeat('a', 100),
+]);
 
 it('rejects invalid slugs', function (string $slug): void {
     new BusinessSlug($slug);
@@ -37,6 +40,7 @@ it('rejects invalid slugs', function (string $slug): void {
     'underscores' => 'mi_tienda',
     'special characters' => 'tienda!',
     'empty slug' => '',
+    '101 characters' => str_repeat('a', 101),
 ])->throws(InvalidValueException::class, 'businesses.slug_invalid');
 
 it('accepts an IANA timezone', function (): void {
