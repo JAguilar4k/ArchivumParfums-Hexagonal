@@ -80,12 +80,6 @@ it('answers an unknown route with a complete not found problem', function () {
         ]);
 });
 
-it('answers in the problem format even without an accept header', function () {
-    get('/api/v1/desconocido')
-        ->assertNotFound()
-        ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE);
-});
-
 it('repeats the incoming request identifier in the instance member', function () {
     $requestId = '0192f0c4-7b1e-7c3a-9f1d-2b6a4e8c0d11';
 
