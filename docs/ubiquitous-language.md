@@ -112,6 +112,29 @@ El dominio y la base guardan el estado en inglés. La API lo muestra en español
 - Los estados del reembolso no están en la sección 6 de la especificación; esta tabla es su definición, y su `CHECK` sobre `refunds.status` llega con #89.
 - Las transiciones permitidas están en la sección 6 de [la especificación](especificacion.md#6-estados). Solo `held` y `confirmed` cuentan para la restricción de traslape de las citas.
 
+## Tipos de problema
+
+Todo error de la API responde `application/problem+json` (RFC 9457) con `type`, `title`, `status`, `detail` e `instance`. El `type` es la URL de la aplicación más `/problemas/<tipo>`, el `instance` repite el `X-Request-Id` como `urn:uuid:<id>` y el título y el detalle salen de `lang/es/problems.php`. El catálogo único está en `Src\Shared\Infrastructure\Http\Problem\ProblemType`.
+
+| Tipo | Estado | Cuándo |
+|---|---|---|
+| `solicitud-invalida` | 400 | La solicitud no se puede procesar tal como viene |
+| `no-autenticado` | 401 | Falta la sesión o el token no es válido |
+| `prohibido` | 403 | El rol de la sesión no permite la acción |
+| `no-encontrado` | 404 | La ruta o el recurso no existen, o el recurso es de otra tienda o de otro cliente |
+| `metodo-no-permitido` | 405 | La ruta no acepta el método HTTP |
+| `conflicto` | 409 | Una regla del dominio choca con el estado actual |
+| `datos-invalidos` | 422 | La validación falla; agrega el miembro `errores` con los mensajes por campo |
+| `demasiadas-solicitudes` | 429 | Se superó el límite de solicitudes |
+| `error-interno` | 500 | Un error inesperado, sin traza, clase, consulta SQL ni mensaje técnico |
+| `servicio-no-disponible` | 503 | El servicio no está disponible |
+
+**Regla de lo ajeno.** Lo ajeno y lo inexistente responden igual, para no revelar qué existe en otra tienda:
+
+- Un identificador de la **ruta** que pertenece a otra tienda o a otro cliente responde 404 `no-encontrado`, con el mismo `type`, `title` y `detail` que uno inexistente.
+- Un identificador del **cuerpo**, inexistente o ajeno, responde 422 `datos-invalidos` con el error en ese campo.
+- Un parámetro de la **consulta** que identifica un recurso (por ejemplo `servicio` y `persona` al consultar la disponibilidad) sigue la regla del cuerpo.
+
 ## Valores en la API
 
 | Valor | Forma | Ejemplo |
