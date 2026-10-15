@@ -107,11 +107,12 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/up` | Cualquiera | Estado de la aplicación, fuera del prefijo `/api/v1`. |
 | GET | `/api/v1` | Cualquiera | Nombre y versión de la API. |
 | POST | `/api/v1/sesiones` | Cualquiera | Ingresa con `correo` y `contrasena` y devuelve un token Bearer. |
+| DELETE | `/api/v1/sesiones/actual` | Con token | Cierra la sesión: revoca solo el token de la petición y responde 204. |
 | GET | `/api/v1/cuenta` | Con token | Nombre, correo y rol de la cuenta (`dueno`, `colaborador` o `cliente`) y, para el personal, su tienda. |
 
 Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial).
 
-El token de `POST /api/v1/sesiones` se muestra una sola vez y se envía en cada petición en el encabezado `Authorization: Bearer <token>`; cada ingreso crea un token nuevo. Un correo inexistente y una contraseña incorrecta reciben la misma respuesta 422 `datos-invalidos`, sin indicar cuál dato falló. Sin token, o con uno inválido, las rutas protegidas responden 401 `no-autenticado`. Para ingresar con una cuenta de los [datos de demostración](#datos-de-demostración):
+El token de `POST /api/v1/sesiones` se muestra una sola vez y se envía en cada petición en el encabezado `Authorization: Bearer <token>`; cada ingreso crea un token nuevo y `DELETE /api/v1/sesiones/actual` borra solo el de la petición, así las demás sesiones de la cuenta siguen abiertas. Un correo inexistente y una contraseña incorrecta reciben la misma respuesta 422 `datos-invalidos`, sin indicar cuál dato falló. Sin token, o con uno inválido, las rutas protegidas responden 401 `no-autenticado`. Para ingresar con una cuenta de los [datos de demostración](#datos-de-demostración):
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/sesiones \
