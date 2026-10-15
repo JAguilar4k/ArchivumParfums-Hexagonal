@@ -96,8 +96,8 @@ Toda tabla con `business_id` tiene la seguridad a nivel de fila habilitada y for
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers FORCE ROW LEVEL SECURITY;
 CREATE POLICY customers_business_isolation ON customers
-    USING (business_id = (SELECT fn_current_business()))
-    WITH CHECK (business_id = (SELECT fn_current_business()));
+    USING (business_id = NULLIF(current_setting('app.business_id', true), '')::uuid)
+    WITH CHECK (business_id = NULLIF(current_setting('app.business_id', true), '')::uuid);
 ```
 
 | Parte | Qué hace |
@@ -106,16 +106,14 @@ CREATE POLICY customers_business_isolation ON customers
 | `FORCE ROW LEVEL SECURITY` | Las aplica también al dueño, `archivum_owner` |
 | `USING` | Decide qué filas existentes se pueden leer, actualizar o borrar |
 | `WITH CHECK` | Valida cada fila insertada o modificada: no se puede crear ni mover una fila a otra tienda |
-| `fn_current_business()` | La función común de toda política: devuelve la tienda de la transacción |
-| `(SELECT ...)` | PostgreSQL evalúa la función una vez por consulta y no una vez por fila |
-
-`fn_current_business()` devuelve `NULLIF(current_setting('app.business_id', true), '')::uuid`. Con `true`, `current_setting` devuelve `NULL` en lugar de fallar si la variable no existe. Después de la primera transacción de una conexión la variable queda como texto vacío y no como `NULL`; sin el `NULLIF`, la conversión a `uuid` fallaría en lugar de no mostrar filas. Como `business_id = NULL` nunca es verdadero, sin tienda no se ve ninguna fila.
+| `current_setting('app.business_id', true)` | Lee la tienda de la transacción; con `true` devuelve `NULL` en lugar de fallar si la variable no existe |
+| `NULLIF(..., '')` | Convierte el texto vacío en `NULL`; `business_id = NULL` nunca es verdadero, así que sin tienda no se ve ninguna fila |
 
 Una escritura que no cumple `WITH CHECK` falla con el SQLSTATE `42501` y el mensaje `new row violates row-level security policy`. Un `UPDATE` o un `DELETE` sin tienda no falla: no encuentra filas.
 
 ### Cómo se fija la tienda
 
-La tienda vive en la variable `app.business_id` y se fija con `set_config('app.business_id', ?, true)`. El tercer argumento la limita a la transacción en curso: al confirmar o deshacer, desaparece, y una conexión reutilizada nunca hereda la tienda de la petición anterior.
+La tienda vive en la variable `app.business_id` y se fija con `set_config('app.business_id', ?, true)`. El tercer argumento la limita a la transacción en curso: al confirmar o deshacer, desaparece, y una conexión reutilizada nunca hereda la tienda de la petición anterior. Después de su primera transacción, la variable de esa conexión queda como texto vacío y no como `NULL`; por eso la política usa `NULLIF`.
 
 `BusinessTransaction`, en `Src\Shared\Infrastructure\Tenancy`, abre una transacción y fija la tienda antes de cualquier consulta. El middleware `business` la usa con el adaptador de `BusinessContext` de cada grupo de rutas:
 
@@ -161,7 +159,7 @@ PostgreSQL revisa las llaves únicas, las restricciones de exclusión y las llav
 ### Cómo agregar una tabla de una tienda
 
 1. La tabla lleva `business_id`, y sus llaves únicas y foráneas lo incluyen.
-2. Una migración habilita y fuerza la seguridad a nivel de fila y crea la política `<tabla>_business_isolation` con `business_id = (SELECT fn_current_business())` en `USING` y en `WITH CHECK`; su `down()` deshace los tres pasos.
+2. Una migración habilita y fuerza la seguridad a nivel de fila y crea la política `<tabla>_business_isolation` con `business_id = NULLIF(current_setting('app.business_id', true), '')::uuid` en `USING` y en `WITH CHECK`; su `down()` deshace los tres pasos.
 3. Las rutas que la usan pasan por el middleware `business` y sus pruebas fijan la tienda antes de preparar filas.
 4. La tabla se suma a `protectedTables()` y su modelo a `protectedModels()` en `RowLevelSecurityTest`, que revisa el catálogo de PostgreSQL y falla si una tabla con `business_id` no tiene la seguridad habilitada, forzada y con su política, o si falta en esas listas.
 
