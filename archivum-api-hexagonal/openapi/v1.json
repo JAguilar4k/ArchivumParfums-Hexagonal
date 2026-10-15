@@ -1,0 +1,439 @@
+{
+    "openapi": "3.1.2",
+    "info": {
+        "title": "ArchivumParfums \u00b7 API v1",
+        "version": "1.0.0",
+        "description": "API REST de ArchivumParfums: citas de prueba de olores, pedidos bajo pedido, decants y pagos para perfumer\u00edas. Las rutas y los atributos JSON est\u00e1n en espa\u00f1ol; los errores siguen el RFC 9457 (`application/problem+json`)."
+    },
+    "servers": [
+        {
+            "url": "/api/v1"
+        }
+    ],
+    "paths": {
+        "/": {
+            "get": {
+                "operationId": "index",
+                "summary": "Describe the API and the version being served",
+                "tags": [
+                    "ApiIndex"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "nombre": {
+                                            "type": "string"
+                                        },
+                                        "version": {
+                                            "type": "string",
+                                            "const": "v1"
+                                        }
+                                    },
+                                    "required": [
+                                        "nombre",
+                                        "version"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/cuenta": {
+            "get": {
+                "operationId": "accounts.current.show",
+                "summary": "Answer the data and the role of the account that owns the token",
+                "tags": [
+                    "CurrentAccount"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`CurrentAccount`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CurrentAccount"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/sesiones": {
+            "post": {
+                "operationId": "accounts.sessions.store",
+                "summary": "Sign in with email and password and answer a bearer token",
+                "tags": [
+                    "Session"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreSession"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`SessionToken`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/SessionToken"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/sesiones/actual": {
+            "delete": {
+                "operationId": "accounts.sessions.destroy",
+                "summary": "Sign out by revoking the token of the request",
+                "tags": [
+                    "Session"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "sanctum": {
+                "type": "http",
+                "description": "Token de Sanctum que entrega `POST /sesiones`. Se env\u00eda como `Authorization: Bearer <token>`.",
+                "scheme": "bearer"
+            }
+        },
+        "schemas": {
+            "CurrentAccount": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "correo": {
+                        "type": "string"
+                    },
+                    "rol": {
+                        "type": "string",
+                        "enum": [
+                            "dueno",
+                            "colaborador",
+                            "cliente"
+                        ]
+                    },
+                    "tienda": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            },
+                            "slug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre",
+                            "slug"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "correo",
+                    "rol",
+                    "tienda"
+                ],
+                "title": "CurrentAccount"
+            },
+            "Problema": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URL del tipo de problema."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Resumen corto del problema."
+                    },
+                    "status": {
+                        "type": "integer",
+                        "description": "Estado HTTP de la respuesta."
+                    },
+                    "detail": {
+                        "type": "string",
+                        "description": "Explicaci\u00f3n del problema para quien usa la API."
+                    },
+                    "instance": {
+                        "type": "string",
+                        "description": "Identifica esta ocurrencia: es el `X-Request-Id` como `urn:uuid:<id>`."
+                    }
+                },
+                "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance"
+                ],
+                "title": "Problema"
+            },
+            "ProblemaDeValidacion": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URL del tipo de problema."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Resumen corto del problema."
+                    },
+                    "status": {
+                        "type": "integer",
+                        "description": "Estado HTTP de la respuesta."
+                    },
+                    "detail": {
+                        "type": "string",
+                        "description": "Explicaci\u00f3n del problema para quien usa la API."
+                    },
+                    "instance": {
+                        "type": "string",
+                        "description": "Identifica esta ocurrencia: es el `X-Request-Id` como `urn:uuid:<id>`."
+                    },
+                    "errores": {
+                        "type": "object",
+                        "description": "Mensajes de error por campo.",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "errores"
+                ],
+                "title": "ProblemaDeValidacion"
+            },
+            "SessionToken": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "tipo": {
+                        "type": "string",
+                        "const": "Bearer"
+                    }
+                },
+                "required": [
+                    "token",
+                    "tipo"
+                ],
+                "title": "SessionToken"
+            },
+            "StoreSession": {
+                "type": "object",
+                "properties": {
+                    "correo": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "contrasena": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "correo",
+                    "contrasena"
+                ],
+                "title": "StoreSession"
+            }
+        },
+        "responses": {
+            "ValidationException": {
+                "description": "Validation error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Errors overview."
+                                },
+                                "errors": {
+                                    "type": "object",
+                                    "description": "A detailed description of each field that failed validation.",
+                                    "additionalProperties": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "required": [
+                                "message",
+                                "errors"
+                            ]
+                        }
+                    }
+                }
+            },
+            "AuthenticationException": {
+                "description": "Unauthenticated",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
