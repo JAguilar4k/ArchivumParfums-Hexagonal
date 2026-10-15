@@ -13,7 +13,7 @@ use Tests\Support\RefreshDatabaseAsOwner;
 
 pest()->use(RefreshDatabaseAsOwner::class);
 
-const ISOLATION_POLICY = '(business_id = ( SELECT fn_current_business() AS fn_current_business))';
+const POLICY_EXPRESSION = "(business_id = (NULLIF(current_setting('app.business_id'::text, true), ''::text))::uuid)";
 
 /**
  * Tables protected by row-level security, each with the columns of a valid new row besides its business and its
@@ -116,8 +116,8 @@ it('forces row-level security with its isolation policy on every table with busi
             ->and($isolation)->toEqual((object) [
                 'cmd' => 'ALL',
                 'roles' => '{public}',
-                'qual' => ISOLATION_POLICY,
-                'with_check' => ISOLATION_POLICY,
+                'qual' => POLICY_EXPRESSION,
+                'with_check' => POLICY_EXPRESSION,
             ], "The isolation policy of {$table} is missing or different.");
     }
 });
