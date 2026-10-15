@@ -13,4 +13,13 @@ return [
     'deposit_percent_invalid' => 'El porcentaje de depósito debe estar entre 0 y 100.',
     'rounding_invalid' => 'El redondeo de los decants debe ser mayor que cero.',
     'trial_price_negative' => 'El precio de la cita de prueba no puede ser negativo.',
+    'slug_already_in_use' => 'Ya existe una tienda con ese slug.',
+    'already_a_member' => 'Esa cuenta ya pertenece al personal de una tienda.',
+    'create_business_description' => 'Da de alta una tienda con los ajustes por defecto y la cuenta de su dueño.',
+    'name_prompt' => 'Nombre de la tienda',
+    'slug_prompt' => 'Slug de la tienda (minúsculas, dígitos y guiones)',
+    'owner_name_prompt' => 'Nombre del dueño',
+    'owner_email_prompt' => 'Correo del dueño',
+    'owner_password_prompt' => 'Contraseña del dueño',
+    'business_registered' => 'Tienda registrada: :name (:slug, :id). Dueño: :email.',
 ];
