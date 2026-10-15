@@ -13,13 +13,17 @@ it('trims the business name', function (): void {
     expect((new BusinessName('  Archivum  '))->value)->toBe('Archivum');
 });
 
-it('rejects an empty business name', function (): void {
-    new BusinessName('   ');
-})->throws(InvalidValueException::class, 'businesses.name_empty');
+it('accepts a business name of up to 100 characters', function (): void {
+    expect((new BusinessName(str_repeat('ñ', 100)))->value)->toBe(str_repeat('ñ', 100));
+});
 
-it('rejects a business name that is too long', function (): void {
-    new BusinessName(str_repeat('a', BusinessName::MAX_LENGTH + 1));
-})->throws(InvalidValueException::class, 'businesses.name_too_long');
+it('rejects an empty or oversized business name', function (string $name): void {
+    new BusinessName($name);
+})->with([
+    'empty' => '',
+    'blank' => '   ',
+    'too long' => str_repeat('a', 101),
+])->throws(InvalidValueException::class, 'businesses.name_invalid');
 
 it('accepts a valid slug', function (): void {
     expect((new BusinessSlug('mi-tienda-2'))->value)->toBe('mi-tienda-2');
