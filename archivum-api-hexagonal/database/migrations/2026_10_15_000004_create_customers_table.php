@@ -21,7 +21,7 @@ return new class extends Migration
             $table->timestampsTz();
 
             $table->unique(['business_id', 'user_id']);
-            $table->unique(['business_id', 'id']);
+            $table->unique(['id', 'business_id']);
         });
     }
 
