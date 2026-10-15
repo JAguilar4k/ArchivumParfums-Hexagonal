@@ -1,0 +1,36 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Src\Businesses\Members\Infrastructure\Persistence\Models;
+
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
+
+/**
+ * @property string $id
+ * @property string $business_id
+ * @property string $user_id
+ * @property string $role
+ * @property bool $attends_appointments
+ */
+#[Table('members')]
+#[Fillable(['id', 'business_id', 'user_id', 'role', 'attends_appointments'])]
+final class MemberModel extends Model
+{
+    use HasUuids;
+
+    /**
+     * Cast the boolean column to a native type.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'attends_appointments' => 'boolean',
+        ];
+    }
+}
