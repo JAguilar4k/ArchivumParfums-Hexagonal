@@ -103,7 +103,7 @@ it('starts settings with the deposit, rounding and free trial appointment defaul
 it('rejects a deposit percent outside 0 to 100', function (int $percent): void {
     new BusinessSettings(bottleDepositPercent: $percent);
 })->with([-1, 101])
-    ->throws(InvalidValueException::class, 'businesses.deposit_percent_invalid');
+    ->throws(InvalidValueException::class, 'businesses.deposit_percent_out_of_range');
 
 it('rejects a decant rounding that is not positive', function (int $rounding): void {
     new BusinessSettings(decantRoundingColones: $rounding);

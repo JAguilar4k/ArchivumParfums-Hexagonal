@@ -15,6 +15,10 @@ final readonly class BusinessSettings
 
     public const int DEFAULT_BOTTLE_DEPOSIT_PERCENT = 50;
 
+    public const int MIN_BOTTLE_DEPOSIT_PERCENT = 0;
+
+    public const int MAX_BOTTLE_DEPOSIT_PERCENT = 100;
+
     public const int DEFAULT_DECANT_ROUNDING_COLONES = 100;
 
     public const int DEFAULT_TRIAL_APPOINTMENT_PRICE_COLONES = 0;
@@ -43,8 +47,11 @@ final readonly class BusinessSettings
             }
         }
 
-        if ($bottleDepositPercent < 0 || $bottleDepositPercent > 100) {
-            throw new InvalidValueException('businesses.deposit_percent_invalid');
+        if ($bottleDepositPercent < self::MIN_BOTTLE_DEPOSIT_PERCENT || $bottleDepositPercent > self::MAX_BOTTLE_DEPOSIT_PERCENT) {
+            throw new InvalidValueException('businesses.deposit_percent_out_of_range', [
+                'min' => self::MIN_BOTTLE_DEPOSIT_PERCENT,
+                'max' => self::MAX_BOTTLE_DEPOSIT_PERCENT,
+            ]);
         }
 
         if ($decantRoundingColones <= 0) {
