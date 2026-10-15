@@ -44,3 +44,28 @@ it('reconstitutes a business keeping its stored settings', function (): void {
 it('cannot be built with new because the constructor is private', function (): void {
     expect((new ReflectionClass(Business::class))->getConstructor()?->isPrivate())->toBeTrue();
 });
+
+it('revises the profile and the settings but keeps its identity and its slug', function (): void {
+    $business = Business::create(
+        new BusinessId(BUSINESS_UUID),
+        new BusinessName('Archivum'),
+        new BusinessSlug('archivum'),
+        new BusinessTimezone('America/Costa_Rica'),
+        new AppointmentPlace(''),
+    );
+
+    $business->revise(
+        new BusinessName('Archivum Parfums'),
+        new BusinessTimezone('America/Panama'),
+        new AppointmentPlace('Café del parque central'),
+        $business->settings->with(['bottleMarginColones' => 6000]),
+    );
+
+    expect($business->id->value)->toBe(BUSINESS_UUID)
+        ->and($business->slug->value)->toBe('archivum')
+        ->and($business->name->value)->toBe('Archivum Parfums')
+        ->and($business->timezone->value)->toBe('America/Panama')
+        ->and($business->appointmentPlace->value)->toBe('Café del parque central')
+        ->and($business->settings->bottleMarginColones)->toBe(6000)
+        ->and($business->settings->decantSizesMl)->toBe([2, 5, 10]);
+});

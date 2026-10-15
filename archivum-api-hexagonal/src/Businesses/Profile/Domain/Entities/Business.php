@@ -11,15 +11,15 @@ use Src\Businesses\Profile\Domain\ValueObjects\BusinessSlug;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessTimezone;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 
-final readonly class Business
+final class Business
 {
     private function __construct(
-        public BusinessId $id,
-        public BusinessName $name,
-        public BusinessSlug $slug,
-        public BusinessTimezone $timezone,
-        public AppointmentPlace $appointmentPlace,
-        public BusinessSettings $settings,
+        public readonly BusinessId $id,
+        public private(set) BusinessName $name,
+        public readonly BusinessSlug $slug,
+        public private(set) BusinessTimezone $timezone,
+        public private(set) AppointmentPlace $appointmentPlace,
+        public private(set) BusinessSettings $settings,
     ) {}
 
     /** Register a new business with the default settings. */
@@ -43,5 +43,18 @@ final readonly class Business
         BusinessSettings $settings,
     ): self {
         return new self($id, $name, $slug, $timezone, $appointmentPlace, $settings);
+    }
+
+    /** Change the profile and the settings; the slug stays, so the public addresses of the business keep working. */
+    public function revise(
+        BusinessName $name,
+        BusinessTimezone $timezone,
+        AppointmentPlace $appointmentPlace,
+        BusinessSettings $settings,
+    ): void {
+        $this->name = $name;
+        $this->timezone = $timezone;
+        $this->appointmentPlace = $appointmentPlace;
+        $this->settings = $settings;
     }
 }
