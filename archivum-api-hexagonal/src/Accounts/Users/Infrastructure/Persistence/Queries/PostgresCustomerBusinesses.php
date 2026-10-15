@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Accounts\Users\Infrastructure\Persistence\Repositories;
+namespace Src\Accounts\Users\Infrastructure\Persistence\Queries;
 
 use Illuminate\Support\Facades\DB;
 use Src\Accounts\Users\Domain\Contracts\CustomerBusinesses;

@@ -28,7 +28,7 @@ psql -U postgres -v owner_password='…' -v app_password='…' -f database/roles
 
 Las contraseñas nunca se versionan: cada integrante las escribe en su propio `.env`, que tampoco se versiona.
 
-La primera migración, `0000_00_00_000000_grant_privileges_to_the_application_role`, otorga al rol de la aplicación, con `ALTER DEFAULT PRIVILEGES`, lectura y escritura sobre toda tabla y secuencia que el dueño cree después. Ninguna tabla nueva necesita un paso manual. `DatabaseRolesTest` comprueba que `archivum_app` no tiene atributos elevados, no es dueño de ningún objeto, puede leer y escribir en toda tabla y no puede crear, alterar ni borrar tablas.
+La primera migración, `0001_01_01_000000_grant_privileges_to_the_application_role`, otorga al rol de la aplicación, con `ALTER DEFAULT PRIVILEGES`, lectura y escritura sobre toda tabla y secuencia que el dueño cree después. Ninguna tabla nueva necesita un paso manual. `DatabaseRolesTest` comprueba que `archivum_app` no tiene atributos elevados, no es dueño de ningún objeto, puede leer y escribir en toda tabla y no puede crear, alterar ni borrar tablas.
 
 ### Por qué las migraciones corren con `--database=pgsql_admin`
 
@@ -163,7 +163,7 @@ PostgreSQL revisa las llaves únicas, las restricciones de exclusión y las llav
 1. La tabla lleva `business_id`, y sus llaves únicas y foráneas lo incluyen.
 2. Una migración habilita y fuerza la seguridad a nivel de fila y crea la política `<tabla>_business_isolation` con `business_id = (SELECT fn_current_business())` en `USING` y en `WITH CHECK`; su `down()` deshace los tres pasos.
 3. Las rutas que la usan pasan por el middleware `business` y sus pruebas fijan la tienda antes de preparar filas.
-4. La tabla se suma a `protectedTables()` en `RowLevelSecurityTest`, que revisa el catálogo de PostgreSQL y falla si una tabla con `business_id` no tiene la seguridad habilitada, forzada y con su política, o si falta en esa lista.
+4. La tabla se suma a `protectedTables()` y su modelo a `protectedModels()` en `RowLevelSecurityTest`, que revisa el catálogo de PostgreSQL y falla si una tabla con `business_id` no tiene la seguridad habilitada, forzada y con su política, o si falta en esas listas.
 
 ## Reparto de responsabilidades
 
