@@ -18,17 +18,17 @@ final readonly class Business
         public BusinessName $name,
         public BusinessSlug $slug,
         public BusinessTimezone $timezone,
-        public AppointmentPlace $appointmentPlace,
+        public ?AppointmentPlace $appointmentPlace,
         public BusinessSettings $settings,
     ) {}
 
-    /** Register a new business with the default settings. */
+    /** Register a new business with the default settings, with or without an appointment place. */
     public static function create(
         BusinessId $id,
         BusinessName $name,
         BusinessSlug $slug,
         BusinessTimezone $timezone,
-        AppointmentPlace $appointmentPlace,
+        ?AppointmentPlace $appointmentPlace,
     ): self {
         return new self($id, $name, $slug, $timezone, $appointmentPlace, BusinessSettings::defaults());
     }
@@ -39,7 +39,7 @@ final readonly class Business
         BusinessName $name,
         BusinessSlug $slug,
         BusinessTimezone $timezone,
-        AppointmentPlace $appointmentPlace,
+        ?AppointmentPlace $appointmentPlace,
         BusinessSettings $settings,
     ): self {
         return new self($id, $name, $slug, $timezone, $appointmentPlace, $settings);

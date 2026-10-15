@@ -23,6 +23,7 @@ it('creates a business with the default settings', function (): void {
 
     expect($business->id->value)->toBe(BUSINESS_UUID)
         ->and($business->name->value)->toBe('Archivum')
+        ->and($business->appointmentPlace?->value)->toBe('Escazú, frente al parque')
         ->and($business->settings->interviewMarginColones)->toBe(5000)
         ->and($business->settings->decantSizesMl)->toBe([2, 5, 10]);
 });
@@ -33,11 +34,12 @@ it('reconstitutes a business keeping its stored settings', function (): void {
         new BusinessName('Archivum'),
         new BusinessSlug('archivum'),
         new BusinessTimezone('America/Costa_Rica'),
-        new AppointmentPlace(''),
+        null,
         new BusinessSettings(interviewMarginColones: 8000, decantSizesMl: [3]),
     );
 
-    expect($business->settings->interviewMarginColones)->toBe(8000)
+    expect($business->appointmentPlace)->toBeNull()
+        ->and($business->settings->interviewMarginColones)->toBe(8000)
         ->and($business->settings->decantSizesMl)->toBe([3]);
 });
 

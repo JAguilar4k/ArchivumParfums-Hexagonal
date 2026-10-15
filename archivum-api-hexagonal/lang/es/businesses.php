@@ -7,7 +7,7 @@ return [
     'name_too_long' => 'El nombre de la tienda no puede superar los :max caracteres.',
     'slug_invalid' => 'El slug solo puede tener minúsculas, dígitos y guiones.',
     'timezone_invalid' => 'La zona horaria no es un identificador IANA válido.',
-    'place_too_long' => 'El lugar de la cita no puede superar los :max caracteres.',
+    'appointment_place_invalid' => 'El lugar de la cita no puede estar vacío ni superar los :max caracteres.',
     'margin_negative' => 'El margen no puede ser negativo.',
     'decant_sizes_invalid' => 'Los tamaños de decant deben ser una lista de números mayores que cero.',
     'deposit_percent_invalid' => 'El porcentaje de depósito debe estar entre 0 y 100.',

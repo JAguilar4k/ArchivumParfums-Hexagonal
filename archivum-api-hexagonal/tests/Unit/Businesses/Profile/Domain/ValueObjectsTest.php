@@ -49,13 +49,17 @@ it('rejects a timezone that is not IANA', function (string $timezone): void {
     'empty timezone' => '',
 ])->throws(InvalidValueException::class, 'businesses.timezone_invalid');
 
-it('accepts an empty appointment place', function (): void {
-    expect((new AppointmentPlace('  '))->value)->toBe('');
+it('trims the appointment place', function (): void {
+    expect((new AppointmentPlace('  Escazú, frente al parque  '))->value)->toBe('Escazú, frente al parque');
 });
 
-it('rejects an appointment place that is too long', function (): void {
-    new AppointmentPlace(str_repeat('a', AppointmentPlace::MAX_LENGTH + 1));
-})->throws(InvalidValueException::class, 'businesses.place_too_long');
+it('rejects an empty or oversized appointment place', function (string $place): void {
+    new AppointmentPlace($place);
+})->with([
+    'empty' => '',
+    'blank' => '   ',
+    'too long' => str_repeat('a', 256),
+])->throws(InvalidValueException::class, 'businesses.appointment_place_invalid');
 
 it('starts settings with the specification defaults', function (): void {
     $settings = BusinessSettings::defaults();
