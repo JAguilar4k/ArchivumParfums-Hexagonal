@@ -101,3 +101,63 @@ it('rejects a decant rounding that is not positive', function (int $rounding): v
 it('rejects a negative trial appointment price', function (): void {
     new BusinessSettings(trialAppointmentPriceColones: -1);
 })->throws(InvalidValueException::class, 'businesses.trial_price_negative');
+
+it('rejects repeated decant sizes', function (): void {
+    new BusinessSettings(decantSizesMl: [5, 5]);
+})->throws(InvalidValueException::class, 'businesses.decant_sizes_invalid');
+
+it('starts settings with the booking, waitlist, payment and reminder defaults', function (): void {
+    $settings = BusinessSettings::defaults();
+
+    expect($settings->minimumNoticeHours)->toBe(12)
+        ->and($settings->bookingHorizonDays)->toBe(30)
+        ->and($settings->appointmentChangeCutoffHours)->toBe(2)
+        ->and($settings->waitlistHoldHours)->toBe(2)
+        ->and($settings->unpaidExpiryMinutes)->toBe(30)
+        ->and($settings->reminderHours)->toBe([24, 2])
+        ->and($settings->defaultGateway)->toBe('onvo')
+        ->and($settings->usdExchangeRate)->toBeNull();
+});
+
+it('rejects a negative term', function (string $setting): void {
+    new BusinessSettings(...[$setting => -1]);
+})->with([
+    'minimumNoticeHours',
+    'bookingHorizonDays',
+    'appointmentChangeCutoffHours',
+    'waitlistHoldHours',
+    'unpaidExpiryMinutes',
+])->throws(InvalidValueException::class, 'businesses.term_negative');
+
+it('rejects a negative reminder', function (): void {
+    new BusinessSettings(reminderHours: [24, -2]);
+})->throws(InvalidValueException::class, 'businesses.term_negative');
+
+it('rejects a booking horizon shorter than the minimum notice', function (): void {
+    new BusinessSettings(minimumNoticeHours: 49, bookingHorizonDays: 2);
+})->throws(InvalidValueException::class, 'businesses.horizon_before_notice');
+
+it('accepts a booking horizon as long as the minimum notice', function (): void {
+    expect((new BusinessSettings(minimumNoticeHours: 48, bookingHorizonDays: 2))->bookingHorizonDays)->toBe(2);
+});
+
+it('rejects a gateway other than onvo or paypal', function (): void {
+    new BusinessSettings(defaultGateway: 'stripe');
+})->throws(InvalidValueException::class, 'businesses.gateway_invalid');
+
+it('rejects an exchange rate that is not positive', function (float $rate): void {
+    new BusinessSettings(usdExchangeRate: $rate);
+})->with([0.0, -505.5])->throws(InvalidValueException::class, 'businesses.exchange_rate_invalid');
+
+it('combines the changed settings with the current ones and validates the result', function (): void {
+    $settings = (new BusinessSettings(bottleMarginColones: 8000))->with(['minimumNoticeHours' => 24, 'defaultGateway' => 'paypal']);
+
+    expect($settings->bottleMarginColones)->toBe(8000)
+        ->and($settings->minimumNoticeHours)->toBe(24)
+        ->and($settings->defaultGateway)->toBe('paypal')
+        ->and($settings->bookingHorizonDays)->toBe(30);
+});
+
+it('validates the combination, not only the changed setting', function (): void {
+    (new BusinessSettings(bookingHorizonDays: 1))->with(['minimumNoticeHours' => 25]);
+})->throws(InvalidValueException::class, 'businesses.horizon_before_notice');
