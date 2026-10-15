@@ -82,6 +82,24 @@ La aplicación se conecta con `archivum_app`, que no puede cambiar el esquema; l
 
 Antes de abrir un pull request deben pasar `composer lint`, `composer analyse` y `composer test`. Si cambió un endpoint, hay que regenerar el contrato con `composer openapi` y versionarlo. La integración continua ejecuta los mismos pasos, más `composer audit`, en cada pull request.
 
+## Pruebas
+
+Las pruebas usan Pest y se ordenan en tres carpetas de `tests/`:
+
+| Carpeta | Qué prueba | Cómo |
+|---|---|---|
+| `tests/Unit` | El dominio y los casos de uso | Sin arrancar Laravel, con los repositorios en memoria de `tests/Support`. Una prueba de arquitectura falla si un archivo de esta carpeta importa Laravel o código de infraestructura. |
+| `tests/Feature` | Los endpoints y los adaptadores | Contra PostgreSQL con el rol `archivum_app`. `RefreshDatabaseAsOwner` migra con `archivum_owner` y envuelve cada prueba en una transacción que se deshace al terminar. |
+| `tests/Architecture` | Las reglas de la arquitectura | Con `arch()` de Pest y leyendo los archivos del proyecto. |
+
+Ayudas para las pruebas de `tests/Feature`:
+
+- `actingAsOwner()`, `actingAsStaff()` y `actingAsCustomer()` crean una tienda con su dueño, un colaborador y un cliente (`StaffedBusiness`), inician sesión como esa persona y devuelven la tienda. Si reciben una tienda, la reutilizan. `actingAsRole('dueno')` hace lo mismo con el nombre del rol que usa la API; con `visitante` no inicia sesión.
+- Los datasets de `tests/Datasets` recorren los roles de la matriz de permisos (`roles`) y el personal de otra tienda (`staff of another business`).
+- `inParallel($tablas, $operacion1, $operacion2)` ejecuta cada operación en su propio proceso, con su propia conexión y fuera de la transacción de la prueba, todas en el mismo instante, y devuelve sus resultados en orden. Lo que las operaciones comparten se inserta antes con `DB::connection('pgsql_admin')`, y las tablas de `$tablas` se vacían al terminar la prueba. Cada operación se escribe en su propia línea y no usa `$this`. Es la ayuda de las pruebas de concurrencia; el ejemplo está en `tests/Feature/Shared/InParallelTest.php`.
+
+Cada prueba que demuestra una regla de la sección 5 de la [especificación](../docs/especificacion.md) la nombra al inicio de su descripción, por ejemplo `it('R14: ...')`, de modo que una búsqueda de `R14:` en `tests/` encuentra sus pruebas. `tests/Architecture/BusinessRulesTest.php` falla si una regla no aparece en ninguna prueba ni en la lista de pendientes `tests/Architecture/pending-rules.php`, o si sigue en esa lista cuando una prueba ya la nombra. El issue que prueba una regla la quita de la lista en el mismo pull request.
+
 ## Dar de alta una tienda
 
 La API no ofrece rutas para crear tiendas: se dan de alta desde la consola. Un solo comando crea la tienda, con los ajustes por defecto de la sección 10 de la [especificación](../docs/especificacion.md#10-valores-por-defecto), y la cuenta de su dueño; si alguno de los dos pasos falla, no queda ninguno.
