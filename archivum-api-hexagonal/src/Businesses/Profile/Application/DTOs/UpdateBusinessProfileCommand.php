@@ -14,18 +14,7 @@ final readonly class UpdateBusinessProfileCommand
      *     name?: string,
      *     appointment_place?: string,
      *     timezone?: string,
-     *     settings?: array{
-     *         bottleMarginColones?: int,
-     *         decantSizesMl?: list<int>,
-     *         minimumNoticeHours?: int,
-     *         bookingHorizonDays?: int,
-     *         appointmentChangeCutoffHours?: int,
-     *         waitlistHoldHours?: int,
-     *         unpaidExpiryMinutes?: int,
-     *         reminderHours?: list<int>,
-     *         defaultGateway?: string,
-     *         usdExchangeRate?: float|null,
-     *     },
+     *     settings?: array<string, int|float|string|list<int>|null>,
      * } $changes
      */
     public function __construct(
