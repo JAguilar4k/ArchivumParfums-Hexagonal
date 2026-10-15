@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Src\Businesses\Members\Domain\Member;
+use Src\Businesses\Members\Domain\Entities\Member;
 use Src\Businesses\Members\Domain\ValueObjects\MemberRole;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\UserId;

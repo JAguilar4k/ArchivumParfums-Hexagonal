@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Src\Businesses\Profile\Domain\Business;
+use Src\Businesses\Profile\Domain\Entities\Business;
 use Src\Businesses\Profile\Domain\ValueObjects\AppointmentPlace;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessName;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessSettings;

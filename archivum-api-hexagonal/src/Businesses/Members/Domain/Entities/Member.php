@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Businesses\Members\Domain;
+namespace Src\Businesses\Members\Domain\Entities;
 
 use Src\Businesses\Members\Domain\ValueObjects\MemberRole;
 use Src\Shared\Domain\ValueObjects\BusinessId;

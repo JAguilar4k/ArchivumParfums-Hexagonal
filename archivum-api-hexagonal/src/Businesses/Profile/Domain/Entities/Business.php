@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Businesses\Profile\Domain;
+namespace Src\Businesses\Profile\Domain\Entities;
 
 use Src\Businesses\Profile\Domain\ValueObjects\AppointmentPlace;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessName;
