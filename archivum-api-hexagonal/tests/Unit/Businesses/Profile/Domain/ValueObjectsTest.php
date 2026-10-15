@@ -61,6 +61,10 @@ it('trims the appointment place', function (): void {
     expect((new AppointmentPlace('  Escazú, frente al parque  '))->value)->toBe('Escazú, frente al parque');
 });
 
+it('accepts an appointment place of up to 255 characters', function (): void {
+    expect((new AppointmentPlace(str_repeat('ñ', 255)))->value)->toBe(str_repeat('ñ', 255));
+});
+
 it('rejects an empty or oversized appointment place', function (string $place): void {
     new AppointmentPlace($place);
 })->with([
@@ -74,6 +78,16 @@ it('starts settings with the specification defaults', function (): void {
 
     expect($settings->interviewMarginColones)->toBe(5000)
         ->and($settings->decantSizesMl)->toBe([2, 5, 10]);
+});
+
+it('accepts the edges of each setting', function (): void {
+    $lowest = new BusinessSettings(interviewMarginColones: 0, bottleDepositPercent: 0, decantRoundingColones: 1);
+    $highest = new BusinessSettings(bottleDepositPercent: 100);
+
+    expect($lowest->interviewMarginColones)->toBe(0)
+        ->and($lowest->bottleDepositPercent)->toBe(0)
+        ->and($lowest->decantRoundingColones)->toBe(1)
+        ->and($highest->bottleDepositPercent)->toBe(100);
 });
 
 it('rejects a negative margin', function (): void {
