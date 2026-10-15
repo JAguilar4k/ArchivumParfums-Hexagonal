@@ -21,31 +21,16 @@ return new class extends Migration
      */
     private const array READ_BY_THE_DEFINER_FUNCTIONS = ['members', 'customers'];
 
-    /**
-     * Create fn_current_business(), the common function of every policy, and limit every role, the table owner
-     * included, to the rows of the business pinned in the transaction.
-     */
+    /** Limit every role, the table owner included, to the rows of the business pinned in the transaction. */
     public function up(): void
     {
-        DB::statement('DROP FUNCTION IF EXISTS fn_current_business()');
-        DB::unprepared(<<<'SQL'
-            CREATE FUNCTION fn_current_business()
-                RETURNS uuid
-                LANGUAGE sql
-                STABLE
-                SET search_path = ''
-            AS $$
-                SELECT NULLIF(pg_catalog.current_setting('app.business_id', true), '')::uuid
-            $$;
-            SQL);
-
         foreach (self::TABLES as $table) {
             DB::statement("ALTER TABLE {$table} ENABLE ROW LEVEL SECURITY");
             DB::statement("ALTER TABLE {$table} FORCE ROW LEVEL SECURITY");
             DB::statement(<<<SQL
                 CREATE POLICY {$table}_business_isolation ON {$table}
-                    USING (business_id = (SELECT fn_current_business()))
-                    WITH CHECK (business_id = (SELECT fn_current_business()))
+                    USING (business_id = NULLIF(current_setting('app.business_id', true), '')::uuid)
+                    WITH CHECK (business_id = NULLIF(current_setting('app.business_id', true), '')::uuid)
                 SQL);
         }
 
@@ -56,7 +41,7 @@ return new class extends Migration
         }
     }
 
-    /** Drop the policies, turn row-level security off again and drop the common function. */
+    /** Drop the policies and turn row-level security off again. */
     public function down(): void
     {
         foreach (self::READ_BY_THE_DEFINER_FUNCTIONS as $table) {
@@ -68,8 +53,6 @@ return new class extends Migration
             DB::statement("ALTER TABLE {$table} NO FORCE ROW LEVEL SECURITY");
             DB::statement("ALTER TABLE {$table} DISABLE ROW LEVEL SECURITY");
         }
-
-        DB::statement('DROP FUNCTION fn_current_business()');
     }
 
     /** Quoted name of the role that owns the schema and runs the migrations. */

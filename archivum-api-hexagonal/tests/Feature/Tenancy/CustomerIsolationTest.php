@@ -57,7 +57,7 @@ beforeEach(function () {
                 ->map(fn (object $row): array => [
                     'id' => $row->id,
                     'tienda' => $row->business_id,
-                    'tienda_fijada' => DB::scalar('select fn_current_business()'),
+                    'tienda_fijada' => DB::scalar("select current_setting('app.business_id', true)"),
                 ])
                 ->all()),
             1,
@@ -65,7 +65,7 @@ beforeEach(function () {
         Route::get('{cliente}', fn (BusinessContext $context, string $cliente) => ['data' => [
             'id' => DB::table('customers')->where('business_id', $context->current()->value)->where('id', $cliente)->value('id'),
             'tienda' => $context->current()->value,
-            'tienda_fijada' => DB::scalar('select fn_current_business()'),
+            'tienda_fijada' => DB::scalar("select current_setting('app.business_id', true)"),
         ]])->middleware('business:account');
     });
 });
