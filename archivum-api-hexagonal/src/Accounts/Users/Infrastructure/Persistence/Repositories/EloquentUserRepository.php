@@ -48,6 +48,14 @@ final readonly class EloquentUserRepository implements UserRepository
         return $model === null ? null : $this->toDomain($model);
     }
 
+    /** Find an account by its identity. */
+    public function find(UserId $id): ?User
+    {
+        $model = UserModel::query()->find($id->value);
+
+        return $model === null ? null : $this->toDomain($model);
+    }
+
     /** Rebuild the aggregate from its stored state. */
     private function toDomain(UserModel $model): User
     {

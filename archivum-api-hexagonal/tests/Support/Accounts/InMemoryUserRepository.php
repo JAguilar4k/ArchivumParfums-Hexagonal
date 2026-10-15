@@ -41,6 +41,12 @@ final class InMemoryUserRepository implements UserRepository
         return array_find($this->users, fn (User $user): bool => $user->email->value === $email->value);
     }
 
+    /** Find an account by its identity. */
+    public function find(UserId $id): ?User
+    {
+        return $this->users[$id->value] ?? null;
+    }
+
     /** Count the stored accounts. */
     public function count(): int
     {
