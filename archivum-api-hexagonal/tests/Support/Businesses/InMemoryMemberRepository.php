@@ -1,0 +1,44 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Support\Businesses;
+
+use Src\Businesses\Members\Domain\Contracts\MemberRepository;
+use Src\Businesses\Members\Domain\Entities\Member;
+use Src\Businesses\Members\Domain\Exceptions\AlreadyAMemberException;
+use Src\Shared\Domain\ValueObjects\UserId;
+
+final class InMemoryMemberRepository implements MemberRepository
+{
+    /** @var array<string, Member> */
+    private array $members = [];
+
+    /** Store the member enforcing one business per account. */
+    public function save(Member $member): void
+    {
+        $existing = $this->members[$member->userId->value] ?? null;
+
+        if ($existing !== null && ! $existing->businessId->equals($member->businessId)) {
+            throw AlreadyAMemberException::create();
+        }
+
+        $this->members[$member->userId->value] = $member;
+    }
+
+    /** Find the membership of an account. */
+    public function findByUser(UserId $userId): ?Member
+    {
+        return $this->members[$userId->value] ?? null;
+    }
+
+    /**
+     * List the stored members.
+     *
+     * @return list<Member>
+     */
+    public function all(): array
+    {
+        return array_values($this->members);
+    }
+}
