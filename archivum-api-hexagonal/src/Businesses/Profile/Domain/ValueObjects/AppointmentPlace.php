@@ -8,7 +8,7 @@ use Src\Shared\Domain\Exceptions\InvalidValueException;
 
 final readonly class AppointmentPlace
 {
-    public const int MAX_LENGTH = 225;
+    public const int MAX_LENGTH = 255;
 
     public string $value;
 
