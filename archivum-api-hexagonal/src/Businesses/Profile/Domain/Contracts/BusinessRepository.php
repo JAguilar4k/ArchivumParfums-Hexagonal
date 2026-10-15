@@ -6,6 +6,7 @@ namespace Src\Businesses\Profile\Domain\Contracts;
 
 use Src\Businesses\Profile\Domain\Entities\Business;
 use Src\Businesses\Profile\Domain\Exceptions\SlugAlreadyInUseException;
+use Src\Businesses\Profile\Domain\ValueObjects\BusinessSlug;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 
 interface BusinessRepository
@@ -22,4 +23,7 @@ interface BusinessRepository
 
     /** Find a business by its identity. */
     public function find(BusinessId $id): ?Business;
+
+    /** Find a business by the slug of its public addresses. */
+    public function findBySlug(BusinessSlug $slug): ?Business;
 }

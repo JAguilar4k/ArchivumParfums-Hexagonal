@@ -7,6 +7,7 @@ namespace Tests\Support\Businesses;
 use Src\Businesses\Profile\Domain\Contracts\BusinessRepository;
 use Src\Businesses\Profile\Domain\Entities\Business;
 use Src\Businesses\Profile\Domain\Exceptions\SlugAlreadyInUseException;
+use Src\Businesses\Profile\Domain\ValueObjects\BusinessSlug;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 
 final class InMemoryBusinessRepository implements BusinessRepository
@@ -38,6 +39,12 @@ final class InMemoryBusinessRepository implements BusinessRepository
     public function find(BusinessId $id): ?Business
     {
         return $this->businesses[$id->value] ?? null;
+    }
+
+    /** Find a business by its slug. */
+    public function findBySlug(BusinessSlug $slug): ?Business
+    {
+        return array_find($this->businesses, fn (Business $business): bool => $business->slug->value === $slug->value);
     }
 
     /**
