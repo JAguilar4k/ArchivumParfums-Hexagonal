@@ -109,6 +109,8 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | POST | `/api/v1/sesiones` | Cualquiera | Ingresa con `correo` y `contrasena` y devuelve un token Bearer. |
 | DELETE | `/api/v1/sesiones/actual` | Con token | Cierra la sesión: revoca solo el token de la petición y responde 204. |
 | GET | `/api/v1/cuenta` | Con token | Nombre, correo y rol de la cuenta (`dueno`, `colaborador` o `cliente`) y, para el personal, su tienda. |
+| GET | `/api/v1/panel/tienda` | Dueños | Perfil y ajustes de la tienda de la sesión: nombre, slug, lugar de la cita, zona horaria y ajustes. |
+| PATCH | `/api/v1/panel/tienda` | Dueños | Cambia solo los campos enviados del perfil y de los ajustes. El slug no cambia. |
 
 Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial).
 
@@ -121,6 +123,23 @@ curl -X POST http://localhost:8000/api/v1/sesiones \
 ```
 
 Mientras llegan las abilities y las policies de #102 y #104, dos middleware separan los grupos de rutas por rol. `role:owner` deja pasar solo a los dueños de la tienda: la configuración (perfil y ajustes, servicios, horarios, bloqueos, perfumes, botellas y proveedores) y las citas que se reservan, reprograman o cancelan en nombre de un cliente. `role:customer` deja pasar solo a las cuentas sin fila en `members`: las reservas, los pedidos y las rutas de `/api/v1/cuenta/...`. Cualquier otra cuenta recibe 403 `prohibido` antes de que la petición escriba algo, y `GET /api/v1/cuenta` sigue abierta a los tres roles. `tests/Feature/Accounts/Sessions/RoleGroupsTest.php` falla si una ruta de esos grupos no lleva su middleware, y cada endpoint nuevo de los dos grupos suma su fila a su dataset.
+
+La tienda de `/api/v1/panel/tienda` siempre es la de la sesión: un `business_id` o un slug en el cuerpo se ignoran. `PATCH` acepta `nombre`, `lugar_cita` (`null` lo deja sin configurar), `zona_horaria` (identificador IANA) y, dentro de `ajustes`, cualquiera de estos campos; los que no se envían conservan su valor:
+
+| Ajuste | Qué define | Por defecto |
+|---|---|---|
+| `margen_botella` | Margen en colones que se suma al costo del proveedor de cada presentación (R1) | 5000 |
+| `tamanos_decant_ml` | Tamaños de decant que se venden, en ml, sin repetir | `[2, 5, 10]` |
+| `anticipacion_minima_horas` | Horas mínimas entre la reserva y la cita | 12 |
+| `horizonte_reserva_dias` | Días hacia adelante en que se puede reservar; no puede quedar por debajo de la anticipación | 30 |
+| `plazo_cambio_cita_horas` | Horas antes de la cita hasta las que se reprograma o cancela | 2 |
+| `apartado_lista_espera_horas` | Horas que se aparta un cupo liberado para la lista de espera | 2 |
+| `vencimiento_sin_pago_minutos` | Minutos tras los que vence un pedido o paquete sin pagar | 30 |
+| `recordatorios_horas` | Horas antes de la cita en que sale cada recordatorio | `[24, 2]` |
+| `pasarela_por_defecto` | `onvo` o `paypal` | `onvo` |
+| `tipo_cambio_usd` | Colones por dólar para cobrar con PayPal, mayor que cero | `null` |
+
+La base guarda en `businesses.settings` solo los ajustes que difieren de los valores por defecto, así una tienda sigue un cambio posterior de un valor por defecto.
 
 ## Datos de demostración
 
