@@ -7,6 +7,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 pest()->use(RefreshDatabaseAsOwner::class);
@@ -34,9 +35,17 @@ function insertUserAccount(string $email): string
     ]);
 }
 
+/** Make the next queries reach only the rows of one business, as every request does, before writing its rows. */
+function pinBusiness(string $businessId): void
+{
+    app(BusinessTransaction::class)->scope($businessId);
+}
+
 /** Link an account to a business as staff and return the member identifier. */
 function insertMember(string $businessId, string $userId, string $role = 'staff'): string
 {
+    pinBusiness($businessId);
+
     return (string) DB::table('members')->insertGetId([
         'business_id' => $businessId,
         'user_id' => $userId,
@@ -49,6 +58,8 @@ function insertMember(string $businessId, string $userId, string $role = 'staff'
 /** Give an account a customer record in a business and return its identifier. */
 function insertCustomer(string $businessId, string $userId): string
 {
+    pinBusiness($businessId);
+
     return (string) DB::table('customers')->insertGetId([
         'business_id' => $businessId,
         'user_id' => $userId,
@@ -132,10 +143,17 @@ it('rejects a second business for the same staff member', function () {
 it('lets one account be a customer of several businesses', function () {
     $userId = insertUserAccount('cliente@archivum.test');
 
-    insertCustomer(insertBusiness('archivum'), $userId);
-    insertCustomer(insertBusiness('otra-tienda'), $userId);
+    $businesses = [insertBusiness('archivum'), insertBusiness('otra-tienda')];
 
-    expect(DB::table('customers')->where('user_id', $userId)->count())->toBe(2);
+    foreach ($businesses as $businessId) {
+        insertCustomer($businessId, $userId);
+    }
+
+    foreach ($businesses as $businessId) {
+        pinBusiness($businessId);
+
+        expect(DB::table('customers')->where('user_id', $userId)->count())->toBe(1);
+    }
 });
 
 it('rejects a second customer record for the same account in a business', function () {
@@ -161,8 +179,11 @@ it('keeps the phone of a customer as text for its encrypted value', function () 
 });
 
 it('rejects members and customers of a business that does not exist', function (string $table) {
+    $businessId = (string) Str::uuid7();
+    pinBusiness($businessId);
+
     DB::table($table)->insert([
-        'business_id' => (string) Str::uuid7(),
+        'business_id' => $businessId,
         'user_id' => insertUserAccount('persona@archivum.test'),
         'created_at' => now(),
         'updated_at' => now(),

@@ -6,6 +6,7 @@ use Database\Seeders\DemoBusinessesSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
+use Tests\Support\Businesses\TwoBusinesses;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 use function Pest\Laravel\assertDatabaseCount;
@@ -25,6 +26,8 @@ beforeEach(function () {
  */
 function demoStaff(string $slug): array
 {
+    TwoBusinesses::scopeQueriesTo(TwoBusinesses::idOf($slug));
+
     return DB::table('members')
         ->join('businesses', 'businesses.id', '=', 'members.business_id')
         ->join('users', 'users.id', '=', 'members.user_id')
@@ -42,6 +45,8 @@ function demoStaff(string $slug): array
  */
 function demoCustomers(string $slug): array
 {
+    TwoBusinesses::scopeQueriesTo(TwoBusinesses::idOf($slug));
+
     return DB::table('customers')
         ->join('businesses', 'businesses.id', '=', 'customers.business_id')
         ->join('users', 'users.id', '=', 'customers.user_id')
@@ -93,8 +98,10 @@ it('uses only fictitious emails and test phones', function () {
         expect($email)->toEndWith('.test');
     }
 
-    foreach (DB::table('customers')->pluck('phone') as $phone) {
-        expect($phone)->toStartWith('+5068888000');
+    foreach ([TwoBusinesses::FIRST, TwoBusinesses::SECOND] as $slug) {
+        foreach (demoCustomers($slug) as $phone) {
+            expect($phone)->toStartWith('+5068888000');
+        }
     }
 });
 
@@ -120,8 +127,12 @@ it('keeps the same rows when it is seeded again', function () {
 
     assertDatabaseCount('businesses', 2);
     assertDatabaseCount('users', 8);
-    assertDatabaseCount('members', 4);
-    assertDatabaseCount('customers', 5);
+
+    foreach ([TwoBusinesses::FIRST => [3, 3], TwoBusinesses::SECOND => [1, 2]] as $slug => [$members, $customers]) {
+        TwoBusinesses::scopeQueriesTo(TwoBusinesses::idOf($slug));
+        assertDatabaseCount('members', $members);
+        assertDatabaseCount('customers', $customers);
+    }
 });
 
 it('refuses to seed without a demo password', function () {
