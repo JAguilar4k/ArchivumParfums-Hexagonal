@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
+use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Tests\Support\Businesses\TwoBusinesses;
 use Tests\Support\RefreshDatabaseAsOwner;
 
@@ -24,6 +27,19 @@ function protectedTables(): array
     return [
         'members' => ['members', ['role' => 'staff']],
         'customers' => ['customers', []],
+    ];
+}
+
+/**
+ * Eloquent models of the protected tables, as the repositories read them.
+ *
+ * @return array<string, array{class-string<Model>}>
+ */
+function protectedModels(): array
+{
+    return [
+        'members' => [MemberModel::class],
+        'customers' => [CustomerModel::class],
     ];
 }
 
@@ -78,8 +94,11 @@ it('forces row-level security with its isolation policy on every table with busi
     ), 'table_name');
     $protected = array_keys(protectedTables());
     sort($protected);
+    $modelled = array_keys(protectedModels());
+    sort($modelled);
 
-    expect($tables)->toBe($protected);
+    expect($tables)->toBe($protected)
+        ->and($modelled)->toBe($protected);
 
     foreach ($tables as $table) {
         $security = DB::selectOne(
@@ -129,14 +148,14 @@ it('shows and changes no row when the transaction has no business', function (st
     expect(DB::table($table)->count())->toBeGreaterThan(0);
 })->with(protectedTables());
 
-it('returns only the rows of the business of the transaction to a query without filter', function (string $table) {
+it('returns only the rows of the business of the transaction to an eloquent query without filter', function (string $model) {
     foreach ([TwoBusinesses::FIRST, TwoBusinesses::SECOND] as $slug) {
         $businessId = TwoBusinesses::idOf($slug);
         TwoBusinesses::scopeQueriesTo($businessId);
 
-        expect(DB::table($table)->distinct()->pluck('business_id')->all())->toBe([$businessId]);
+        expect($model::query()->distinct()->pluck('business_id')->all())->toBe([$businessId]);
     }
-})->with(protectedTables());
+})->with(protectedModels());
 
 it('refuses a new row for another business', function (string $table, array $row) {
     TwoBusinesses::scopeQueriesTo(TwoBusinesses::idOf(TwoBusinesses::FIRST));
