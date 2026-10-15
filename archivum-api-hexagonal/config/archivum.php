@@ -17,4 +17,18 @@ return [
 
     'demo_password' => env('ARCHIVUM_DEMO_PASSWORD'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Artificial intelligence
+    |--------------------------------------------------------------------------
+    |
+    | Seconds the perfume recommendation waits for the AI provider before it
+    | answers with the rules recommender instead (R50, #117). Fixed for every
+    | installation: the settings of each business live in businesses.settings,
+    | never here or in the environment.
+    |
+    */
+
+    'ai_timeout_seconds' => 10,
+
 ];
