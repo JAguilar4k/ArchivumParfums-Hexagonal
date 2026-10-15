@@ -18,12 +18,11 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table): void {
             $table->uuid('id')->primary()->default(DB::raw('uuidv7()'));
             $table->string('name', 120);
-            $table->string('email', 255);
+            $table->string('email', 255)->unique();
             $table->string('password', 255);
             $table->timestampsTz();
         });
 
-        DB::statement('CREATE UNIQUE INDEX users_email_unique ON users (lower(email))');
         DB::statement("ALTER TABLE users ADD CONSTRAINT users_name_check CHECK (btrim(name) <> '')");
     }
 

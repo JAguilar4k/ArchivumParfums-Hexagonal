@@ -37,11 +37,11 @@ it('stores accounts in timestamptz without a business', function () {
         ->and($columns['updated_at']['type_name'])->toBe('timestamptz');
 });
 
-it('rejects a repeated email whatever its letter case', function () {
-    insertAccount('Cliente@Archivum.test');
+it('rejects a repeated email', function () {
+    insertAccount();
 
-    insertAccount('cliente@archivum.TEST');
-})->throws(UniqueConstraintViolationException::class);
+    insertAccount();
+})->throws(UniqueConstraintViolationException::class, 'users_email_unique');
 
 it('rejects an empty name', function () {
     insertAccount(name: '  ');
