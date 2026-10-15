@@ -18,7 +18,7 @@ return new class extends Migration
             $table->string('slug', 100)->unique();
             $table->string('logo_path', 255)->nullable();
             $table->string('timezone', 64)->default('America/Costa_Rica');
-            $table->string('location_text', 255)->default('');
+            $table->string('location_text', 255)->nullable();
             $table->jsonb('settings')->default(DB::raw("'{}'::jsonb"));
             $table->timestampsTz();
         });

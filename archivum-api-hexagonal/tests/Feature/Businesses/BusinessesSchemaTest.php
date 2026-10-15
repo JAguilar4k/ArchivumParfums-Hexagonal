@@ -71,7 +71,7 @@ it('starts a business with costa rica time, no appointment place and empty setti
 
     expect(Str::isUuid($business->id, 7))->toBeTrue()
         ->and($business->timezone)->toBe('America/Costa_Rica')
-        ->and($business->location_text)->toBe('')
+        ->and($business->location_text)->toBeNull()
         ->and($business->logo_path)->toBeNull()
         ->and(json_decode($business->settings, true))->toBe([]);
 });
