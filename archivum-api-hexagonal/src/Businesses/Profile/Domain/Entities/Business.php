@@ -13,6 +13,7 @@ use Src\Shared\Domain\ValueObjects\BusinessId;
 
 final readonly class Business
 {
+    /** Hold the full state of a business. */
     private function __construct(
         public BusinessId $id,
         public BusinessName $name,

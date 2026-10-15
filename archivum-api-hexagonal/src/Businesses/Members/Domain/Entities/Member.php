@@ -11,6 +11,7 @@ use Src\Shared\Domain\ValueObjects\UserId;
 
 final readonly class Member
 {
+    /** Hold the full state of a member of the staff. */
     private function __construct(
         public MemberId $id,
         public UserId $userId,
