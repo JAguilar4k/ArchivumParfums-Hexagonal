@@ -19,10 +19,10 @@ it('serves the health check outside the prefix', function () {
     get('/api/v1/up')->assertNotFound();
 });
 
-it('answers unknown api routes in json even without an accept header', function () {
+it('answers unknown api routes as a problem even without an accept header', function () {
     get('/api/v1/desconocido')
         ->assertNotFound()
-        ->assertHeader('Content-Type', 'application/json');
+        ->assertHeader('Content-Type', 'application/problem+json');
 });
 
 it('declares the version prefix only once', function () {
