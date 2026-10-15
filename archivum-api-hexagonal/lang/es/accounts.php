@@ -10,5 +10,6 @@ return [
     'invalid_credentials' => 'El correo o la contraseña no son correctos.',
     'name_invalid' => 'El nombre es obligatorio y no puede superar los :max caracteres.',
     'password_too_short' => 'La contraseña debe tener al menos :min caracteres.',
+    'resource_not_found' => 'El recurso solicitado no existe.',
 
 ];

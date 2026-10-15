@@ -16,6 +16,8 @@ final readonly class ScopeRequestToBusiness
 
     public const string ROUTE = 'route';
 
+    public const string ACCOUNT = 'account';
+
     /** Receive the container that holds each adapter of BusinessContext and the transaction of one business. */
     public function __construct(
         private Container $container,
