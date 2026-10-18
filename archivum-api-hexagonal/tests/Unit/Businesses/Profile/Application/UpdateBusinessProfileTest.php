@@ -13,11 +13,12 @@ use Src\Businesses\Profile\Domain\ValueObjects\BusinessSlug;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessTimezone;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Tests\Support\Businesses\InMemoryBusinessRepository;
+use Tests\Support\Shared\RecordingTransactionRunner;
 
 /**
  * Wire the use case to an in-memory repository with a business whose margin is already changed.
  *
- * @return array{UpdateBusinessProfile, Business, InMemoryBusinessRepository}
+ * @return array{UpdateBusinessProfile, Business, InMemoryBusinessRepository, RecordingTransactionRunner}
  */
 function updateBusinessProfileWiring(): array
 {
@@ -32,7 +33,9 @@ function updateBusinessProfileWiring(): array
     );
     $businesses->save($business);
 
-    return [new UpdateBusinessProfile($businesses), $business, $businesses];
+    $transaction = new RecordingTransactionRunner;
+
+    return [new UpdateBusinessProfile($businesses, $transaction), $business, $businesses, $transaction];
 }
 
 it('changes only the fields given and keeps the slug', function () {
@@ -88,3 +91,13 @@ it('reports a business that does not exist', function () {
 
     $updateProfile->execute(new UpdateBusinessProfileCommand('0192f0c4-7b1e-7c3a-9f1d-2b6a4e8c0d99', ['name' => 'Otra']));
 })->throws(BusinessNotFoundException::class);
+
+it('commits the profile changes in one transaction', function () {
+    [$updateProfile, $business, , $transaction] = updateBusinessProfileWiring();
+
+    $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, ['name' => 'Archivum Norte']));
+
+    expect($transaction->runs())->toBe(1)
+        ->and($transaction->committed())->toBe(1)
+        ->and($transaction->rolledBack())->toBe(0);
+});

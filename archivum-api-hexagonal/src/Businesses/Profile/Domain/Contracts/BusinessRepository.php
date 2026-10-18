@@ -24,6 +24,9 @@ interface BusinessRepository
     /** Find a business by its identity. */
     public function find(BusinessId $id): ?Business;
 
+    /** Find a business and lock its stored state until the transaction ends. */
+    public function findForUpdate(BusinessId $id): ?Business;
+
     /** Find a business by the slug of its public addresses. */
     public function findBySlug(BusinessSlug $slug): ?Business;
 }
