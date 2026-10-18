@@ -36,6 +36,7 @@ final readonly class ProblemDetailsRenderer
             $exception instanceof HttpExceptionInterface => $this->respond(
                 ProblemType::fromStatus($exception->getStatusCode()),
                 headers: $exception->getHeaders(),
+                status: $exception->getStatusCode(),
             ),
             default => $this->respond(ProblemType::InternalError),
         };
@@ -63,17 +64,20 @@ final readonly class ProblemDetailsRenderer
         ?string $detail = null,
         array $extensions = [],
         array $headers = [],
+        ?int $status = null,
     ): JsonResponse {
+        $status ??= $type->status();
+
         return new JsonResponse(
             [
                 'type' => rtrim((string) config('app.url'), '/').'/problemas/'.$type->value,
                 'title' => __("problems.{$type->value}.title"),
-                'status' => $type->status(),
+                'status' => $status,
                 'detail' => $detail ?? __("problems.{$type->value}.detail"),
                 'instance' => 'urn:uuid:'.Context::get(AssignRequestId::CONTEXT_KEY),
                 ...$extensions,
             ],
-            $type->status(),
+            $status,
             [...$headers, 'Content-Type' => self::CONTENT_TYPE],
         );
     }
