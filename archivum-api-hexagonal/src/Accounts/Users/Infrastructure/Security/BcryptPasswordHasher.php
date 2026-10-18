@@ -18,11 +18,11 @@ final readonly class BcryptPasswordHasher implements PasswordHasher
         return Hash::driver(self::DRIVER)->make($plainPassword);
     }
 
-    /** Compare the password with a bcrypt hash; without one, hash it anyway so the time is the same. */
+    /** Use the same bcrypt cost for an unknown account or an input bcrypt cannot hash. */
     public function check(#[SensitiveParameter] string $plainPassword, ?string $hash): bool
     {
-        if ($hash === null) {
-            $this->hash($plainPassword);
+        if ($hash === null || str_contains($plainPassword, "\0")) {
+            $this->hash('archivum-invalid-credentials');
 
             return false;
         }
