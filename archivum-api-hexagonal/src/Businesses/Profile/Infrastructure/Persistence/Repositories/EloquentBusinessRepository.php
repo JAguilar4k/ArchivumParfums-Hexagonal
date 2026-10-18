@@ -70,7 +70,7 @@ final readonly class EloquentBusinessRepository implements BusinessRepository
             new BusinessName($model->name),
             new BusinessSlug($model->slug),
             new BusinessTimezone($model->timezone),
-            new AppointmentPlace($model->location_text),
+            new AppointmentPlace($model->location_text ?? ''),
             $this->settingsOf($model->settings),
         );
     }
