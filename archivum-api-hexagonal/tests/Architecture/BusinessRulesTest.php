@@ -38,12 +38,12 @@ function pendingRules(): array
  */
 function rulesNamedInTests(): array
 {
-    $skipped = [__FILE__, __DIR__.'/pending-rules.php'];
+    $skipped = [realpath(__FILE__), realpath(__DIR__.'/pending-rules.php')];
     $named = [];
 
     foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(dirname(__DIR__), FilesystemIterator::SKIP_DOTS)) as $file) {
         /** @var SplFileInfo $file */
-        if ($file->getExtension() !== 'php' || in_array($file->getPathname(), $skipped, true)) {
+        if ($file->getExtension() !== 'php' || in_array($file->getRealPath(), $skipped, true)) {
             continue;
         }
 
