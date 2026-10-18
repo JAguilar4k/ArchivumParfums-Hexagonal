@@ -16,6 +16,7 @@ use function Pest\Laravel\deleteJson;
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
 use function Pest\Laravel\postJson;
+use function Pest\Laravel\withServerVariables;
 
 const PROBLEM_CONTENT_TYPE = 'application/problem+json';
 
@@ -35,6 +36,11 @@ beforeEach(function () {
         Route::post('validacion', fn (Request $request) => $request->validate(['precio' => 'required|integer']));
 
         Route::get('estado/{status}', fn (int $status) => throw new HttpException($status));
+
+        Route::get('estado-no-enumerado/{status}', fn (int $status) => throw new HttpException(
+            $status,
+            headers: ['X-Error-Source' => 'framework'],
+        ));
 
         Route::get('limite', fn () => throw new TooManyRequestsHttpException(30));
 
@@ -151,6 +157,31 @@ it('answers a wrong verb as method not allowed', function () {
     deleteJson('/api/v1')
         ->assertMethodNotAllowed()
         ->assertJsonPath('type', 'http://localhost/problemas/metodo-no-permitido');
+});
+
+it('keeps unlisted http statuses and headers in the problem response', function (int $status, string $type) {
+    $response = getJson("/api/v1/pruebas/estado-no-enumerado/{$status}")
+        ->assertStatus($status)
+        ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE)
+        ->assertHeader('X-Error-Source', 'framework')
+        ->assertJsonPath('type', "http://localhost/problemas/{$type}")
+        ->assertJsonPath('status', $status);
+
+    $response->assertJsonPath('instance', 'urn:uuid:'.$response->headers->get('X-Request-Id'));
+})->with([
+    'payload too large' => [413, 'solicitud-invalida'],
+    'bad gateway' => [502, 'error-interno'],
+]);
+
+it('keeps the 413 raised by the request size middleware', function () {
+    withServerVariables(['CONTENT_LENGTH' => (string) PHP_INT_MAX]);
+
+    $response = postJson('/api/v1/pruebas/validacion', ['precio' => 100])
+        ->assertStatus(413)
+        ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE)
+        ->assertJsonPath('status', 413);
+
+    $response->assertJsonPath('instance', 'urn:uuid:'.$response->headers->get('X-Request-Id'));
 });
 
 it('keeps the headers of an http exception', function () {
