@@ -46,6 +46,12 @@ Un tercer rol, de mantenimiento, llega con #157 para las tareas que recorren tod
 - Las extensiones no se borran al revertir (ver [Extensiones](#extensiones)) y la prueba ignora sus objetos.
 - Un cambio que rompe la versión anterior del código se hace en dos despliegues: primero se expande el esquema y, cuando el código viejo ya no corre, se contrae.
 
+### Transición de las cuentas originales a UUID
+
+Las migraciones que ya estaban en `main` conservan su nombre y contenido. `2026_10_15_000002_upgrade_users_to_uuid_accounts` agrega la identidad UUID v7 y actualiza las referencias de las sesiones sin borrar cuentas, sesiones ni tokens de recuperación. Conserva los campos históricos y los nombres largos ya guardados. El `CHECK` del nombre impide nuevas escrituras vacías sin rechazar datos anteriores durante la actualización.
+
+`users.legacy_id` conserva la identidad numérica original y su secuencia; `sessions.legacy_user_id` conserva incluso referencias antiguas sin cuenta. Son metadatos de compatibilidad para devolver el esquema a su versión anterior sin perder datos, no identidades que use el dominio. La identidad antigua de una cuenta sigue siendo única: no duplica atributos de negocio ni introduce una dependencia transitiva. Una reversión también asigna sus identidades numéricas a las cuentas y sesiones creadas después de actualizar. `UserSchemaUpgradeTest` comprueba actualización, reversión y nueva aplicación con datos ficticios.
+
 ## Convenciones del esquema
 
 | Tema | Convención |
