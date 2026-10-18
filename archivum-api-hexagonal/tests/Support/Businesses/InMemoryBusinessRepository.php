@@ -41,6 +41,12 @@ final class InMemoryBusinessRepository implements BusinessRepository
         return $this->businesses[$id->value] ?? null;
     }
 
+    /** Return the current state; an in-memory operation has no competing connection. */
+    public function findForUpdate(BusinessId $id): ?Business
+    {
+        return $this->find($id);
+    }
+
     /** Find a business by its slug. */
     public function findBySlug(BusinessSlug $slug): ?Business
     {

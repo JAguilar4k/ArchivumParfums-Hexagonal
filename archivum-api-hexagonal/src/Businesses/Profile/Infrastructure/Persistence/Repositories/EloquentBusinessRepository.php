@@ -54,6 +54,14 @@ final readonly class EloquentBusinessRepository implements BusinessRepository
         return $model === null ? null : $this->toDomain($model);
     }
 
+    /** Lock the business before reading the state that a partial update will change. */
+    public function findForUpdate(BusinessId $id): ?Business
+    {
+        $model = BusinessModel::query()->lockForUpdate()->find($id->value);
+
+        return $model === null ? null : $this->toDomain($model);
+    }
+
     /** Find a business by the slug of its public addresses. */
     public function findBySlug(BusinessSlug $slug): ?Business
     {
