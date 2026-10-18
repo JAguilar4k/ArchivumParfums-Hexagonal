@@ -65,6 +65,22 @@ it('does not trim the password', function () {
         ->assertUnprocessable();
 });
 
+it('refuses incompatible passwords equally for existing and unknown accounts', function (string $password) {
+    $existing = postJson('/api/v1/sesiones', ['correo' => 'duena@archivumparfums.test', 'contrasena' => $password])
+        ->assertUnprocessable()
+        ->assertHeader('Content-Type', 'application/problem+json');
+    $unknown = postJson('/api/v1/sesiones', ['correo' => 'nadie@archivumparfums.test', 'contrasena' => $password])
+        ->assertUnprocessable()
+        ->assertHeader('Content-Type', 'application/problem+json');
+
+    expect(Arr::except($existing->json(), 'instance'))->toBe(Arr::except($unknown->json(), 'instance'))
+        ->and($unknown->json('detail'))->toBe('El correo o la contraseña no son correctos.');
+    assertDatabaseCount('personal_access_tokens', 0);
+})->with([
+    'embedded null byte' => "clave\0incompatible",
+    'long password' => str_repeat('x', 100),
+]);
+
 it('refuses missing or malformed credentials with the errors of each field', function (array $payload, array $fields) {
     $response = postJson('/api/v1/sesiones', $payload)->assertUnprocessable();
 
