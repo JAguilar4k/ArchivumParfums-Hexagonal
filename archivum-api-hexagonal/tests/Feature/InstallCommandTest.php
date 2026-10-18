@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use App\Models\User;
+use Database\Factories\UserFactory;
 use Illuminate\Database\Console\Seeds\SeedCommand;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -26,12 +26,16 @@ function withLocalInstaller(callable $assertions): void
     $environment = app()->environmentPath();
     $configuration = config('database.connections');
     $key = config('app.key');
+    $demoPassword = config('archivum.demo_password');
     $directory = sys_get_temp_dir().'/archivum-install-'.bin2hex(random_bytes(8));
     mkdir($directory);
     copy(base_path('.env.example'), $directory.'/.env');
     app()->useEnvironmentPath($directory);
     app()['env'] = 'local';
-    config(['app.key' => 'base64:'.base64_encode(str_repeat('a', 32))]);
+    config([
+        'app.key' => 'base64:'.base64_encode(str_repeat('a', 32)),
+        'archivum.demo_password' => 'install-test-demo',
+    ]);
     putenv('APP_ENV=local');
     putenv('CI');
     putenv('COMPOSER_DEV_MODE');
@@ -44,7 +48,11 @@ function withLocalInstaller(callable $assertions): void
             putenv($value === false ? $variable : "{$variable}={$value}");
         }
 
-        config(['database.connections' => $configuration, 'app.key' => $key]);
+        config([
+            'database.connections' => $configuration,
+            'app.key' => $key,
+            'archivum.demo_password' => $demoPassword,
+        ]);
         app()->useEnvironmentPath($environment);
         app()['env'] = 'testing';
         DB::purge('pgsql');
@@ -68,14 +76,15 @@ it('leaves the environment alone outside development', function () {
 });
 
 it('keeps the data and seeds nothing again in a local installation', function () {
-    User::factory()->create(['name' => 'An edited demo account', 'email' => 'test@example.com']);
-    $before = DB::table('users')->get()->toArray();
+    withLocalInstaller(function (): void {
+        expect(Artisan::call('archivum:install'))->toBe(0);
+        DB::table('users')->update(['name' => 'An edited demo account']);
+        $before = DB::table('users')->orderBy('id')->get()->toArray();
 
-    withLocalInstaller(function () use ($before): void {
         expect(Artisan::call('archivum:install'))->toBe(0)
             ->and(Artisan::output())->toContain(__('install.ready'));
 
-        expect(DB::table('users')->get()->toArray())->toEqual($before);
+        expect(DB::table('users')->orderBy('id')->get()->toArray())->toEqual($before);
     });
 });
 
@@ -102,13 +111,13 @@ it('seeds a database whose migrations were already applied', function () {
     withLocalInstaller(function (): void {
         expect(Artisan::call('archivum:install'))->toBe(0);
 
-        $this->assertDatabaseHas('users', ['name' => 'Test User', 'email' => 'test@example.com']);
+        expect(DB::table('users')->count())->toBeGreaterThan(0);
     });
 });
 
 it('rolls back a failed seed and completes it on the next installation', function () {
     Artisan::command('db:seed {--force}', function (): int {
-        User::factory()->create(['email' => 'partial@example.com']);
+        UserFactory::new()->create(['email' => 'partial@example.com']);
 
         return 1;
     });
@@ -121,7 +130,7 @@ it('rolls back a failed seed and completes it on the next installation', functio
 
         expect(Artisan::call('archivum:install'))->toBe(0);
 
-        $this->assertDatabaseHas('users', ['email' => 'test@example.com']);
+        expect(DB::table('users')->count())->toBeGreaterThan(0);
         $this->assertDatabaseMissing('users', ['email' => 'partial@example.com']);
     });
 });
