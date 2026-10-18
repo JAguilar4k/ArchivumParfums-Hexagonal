@@ -45,8 +45,10 @@ Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macO
 5. Levantar el servidor:
 
    ```bash
-   php artisan serve
+   composer run dev
    ```
+
+   Este comando inicia `php artisan serve` y funciona en Windows, Linux y macOS sin Node.js ni la extensión PCNTL. Si se necesita procesar trabajos en cola durante el desarrollo, se abre otra terminal en esta misma carpeta y se ejecuta `php artisan queue:work --tries=1`. Los registros están en `storage/logs/laravel.log`.
 
 6. Comprobar que todo responde:
 
@@ -64,6 +66,7 @@ La aplicación se conecta con `archivum_app`, que no puede cambiar el esquema; l
 | Comando | Qué hace |
 |---|---|
 | `php artisan archivum:install` | Prepara el entorno local paso a paso. Lo ejecuta `composer install`; a mano solo hace falta para escribir la contraseña de `postgres` en Windows. |
+| `composer run dev` | Levanta el servidor local de la API. El worker de colas se inicia en otra terminal. |
 | `composer test` | Ejecuta las pruebas de Pest contra la base `archivum_hexagonal_testing`. |
 | `composer lint` | Verifica el estilo con Laravel Pint, sin modificar archivos. |
 | `composer format` | Corrige el estilo. |
