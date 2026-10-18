@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $slug
  * @property string|null $logo_path
  * @property string $timezone
- * @property string $location_text
+ * @property string|null $location_text
  * @property array<string, mixed> $settings
  */
 #[Table('businesses')]
