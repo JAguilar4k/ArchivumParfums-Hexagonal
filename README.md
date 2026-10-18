@@ -81,3 +81,4 @@ El enunciado permite usar asistentes de IA con una condición: cada integrante d
 | README, `.gitignore` y plantillas de `.github/` | Claude Code (Claude Opus 5.5) | Redacción adaptada del proyecto guía. | Pendiente |
 | Etiquetas, milestones, issues y tablero | Claude Code (Claude Opus 5.5) | Redacción de milestones e issues a partir de la especificación, el plan y el enunciado, y su creación con `gh`. | Pendiente |
 | `docs/especificacion.md`, `docs/plan.md` y `CLAUDE.md` | Por declarar | Por declarar | Por declarar |
+| Instalación repetible y arranque local en Windows (#215) | Codex | Corrección del comando de desarrollo, conservación de credenciales existentes, carga de datos transaccional y pruebas de regresión. | 8 pruebas y 27 aserciones, Pint y Larastan ejecutados automáticamente; revisión humana pendiente. |
