@@ -92,6 +92,8 @@ it('requires the current password of an existing role without changing it', func
     withLocalInstaller(function () use ($connection, $variable): void {
         config(['database.connections.installer_original_role' => config("database.connections.{$connection}")]);
         config(["database.connections.{$connection}.password" => '']);
+        config(['database.connections.pgsql.database' => 'archivum_install_missing_database']);
+        DB::purge('pgsql');
         DB::purge($connection);
         $before = file_get_contents(app()->environmentFilePath());
 
