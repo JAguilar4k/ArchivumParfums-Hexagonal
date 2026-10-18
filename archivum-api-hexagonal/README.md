@@ -21,6 +21,8 @@ Con el puerto predeterminado `8000`, las direcciones son:
 
 Si se inicia el servidor con otro puerto, se sustituye `8000` en estas direcciones.
 
+El índice identifica la API. El cliente Vue y los módulos de negocio se entregan en sus propios issues.
+
 ## Pruebas
 
 `tests/Feature/ApiRoutingTest.php` cubre la redirección inicial, el índice de la API, el rechazo de las rutas sin versión y la ruta de salud fuera del prefijo.
@@ -31,4 +33,4 @@ php artisan test --compact tests/Feature/ApiRoutingTest.php
 
 ## Uso de IA
 
-Codex generó la redirección inicial, la prueba HTTP de regresión y esta documentación en el trabajo del issue #232. La ejecución de las pruebas automatizadas y la revisión humana del equipo están pendientes; cada integrante debe entender y poder modificar lo entregado antes de aprobar el pull request.
+Codex generó la redirección inicial, la prueba HTTP de regresión y esta documentación en el trabajo del issue #232. Se ejecutaron automáticamente 7 pruebas con 15 aserciones, Pint y Larastan; la revisión humana del equipo está pendiente. Cada integrante debe entender y poder modificar lo entregado antes de aprobar el pull request.
