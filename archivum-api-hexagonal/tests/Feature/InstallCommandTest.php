@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\RefreshDatabaseAsOwner;
 
+use function Pest\Laravel\assertDatabaseCount;
+use function Pest\Laravel\assertDatabaseMissing;
+
 pest()->use(RefreshDatabaseAsOwner::class);
 
 /**
@@ -127,13 +130,13 @@ it('rolls back a failed seed and completes it on the next installation', functio
     withLocalInstaller(function (): void {
         expect(Artisan::call('archivum:install'))->toBe(1);
         expect(Artisan::output())->toContain(__('install.seeding_failed'));
-        $this->assertDatabaseCount('users', 0);
+        assertDatabaseCount('users', 0);
         Artisan::registerCommand(new SeedCommand(app('db')));
 
         expect(Artisan::call('archivum:install'))->toBe(0);
 
         expect(DB::table('users')->count())->toBeGreaterThan(0);
-        $this->assertDatabaseMissing('users', ['email' => 'partial@example.com']);
+        assertDatabaseMissing('users', ['email' => 'partial@example.com']);
     });
 });
 
@@ -142,7 +145,8 @@ it('reports a failed migration without seeding or announcing success', function 
 
     withLocalInstaller(function (): void {
         expect(Artisan::call('archivum:install'))->toBe(1);
-        expect(Artisan::output())->toContain(__('install.migration_failed'))->not->toContain(__('install.ready'));
-        $this->assertDatabaseCount('users', 0);
+        expect(Artisan::output())->toContain(__('install.migration_failed'));
+        expect(str_contains(Artisan::output(), __('install.ready')))->toBeFalse();
+        assertDatabaseCount('users', 0);
     });
 });
