@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 use function Pest\Laravel\get;
 
+it('redirects the initial browser access to the versioned api', function () {
+    get('/')
+        ->assertFound()
+        ->assertRedirect('/api/v1');
+});
+
 it('serves the api under the v1 prefix', function () {
     get('/api/v1')
         ->assertOk()
