@@ -30,7 +30,7 @@ Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macO
    composer install
    ```
 
-   Al terminar de instalar, Composer ejecuta `php artisan archivum:install`, que deja todo listo en este orden: crea `.env` a partir de `.env.example`, genera la clave de la aplicación, crea los roles `archivum_owner` y `archivum_app` y las bases de desarrollo y de pruebas igual que `database/roles.sql`, migra con el rol dueño y carga los datos de demostración. Las contraseñas de los dos roles se generan y quedan en `.env`.
+   Al terminar de instalar, Composer ejecuta `php artisan archivum:install`, que deja todo listo en este orden: crea `.env` a partir de `.env.example`, genera la clave de la aplicación, crea los roles `archivum_owner` y `archivum_app` y las bases de desarrollo y de pruebas igual que `database/roles.sql`, migra con el rol dueño y carga los datos de demostración. Las contraseñas se generan solo para los roles nuevos y quedan en `.env`. Si los roles ya existen en este servidor, se deben escribir sus contraseñas actuales en `DB_ADMIN_PASSWORD` y `DB_PASSWORD`; el instalador nunca las cambia, de modo que otra copia del proyecto sigue conectándose.
 
 3. La primera vez hace falta la contraseña del superusuario `postgres` para crear los roles y las bases. Se pide sin mostrarla y no se guarda. En Windows, Composer no deja escribir en sus scripts: la instalación termina con un aviso y basta ejecutar una vez
 
@@ -40,7 +40,7 @@ Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macO
 
    que sí la pide. Si el superusuario tiene otro nombre, se indica con `--superuser=nombre`; en un script, la contraseña puede venir de la variable de entorno `DB_SUPERUSER_PASSWORD`.
 
-4. Volver a ejecutar `composer install` no borra nada: no cambia `.env` ni la clave, aplica solo las migraciones pendientes y no vuelve a sembrar. En la integración continua, con `composer install --no-dev` o con `APP_ENV` distinto de `local`, `archivum:install` no hace nada.
+4. Volver a ejecutar `composer install` no borra nada: conserva la clave, aplica solo las migraciones pendientes y completa los datos de demostración que falten sin modificar los existentes. La siembra corre en una transacción: si falla, se revierte y se puede reintentar después de corregir el error, aunque las migraciones ya estén aplicadas. En la integración continua, con `composer install --no-dev` o con `APP_ENV` distinto de `local`, `archivum:install` no hace nada.
 
 5. Levantar el servidor:
 

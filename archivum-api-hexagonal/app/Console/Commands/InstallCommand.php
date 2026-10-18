@@ -9,8 +9,8 @@ use Illuminate\Console\Command;
 use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Symfony\Component\Process\Process as SymfonyProcess;
 use Throwable;
 
@@ -135,20 +135,28 @@ final class InstallCommand extends Command
     }
 
     /**
-     * Do what database/roles.sql does, without failing on what already exists. A role
-     * password missing from .env is generated and written there.
+     * Reuse existing roles without changing their credentials. Generate a password
+     * only for a new role, so another checkout keeps its access to the same server.
      */
     private function createRolesAndDatabases(Connection $superuser): void
     {
         $owner = $this->connectionSetting('pgsql_admin', 'username');
         $application = $this->connectionSetting('pgsql', 'username');
+
+        foreach (['pgsql_admin' => 'DB_ADMIN_PASSWORD', 'pgsql' => 'DB_PASSWORD'] as $connection => $variable) {
+            if ($this->roleExists($superuser, $this->connectionSetting($connection, 'username'))
+                && $this->connectionSetting($connection, 'password') === '') {
+                throw new RuntimeException(__('install.existing_role_password', ['variable' => $variable]));
+            }
+        }
+
         $ownerPassword = $this->passwordInEnvironmentFile('pgsql_admin', 'DB_ADMIN_PASSWORD');
         $applicationPassword = $this->passwordInEnvironmentFile('pgsql', 'DB_PASSWORD');
 
         $superuser->statement("SET password_encryption = 'scram-sha-256'");
 
-        $this->createOrUpdateRole($superuser, $owner, 'LOGIN', $ownerPassword);
-        $this->createOrUpdateRole($superuser, $application, 'LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS', $applicationPassword);
+        $this->createRole($superuser, $owner, 'LOGIN', $ownerPassword);
+        $this->createRole($superuser, $application, 'LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS', $applicationPassword);
 
         foreach ([$this->connectionSetting('pgsql', 'database'), $this->testingDatabase()] as $database) {
             $exists = $superuser->scalar('select count(*) from pg_database where datname = ?', [$database]) === 1;
@@ -168,15 +176,20 @@ final class InstallCommand extends Command
         $this->components->info(__('install.roles_ready', ['owner' => $owner, 'application' => $application]));
     }
 
-    private function createOrUpdateRole(Connection $superuser, string $role, string $attributes, string $password): void
+    private function roleExists(Connection $superuser, string $role): bool
     {
-        $exists = $superuser->scalar('select count(*) from pg_roles where rolname = ?', [$role]) === 1;
+        return $superuser->scalar('select count(*) from pg_roles where rolname = ?', [$role]) === 1;
+    }
+
+    private function createRole(Connection $superuser, string $role, string $attributes, string $password): void
+    {
+        if ($this->roleExists($superuser, $role)) {
+            return;
+        }
 
         $superuser->statement(sprintf(
-            '%s ROLE %s %s %s PASSWORD %s',
-            $exists ? 'ALTER' : 'CREATE',
+            'CREATE ROLE %s %s PASSWORD %s',
             $this->quoted($role),
-            $exists ? 'WITH' : '',
             $attributes,
             $superuser->getPdo()->quote($password),
         ));
@@ -255,16 +268,18 @@ final class InstallCommand extends Command
         return $password;
     }
 
-    /** Run the pending migrations with the schema owner and seed the demo data the first time. */
+    /** Retry pending migrations and the idempotent seeder, rolling back a failed seed. */
     private function migrateAndSeed(): void
     {
-        $migratedBefore = Schema::connection('pgsql_admin')->hasTable('migrations');
-
-        $this->call('migrate', ['--database' => 'pgsql_admin', '--force' => true]);
-
-        if (! $migratedBefore) {
-            $this->call('db:seed', ['--force' => true]);
+        if ($this->call('migrate', ['--database' => 'pgsql_admin', '--force' => true]) !== self::SUCCESS) {
+            throw new RuntimeException(__('install.migration_failed'));
         }
+
+        DB::connection('pgsql')->transaction(function (): void {
+            if ($this->call('db:seed', ['--force' => true]) !== self::SUCCESS) {
+                throw new RuntimeException(__('install.seeding_failed'));
+            }
+        });
     }
 
     /** The database the tests use, as phpunit.xml sets it. */
