@@ -126,6 +126,12 @@ La respuesta `201` trae el token en `data.token`. Con él se consulta la cuenta 
 curl http://localhost:8000/api/v1/cuenta -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
 ```
 
+Para cerrar esa sesión se envía el mismo token; la respuesta es `204` y las demás sesiones de la cuenta siguen abiertas:
+
+```bash
+curl -X DELETE http://localhost:8000/api/v1/sesiones/actual -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
+```
+
 ## Datos de demostración
 
 `php artisan db:seed` crea dos tiendas ficticias, solo para desarrollo local y la demostración en clase: `BusinessesSeeder` siembra las tiendas, `StaffSeeder` su personal y `CustomersSeeder` sus clientes, cada tienda en una transacción que la fija. Todas las cuentas usan la contraseña de `ARCHIVUM_DEMO_PASSWORD` en `.env`; sin ella, `db:seed` se detiene sin crear nada. Ejecutarlo otra vez no duplica nada y repone las filas de demostración que falten.
