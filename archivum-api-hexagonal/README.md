@@ -115,8 +115,14 @@ El token de `POST /api/v1/sesiones` se muestra una sola vez y se envía en cada 
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/sesiones \
-  -H 'Content-Type: application/json' \
+  -H 'Content-Type: application/json' -H 'Accept: application/json' \
   -d '{"correo": "duena@archivumparfums.test", "contrasena": "<ARCHIVUM_DEMO_PASSWORD>", "dispositivo": "Computadora"}'
+```
+
+La respuesta `201` trae el token en `data.token`. Con él se consulta la cuenta que ingresó:
+
+```bash
+curl http://localhost:8000/api/v1/cuenta -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
 ```
 
 ## Datos de demostración
@@ -154,7 +160,7 @@ El código nunca lee variables de entorno directamente: lo hacen los archivos de
 ```
 app/         Arranque del framework
 bootstrap/   Rutas, middleware y proveedores de la aplicación
-config/      Configuración: aplicación, base de datos y colas
+config/      Configuración: aplicación, autenticación (auth.php, sanctum.php), base de datos y colas
 database/    Roles (roles.sql), migraciones, factories y seeders
 lang/        Mensajes al usuario en español, con el inglés como respaldo
 routes/      Punto de entrada de las rutas de cada módulo
