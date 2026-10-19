@@ -41,6 +41,9 @@ it('rejects invalid slugs', function (string $slug): void {
     'special characters' => 'tienda!',
     'empty slug' => '',
     '101 characters' => str_repeat('a', 101),
+    'trailing line feed' => "mi-tienda\n",
+    'trailing carriage return' => "mi-tienda\r",
+    'trailing carriage return and line feed' => "mi-tienda\r\n",
 ])->throws(InvalidValueException::class, 'businesses.slug_invalid');
 
 it('accepts an IANA timezone', function (): void {
@@ -105,6 +108,19 @@ it('rejects a zero decant size', function (): void {
 it('rejects a negative decant size', function (): void {
     new BusinessSettings(decantSizesMl: [2, -5]);
 })->throws(InvalidValueException::class, 'businesses.decant_sizes_invalid');
+
+it('rejects decant sizes that are not a list of positive integers', function (array $sizes): void {
+    new BusinessSettings(decantSizesMl: $sizes);
+})->with([
+    'text' => [['texto']],
+    'numeric string' => [['5']],
+    'boolean' => [[true]],
+    'fractional float' => [[2.5]],
+    'whole float' => [[5.0]],
+    'associative array' => [['small' => 2]],
+    'nonzero first index' => [[1 => 5]],
+    'nested array' => [[[5]]],
+])->throws(InvalidValueException::class, 'businesses.decant_sizes_invalid');
 
 it('starts settings with the deposit, rounding and free trial appointment defaults', function (): void {
     $settings = BusinessSettings::defaults();
