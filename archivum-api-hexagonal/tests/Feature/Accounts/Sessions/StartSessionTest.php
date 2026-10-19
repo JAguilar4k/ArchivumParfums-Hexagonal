@@ -46,35 +46,38 @@ it('gives every sign-in its own token', function () {
     expect(UserModel::query()->where('email', 'mariana@clientes.test')->sole()->tokens()->count())->toBe(2);
 });
 
-it('answers an unknown email and a wrong password the same way, without telling which one failed', function () {
+it('answers an unknown email and a wrong password with the same 401 problem, without telling which one failed', function () {
     $unknownEmail = postJson('/api/v1/sesiones', ['correo' => 'nadie@archivumparfums.test', 'contrasena' => SESSION_PASSWORD])
-        ->assertUnprocessable()
+        ->assertUnauthorized()
         ->assertHeader('Content-Type', 'application/problem+json');
     $wrongPassword = postJson('/api/v1/sesiones', ['correo' => 'duena@archivumparfums.test', 'contrasena' => 'otra-clave'])
-        ->assertUnprocessable()
+        ->assertUnauthorized()
         ->assertHeader('Content-Type', 'application/problem+json');
 
     expect($unknownEmail->json('detail'))->toBe('El correo o la contraseña no son correctos.')
         ->and(Arr::except($unknownEmail->json(), 'instance'))->toBe(Arr::except($wrongPassword->json(), 'instance'))
-        ->and($unknownEmail->json('type'))->toEndWith('/problemas/datos-invalidos');
+        ->and($unknownEmail->json('type'))->toEndWith('/problemas/credenciales-invalidas')
+        ->and($unknownEmail->json('title'))->toBe('Credenciales inválidas')
+        ->and($unknownEmail->json('status'))->toBe(401);
     assertDatabaseCount('personal_access_tokens', 0);
 });
 
 it('does not trim the password', function () {
     postJson('/api/v1/sesiones', ['correo' => 'duena@archivumparfums.test', 'contrasena' => ' '.SESSION_PASSWORD.' '])
-        ->assertUnprocessable();
+        ->assertUnauthorized();
 });
 
 it('refuses incompatible passwords equally for existing and unknown accounts', function (string $password) {
     $existing = postJson('/api/v1/sesiones', ['correo' => 'duena@archivumparfums.test', 'contrasena' => $password])
-        ->assertUnprocessable()
+        ->assertUnauthorized()
         ->assertHeader('Content-Type', 'application/problem+json');
     $unknown = postJson('/api/v1/sesiones', ['correo' => 'nadie@archivumparfums.test', 'contrasena' => $password])
-        ->assertUnprocessable()
+        ->assertUnauthorized()
         ->assertHeader('Content-Type', 'application/problem+json');
 
     expect(Arr::except($existing->json(), 'instance'))->toBe(Arr::except($unknown->json(), 'instance'))
-        ->and($unknown->json('detail'))->toBe('El correo o la contraseña no son correctos.');
+        ->and($unknown->json('detail'))->toBe('El correo o la contraseña no son correctos.')
+        ->and($unknown->json('type'))->toEndWith('/problemas/credenciales-invalidas');
     assertDatabaseCount('personal_access_tokens', 0);
 })->with([
     'embedded null byte' => "clave\0incompatible",
@@ -82,7 +85,10 @@ it('refuses incompatible passwords equally for existing and unknown accounts', f
 ]);
 
 it('refuses missing or malformed credentials with the errors of each field', function (array $payload, array $fields) {
-    $response = postJson('/api/v1/sesiones', $payload)->assertUnprocessable();
+    $response = postJson('/api/v1/sesiones', $payload)
+        ->assertUnprocessable()
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonPath('type', rtrim((string) config('app.url'), '/').'/problemas/datos-invalidos');
 
     expect(array_keys($response->json('errores')))->toBe($fields);
 })->with([
