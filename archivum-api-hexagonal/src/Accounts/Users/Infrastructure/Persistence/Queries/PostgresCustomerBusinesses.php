@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Src\Accounts\Users\Infrastructure\Persistence\Queries;
 
 use Illuminate\Support\Facades\DB;
-use Src\Accounts\Users\Domain\Contracts\CustomerBusinesses;
+use Src\Accounts\Users\Application\Contracts\CustomerBusinesses;
 use Src\Accounts\Users\Domain\ValueObjects\CustomerResourceId;
 use Src\Accounts\Users\Domain\ValueObjects\CustomerResourceType;
 use Src\Shared\Domain\ValueObjects\BusinessId;

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Accounts\Users\Domain\Contracts;
+namespace Src\Accounts\Users\Application\Contracts;
 
 use Src\Accounts\Users\Domain\ValueObjects\CustomerResourceId;
 use Src\Accounts\Users\Domain\ValueObjects\CustomerResourceType;

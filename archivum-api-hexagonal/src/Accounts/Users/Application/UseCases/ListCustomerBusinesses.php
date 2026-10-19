@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Src\Accounts\Users\Application\UseCases;
 
-use Src\Accounts\Users\Domain\Contracts\CustomerBusinesses;
+use Src\Accounts\Users\Application\Contracts\CustomerBusinesses;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\UserId;
 

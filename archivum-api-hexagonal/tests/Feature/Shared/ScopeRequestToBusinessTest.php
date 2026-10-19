@@ -5,7 +5,7 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Sanctum;
-use Src\Accounts\Users\Domain\Contracts\CustomerBusinesses;
+use Src\Accounts\Users\Application\Contracts\CustomerBusinesses;
 use Src\Accounts\Users\Domain\ValueObjects\CustomerResourceType;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Businesses\Members\Application\Contracts\Memberships;

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support\Accounts;
 
-use Src\Accounts\Users\Domain\Contracts\CustomerBusinesses;
+use Src\Accounts\Users\Application\Contracts\CustomerBusinesses;
 use Src\Accounts\Users\Domain\ValueObjects\CustomerResourceId;
 use Src\Accounts\Users\Domain\ValueObjects\CustomerResourceType;
 use Src\Shared\Domain\ValueObjects\BusinessId;
