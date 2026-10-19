@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Support\Businesses;
 
-use Database\Seeders\DemoBusinessesSeeder;
 use Illuminate\Support\Facades\Auth;
-use Src\Accounts\Sessions\Infrastructure\Security\SanctumTokenIssuer;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
+use Tests\Support\Accounts\DemoAccounts;
 
 use function Pest\Laravel\withToken;
 
@@ -21,8 +20,6 @@ final class TwoBusinesses
     public const string FIRST = 'archivumparfums';
 
     public const string SECOND = 'esencias-del-norte';
-
-    public const string PASSWORD = 'clave-de-demostracion';
 
     /** Owner of each business by its slug. */
     public const array OWNERS = [
@@ -37,9 +34,7 @@ final class TwoBusinesses
     /** Seed both businesses with their staff and customers. */
     public static function seed(): void
     {
-        config(['archivum.demo_password' => self::PASSWORD]);
-
-        app(DemoBusinessesSeeder::class)->run();
+        DemoAccounts::seed();
     }
 
     /** Identifier of one of the two businesses. */
@@ -54,7 +49,7 @@ final class TwoBusinesses
         $user = UserModel::query()->where('email', $email)->sole();
 
         Auth::forgetGuards();
-        withToken($user->createToken(SanctumTokenIssuer::TOKEN_NAME)->plainTextToken);
+        withToken($user->createToken('Computadora')->plainTextToken);
 
         return $user;
     }
