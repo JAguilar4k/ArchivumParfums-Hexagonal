@@ -147,9 +147,12 @@ Toda respuesta de error sigue RFC 9457 (`application/problem+json`). `ProblemDet
 | `NotFoundException`, también para un recurso de otra tienda o de otro cliente | `no-encontrado` | 404 |
 | `AuthenticationFailedException`, como un correo o una contraseña incorrectos | `credenciales-invalidas` | 401 |
 | Ruta protegida sin un token válido (`AuthenticationException` del framework) | `no-autenticado` | 401 |
+| Persona autenticada sin permiso, como un cliente en una ruta del panel (`AuthorizationException` del framework) | `prohibido` | 403 |
 | Otra excepción del dominio, como un horario que ya no está disponible | `conflicto` | 409 |
 | Excepción HTTP del framework | El tipo de su código de estado | 4xx o 5xx |
 | Cualquier otra | `error-interno`, sin detalles técnicos | 500 |
+
+Laravel convierte toda `AuthorizationException` en una excepción HTTP 403 antes de llamar a `ProblemDetailsRenderer`, que la traduce al tipo de su código de estado. Por eso esa excepción no necesita una rama propia en el renderizador.
 
 El `type` es la URL de la aplicación más `/problemas/<tipo>`. El catálogo de tipos está en `Src\Shared\Infrastructure\Http\Problem\ProblemType`, y el título y el detalle de cada uno, en `lang/es/problems.php`.
 
