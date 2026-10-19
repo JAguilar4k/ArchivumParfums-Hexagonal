@@ -28,7 +28,7 @@ psql -U postgres -v owner_password='…' -v app_password='…' -f database/roles
 
 Las contraseñas nunca se versionan: cada integrante las escribe en su propio `.env`, que tampoco se versiona.
 
-La primera migración, `0000_00_00_000000_grant_privileges_to_the_application_role`, otorga al rol de la aplicación, con `ALTER DEFAULT PRIVILEGES`, lectura y escritura sobre toda tabla y secuencia que el dueño cree después. Ninguna tabla nueva necesita un paso manual. `DatabaseRolesTest` comprueba que `archivum_app` no tiene atributos elevados, no es dueño de ningún objeto, puede leer y escribir en toda tabla y no puede crear, alterar ni borrar tablas.
+La primera migración, `0001_01_01_000000_grant_privileges_to_the_application_role`, otorga al rol de la aplicación, con `ALTER DEFAULT PRIVILEGES`, lectura y escritura sobre toda tabla y secuencia que el dueño cree después. Ninguna tabla nueva necesita un paso manual. `DatabaseRolesTest` comprueba que `archivum_app` no tiene atributos elevados, no es dueño de ningún objeto, puede leer y escribir en toda tabla y no puede crear, alterar ni borrar tablas.
 
 ### Por qué las migraciones corren con `--database=pgsql_admin`
 
@@ -45,12 +45,6 @@ Un tercer rol, de mantenimiento, llega con #157 para las tareas que recorren tod
 - Cada migración tiene su `down()`. `MigrationReversibilityTest` revierte las migraciones una por una con `pgsql_admin` sobre la base de pruebas, comprueba que no queden tablas, vistas, tipos, funciones ni privilegios por defecto, las vuelve a aplicar y exige el mismo esquema que había. Falla si alguna migración no es reversible.
 - Las extensiones no se borran al revertir (ver [Extensiones](#extensiones)) y la prueba ignora sus objetos.
 - Un cambio que rompe la versión anterior del código se hace en dos despliegues: primero se expande el esquema y, cuando el código viejo ya no corre, se contrae.
-
-### Transición de las cuentas originales a UUID
-
-Las migraciones que ya estaban en `main` conservan su nombre y contenido. `2026_10_15_000002_upgrade_users_to_uuid_accounts` agrega la identidad UUID v7 y actualiza las referencias de las sesiones sin borrar cuentas, sesiones ni tokens de recuperación. Conserva los campos históricos y los nombres largos ya guardados. El `CHECK` del nombre impide nuevas escrituras vacías sin rechazar datos anteriores durante la actualización.
-
-`users.legacy_id` conserva la identidad numérica original y su secuencia; `sessions.legacy_user_id` conserva incluso referencias antiguas sin cuenta. Son metadatos de compatibilidad para devolver el esquema a su versión anterior sin perder datos, no identidades que use el dominio. La identidad antigua de una cuenta sigue siendo única: no duplica atributos de negocio ni introduce una dependencia transitiva. Una reversión también asigna sus identidades numéricas a las cuentas y sesiones creadas después de actualizar. `UserSchemaUpgradeTest` comprueba actualización, reversión y nueva aplicación con datos ficticios.
 
 ## Convenciones del esquema
 
@@ -69,6 +63,8 @@ Las migraciones que ya estaban en `main` conservan su nombre y contenido. `2026_
 La aplicación genera el identificador antes de guardar, con el objeto de valor `Src\Shared\Domain\ValueObjects\Identifier`, así el agregado tiene identidad desde que nace. El `DEFAULT uuidv7()` es el respaldo para las filas que no pasan por la aplicación.
 
 Las excepciones a las llaves con `business_id`, como la llave única global `members(user_id)` o las foráneas hacia `users`, se justifican en `docs/data-model.md`.
+
+`personal_access_tokens.id` es `bigint` y no `uuid`: la tabla pertenece a Sanctum, el token que recibe el cliente tiene la forma `<id>|<secreto>` y Sanctum busca la fila por ese número, así que no es un identificador del negocio. Tampoco tiene llave foránea a `users`, porque Sanctum relaciona el token con su dueño por `tokenable_type` y `tokenable_id`, y un token cuya cuenta ya no existe no autentica a nadie.
 
 ## Objetos programables
 

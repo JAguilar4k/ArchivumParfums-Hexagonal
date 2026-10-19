@@ -10,14 +10,12 @@ use Src\Shared\Domain\ValueObjects\UserId;
 
 final readonly class SanctumTokenIssuer implements TokenIssuer
 {
-    public const string TOKEN_NAME = 'sesion';
-
-    /** Create a Sanctum personal access token for the account; each sign-in gets its own. */
-    public function issue(UserId $userId): string
+    /** Create a Sanctum personal access token named after the device; each sign-in gets its own. */
+    public function issue(UserId $userId, string $deviceName): string
     {
         return UserModel::query()
             ->findOrFail($userId->value)
-            ->createToken(self::TOKEN_NAME)
+            ->createToken($deviceName)
             ->plainTextToken;
     }
 }
