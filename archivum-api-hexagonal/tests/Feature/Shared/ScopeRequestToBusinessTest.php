@@ -8,8 +8,8 @@ use Laravel\Sanctum\Sanctum;
 use Src\Accounts\Users\Domain\Contracts\CustomerBusinesses;
 use Src\Accounts\Users\Domain\ValueObjects\CustomerResourceType;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
-use Src\Businesses\Members\Domain\Contracts\MemberRepository;
-use Src\Businesses\Members\Domain\Entities\Member;
+use Src\Businesses\Members\Application\Contracts\Memberships;
+use Src\Businesses\Members\Application\DTOs\Membership;
 use Src\Businesses\Members\Domain\ValueObjects\MemberRole;
 use Src\Businesses\Profile\Domain\Contracts\BusinessRepository;
 use Src\Businesses\Profile\Domain\Entities\Business;
@@ -18,12 +18,10 @@ use Src\Businesses\Profile\Domain\ValueObjects\BusinessSlug;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessTimezone;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\ValueObjects\BusinessId;
-use Src\Shared\Domain\ValueObjects\MemberId;
-use Src\Shared\Domain\ValueObjects\UserId;
 use Src\Shared\Infrastructure\Tenancy\UnresolvedBusinessContext;
 use Tests\Support\Accounts\InMemoryCustomerBusinesses;
 use Tests\Support\Businesses\InMemoryBusinessRepository;
-use Tests\Support\Businesses\InMemoryMemberRepository;
+use Tests\Support\Businesses\InMemoryMemberships;
 
 use function Pest\Laravel\getJson;
 
@@ -75,14 +73,9 @@ beforeEach(function () {
     ));
     app()->instance(BusinessRepository::class, $businesses);
 
-    $members = new InMemoryMemberRepository;
-    $members->save(Member::create(
-        new MemberId('0192f0c4-0000-7000-8000-0000000000cc'),
-        new UserId(SCOPED_ACCOUNT_ID),
-        new BusinessId(SCOPED_BUSINESS_ID),
-        MemberRole::Owner,
-    ));
-    app()->instance(MemberRepository::class, $members);
+    $memberships = new InMemoryMemberships;
+    $memberships->add(SCOPED_ACCOUNT_ID, new Membership(SCOPED_BUSINESS_ID, MemberRole::Owner));
+    app()->instance(Memberships::class, $memberships);
 
     $customers = new InMemoryCustomerBusinesses;
     $customers->add(CustomerResourceType::Customer, SCOPED_CUSTOMER_ID, SCOPED_ACCOUNT_ID, new BusinessId(SCOPED_BUSINESS_ID));

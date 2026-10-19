@@ -31,6 +31,6 @@ final class StaffBusinessContext implements BusinessContext
         $userId = $this->auth->guard()->id() ?? throw new AuthenticationException;
         $member = $this->findMember->execute((string) $userId) ?? throw new AuthorizationException;
 
-        return $this->business = $member->businessId;
+        return $this->business = new BusinessId($member->businessId);
     }
 }

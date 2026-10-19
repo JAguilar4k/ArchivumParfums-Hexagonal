@@ -134,7 +134,7 @@ Hay preguntas que se responden antes de saber la tienda: al ingresar, de qué ti
 
 | Función | Devuelve | La usa |
 |---|---|---|
-| `fn_member_business(user_id)` | La tienda y el rol de la persona del personal | `EloquentMemberRepository::findByUser`, al ingresar y en el panel |
+| `fn_member_business(user_id)` | La tienda y el rol de la persona del personal | `PostgresMemberships`, al ingresar y en el panel |
 | `fn_customer_businesses(user_id)` | Las tiendas donde la cuenta tiene fila en `customers` | Los listados de `/api/v1/cuenta` |
 | `fn_customer_resource_business(tipo, id, user_id)` | La tienda de un recurso propio, o `NULL` si es de otro cliente o no existe | Las rutas de un recurso de `/api/v1/cuenta` |
 

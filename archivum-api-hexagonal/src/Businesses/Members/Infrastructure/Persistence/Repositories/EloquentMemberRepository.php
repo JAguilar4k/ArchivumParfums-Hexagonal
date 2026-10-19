@@ -10,12 +10,8 @@ use Illuminate\Support\Str;
 use Src\Businesses\Members\Domain\Contracts\MemberRepository;
 use Src\Businesses\Members\Domain\Entities\Member;
 use Src\Businesses\Members\Domain\Exceptions\AccountAlreadyOnStaffException;
-use Src\Businesses\Members\Domain\ValueObjects\MemberRole;
-use Src\Businesses\Members\Domain\ValueObjects\Membership;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
-use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\MemberId;
-use Src\Shared\Domain\ValueObjects\UserId;
 
 final readonly class EloquentMemberRepository implements MemberRepository
 {
@@ -41,16 +37,5 @@ final readonly class EloquentMemberRepository implements MemberRepository
         } catch (UniqueConstraintViolationException) {
             throw AccountAlreadyOnStaffException::create();
         }
-    }
-
-    /**
-     * Find the business and role of an account through fn_member_business: members only shows the rows of the
-     * business pinned in the transaction, and the business of a person is what this lookup finds.
-     */
-    public function findByUser(UserId $userId): ?Membership
-    {
-        $row = DB::selectOne('select business_id, role from fn_member_business(?)', [$userId->value]);
-
-        return $row === null ? null : new Membership(new BusinessId($row->business_id), MemberRole::from($row->role));
     }
 }

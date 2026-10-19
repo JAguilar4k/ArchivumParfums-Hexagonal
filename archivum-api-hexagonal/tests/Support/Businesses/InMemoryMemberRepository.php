@@ -7,9 +7,7 @@ namespace Tests\Support\Businesses;
 use Src\Businesses\Members\Domain\Contracts\MemberRepository;
 use Src\Businesses\Members\Domain\Entities\Member;
 use Src\Businesses\Members\Domain\Exceptions\AccountAlreadyOnStaffException;
-use Src\Businesses\Members\Domain\ValueObjects\Membership;
 use Src\Shared\Domain\ValueObjects\MemberId;
-use Src\Shared\Domain\ValueObjects\UserId;
 
 final class InMemoryMemberRepository implements MemberRepository
 {
@@ -34,14 +32,6 @@ final class InMemoryMemberRepository implements MemberRepository
         }
 
         $this->members[$member->userId->value] = $member;
-    }
-
-    /** Find the business and role of an account. */
-    public function findByUser(UserId $userId): ?Membership
-    {
-        $member = $this->members[$userId->value] ?? null;
-
-        return $member === null ? null : new Membership($member->businessId, $member->role);
     }
 
     /**
