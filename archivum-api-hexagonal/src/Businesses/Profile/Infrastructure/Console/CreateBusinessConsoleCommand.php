@@ -8,6 +8,7 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Src\Businesses\Profile\Application\DTOs\RegisterBusinessCommand;
 use Src\Businesses\Profile\Application\UseCases\RegisterBusiness;
+use Src\Businesses\Profile\Domain\ValueObjects\BusinessTimezone;
 use Src\Shared\Domain\Exceptions\DomainException;
 
 #[Signature('archivum:create-business {name?} {slug?} {owner-name?} {owner-email?} {--password=}')]
@@ -41,6 +42,10 @@ final class CreateBusinessConsoleCommand extends Command
                 $ownerName,
                 $ownerEmail,
                 is_string($password) ? $password : '',
+                // The default time zone, no appointment place and an owner who does not attend appointments yet.
+                BusinessTimezone::DEFAULT,
+                null,
+                false,
             ));
         } catch (DomainException $exception) {
             $this->components->error(__($exception->translationKey(), $exception->parameters()));

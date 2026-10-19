@@ -16,6 +16,7 @@ use Src\Businesses\Members\Application\UseCases\AddMember;
 use Src\Businesses\Members\Domain\ValueObjects\MemberRole;
 use Src\Businesses\Profile\Application\DTOs\RegisterBusinessCommand;
 use Src\Businesses\Profile\Application\UseCases\RegisterBusiness;
+use Src\Businesses\Profile\Domain\ValueObjects\BusinessTimezone;
 use Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 
@@ -105,8 +106,9 @@ final class DemoBusinessesSeeder extends Seeder
             $ownerName,
             $ownerEmail,
             $password,
-            appointmentPlace: $business['place'],
-            ownerAttendsAppointments: true,
+            BusinessTimezone::DEFAULT,
+            $business['place'],
+            true,
         ));
 
         $this->transaction->scope($registered->id->value);
