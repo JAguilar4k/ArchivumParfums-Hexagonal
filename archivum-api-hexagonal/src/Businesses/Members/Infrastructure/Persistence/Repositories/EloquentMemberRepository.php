@@ -51,6 +51,7 @@ final readonly class EloquentMemberRepository implements MemberRepository
         $model = MemberModel::query()->where('user_id', $userId->value)->first();
 
         return $model === null ? null : Member::reconstitute(
+            new MemberId($model->id),
             new UserId($model->user_id),
             new BusinessId($model->business_id),
             MemberRole::from($model->role),
