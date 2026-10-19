@@ -40,6 +40,7 @@ it('makes an owner or a staff member who does not attend appointments', function
     expect($owner->role)->toBe('owner')
         ->and($staff->role)->toBe('staff')
         ->and($owner->attends_appointments)->toBeFalse()
+        ->and($staff->attends_appointments)->toBeFalse()
         ->and($owner->business_id)->not->toBe($staff->business_id);
 });
 
