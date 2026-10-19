@@ -34,23 +34,56 @@ it('lets only one of two conditional updates of the same row take effect', funct
         'updated_at' => now(),
     ]);
 
-    // Each process renames the business only if nobody renamed it first, and keeps the row locked a moment.
+    // The winner keeps its row locked until PostgreSQL confirms the other operation is waiting on it.
     $rename = function (string $name) use ($id): Closure {
-        return function () use ($id, $name): int {
-            return DB::transaction(function () use ($id, $name): int {
+        return function () use ($id, $name): array {
+            return DB::transaction(function () use ($id, $name): array {
                 $renamed = DB::update('update businesses set name = ? where id = ? and name = ?', [$name, $id, 'ArchivumParfums']);
-                DB::select('select pg_sleep(0.3)');
+                $overlapped = false;
 
-                return $renamed;
+                if ($renamed === 1) {
+                    $deadline = microtime(true) + 10;
+
+                    do {
+                        $overlapped = (bool) DB::scalar(<<<'SQL'
+                            select exists (
+                                select 1 from pg_stat_activity
+                                where datname = current_database()
+                                  and pg_backend_pid() = any (pg_blocking_pids(pid))
+                            )
+                            SQL);
+
+                        if (! $overlapped) {
+                            if (microtime(true) >= $deadline) {
+                                throw new RuntimeException('The competing update never waited on the locked row.');
+                            }
+
+                            usleep(10_000);
+                        }
+                    } while (! $overlapped);
+                }
+
+                return ['renamed' => $renamed, 'overlapped' => $overlapped];
             });
         };
     };
 
-    $renamed = inParallel(['businesses'], $rename('Archivum Norte'), $rename('Archivum Sur'));
+    $results = inParallel(['businesses'], $rename('Archivum Norte'), $rename('Archivum Sur'));
+    $renamed = array_column($results, 'renamed');
 
     expect($renamed)->toEqualCanonicalizing([0, 1])
+        ->and(array_column($results, 'overlapped'))->toEqualCanonicalizing([true, false])
         ->and(DB::connection('pgsql_admin')->table('businesses')->where('id', $id)->value('name'))
         ->toBe($renamed[0] === 1 ? 'Archivum Norte' : 'Archivum Sur');
+});
+
+it('cleans up its barrier when an operation fails', function () {
+    $before = glob(sys_get_temp_dir().DIRECTORY_SEPARATOR.'archivum-parallel-*') ?: [];
+
+    expect(fn () => inParallel([], static fn () => throw new RuntimeException('Parallel operation failed.'), static fn (): bool => true))
+        ->toThrow(RuntimeException::class, 'Parallel operation failed.');
+
+    expect(glob(sys_get_temp_dir().DIRECTORY_SEPARATOR.'archivum-parallel-*') ?: [])->toBe($before);
 });
 
 it('leaves no row behind for the next test', function () {
