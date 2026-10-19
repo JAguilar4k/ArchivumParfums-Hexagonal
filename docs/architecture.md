@@ -121,7 +121,14 @@ El caso de uso `StartSession` emite el token por el puerto `TokenIssuer`. Su ada
 
 El caso de uso `EndSession` cierra la sesión por el puerto `TokenRevoker`. Su adaptador, `SanctumTokenRevoker`, borra la fila del token de la petición, así las demás sesiones de la cuenta siguen abiertas. El mismo puerto borra todos los tokens de una cuenta con `revokeAll`; lo usarán el cambio de rol y la desactivación del personal (#106) y la eliminación de la cuenta (#112).
 
-Las operaciones del personal preguntan su tienda al puerto `BusinessContext` de `Shared`. Sus adaptadores, que la toman de la sesión del personal o de la URL, llegan con #30.
+Las operaciones de una tienda preguntan su tienda al puerto `BusinessContext` de `Shared`. Su enlace por defecto, `UnresolvedBusinessContext`, falla a propósito, porque fuera de un grupo de rutas con el middleware `business` no se sabe de qué tienda se trata. Ese middleware, `ScopeRequestToBusiness`, recibe como parámetro el origen de la tienda y, durante la petición, enlaza el puerto al adaptador que un módulo registra para ese origen en su service provider, con la clave `ScopeRequestToBusiness::contextFor()`:
+
+| Middleware | Rutas | Adaptador | De dónde sale la tienda |
+| --- | --- | --- | --- |
+| `business:staff` | `/api/v1/panel/...`, después de `auth:sanctum` | `StaffBusinessContext`, de `Businesses/Members` | De la persona autenticada, con el caso de uso `FindMemberByAccount`. Un cliente, que no está en el personal de ninguna tienda, recibe 403 `prohibido` |
+| `business:route` | `/api/v1/tiendas/{tienda}/...` | `RouteBusinessContext`, de `Businesses/Profile` | Del slug `{tienda}` de la URL, con el caso de uso `FindBusinessBySlug`. Un slug que no existe responde 404 `no-encontrado` |
+
+El middleware resuelve la tienda antes de llegar a cualquier caso de uso y corre la petición en una sola transacción, que fija esa tienda con `BusinessTransaction`. El dueño y el colaborador trabajan siempre sobre su propia tienda: ninguna ruta del panel toma la tienda de la URL, de los parámetros ni del cuerpo. Las rutas de `/api/v1/cuenta` tendrán su propio origen, `business:account`, con #32. `tests/Feature/Tenancy/BusinessOfTheSessionTest.php` comprueba estas reglas, y `tests/Feature/Shared/ScopeRequestToBusinessTest.php` comprueba el middleware.
 
 ## Aislamiento entre tiendas
 
@@ -181,7 +188,7 @@ Las pruebas se escriben con Pest ([ADR 0009](adr/0009-pest-instead-of-phpunit.md
 | Carpeta | Alcance |
 |---|---|
 | `tests/Unit` | Dominio y casos de uso, sin arrancar el framework. |
-| `tests/Feature` | Endpoints y adaptadores contra PostgreSQL, con el rol de la aplicación. |
+| `tests/Feature` | Endpoints y adaptadores contra PostgreSQL, con el rol de la aplicación. `tests/Feature/Tenancy` reúne las pruebas de aislamiento entre tiendas. |
 | `tests/Architecture` | Regla de dependencias entre capas y entre módulos, y la forma de los casos de uso. |
 
 Los caminos críticos tienen prueba propia: la doble reserva de una cita, los últimos ml de una botella, el canje simultáneo de un paquete, el webhook repetido y el webhook con firma inválida ([ADR 0010](adr/0010-concurrency-guaranteed-in-postgresql.md)).
