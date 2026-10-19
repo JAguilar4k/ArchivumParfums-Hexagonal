@@ -10,6 +10,8 @@ return [
     'environment_file_created' => 'Created .env from .env.example.',
     'existing_role_password' => 'The PostgreSQL role already exists. Set its current password in :variable in .env; the installer does not change credentials used by another installation.',
     'migration_failed' => 'Migrations failed. Fix the error and run archivum:install again.',
+    'query_failed' => 'A PostgreSQL operation failed. Check the role permissions and the DB_ values in .env.',
+    'query_failed_with_state' => 'A PostgreSQL operation failed (SQLSTATE :sqlstate). Check the role permissions and the DB_ values in .env.',
     'ready' => 'The environment is ready to work.',
     'roles_ready' => 'The roles :owner and :application and both databases are ready; their passwords are in .env.',
     'seeding_failed' => 'Demo data could not be completed. Fix the error and run archivum:install again.',

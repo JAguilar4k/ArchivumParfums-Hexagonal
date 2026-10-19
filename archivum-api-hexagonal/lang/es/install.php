@@ -10,6 +10,8 @@ return [
     'environment_file_created' => 'Se creó .env a partir de .env.example.',
     'existing_role_password' => 'El rol de PostgreSQL ya existe. Escriba su contraseña actual en :variable de .env; el instalador no cambia las contraseñas de otras instalaciones.',
     'migration_failed' => 'Las migraciones fallaron. Corrija el error y ejecute de nuevo archivum:install.',
+    'query_failed' => 'Falló una operación de PostgreSQL. Revise los permisos del rol y los datos DB_ de .env.',
+    'query_failed_with_state' => 'Falló una operación de PostgreSQL (SQLSTATE :sqlstate). Revise los permisos del rol y los datos DB_ de .env.',
     'ready' => 'El entorno quedó listo para trabajar.',
     'roles_ready' => 'Los roles :owner y :application y las dos bases de datos quedaron listos; sus contraseñas están en .env.',
     'seeding_failed' => 'Los datos de demostración no se completaron. Corrija el error y ejecute de nuevo archivum:install.',

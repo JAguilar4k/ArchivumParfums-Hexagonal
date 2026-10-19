@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Illuminate\Database\Connection;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Str;
@@ -71,7 +72,7 @@ final class InstallCommand extends Command
 
             $this->migrateAndSeed();
         } catch (Throwable $exception) {
-            $this->components->error(__('install.database_failed', ['message' => $exception->getMessage()]));
+            $this->components->error(__('install.database_failed', ['message' => $this->databaseFailureMessage($exception)]));
             $this->line(__('install.database_hint'));
 
             return self::FAILURE;
@@ -80,6 +81,20 @@ final class InstallCommand extends Command
         $this->components->info(__('install.ready'));
 
         return self::SUCCESS;
+    }
+
+    /** Keep SQL, bindings and driver details out of the diagnostic of a failed query. */
+    private function databaseFailureMessage(Throwable $exception): string
+    {
+        if (! $exception instanceof QueryException) {
+            return $exception->getMessage();
+        }
+
+        $sqlstate = $exception->errorInfo[0] ?? null;
+
+        return is_string($sqlstate) && preg_match('/\A[0-9A-Z]{5}\z/', $sqlstate) === 1
+            ? __('install.query_failed_with_state', ['sqlstate' => $sqlstate])
+            : __('install.query_failed');
     }
 
     /**
