@@ -27,7 +27,7 @@ const MISSING_RESOURCE = '0192f0c4-7b1e-7c3a-9f1d-2b6a4e8c0d99';
 function panelListings(): array
 {
     return [
-        'example: customers (test route)' => ['/api/v1/panel/pruebas/clientes', exampleCustomer(...)],
+        'example: customers (test route)' => ['/api/v1/pruebas/panel/clientes', exampleCustomer(...)],
     ];
 }
 
@@ -41,7 +41,7 @@ function panelListings(): array
 function panelResourcesById(): array
 {
     return [
-        'example: show a customer (test route)' => ['GET', '/api/v1/panel/pruebas/clientes', [], 'customers', exampleCustomer(...)],
+        'example: show a customer (test route)' => ['GET', '/api/v1/pruebas/panel/clientes', [], 'customers', exampleCustomer(...)],
     ];
 }
 
@@ -81,7 +81,8 @@ beforeEach(function () {
     TwoBusinesses::seed();
 
     // An example of the rule until the first panel endpoint with resources exists: every query filters by the business of BusinessContext.
-    Route::prefix('api/v1/panel/pruebas/clientes')->middleware(['api', 'auth:sanctum', 'business:staff'])->group(function (): void {
+    // Like the other throwaway routes, it lives under api/v1/pruebas, outside the prefixes that the route scans walk.
+    Route::prefix('api/v1/pruebas/panel/clientes')->middleware(['api', 'auth:sanctum', 'business:staff'])->group(function (): void {
         Route::get('/', fn (BusinessContext $context) => ['data' => DB::table('customers')
             ->where('business_id', $context->current()->value)
             ->get(['id'])]);
