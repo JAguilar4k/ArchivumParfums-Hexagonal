@@ -8,7 +8,7 @@ use Src\Shared\Domain\Exceptions\InvalidValueException;
 
 final readonly class UserName
 {
-    public const int MAX_LENGTH = 120;
+    public const int MAX_LENGTH = 255;
 
     public string $value;
 
