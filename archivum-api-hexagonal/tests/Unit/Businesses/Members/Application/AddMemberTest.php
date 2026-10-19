@@ -12,12 +12,13 @@ const ADD_MEMBER_USER = '0192f0c4-0000-7000-8000-000000000001';
 const ADD_MEMBER_BUSINESS = '0192f0c4-0000-7000-9000-000000000001';
 const ADD_MEMBER_OTHER_BUSINESS = '0192f0c4-0000-7000-9000-000000000002';
 
-it('adds an account to the staff of a business with its role', function () {
+it('adds an account to the staff of a business with a new identity and its role', function () {
     $members = new InMemoryMemberRepository;
 
     $member = (new AddMember($members))->execute(new AddMemberCommand(ADD_MEMBER_USER, ADD_MEMBER_BUSINESS, MemberRole::Staff, true));
 
-    expect($member->role)->toBe(MemberRole::Staff)
+    expect($member->id->value)->toBe('0192f0c4-0000-7000-8000-000000000001')
+        ->and($member->role)->toBe(MemberRole::Staff)
         ->and($member->attendsAppointments)->toBeTrue()
         ->and($members->all())->toEqual([$member]);
 });

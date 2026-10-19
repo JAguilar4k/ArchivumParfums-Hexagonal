@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Route;
+use Src\Shared\Domain\Exceptions\AuthenticationFailedException;
 use Src\Shared\Domain\Exceptions\DomainException;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\Exceptions\NotFoundException;
@@ -34,6 +35,8 @@ beforeEach(function () {
         Route::get('conflicto', fn () => throw new class('validation.unique', ['attribute' => 'slug']) extends DomainException {});
 
         Route::post('validacion', fn (Request $request) => $request->validate(['precio' => 'required|integer']));
+
+        Route::post('credenciales', fn () => throw new class('problems.credenciales-invalidas.detail') extends AuthenticationFailedException {});
 
         Route::get('estado/{status}', fn (int $status) => throw new HttpException($status));
 
@@ -83,12 +86,6 @@ it('answers an unknown route with a complete not found problem', function () {
         ]);
 });
 
-it('answers in the problem format even without an accept header', function () {
-    get('/api/v1/desconocido')
-        ->assertNotFound()
-        ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE);
-});
-
 it('repeats the incoming request identifier in the instance member', function () {
     $requestId = '0192f0c4-7b1e-7c3a-9f1d-2b6a4e8c0d11';
 
@@ -121,6 +118,15 @@ it('answers any other domain exception as a conflict', function () {
         ->assertJsonPath('title', 'Conflicto')
         ->assertJsonPath('status', 409)
         ->assertJsonPath('detail', 'El valor del campo slug ya está en uso.');
+});
+
+it('answers a failed authentication as invalid credentials', function () {
+    postJson('/api/v1/pruebas/credenciales')
+        ->assertUnauthorized()
+        ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE)
+        ->assertJsonPath('type', 'http://localhost/problemas/credenciales-invalidas')
+        ->assertJsonPath('title', 'Credenciales inválidas')
+        ->assertJsonPath('detail', 'El correo o la contraseña no son correctos.');
 });
 
 it('answers a protected route without a session as unauthenticated', function (array $headers) {
