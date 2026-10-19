@@ -81,6 +81,8 @@ El enunciado permite usar asistentes de IA con una condición: cada integrante d
 | README, `.gitignore` y plantillas de `.github/` | Claude Code (Claude Opus 5.5) | Redacción adaptada del proyecto guía. | Pendiente |
 | Etiquetas, milestones, issues y tablero | Claude Code (Claude Opus 5.5) | Redacción de milestones e issues a partir de la especificación, el plan y el enunciado, y su creación con `gh`. | Pendiente |
 | `docs/especificacion.md`, `docs/plan.md` y `CLAUDE.md` | Por declarar | Por declarar | Por declarar |
+| Identificador de las solicitudes (#45, PR #218) | Claude Code; Codex (declaración) | Claude Code generó el middleware `X-Request-Id`, la configuración CORS y las pruebas HTTP con la forma del repo guía; Codex agregó esta declaración. | Revisión humana pendiente. |
+| Errores HTTP de la API (#46) | Codex | Preservación de estados HTTP originales en RFC 9457 y regresiones automáticas. | Pendiente de revisión humana del equipo. |
+| Migración de cuentas y errores HTTP (#26) | Codex | Migración UUID sin perder cuentas ni sesiones, preservación de estados HTTP y regresiones automáticas. | Pendiente de revisión humana del equipo. |
 | Cuentas y errores HTTP (#27) | Codex | Migración UUID sin pérdida de datos, rechazo de entradas bcrypt incompatibles, estados HTTP, compatibilidad con nombres de cuenta heredados de hasta 255 caracteres y regresiones automáticas del adaptador, sin agregar el ingreso. | Pendiente de revisión humana del equipo. |
-
 | Compatibilidad del dominio con #25 | Codex | Contratos opcionales con null, validación estricta y persistencia de MemberId conforme al guía, conservando las funciones del issue de esta rama. | Verificación automatizada en el PR; revisión humana pendiente. |
