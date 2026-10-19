@@ -6,8 +6,17 @@ use Illuminate\Support\Facades\Route;
 use Src\Accounts\Sessions\Infrastructure\Http\Controllers\CurrentAccountController;
 use Src\Accounts\Sessions\Infrastructure\Http\Controllers\SessionController;
 
-Route::post('sesiones', [SessionController::class, 'store'])->name('accounts.sessions.store');
+Route::prefix('sesiones')
+    ->name('accounts.sessions.')
+    ->controller(SessionController::class)
+    ->group(function (): void {
+        Route::post('/', 'store')->name('store');
+    });
 
-Route::middleware('auth:sanctum')->group(function (): void {
-    Route::get('cuenta', [CurrentAccountController::class, 'show'])->name('accounts.current.show');
-});
+Route::prefix('cuenta')
+    ->middleware('auth:sanctum')
+    ->name('accounts.current.')
+    ->controller(CurrentAccountController::class)
+    ->group(function (): void {
+        Route::get('/', 'show')->name('show');
+    });
