@@ -29,7 +29,7 @@ final readonly class RegisterBusiness
         $name = new BusinessName($command->name);
         $slug = new BusinessSlug($command->slug);
         $timezone = new BusinessTimezone($command->timezone);
-        $appointmentPlace = new AppointmentPlace($command->appointmentPlace);
+        $appointmentPlace = $command->appointmentPlace === null ? null : new AppointmentPlace($command->appointmentPlace);
 
         return $this->transaction->run(function () use ($command, $name, $slug, $timezone, $appointmentPlace): Business {
             $business = Business::create($this->businesses->nextId(), $name, $slug, $timezone, $appointmentPlace);

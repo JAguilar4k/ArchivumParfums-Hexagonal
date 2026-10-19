@@ -24,6 +24,7 @@ final readonly class AddMember
     public function execute(AddMemberCommand $command): Member
     {
         $member = Member::create(
+            $this->members->nextId(),
             new UserId($command->userId),
             new BusinessId($command->businessId),
             $command->role,

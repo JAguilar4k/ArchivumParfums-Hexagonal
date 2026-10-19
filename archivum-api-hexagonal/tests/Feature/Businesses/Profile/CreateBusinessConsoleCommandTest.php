@@ -153,8 +153,8 @@ it('refuses invalid data in spanish and creates nothing', function (array $overr
     assertDatabaseCount('businesses', 0);
     assertDatabaseCount('users', 0);
 })->with([
-    'empty name' => [['name' => '   '], 'El nombre de la tienda no puede estar vacío.'],
-    'slug with spaces' => [['slug' => 'archivum parfums'], 'El slug solo puede tener minúsculas, dígitos y guiones.'],
+    'empty name' => [['name' => '   '], 'El nombre de la tienda es obligatorio y no puede superar los 100 caracteres.'],
+    'slug with spaces' => [['slug' => 'archivum parfums'], 'El slug solo puede tener minúsculas, dígitos y guiones, y no puede superar los 100 caracteres.'],
     'malformed email' => [['owner-email' => 'duena.archivumparfums.test'], 'El correo debe ser una dirección válida de 255 caracteres como máximo.'],
     'short password' => [['--password' => '1234567'], 'La contraseña debe tener al menos 8 caracteres.'],
 ]);
