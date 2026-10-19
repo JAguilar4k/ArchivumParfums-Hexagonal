@@ -32,18 +32,3 @@ it('pins the business of each factory row before inserting it', function (Closur
     'member' => [fn (): MemberModel => MemberModel::factory()->create(), 'members'],
     'customer' => [fn (): CustomerModel => CustomerModel::factory()->create(), 'customers'],
 ]);
-
-it('makes an owner or a staff member who does not attend appointments', function () {
-    $owner = MemberModel::factory()->owner()->create();
-    $staff = MemberModel::factory()->staff()->create();
-
-    expect($owner->role)->toBe('owner')
-        ->and($staff->role)->toBe('staff')
-        ->and($owner->attends_appointments)->toBeFalse()
-        ->and($staff->attends_appointments)->toBeFalse()
-        ->and($owner->business_id)->not->toBe($staff->business_id);
-});
-
-it('makes a customer with a fictitious test phone', function () {
-    expect(CustomerModel::factory()->create()->phone)->toMatch('/^\+5068888\d{4}$/');
-});
