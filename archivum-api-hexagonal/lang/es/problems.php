@@ -12,6 +12,10 @@ return [
         'title' => 'No autenticado',
         'detail' => 'Debe iniciar sesión para realizar esta acción.',
     ],
+    'credenciales-invalidas' => [
+        'title' => 'Credenciales inválidas',
+        'detail' => 'El correo o la contraseña no son correctos.',
+    ],
     'prohibido' => [
         'title' => 'Acción no permitida',
         'detail' => 'No tiene permiso para realizar esta acción.',

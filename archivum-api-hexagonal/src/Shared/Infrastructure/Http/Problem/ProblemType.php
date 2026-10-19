@@ -8,6 +8,7 @@ enum ProblemType: string
 {
     case BadRequest = 'solicitud-invalida';
     case Unauthenticated = 'no-autenticado';
+    case InvalidCredentials = 'credenciales-invalidas';
     case Forbidden = 'prohibido';
     case NotFound = 'no-encontrado';
     case MethodNotAllowed = 'metodo-no-permitido';
@@ -22,7 +23,7 @@ enum ProblemType: string
     {
         return match ($this) {
             self::BadRequest => 400,
-            self::Unauthenticated => 401,
+            self::Unauthenticated, self::InvalidCredentials => 401,
             self::Forbidden => 403,
             self::NotFound => 404,
             self::MethodNotAllowed => 405,
