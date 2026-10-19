@@ -118,6 +118,8 @@ php artisan archivum:create-business "ArchivumParfums" archivumparfums "Valeria 
 
 El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 1 si rechaza algún dato, con el motivo en pantalla. Sin `--password` y sin terminal interactiva rechaza la contraseña. Una contraseña escrita en `--password` queda en el historial del terminal; para uso manual conviene dejar que el comando la pida.
 
+El nombre de una cuenta admite hasta 255 caracteres, como la columna original `users.name`. A diferencia de SodaYa, cuyo esquema de cuentas nace con 120, Archivum conserva las cuentas de la migración inicial de Laravel: al reconstruirlas desde la base, sus nombres se mantienen completos.
+
 ## Endpoints
 
 | Método | Ruta | Quién | Descripción |
