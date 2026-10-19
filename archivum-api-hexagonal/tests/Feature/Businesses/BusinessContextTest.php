@@ -6,11 +6,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel;
 use Src\Shared\Domain\Contracts\BusinessContext;
+use Tests\Support\Accounts\DemoAccounts;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 use function Pest\Laravel\getJson;
 use function Pest\Laravel\postJson;
-use function Pest\Laravel\seed;
 
 pest()->use(RefreshDatabaseAsOwner::class);
 
@@ -47,21 +47,8 @@ function demoBusinessId(string $slug): string
     return BusinessModel::query()->where('slug', $slug)->sole()->id;
 }
 
-/**
- * Sign in as a demo account and return its bearer header.
- *
- * @return array<string, string>
- */
-function bearerOf(string $email): array
-{
-    $token = postJson('/api/v1/sesiones', ['correo' => $email, 'contrasena' => 'clave-de-demostracion'])->json('data.token');
-
-    return ['Authorization' => "Bearer {$token}"];
-}
-
 beforeEach(function () {
-    config(['archivum.demo_password' => 'clave-de-demostracion']);
-    seed();
+    DemoAccounts::seed();
     reachedUseCase(false);
 
     Route::prefix('api/v1/panel/pruebas')->middleware(['api', 'auth:sanctum', 'business:staff'])->group(function (): void {
@@ -76,7 +63,7 @@ beforeEach(function () {
 it('gives each person of the staff the business of the session and pins it in the transaction', function (string $email, string $slug) {
     $businessId = demoBusinessId($slug);
 
-    getJson('/api/v1/panel/pruebas/tienda', bearerOf($email))
+    getJson('/api/v1/panel/pruebas/tienda', DemoAccounts::signIn($email))
         ->assertOk()
         ->assertExactJson(['tienda' => $businessId, 'fijada' => $businessId]);
 })->with([
@@ -90,7 +77,7 @@ it('ignores another business sent in the body or in the query of a panel request
     $own = demoBusinessId('archivumparfums');
     $other = demoBusinessId('esencias-del-norte');
 
-    postJson("/api/v1/panel/pruebas/tienda?business_id={$other}&tienda={$other}", ['business_id' => $other, 'tienda' => $other], bearerOf('duena@archivumparfums.test'))
+    postJson("/api/v1/panel/pruebas/tienda?business_id={$other}&tienda={$other}", ['business_id' => $other, 'tienda' => $other], DemoAccounts::signIn('duena@archivumparfums.test'))
         ->assertOk()
         ->assertJsonPath('tienda', $own);
 });
@@ -98,7 +85,7 @@ it('ignores another business sent in the body or in the query of a panel request
 it('answers 401 without a token and 403 to a customer, before reaching any use case', function () {
     getJson('/api/v1/panel/pruebas/tienda')->assertUnauthorized();
 
-    getJson('/api/v1/panel/pruebas/tienda', bearerOf('mariana@clientes.test'))
+    getJson('/api/v1/panel/pruebas/tienda', DemoAccounts::signIn('mariana@clientes.test'))
         ->assertForbidden()
         ->assertHeader('Content-Type', 'application/problem+json')
         ->assertJsonPath('type', rtrim((string) config('app.url'), '/').'/problemas/prohibido');
