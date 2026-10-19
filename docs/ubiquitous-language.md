@@ -22,10 +22,17 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 |---|---|---|---|
 | Tienda | `Business` | `businesses` | `tiendas` |
 | Personal | `Member` | `members` | `personal` |
-| Dueño | `Owner` | — | — |
-| Colaborador | `Staff` | — | — |
-| Cliente | `Customer` | `customers` | — |
+| Dueño | `Owner` | — | `dueno` |
+| Colaborador | `Staff` | — | `colaborador` |
+| Cliente | `Customer` | `customers` | `cliente` |
 | Visitante | `Visitor` | — | — |
+| Cuenta | `User` | `users` | `cuenta` |
+| Correo | `Email` | `email` | `correo` |
+| Contraseña | `PlainPassword` | `password`, solo el hash | `contrasena` |
+| Sesión | `StartSession` | `personal_access_tokens` | `sesiones` |
+| Token de acceso | `StartedSession` | `personal_access_tokens.token`, solo el hash | `token` |
+| Dispositivo | `deviceName` | `personal_access_tokens.name` | `dispositivo` |
+| Rol | `AccountRole` | `members.role` | `rol` |
 | Servicio | `Service` | `services` | `servicios` |
 | Horario de la tienda | `BusinessHours` | `business_hours` | `horario` |
 | Horario de atención | `StaffSchedule` | `staff_schedules` | `horario` (bajo `personal/{persona}`) |
@@ -50,7 +57,7 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Línea de la orden de compra | `PurchaseOrderLine` | `purchase_order_lines` | `lineas` |
 | Recomendación | `Recommendation` | — | `recomendaciones` |
 
-El dueño y el colaborador son los dos roles del personal: en la base son los valores `owner` y `staff` de `members.role`.
+El dueño y el colaborador son los dos roles del personal: en la base son los valores `owner` y `staff` de `members.role`. Una cuenta que no está en el personal de ninguna tienda es cliente. En la API, `rol` vale `dueno`, `colaborador` o `cliente`.
 
 ## Estados
 
@@ -111,29 +118,6 @@ El dominio y la base guardan el estado en inglés. La API lo muestra en español
 - Un pago confirmado viaja como `confirmado`, nunca como `pagado`, para no chocar con el monto `pagado` del pedido.
 - Los estados del reembolso no están en la sección 6 de la especificación; esta tabla es su definición, y su `CHECK` sobre `refunds.status` llega con #89.
 - Las transiciones permitidas están en la sección 6 de [la especificación](especificacion.md#6-estados). Solo `held` y `confirmed` cuentan para la restricción de traslape de las citas.
-
-## Tipos de problema
-
-Todo error de la API responde `application/problem+json` (RFC 9457) con `type`, `title`, `status`, `detail` e `instance`. El `type` es la URL de la aplicación más `/problemas/<tipo>`, el `instance` repite el `X-Request-Id` como `urn:uuid:<id>` y el título y el detalle salen de `lang/es/problems.php`. El catálogo único está en `Src\Shared\Infrastructure\Http\Problem\ProblemType`.
-
-| Tipo | Estado | Cuándo |
-|---|---|---|
-| `solicitud-invalida` | 400 | La solicitud no se puede procesar tal como viene |
-| `no-autenticado` | 401 | Falta la sesión o el token no es válido |
-| `prohibido` | 403 | El rol de la sesión no permite la acción |
-| `no-encontrado` | 404 | La ruta o el recurso no existen, o el recurso es de otra tienda o de otro cliente |
-| `metodo-no-permitido` | 405 | La ruta no acepta el método HTTP |
-| `conflicto` | 409 | Una regla del dominio choca con el estado actual |
-| `datos-invalidos` | 422 | La validación falla; agrega el miembro `errores` con los mensajes por campo |
-| `demasiadas-solicitudes` | 429 | Se superó el límite de solicitudes |
-| `error-interno` | 500 | Un error inesperado, sin traza, clase, consulta SQL ni mensaje técnico |
-| `servicio-no-disponible` | 503 | El servicio no está disponible |
-
-**Regla de lo ajeno.** Lo ajeno y lo inexistente responden igual, para no revelar qué existe en otra tienda:
-
-- Un identificador de la **ruta** que pertenece a otra tienda o a otro cliente responde 404 `no-encontrado`, con el mismo `type`, `title` y `detail` que uno inexistente.
-- Un identificador del **cuerpo**, inexistente o ajeno, responde 422 `datos-invalidos` con el error en ese campo.
-- Un parámetro de la **consulta** que identifica un recurso (por ejemplo `servicio` y `persona` al consultar la disponibilidad) sigue la regla del cuerpo.
 
 ## Valores en la API
 

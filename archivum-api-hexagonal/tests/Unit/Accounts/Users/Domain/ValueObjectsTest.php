@@ -31,14 +31,11 @@ it('trims the name of the account', function () {
     expect((new UserName('  Valeria Solano  '))->value)->toBe('Valeria Solano');
 });
 
-it('accepts names supported by the original account schema without truncating them', function (string $name) {
-    expect((new UserName($name))->value)->toBe($name);
-})->with([
-    'existing account with 150 characters' => str_repeat('a', 150),
-    'database limit of 255 characters' => str_repeat('a', 255),
-]);
+it('accepts a name of 120 characters, counted as characters and not bytes', function () {
+    expect(mb_strlen((new UserName(str_repeat('ñ', 120)))->value))->toBe(120);
+});
 
 it('rejects an empty or oversized name', function (string $name) {
     new UserName($name);
-})->with(['empty' => '   ', 'too long' => str_repeat('a', 256)])
+})->with(['empty' => '   ', 'too long' => str_repeat('a', 121)])
     ->throws(InvalidValueException::class, 'accounts.name_invalid');

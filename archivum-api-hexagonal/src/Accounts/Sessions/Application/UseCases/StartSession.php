@@ -22,7 +22,7 @@ final readonly class StartSession
     ) {}
 
     /**
-     * Issue a token when the credentials belong to an account.
+     * Issue a token for the device when the credentials belong to an account.
      *
      * @throws InvalidCredentialsException
      */
@@ -37,6 +37,6 @@ final readonly class StartSession
             throw InvalidCredentialsException::create();
         }
 
-        return new StartedSession($this->tokens->issue($user->id));
+        return new StartedSession($this->tokens->issue($user->id, $command->deviceName));
     }
 }

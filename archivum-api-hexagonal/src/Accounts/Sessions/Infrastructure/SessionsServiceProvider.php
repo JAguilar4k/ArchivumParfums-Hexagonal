@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace Src\Accounts\Sessions\Infrastructure;
 
 use Illuminate\Support\ServiceProvider;
-use Laravel\Sanctum\Sanctum;
 use Src\Accounts\Sessions\Application\Contracts\StaffMemberships;
 use Src\Accounts\Sessions\Domain\Contracts\TokenIssuer;
 use Src\Accounts\Sessions\Infrastructure\Businesses\BusinessesStaffMemberships;
-use Src\Accounts\Sessions\Infrastructure\Persistence\Models\PersonalAccessTokenModel;
 use Src\Accounts\Sessions\Infrastructure\Security\SanctumTokenIssuer;
 
 final class SessionsServiceProvider extends ServiceProvider
@@ -23,10 +21,4 @@ final class SessionsServiceProvider extends ServiceProvider
         StaffMemberships::class => BusinessesStaffMemberships::class,
         TokenIssuer::class => SanctumTokenIssuer::class,
     ];
-
-    /** Store the Sanctum tokens with UUID keys. */
-    public function boot(): void
-    {
-        Sanctum::usePersonalAccessTokenModel(PersonalAccessTokenModel::class);
-    }
 }

@@ -9,6 +9,8 @@ use Src\Shared\Domain\Exceptions\InvalidValueException;
 
 final readonly class BusinessTimezone
 {
+    public const string DEFAULT = 'America/Costa_Rica';
+
     /** Accept only IANA identifiers such as America/Costa_Rica. */
     public function __construct(public string $value)
     {

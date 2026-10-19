@@ -28,7 +28,7 @@ final class BusinessFactory extends Factory
             'name' => $name,
             'slug' => Str::slug($name),
             'timezone' => 'America/Costa_Rica',
-            'location_text' => '',
+            'location_text' => null,
             // As an object, as the repository stores it, so the business stores {} instead of a JSON array.
             'settings' => (object) [],
         ];
