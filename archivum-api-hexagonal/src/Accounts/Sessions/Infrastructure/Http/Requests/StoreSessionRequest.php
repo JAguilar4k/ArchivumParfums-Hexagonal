@@ -8,7 +8,7 @@ use Illuminate\Foundation\Http\FormRequest;
 use Src\Accounts\Sessions\Application\DTOs\StartSessionCommand;
 use Src\Accounts\Users\Domain\ValueObjects\Email;
 
-final class StoreSession extends FormRequest
+final class StoreSessionRequest extends FormRequest
 {
     /**
      * Validation rules for the credentials.

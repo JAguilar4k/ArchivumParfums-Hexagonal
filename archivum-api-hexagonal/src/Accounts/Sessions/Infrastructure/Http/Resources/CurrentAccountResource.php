@@ -6,16 +6,16 @@ namespace Src\Accounts\Sessions\Infrastructure\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Src\Accounts\Sessions\Application\DTOs\CurrentAccountView;
+use Src\Accounts\Sessions\Application\DTOs\CurrentAccount;
 use Src\Accounts\Sessions\Domain\ValueObjects\AccountRole;
 
 /**
- * @property-read CurrentAccountView $resource
+ * @property-read CurrentAccount $resource
  */
-final class CurrentAccount extends JsonResource
+final class CurrentAccountResource extends JsonResource
 {
     /** Wrap the data of the signed-in account. */
-    public function __construct(private readonly CurrentAccountView $account)
+    public function __construct(private readonly CurrentAccount $account)
     {
         parent::__construct($account);
     }
