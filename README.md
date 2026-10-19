@@ -81,6 +81,4 @@ El enunciado permite usar asistentes de IA con una condición: cada integrante d
 | README, `.gitignore` y plantillas de `.github/` | Claude Code (Claude Opus 5.5) | Redacción adaptada del proyecto guía. | Pendiente |
 | Etiquetas, milestones, issues y tablero | Claude Code (Claude Opus 5.5) | Redacción de milestones e issues a partir de la especificación, el plan y el enunciado, y su creación con `gh`. | Pendiente |
 | `docs/especificacion.md`, `docs/plan.md` y `CLAUDE.md` | Por declarar | Por declarar | Por declarar |
-| Autenticación, cuentas y perfiles (#28) | Codex | Correcciones de migración UUID, entradas bcrypt incompatibles, perfiles sin lugar de cita, estados HTTP y regresiones automáticas. | Pendiente de revisión humana del equipo. |
-
-| Compatibilidad del dominio con #25 | Codex | Contratos opcionales con null, validación estricta y persistencia de MemberId conforme al guía, conservando las funciones del issue de esta rama. | Verificación automatizada en el PR; revisión humana pendiente. |
+| Autenticación, cuentas y perfiles (#28), compatibilidad con #25 | Codex | Correcciones de migración UUID, entradas bcrypt incompatibles, perfiles sin lugar de cita, estados HTTP, contratos opcionales con null, validación estricta y persistencia de MemberId conforme al guía; contrato 401 `credenciales-invalidas` de inicio de sesión y sus regresiones automáticas. | Pendiente de revisión humana del equipo. Las nuevas pruebas del contrato 401 quedan pendientes de ejecución. |

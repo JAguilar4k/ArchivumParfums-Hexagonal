@@ -8,6 +8,7 @@ use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Context;
 use Illuminate\Validation\ValidationException;
+use Src\Shared\Domain\Exceptions\AuthenticationFailedException;
 use Src\Shared\Domain\Exceptions\DomainException;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\Exceptions\NotFoundException;
@@ -47,6 +48,7 @@ final readonly class ProblemDetailsRenderer
         return match (true) {
             $exception instanceof NotFoundException => ProblemType::NotFound,
             $exception instanceof InvalidValueException => ProblemType::InvalidData,
+            $exception instanceof AuthenticationFailedException => ProblemType::InvalidCredentials,
             default => ProblemType::Conflict,
         };
     }
