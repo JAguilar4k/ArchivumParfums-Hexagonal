@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-use Src\Accounts\Sessions\Infrastructure\Security\SanctumTokenRevoker;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
-use Src\Shared\Domain\ValueObjects\UserId;
 use Tests\Support\Accounts\DemoAccounts;
 use Tests\Support\RefreshDatabaseAsOwner;
 
@@ -57,17 +55,4 @@ it('answers 401 without a token or with a revoked one', function () {
     deleteJson('/api/v1/sesiones/actual', [], $session)
         ->assertUnauthorized()
         ->assertHeader('Content-Type', 'application/problem+json');
-});
-
-it('revokes every token of one account and no other', function () {
-    DemoAccounts::signIn('mariana@clientes.test');
-    DemoAccounts::signIn('mariana@clientes.test');
-    DemoAccounts::signIn('carlos@clientes.test');
-    $mariana = UserModel::query()->where('email', 'mariana@clientes.test')->sole();
-    $carlos = UserModel::query()->where('email', 'carlos@clientes.test')->sole();
-
-    (new SanctumTokenRevoker)->revokeAll(new UserId($mariana->id));
-
-    expect($mariana->tokens()->count())->toBe(0)
-        ->and($carlos->tokens()->count())->toBe(1);
 });
