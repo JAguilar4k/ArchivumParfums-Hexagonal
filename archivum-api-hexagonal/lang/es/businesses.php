@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 return [
 
-    'already_a_member' => 'Esa cuenta ya pertenece al personal de una tienda.',
+    'account_already_on_staff' => 'Esa cuenta ya pertenece al personal de una tienda.',
     'appointment_place_invalid' => 'El lugar de la cita no puede estar vacío ni superar los :max caracteres.',
     'business_registered' => 'Tienda registrada: :name (:slug, :id). Dueño: :email.',
     'create_business_description' => 'Da de alta una tienda con los ajustes por defecto y la cuenta de su dueño.',

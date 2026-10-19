@@ -6,7 +6,7 @@ namespace Tests\Support\Businesses;
 
 use Src\Businesses\Members\Domain\Contracts\MemberRepository;
 use Src\Businesses\Members\Domain\Entities\Member;
-use Src\Businesses\Members\Domain\Exceptions\AlreadyAMemberException;
+use Src\Businesses\Members\Domain\Exceptions\AccountAlreadyOnStaffException;
 use Src\Shared\Domain\ValueObjects\MemberId;
 
 final class InMemoryMemberRepository implements MemberRepository
@@ -28,7 +28,7 @@ final class InMemoryMemberRepository implements MemberRepository
         $existing = $this->members[$member->userId->value] ?? null;
 
         if ($existing !== null && ! $existing->businessId->equals($member->businessId)) {
-            throw AlreadyAMemberException::create();
+            throw AccountAlreadyOnStaffException::create();
         }
 
         $this->members[$member->userId->value] = $member;
