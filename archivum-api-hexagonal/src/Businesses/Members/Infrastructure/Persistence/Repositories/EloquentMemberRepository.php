@@ -11,6 +11,7 @@ use Src\Businesses\Members\Domain\Contracts\MemberRepository;
 use Src\Businesses\Members\Domain\Entities\Member;
 use Src\Businesses\Members\Domain\Exceptions\AlreadyAMemberException;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
+use Src\Shared\Domain\ValueObjects\MemberId;
 
 final readonly class EloquentMemberRepository implements MemberRepository
 {

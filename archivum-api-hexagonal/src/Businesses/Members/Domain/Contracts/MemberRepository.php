@@ -6,6 +6,7 @@ namespace Src\Businesses\Members\Domain\Contracts;
 
 use Src\Businesses\Members\Domain\Entities\Member;
 use Src\Businesses\Members\Domain\Exceptions\AlreadyAMemberException;
+use Src\Shared\Domain\ValueObjects\MemberId;
 
 interface MemberRepository
 {
