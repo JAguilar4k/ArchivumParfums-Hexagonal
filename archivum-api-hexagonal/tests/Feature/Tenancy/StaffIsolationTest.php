@@ -10,11 +10,12 @@ use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\Exceptions\NotFoundException;
 use Tests\Support\Businesses\TwoBusinesses;
 use Tests\Support\RefreshDatabaseAsOwner;
+use Tests\Support\Shared\ScopesQueriesToBusiness;
 
 use function Pest\Laravel\getJson;
 use function Pest\Laravel\json;
 
-pest()->use(RefreshDatabaseAsOwner::class);
+pest()->use(RefreshDatabaseAsOwner::class, ScopesQueriesToBusiness::class);
 
 const MISSING_RESOURCE = '0192f0c4-7b1e-7c3a-9f1d-2b6a4e8c0d99';
 
@@ -83,12 +84,13 @@ it('lists the rows of the business of the session and none of the other, for the
 it('answers a resource of the other business exactly like one that does not exist and leaves it as it was, for the owner of each one', function (string $method, string $path, array $payload, string $table, Closure $create) {
     foreach ([TwoBusinesses::FIRST => TwoBusinesses::SECOND, TwoBusinesses::SECOND => TwoBusinesses::FIRST] as $own => $other) {
         $foreign = $create(TwoBusinesses::idOf($other));
+        $this->scopeQueriesTo(TwoBusinesses::idOf($other));
         $before = DB::table($table)->where('id', $foreign)->first();
         TwoBusinesses::actAsOwnerOf($own);
 
         $foreignResponse = json($method, "{$path}/{$foreign}", $payload)->assertNotFound();
         $missingResponse = json($method, "{$path}/".MISSING_RESOURCE, $payload)->assertNotFound();
-        TwoBusinesses::scopeQueriesTo(TwoBusinesses::idOf($other));
+        $this->scopeQueriesTo(TwoBusinesses::idOf($other));
 
         expect(Arr::except($foreignResponse->json(), 'instance'))->toBe(Arr::except($missingResponse->json(), 'instance'))
             ->and(DB::table($table)->where('id', $foreign)->first())->toEqual($before);

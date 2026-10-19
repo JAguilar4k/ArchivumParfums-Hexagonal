@@ -9,7 +9,6 @@ use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel;
-use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 
 /**
  * Two businesses made with the factories, each with its staff and customers, to prove that each one only reaches
@@ -77,12 +76,6 @@ final class TwoBusinesses
     public static function actAsOwnerOf(string $slug): UserModel
     {
         return self::actAs(self::OWNERS[$slug]);
-    }
-
-    /** Make the next queries of the test reach only the rows of one business, to prepare the rows of each one. */
-    public static function scopeQueriesTo(?string $businessId): void
-    {
-        app(BusinessTransaction::class)->scope($businessId);
     }
 
     /** Create the account of an email and return its identifier. */
