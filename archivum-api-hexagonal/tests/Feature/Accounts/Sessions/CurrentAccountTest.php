@@ -84,6 +84,6 @@ it('answers 401 in RFC 9457 format without a token or with an invalid one', func
         ->assertJsonPath('type', rtrim((string) config('app.url'), '/').'/problemas/no-autenticado');
 })->with([
     'no token' => [[]],
-    'invalid token' => [['Authorization' => 'Bearer 0192f0c4-0000-7000-8000-000000000001|no-es-un-token']],
+    'invalid token' => [['Authorization' => 'Bearer 999|no-es-un-token']],
     'malformed token' => [['Authorization' => 'Bearer basura']],
 ]);
