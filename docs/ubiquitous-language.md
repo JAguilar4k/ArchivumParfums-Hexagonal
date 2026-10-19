@@ -22,10 +22,17 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 |---|---|---|---|
 | Tienda | `Business` | `businesses` | `tiendas` |
 | Personal | `Member` | `members` | `personal` |
-| Dueño | `Owner` | — | — |
-| Colaborador | `Staff` | — | — |
-| Cliente | `Customer` | `customers` | — |
+| Dueño | `Owner` | — | `dueno` |
+| Colaborador | `Staff` | — | `colaborador` |
+| Cliente | `Customer` | `customers` | `cliente` |
 | Visitante | `Visitor` | — | — |
+| Cuenta | `User` | `users` | `cuenta` |
+| Correo | `Email` | `email` | `correo` |
+| Contraseña | `PlainPassword` | `password`, solo el hash | `contrasena` |
+| Sesión | `StartSession`, `EndSession` | `personal_access_tokens` | `sesiones` |
+| Token de acceso | `StartedSession` | `personal_access_tokens.token`, solo el hash | `token` |
+| Dispositivo | `deviceName` | `personal_access_tokens.name` | `dispositivo` |
+| Rol | `AccountRole` | `members.role` | `rol` |
 | Servicio | `Service` | `services` | `servicios` |
 | Horario de la tienda | `BusinessHours` | `business_hours` | `horario` |
 | Horario de atención | `StaffSchedule` | `staff_schedules` | `horario` (bajo `personal/{persona}`) |
@@ -50,7 +57,7 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Línea de la orden de compra | `PurchaseOrderLine` | `purchase_order_lines` | `lineas` |
 | Recomendación | `Recommendation` | — | `recomendaciones` |
 
-El dueño y el colaborador son los dos roles del personal: en la base son los valores `owner` y `staff` de `members.role`.
+El dueño y el colaborador son los dos roles del personal: en la base son los valores `owner` y `staff` de `members.role`. Una cuenta que no está en el personal de ninguna tienda es cliente. En la API, `rol` vale `dueno`, `colaborador` o `cliente`.
 
 ## Estados
 

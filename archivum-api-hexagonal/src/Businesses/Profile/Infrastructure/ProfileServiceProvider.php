@@ -7,8 +7,8 @@ namespace Src\Businesses\Profile\Infrastructure;
 use Illuminate\Support\ServiceProvider;
 use Src\Businesses\Profile\Application\Contracts\OwnerAccounts;
 use Src\Businesses\Profile\Domain\Contracts\BusinessRepository;
+use Src\Businesses\Profile\Infrastructure\Accounts\AccountsOwnerAccounts;
 use Src\Businesses\Profile\Infrastructure\Console\CreateBusinessConsoleCommand;
-use Src\Businesses\Profile\Infrastructure\Members\StaffOwnerAccounts;
 use Src\Businesses\Profile\Infrastructure\Persistence\Repositories\EloquentBusinessRepository;
 use Src\Businesses\Profile\Infrastructure\Tenancy\RouteBusinessContext;
 use Src\Shared\Infrastructure\Tenancy\ScopeRequestToBusiness;
@@ -22,7 +22,7 @@ final class ProfileServiceProvider extends ServiceProvider
      */
     public array $bindings = [
         BusinessRepository::class => EloquentBusinessRepository::class,
-        OwnerAccounts::class => StaffOwnerAccounts::class,
+        OwnerAccounts::class => AccountsOwnerAccounts::class,
     ];
 
     /** Offer the business of the URL to the public routes of a business. */

@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Src\Businesses\Members\Infrastructure\Tenancy;
 
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Contracts\Auth\Factory as Auth;
 use Src\Businesses\Members\Application\UseCases\FindMemberByAccount;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\ValueObjects\BusinessId;
-use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 final class StaffBusinessContext implements BusinessContext
 {
@@ -29,7 +29,7 @@ final class StaffBusinessContext implements BusinessContext
         }
 
         $userId = $this->auth->guard()->id() ?? throw new AuthenticationException;
-        $member = $this->findMember->execute((string) $userId) ?? throw new AccessDeniedHttpException;
+        $member = $this->findMember->execute((string) $userId) ?? throw new AuthorizationException;
 
         return $this->business = $member->businessId;
     }
