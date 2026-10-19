@@ -28,31 +28,31 @@ function startSessionWiring(): array
     return [new StartSession($users, $passwords, $tokens), $passwords, $tokens, $user];
 }
 
-it('issues a token for the account of the credentials', function () {
+it('issues a token named after the device for the account of the credentials', function () {
     [$startSession, , $tokens, $user] = startSessionWiring();
 
-    $session = $startSession->execute(new StartSessionCommand('duena@archivum.test', 'clave-segura'));
+    $session = $startSession->execute(new StartSessionCommand('duena@archivum.test', 'clave-segura', 'Computadora'));
 
     expect($session->plainTextToken)->toBe('token-1')
-        ->and($tokens->issuedFor)->toBe([$user->id->value]);
+        ->and($tokens->issued)->toBe([[$user->id->value, 'Computadora']]);
 });
 
 it('finds the account whatever the case of the email', function () {
     [$startSession, , $tokens, $user] = startSessionWiring();
 
-    $startSession->execute(new StartSessionCommand(' Duena@Archivum.TEST ', 'clave-segura'));
+    $startSession->execute(new StartSessionCommand(' Duena@Archivum.TEST ', 'clave-segura', 'Celular'));
 
-    expect($tokens->issuedFor)->toBe([$user->id->value]);
+    expect($tokens->issued)->toBe([[$user->id->value, 'Celular']]);
 });
 
 it('refuses an unknown email and a wrong password with the same exception, after checking a password', function (string $email, string $password) {
     [$startSession, $passwords, $tokens] = startSessionWiring();
 
-    expect(fn () => $startSession->execute(new StartSessionCommand($email, $password)))
+    expect(fn () => $startSession->execute(new StartSessionCommand($email, $password, 'Computadora')))
         ->toThrow(InvalidCredentialsException::class, 'accounts.invalid_credentials');
 
     expect($passwords->checks)->toBe(1)
-        ->and($tokens->issuedFor)->toBe([]);
+        ->and($tokens->issued)->toBe([]);
 })->with([
     'unknown email' => ['nadie@archivum.test', 'clave-segura'],
     'wrong password' => ['duena@archivum.test', 'otra-clave'],

@@ -28,7 +28,7 @@ psql -U postgres -v owner_password='…' -v app_password='…' -f database/roles
 
 Las contraseñas nunca se versionan: cada integrante las escribe en su propio `.env`, que tampoco se versiona.
 
-La primera migración, `0000_00_00_000000_grant_privileges_to_the_application_role`, otorga al rol de la aplicación, con `ALTER DEFAULT PRIVILEGES`, lectura y escritura sobre toda tabla y secuencia que el dueño cree después. Ninguna tabla nueva necesita un paso manual. `DatabaseRolesTest` comprueba que `archivum_app` no tiene atributos elevados, no es dueño de ningún objeto, puede leer y escribir en toda tabla y no puede crear, alterar ni borrar tablas.
+La primera migración, `0001_01_01_000000_grant_privileges_to_the_application_role`, otorga al rol de la aplicación, con `ALTER DEFAULT PRIVILEGES`, lectura y escritura sobre toda tabla y secuencia que el dueño cree después. Ninguna tabla nueva necesita un paso manual. `DatabaseRolesTest` comprueba que `archivum_app` no tiene atributos elevados, no es dueño de ningún objeto, puede leer y escribir en toda tabla y no puede crear, alterar ni borrar tablas.
 
 ### Por qué las migraciones corren con `--database=pgsql_admin`
 
@@ -45,12 +45,6 @@ Un tercer rol, de mantenimiento, llega con #157 para las tareas que recorren tod
 - Cada migración tiene su `down()`. `MigrationReversibilityTest` revierte las migraciones una por una con `pgsql_admin` sobre la base de pruebas, comprueba que no queden tablas, vistas, tipos, funciones ni privilegios por defecto, las vuelve a aplicar y exige el mismo esquema que había. Falla si alguna migración no es reversible.
 - Las extensiones no se borran al revertir (ver [Extensiones](#extensiones)) y la prueba ignora sus objetos.
 - Un cambio que rompe la versión anterior del código se hace en dos despliegues: primero se expande el esquema y, cuando el código viejo ya no corre, se contrae.
-
-### Transición de las cuentas originales a UUID
-
-Las migraciones que ya estaban en `main` conservan su nombre y contenido. `2026_10_15_000002_upgrade_users_to_uuid_accounts` agrega la identidad UUID v7 y actualiza las referencias de las sesiones sin borrar cuentas, sesiones ni tokens de recuperación. Conserva los campos históricos y los nombres largos ya guardados. El `CHECK` del nombre impide nuevas escrituras vacías sin rechazar datos anteriores durante la actualización.
-
-`users.legacy_id` conserva la identidad numérica original y su secuencia; `sessions.legacy_user_id` conserva incluso referencias antiguas sin cuenta. Son metadatos de compatibilidad para devolver el esquema a su versión anterior sin perder datos, no identidades que use el dominio. La identidad antigua de una cuenta sigue siendo única: no duplica atributos de negocio ni introduce una dependencia transitiva. Una reversión también asigna sus identidades numéricas a las cuentas y sesiones creadas después de actualizar. `UserSchemaUpgradeTest` comprueba actualización, reversión y nueva aplicación con datos ficticios.
 
 ## Convenciones del esquema
 
@@ -70,6 +64,8 @@ La aplicación genera el identificador antes de guardar, con el objeto de valor 
 
 Las excepciones a las llaves con `business_id`, como la llave única global `members(user_id)` o las foráneas hacia `users`, se justifican en `docs/data-model.md`.
 
+`personal_access_tokens.id` es `bigint` y no `uuid`: la tabla pertenece a Sanctum, el token que recibe el cliente tiene la forma `<id>|<secreto>` y Sanctum busca la fila por ese número, así que no es un identificador del negocio. Tampoco tiene llave foránea a `users`, porque Sanctum relaciona el token con su dueño por `tokenable_type` y `tokenable_id`, y un token cuya cuenta ya no existe no autentica a nadie.
+
 ## Objetos programables
 
 El constructor de esquemas de Laravel no cubre funciones, procedimientos, triggers, políticas ni vistas. Se crean dentro de una migración con `DB::statement()` o `DB::unprepared()`, y su `down()` los elimina.
@@ -81,6 +77,8 @@ El constructor de esquemas de Laravel no cubre funciones, procedimientos, trigge
 | Trigger | `trg_` | `BEFORE` por fila para validar o completar; `AFTER` por fila para propagar a otras tablas |
 | Vista | `v_` | `security_invoker = true`, para que apliquen las políticas de quien consulta |
 | Vista materializada | `mv_` | Índice único para refrescar con `CONCURRENTLY`; se consulta a través de una vista |
+| Política | `<tabla>_business_isolation` | Una por tabla de una tienda, con la misma expresión, `business_id = NULLIF(current_setting('app.business_id', true), '')::uuid`, en `USING` y `WITH CHECK` |
+| Política de lectura | `<tabla>_definer_read` | `FOR SELECT TO archivum_owner USING (true)`, solo en las tablas que lee una función `SECURITY DEFINER` |
 
 ## Extensiones
 
@@ -130,7 +128,7 @@ La tienda vive en la variable `app.business_id` y se fija con `set_config('app.b
 | Un recurso del cliente, `/api/v1/cuenta/...` | `auth:sanctum` y `business:account` | La del recurso, si es de la cuenta autenticada |
 | Un listado del cliente, `/api/v1/cuenta/...` | `auth:sanctum` | Cada tienda donde la cuenta es cliente, una transacción por tienda con `eachBusiness()` |
 
-Como el dueño de las tablas también está sujeto a las políticas, los sembradores y el comando `archivum:create-business` (#27) fijan la tienda antes de escribir el personal y los clientes. En las pruebas, `TwoBusinesses::scopeQueriesTo()` fija la tienda antes de preparar o leer filas.
+Como el dueño de las tablas también está sujeto a las políticas, los sembradores escriben el personal y los clientes de cada tienda de demostración dentro de `BusinessTransaction`, y el comando `archivum:create-business` (#27) fija la tienda nueva antes de escribir a su dueño en `members`. En las pruebas cada fábrica fija la tienda de su fila antes de insertarla, con el trait `CreatesRowsOfABusiness`, y el trait `Tests\Support\Shared\ScopesQueriesToBusiness` fija la tienda de las consultas de una prueba. `businesses` y `users` no tienen política, así que se escriben sin fijar una tienda.
 
 ### Funciones que leen sin tienda
 
@@ -138,7 +136,7 @@ Hay preguntas que se responden antes de saber la tienda: al ingresar, de qué ti
 
 | Función | Devuelve | La usa |
 |---|---|---|
-| `fn_member_business(user_id)` | La tienda y el rol de la persona del personal | `EloquentMemberRepository::findByUser`, al ingresar y en el panel |
+| `fn_member_business(user_id)` | La tienda y el rol de la persona del personal | `PostgresMemberships`, al ingresar y en el panel |
 | `fn_customer_businesses(user_id)` | Las tiendas donde la cuenta tiene fila en `customers` | Los listados de `/api/v1/cuenta` |
 | `fn_customer_resource_business(tipo, id, user_id)` | La tienda de un recurso propio, o `NULL` si es de otro cliente o no existe | Las rutas de un recurso de `/api/v1/cuenta` |
 
@@ -166,8 +164,8 @@ PostgreSQL revisa las llaves únicas, las restricciones de exclusión y las llav
 
 1. La tabla lleva `business_id`, y sus llaves únicas y foráneas lo incluyen.
 2. Una migración habilita y fuerza la seguridad a nivel de fila y crea la política `<tabla>_business_isolation` con `business_id = NULLIF(current_setting('app.business_id', true), '')::uuid` en `USING` y en `WITH CHECK`; su `down()` deshace los tres pasos.
-3. Las rutas que la usan pasan por el middleware `business` y sus pruebas fijan la tienda antes de preparar filas.
-4. La tabla se suma a `protectedTables()` y su modelo a `protectedModels()` en `RowLevelSecurityTest`, que revisa el catálogo de PostgreSQL y falla si una tabla con `business_id` no tiene la seguridad habilitada, forzada y con su política, o si falta en esas listas.
+3. Las rutas que la usan pasan por el middleware `business`, y su fábrica usa el trait `CreatesRowsOfABusiness`.
+4. La tabla se suma a `protectedTables()` y su modelo a `protectedModels()` en `RowLevelSecurityTest`, que crea con la fábrica de cada modelo una fila en cada una de dos tiendas, revisa el catálogo de PostgreSQL y falla si una tabla con `business_id` no tiene la seguridad habilitada, forzada y con su política, o si falta en esas listas.
 
 ## Reparto de responsabilidades
 

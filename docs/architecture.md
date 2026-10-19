@@ -103,9 +103,33 @@ Cuando dos contextos necesitan colaborar lo hacen por un puerto o por un evento 
 
 Si mañana uno de los dos contextos cambiara, solo cambiaría el adaptador.
 
+### Alta de una tienda con su dueño
+
+El caso de uso `RegisterBusiness`, del módulo `Businesses/Profile`, crea la tienda y la cuenta de su dueño en una sola transacción. Colabora con otras piezas por dos puertos: `TransactionRunner`, en `Shared/Domain/Contracts`, con el adaptador `DatabaseTransactionRunner`; y `OwnerAccounts`, en `Application/Contracts` del módulo, cuyo adaptador `AccountsOwnerAccounts` fija la tienda nueva en la transacción con `BusinessTransaction`, abre la cuenta con el caso de uso `RegisterAccount` de `Accounts/Users` y la agrega al personal como dueño con el caso de uso `AddMember` de `Businesses/Members`. El dominio y la aplicación de `Businesses/Profile` no importan clases de esos módulos: solo las importa ese adaptador. Si cualquiera de los dos pasos falla, la transacción se revierte y no queda ni la tienda ni la cuenta. El comando `archivum:create-business` es la entrada de este caso de uso (#27).
+
 ### El tiempo es un parámetro
 
 El dominio nunca pregunta la hora. El momento actual se crea en el borde (la petición HTTP, el trabajo en cola o el comando) en la zona horaria de la aplicación, `America/Costa_Rica`, y viaja hasta el caso de uso y el dominio como parámetro o por un puerto de reloj de `Src\Shared`. Así las reglas que dependen del reloj, como el vencimiento de un apartado o la anticipación mínima de una cita, se prueban con momentos fijos y sin esperar.
+
+### Cuentas y autenticación
+
+El contexto `Accounts` guarda las cuentas en el módulo `Accounts/Users` y el ingreso en `Accounts/Sessions`. El agregado `User` es PHP puro: no conoce Eloquent ni Sanctum. Dos puertos lo separan del framework: `UserRepository`, con su adaptador `EloquentUserRepository`, y `PasswordHasher`, cuyo adaptador `BcryptPasswordHasher` usa la fachada `Hash` de Laravel con bcrypt.
+
+El modelo `UserModel` vive en la infraestructura de `Accounts/Users`, extiende el usuario autenticable de Laravel y usa `HasApiTokens` de Sanctum. `config/auth.php` lo declara como el proveedor `users`. El guard `sanctum` autentica el token Bearer de las rutas que piden `auth:sanctum` y entrega la cuenta dueña del token.
+
+El caso de uso `StartSession` emite el token por el puerto `TokenIssuer`. Su adaptador, `SanctumTokenIssuer`, crea un token de Sanctum con el nombre del dispositivo, y Sanctum guarda solo su hash SHA-256. `GetCurrentAccount` pregunta el rol y la tienda de la cuenta al puerto `StaffMemberships`, en `Application/Contracts` del módulo. Su adaptador, `BusinessesStaffMemberships`, los obtiene con los casos de uso `FindMemberByAccount` de `Businesses/Members` y `FindBusiness` de `Businesses/Profile`; una cuenta que no está en el personal de ninguna tienda es cliente. El dominio y la aplicación de `Accounts/Sessions` no importan clases de `Businesses`: solo las importa ese adaptador.
+
+El caso de uso `EndSession` cierra la sesión por el puerto `TokenRevoker`. Su adaptador, `SanctumTokenRevoker`, borra la fila del token de la petición, así las demás sesiones de la cuenta siguen abiertas. El mismo puerto borra todos los tokens de una cuenta con `revokeAll`; lo usarán el cambio de rol y la desactivación del personal (#106) y la eliminación de la cuenta (#112).
+
+Las operaciones de una tienda preguntan su tienda al puerto `BusinessContext` de `Shared`. Su enlace por defecto, `UnresolvedBusinessContext`, falla a propósito, porque fuera de un grupo de rutas con el middleware `business` no se sabe de qué tienda se trata. Ese middleware, `ScopeRequestToBusiness`, recibe como parámetro el origen de la tienda y, durante la petición, enlaza el puerto al adaptador que un módulo registra para ese origen en su service provider, con la clave `ScopeRequestToBusiness::contextFor()`:
+
+| Middleware | Rutas | Adaptador | De dónde sale la tienda |
+| --- | --- | --- | --- |
+| `business:staff` | `/api/v1/panel/...`, después de `auth:sanctum` | `StaffBusinessContext`, de `Businesses/Members` | De la persona autenticada, con el caso de uso `FindMemberByAccount`. Un cliente, que no está en el personal de ninguna tienda, recibe 403 `prohibido` |
+| `business:route` | `/api/v1/tiendas/{tienda}/...` | `RouteBusinessContext`, de `Businesses/Profile` | Del slug `{tienda}` de la URL, con el caso de uso `FindBusinessBySlug`. Un slug que no existe responde 404 `no-encontrado` |
+| `business:account` | `/api/v1/cuenta/...` que nombran un recurso del cliente, como `{cliente}`, después de `auth:sanctum` | `CustomerBusinessContext`, de `Accounts/Users` | Del recurso de la URL, con el caso de uso `FindCustomerResourceBusiness`. Un recurso de otro cliente responde 404 `no-encontrado`, igual que uno que no existe |
+
+El middleware resuelve la tienda antes de llegar a cualquier caso de uso y corre la petición en una sola transacción, que fija esa tienda con `BusinessTransaction`. El dueño y el colaborador trabajan siempre sobre su propia tienda: ninguna ruta del panel toma la tienda de la URL, de los parámetros ni del cuerpo. Los listados de `/api/v1/cuenta` no nombran un recurso y no llevan `business:account`: `CustomerBusinessContext::eachBusiness()` corre la operación una vez por cada tienda donde la cuenta es cliente, cada vez en su propia transacción con esa tienda fijada. La tienda de una persona del personal, las tiendas de un cliente y la de uno de sus recursos se buscan antes de fijar una tienda, así que las responden funciones `SECURITY DEFINER` de PostgreSQL ([ADR 0011](adr/0011-customer-routes-resolve-the-business-through-definer-functions.md)). `tests/Feature/Tenancy/BusinessOfTheSessionTest.php` y `tests/Feature/Tenancy/CustomerIsolationTest.php` comprueban estas reglas, y `tests/Feature/Shared/ScopeRequestToBusinessTest.php` comprueba el middleware.
 
 ## Aislamiento entre tiendas
 
@@ -114,7 +138,7 @@ Toda operación del panel se limita a la tienda que entrega `BusinessContext` (R
 1. Cada repositorio de una tabla con `business_id` filtra por el `BusinessId` en cada lectura y escritura. El filtro se escribe en cada consulta, no con un scope global que se desactiva con una llamada.
 2. Un identificador de otra tienda o de otro cliente en la URL responde 404 `no-encontrado`, con el mismo cuerpo que uno inexistente (R56): los dos lanzan la misma excepción del dominio. Uno en el cuerpo o en la consulta, como `servicio` y `persona` al consultar la disponibilidad, responde 422 `datos-invalidos` con el mismo error en ese campo que uno inexistente. La respuesta no revela que el recurso existe en otra tienda.
 3. Los listados nunca muestran filas de otra tienda y ninguna escritura las toca. Los datos de otra tienda tampoco impiden nada: dos tiendas pueden tener el mismo perfume, porque las llaves únicas incluyen `business_id`.
-4. Cada endpoint del panel tiene su prueba de aislamiento con dos tiendas, y cada endpoint nuevo agrega la suya.
+4. La suite `tests/Feature/Tenancy/StaffIsolationTest.php` lo comprueba con dos tiendas, un caso por cada endpoint del personal. Un endpoint nuevo del personal agrega su caso a esa suite.
 
 PostgreSQL es la segunda barrera: las políticas de seguridad a nivel de fila ocultan las filas de las demás tiendas aunque una consulta olvide el filtro. Los repositorios conservan su filtro: la política no lo reemplaza. El detalle está en [database.md](database.md) y la decisión, en el [ADR 0005](adr/0005-tenancy-through-a-port-and-row-level-security.md).
 
@@ -131,9 +155,12 @@ Toda respuesta de error sigue RFC 9457 (`application/problem+json`). `ProblemDet
 | `NotFoundException`, también para un recurso de otra tienda o de otro cliente | `no-encontrado` | 404 |
 | `AuthenticationFailedException`, como un correo o una contraseña incorrectos | `credenciales-invalidas` | 401 |
 | Ruta protegida sin un token válido (`AuthenticationException` del framework) | `no-autenticado` | 401 |
+| Persona autenticada sin permiso, como un cliente en una ruta del panel (`AuthorizationException` del framework) | `prohibido` | 403 |
 | Otra excepción del dominio, como un horario que ya no está disponible | `conflicto` | 409 |
 | Excepción HTTP del framework | El tipo de su código de estado | 4xx o 5xx |
 | Cualquier otra | `error-interno`, sin detalles técnicos | 500 |
+
+Laravel convierte toda `AuthorizationException` en una excepción HTTP 403 antes de llamar a `ProblemDetailsRenderer`, que la traduce al tipo de su código de estado. Por eso esa excepción no necesita una rama propia en el renderizador.
 
 El `type` es la URL de la aplicación más `/problemas/<tipo>`. El catálogo de tipos está en `Src\Shared\Infrastructure\Http\Problem\ProblemType`, y el título y el detalle de cada uno, en `lang/es/problems.php`.
 
@@ -162,7 +189,7 @@ Las pruebas se escriben con Pest ([ADR 0009](adr/0009-pest-instead-of-phpunit.md
 | Carpeta | Alcance |
 |---|---|
 | `tests/Unit` | Dominio y casos de uso, sin arrancar el framework. |
-| `tests/Feature` | Endpoints y adaptadores contra PostgreSQL, con el rol de la aplicación. |
+| `tests/Feature` | Endpoints y adaptadores contra PostgreSQL, con el rol de la aplicación. `tests/Feature/Tenancy` reúne las pruebas de aislamiento entre tiendas. |
 | `tests/Architecture` | Regla de dependencias entre capas y entre módulos, y la forma de los casos de uso. |
 
 Los caminos críticos tienen prueba propia: la doble reserva de una cita, los últimos ml de una botella, el canje simultáneo de un paquete, el webhook repetido y el webhook con firma inválida ([ADR 0010](adr/0010-concurrency-guaranteed-in-postgresql.md)).

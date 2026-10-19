@@ -2,23 +2,22 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
+use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Tests\Support\Businesses\TwoBusinesses;
 use Tests\Support\RefreshDatabaseAsOwner;
+use Tests\Support\Shared\ScopesQueriesToBusiness;
 
-pest()->use(RefreshDatabaseAsOwner::class);
+pest()->use(RefreshDatabaseAsOwner::class, ScopesQueriesToBusiness::class);
 
 const POLICY_EXPRESSION = "(business_id = (NULLIF(current_setting('app.business_id'::text, true), ''::text))::uuid)";
 
 /**
  * Tables protected by row-level security, each with the columns of a valid new row besides its business and its
- * account. The seeders give every one of them rows in both demo businesses. Every issue that adds a table with
- * business_id adds its row here, and the catalog test fails until it does.
+ * account. Every issue that adds a table with business_id adds its row here, and the catalog test fails until it does.
  *
  * @return array<string, array{string, array<string, string>}>
  */
@@ -31,9 +30,10 @@ function protectedTables(): array
 }
 
 /**
- * Eloquent models of the protected tables, as the repositories read them.
+ * Eloquent models of the protected tables, as the repositories read them. Each one has a factory, which gives its
+ * table one row in each of the two businesses before every test; a new model also joins the union of the return type.
  *
- * @return array<string, array{class-string<Model>}>
+ * @return array<string, array{class-string<MemberModel|CustomerModel>}>
  */
 function protectedModels(): array
 {
@@ -46,13 +46,7 @@ function protectedModels(): array
 /** Open an account of its own for a new row, so no unique key gets in the way of the policy. */
 function accountForANewRow(): string
 {
-    return (string) DB::table('users')->insertGetId([
-        'name' => 'Persona de prueba',
-        'email' => Str::uuid7().'@clientes.test',
-        'password' => 'hash',
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
+    return UserModel::factory()->create()->id;
 }
 
 /**
@@ -79,7 +73,13 @@ function expectRowLevelSecurityViolation(?QueryException $error): void
 }
 
 beforeEach(function () {
-    TwoBusinesses::seed();
+    TwoBusinesses::create();
+
+    foreach ([TwoBusinesses::FIRST, TwoBusinesses::SECOND] as $slug) {
+        foreach (protectedModels() as [$model]) {
+            $model::factory()->create(['business_id' => TwoBusinesses::idOf($slug)]);
+        }
+    }
 });
 
 it('runs these tests with the application role, the one of every request', function () {
@@ -137,13 +137,13 @@ it('adds no policy but the isolation one and the read of the definer functions',
 });
 
 it('shows and changes no row when the transaction has no business', function (string $table) {
-    TwoBusinesses::scopeQueriesTo(null);
+    $this->scopeQueriesTo(null);
 
     expect(DB::table($table)->count())->toBe(0)
         ->and(DB::table($table)->update(['updated_at' => now()]))->toBe(0)
         ->and(DB::table($table)->delete())->toBe(0);
 
-    TwoBusinesses::scopeQueriesTo(TwoBusinesses::idOf(TwoBusinesses::FIRST));
+    $this->scopeQueriesTo(TwoBusinesses::idOf(TwoBusinesses::FIRST));
 
     expect(DB::table($table)->count())->toBeGreaterThan(0);
 })->with(protectedTables());
@@ -151,14 +151,14 @@ it('shows and changes no row when the transaction has no business', function (st
 it('returns only the rows of the business of the transaction to an eloquent query without filter', function (string $model) {
     foreach ([TwoBusinesses::FIRST, TwoBusinesses::SECOND] as $slug) {
         $businessId = TwoBusinesses::idOf($slug);
-        TwoBusinesses::scopeQueriesTo($businessId);
+        $this->scopeQueriesTo($businessId);
 
         expect($model::query()->distinct()->pluck('business_id')->all())->toBe([$businessId]);
     }
 })->with(protectedModels());
 
 it('refuses a new row for another business', function (string $table, array $row) {
-    TwoBusinesses::scopeQueriesTo(TwoBusinesses::idOf(TwoBusinesses::FIRST));
+    $this->scopeQueriesTo(TwoBusinesses::idOf(TwoBusinesses::FIRST));
     $userId = accountForANewRow();
 
     expectRowLevelSecurityViolation(writeError(fn () => DB::table($table)->insert([
@@ -173,7 +173,7 @@ it('refuses a new row for another business', function (string $table, array $row
 it('refuses to move a row to another business and leaves it where it was', function (string $table) {
     $businessId = TwoBusinesses::idOf(TwoBusinesses::FIRST);
     $otherId = TwoBusinesses::idOf(TwoBusinesses::SECOND);
-    TwoBusinesses::scopeQueriesTo($businessId);
+    $this->scopeQueriesTo($businessId);
 
     expectRowLevelSecurityViolation(writeError(fn () => DB::table($table)->update(['business_id' => $otherId])));
     expect(DB::table($table)->distinct()->pluck('business_id')->all())->toBe([$businessId]);
