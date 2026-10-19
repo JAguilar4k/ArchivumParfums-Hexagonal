@@ -79,8 +79,10 @@ it('lets only one of two conditional updates of the same row take effect', funct
 
 it('cleans up its barrier when an operation fails', function () {
     $before = glob(sys_get_temp_dir().DIRECTORY_SEPARATOR.'archivum-parallel-*') ?: [];
+    $failure = static fn () => throw new RuntimeException('Parallel operation failed.');
+    $success = static fn (): bool => true;
 
-    expect(fn () => inParallel([], static fn () => throw new RuntimeException('Parallel operation failed.'), static fn (): bool => true))
+    expect(fn () => inParallel([], $failure, $success))
         ->toThrow(RuntimeException::class, 'Parallel operation failed.');
 
     expect(glob(sys_get_temp_dir().DIRECTORY_SEPARATOR.'archivum-parallel-*') ?: [])->toBe($before);
