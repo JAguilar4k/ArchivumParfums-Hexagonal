@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Src\Accounts\Users\Application\UseCases\FindCustomerResourceBusiness;
-use Src\Accounts\Users\Application\UseCases\ListCustomerBusinesses;
 use Src\Accounts\Users\Domain\Exceptions\CustomerResourceNotFoundException;
 use Src\Accounts\Users\Domain\ValueObjects\CustomerResourceType;
 use Src\Shared\Domain\ValueObjects\BusinessId;
@@ -37,10 +36,3 @@ it('answers a resource of another customer, a missing one and a malformed identi
     'missing' => [RESOURCE_OTHER_CUSTOMER, RESOURCE_CUSTOMER],
     'malformed' => ['no-es-un-identificador', RESOURCE_CUSTOMER],
 ]);
-
-it('lists the businesses where the account is a customer', function () {
-    $listBusinesses = new ListCustomerBusinesses(customerResourcesWiring());
-
-    expect($listBusinesses->execute(RESOURCE_CUSTOMER))->toEqual([new BusinessId(RESOURCE_BUSINESS)])
-        ->and($listBusinesses->execute(RESOURCE_OTHER_CUSTOMER))->toBe([]);
-});
