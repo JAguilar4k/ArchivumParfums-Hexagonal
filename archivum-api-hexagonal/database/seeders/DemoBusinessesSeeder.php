@@ -79,7 +79,7 @@ final class DemoBusinessesSeeder extends Seeder
         $password = config('archivum.demo_password');
 
         if (! is_string($password) || $password === '') {
-            throw new RuntimeException('Set ARCHIVUM_DEMO_PASSWORD in .env before seeding the demo businesses.');
+            throw new RuntimeException(__('businesses.demo_password_missing'));
         }
 
         foreach (self::BUSINESSES as $business) {

@@ -9,6 +9,7 @@ return [
     'business_registered' => 'Tienda registrada: :name (:slug, :id). Dueño: :email.',
     'create_business_description' => 'Da de alta una tienda con los ajustes por defecto y la cuenta de su dueño.',
     'decant_sizes_invalid' => 'Los tamaños de decant deben ser una lista de números mayores que cero.',
+    'demo_password_missing' => 'Hay que definir ARCHIVUM_DEMO_PASSWORD en .env antes de sembrar las tiendas de demostración.',
     'deposit_percent_out_of_range' => 'El porcentaje de depósito debe estar entre :min y :max.',
     'margin_negative' => 'El margen no puede ser negativo.',
     'name_invalid' => 'El nombre de la tienda es obligatorio y no puede superar los :max caracteres.',

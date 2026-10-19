@@ -115,11 +115,11 @@ it('keeps the same rows when it is seeded again', function () {
     assertDatabaseCount('customers', 5);
 });
 
-it('refuses to seed without a demo password', function () {
+it('refuses in spanish to seed without a demo password', function () {
     config(['archivum.demo_password' => '']);
 
     expect(fn () => seed(DemoBusinessesSeeder::class))
-        ->toThrow(RuntimeException::class, 'ARCHIVUM_DEMO_PASSWORD');
+        ->toThrow(RuntimeException::class, 'Hay que definir ARCHIVUM_DEMO_PASSWORD en .env antes de sembrar las tiendas de demostración.');
 
     assertDatabaseCount('businesses', 0);
 });
