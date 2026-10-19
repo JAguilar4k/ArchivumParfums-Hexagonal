@@ -7,7 +7,7 @@ namespace Src\Businesses\Members\Application\UseCases;
 use Src\Businesses\Members\Application\DTOs\AddMemberCommand;
 use Src\Businesses\Members\Domain\Contracts\MemberRepository;
 use Src\Businesses\Members\Domain\Entities\Member;
-use Src\Businesses\Members\Domain\Exceptions\AlreadyAMemberException;
+use Src\Businesses\Members\Domain\Exceptions\AccountAlreadyOnStaffException;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\UserId;
 
@@ -19,7 +19,7 @@ final readonly class AddMember
     /**
      * Link an account to the staff of one business.
      *
-     * @throws AlreadyAMemberException
+     * @throws AccountAlreadyOnStaffException
      */
     public function execute(AddMemberCommand $command): Member
     {

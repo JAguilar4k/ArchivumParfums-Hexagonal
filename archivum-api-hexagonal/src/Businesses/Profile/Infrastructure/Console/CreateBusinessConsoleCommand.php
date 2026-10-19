@@ -8,9 +8,10 @@ use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Src\Businesses\Profile\Application\DTOs\RegisterBusinessCommand;
 use Src\Businesses\Profile\Application\UseCases\RegisterBusiness;
+use Src\Businesses\Profile\Domain\ValueObjects\BusinessTimezone;
 use Src\Shared\Domain\Exceptions\DomainException;
 
-#[Signature('archivum:create-business {name? : Nombre de la tienda} {slug? : Slug de la tienda} {owner-name? : Nombre del dueño} {owner-email? : Correo del dueño} {--password= : Contraseña del dueño}')]
+#[Signature('archivum:create-business {name?} {slug?} {owner-name?} {owner-email?} {--password=}')]
 final class CreateBusinessConsoleCommand extends Command
 {
     /** Describe the command in Spanish for the command list. */
@@ -41,6 +42,10 @@ final class CreateBusinessConsoleCommand extends Command
                 $ownerName,
                 $ownerEmail,
                 is_string($password) ? $password : '',
+                // The default time zone, no appointment place and an owner who does not attend appointments yet.
+                BusinessTimezone::DEFAULT,
+                null,
+                false,
             ));
         } catch (DomainException $exception) {
             $this->components->error(__($exception->translationKey(), $exception->parameters()));
@@ -52,7 +57,7 @@ final class CreateBusinessConsoleCommand extends Command
             'name' => $business->name->value,
             'slug' => $business->slug->value,
             'id' => $business->id->value,
-            'email' => mb_strtolower(trim($ownerEmail)),
+            'email' => $ownerEmail,
         ]));
 
         return self::SUCCESS;

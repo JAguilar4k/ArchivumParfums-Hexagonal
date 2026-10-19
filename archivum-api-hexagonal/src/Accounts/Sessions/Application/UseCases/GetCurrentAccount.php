@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Src\Accounts\Sessions\Application\UseCases;
 
 use Src\Accounts\Sessions\Application\Contracts\StaffMemberships;
-use Src\Accounts\Sessions\Application\DTOs\CurrentAccountView;
+use Src\Accounts\Sessions\Application\DTOs\CurrentAccount;
 use Src\Accounts\Sessions\Domain\Exceptions\AccountNotFoundException;
 use Src\Accounts\Sessions\Domain\ValueObjects\AccountRole;
 use Src\Accounts\Users\Domain\Contracts\UserRepository;
@@ -24,13 +24,13 @@ final readonly class GetCurrentAccount
      *
      * @throws AccountNotFoundException
      */
-    public function execute(string $userId): CurrentAccountView
+    public function execute(string $userId): CurrentAccount
     {
         $id = new UserId($userId);
         $user = $this->users->find($id) ?? throw AccountNotFoundException::create();
         $membership = $this->memberships->of($id);
 
-        return new CurrentAccountView(
+        return new CurrentAccount(
             $user->id->value,
             $user->name->value,
             $user->email->value,

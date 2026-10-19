@@ -11,7 +11,7 @@ use Src\Accounts\Sessions\Application\DTOs\StartedSession;
 /**
  * @property-read StartedSession $resource
  */
-final class SessionToken extends JsonResource
+final class SessionTokenResource extends JsonResource
 {
     private const string TYPE = 'Bearer';
 

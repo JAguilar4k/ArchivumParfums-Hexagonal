@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-use Database\Seeders\DemoBusinessesSeeder;
+use Database\Seeders\BusinessesSeeder;
+use Database\Seeders\CustomersSeeder;
+use Database\Seeders\StaffSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
@@ -56,13 +58,17 @@ function demoCustomers(string $slug): array
         ->all();
 }
 
-it('seeds the two demo businesses with the default settings', function () {
+it('seeds the two demo businesses with fixed identifiers and the default settings', function () {
     seed();
 
     expect(DB::table('businesses')->orderBy('slug')->pluck('name', 'slug')->all())->toBe([
         'archivumparfums' => 'ArchivumParfums',
         'esencias-del-norte' => 'Esencias del Norte',
-    ])->and(DB::table('businesses')->pluck('settings')->unique()->all())->toBe(['{}']);
+    ])->and(DB::table('businesses')->orderBy('slug')->pluck('id', 'slug')->all())->toBe([
+        'archivumparfums' => BusinessesSeeder::DEMO_ARCHIVUMPARFUMS_ID,
+        'esencias-del-norte' => BusinessesSeeder::DEMO_ESENCIAS_DEL_NORTE_ID,
+    ])->and(DB::table('businesses')->pluck('timezone')->unique()->all())->toBe(['America/Costa_Rica'])
+        ->and(DB::table('businesses')->pluck('settings')->unique()->all())->toBe(['{}']);
 });
 
 it('seeds the owner, the co-owner and an advisor who attends appointments in ArchivumParfums', function () {
@@ -117,7 +123,7 @@ it('lets every demo account sign in with the password of the configuration', fun
     seed();
 
     foreach (DB::table('users')->pluck('email') as $email) {
-        postJson('/api/v1/sesiones', ['correo' => $email, 'contrasena' => 'clave-de-demostracion'])->assertCreated();
+        postJson('/api/v1/sesiones', ['correo' => $email, 'contrasena' => 'clave-de-demostracion', 'dispositivo' => 'Computadora'])->assertCreated();
     }
 });
 
@@ -135,11 +141,34 @@ it('keeps the same rows when it is seeded again', function () {
     }
 });
 
-it('refuses to seed without a demo password', function () {
+it('restores a missing demo row when it is seeded again', function () {
+    seed();
+    DB::table('members')->whereIn('user_id', DB::table('users')->where('email', 'asesor@archivumparfums.test')->select('id'))->delete();
+    DB::table('customers')->where('business_id', BusinessesSeeder::DEMO_ESENCIAS_DEL_NORTE_ID)->delete();
+
+    seed();
+
+    expect(demoStaff('archivumparfums'))->toHaveKey('asesor@archivumparfums.test')
+        ->and(demoCustomers('esencias-del-norte'))->toHaveCount(2);
+    assertDatabaseCount('members', 4);
+    assertDatabaseCount('customers', 5);
+});
+
+it('refuses in spanish to seed without a demo password and leaves nothing behind', function () {
     config(['archivum.demo_password' => '']);
 
-    expect(fn () => seed(DemoBusinessesSeeder::class))
-        ->toThrow(RuntimeException::class, 'ARCHIVUM_DEMO_PASSWORD');
+    expect(fn () => seed())
+        ->toThrow(RuntimeException::class, 'Hay que definir ARCHIVUM_DEMO_PASSWORD en .env antes de sembrar las tiendas de demostración.');
 
     assertDatabaseCount('businesses', 0);
+    assertDatabaseCount('users', 0);
 });
+
+it('refuses to seed demo accounts without a demo password even alone', function (string $seeder) {
+    config(['archivum.demo_password' => null]);
+    seed(BusinessesSeeder::class);
+
+    expect(fn () => seed($seeder))->toThrow(RuntimeException::class, 'ARCHIVUM_DEMO_PASSWORD');
+
+    assertDatabaseCount('users', 0);
+})->with([StaffSeeder::class, CustomersSeeder::class]);

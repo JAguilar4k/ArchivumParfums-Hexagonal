@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /** Create the Sanctum access tokens table, with UUID keys like the accounts that own the tokens. */
+    /** Create the Sanctum access tokens table for owners identified by UUID. */
     public function up(): void
     {
         Schema::create('personal_access_tokens', function (Blueprint $table): void {
-            $table->uuid('id')->primary()->default(DB::raw('uuidv7()'));
+            $table->id();
             $table->uuidMorphs('tokenable');
             $table->text('name');
             $table->string('token', 64)->unique();
