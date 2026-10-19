@@ -165,6 +165,22 @@ it('finds nothing for an unknown identity', function () {
     expect($repository->find($repository->nextId()))->toBeNull();
 });
 
+it('finds a saved business by the slug of its public addresses', function () {
+    $repository = new EloquentBusinessRepository;
+    $business = newBusiness($repository);
+    $repository->save($business);
+    $repository->save(newBusiness($repository, 'esencias-del-norte'));
+
+    expect($repository->findBySlug(new BusinessSlug('archivumparfums')))->toEqual($business);
+});
+
+it('finds nothing for an unknown slug', function () {
+    $repository = new EloquentBusinessRepository;
+    $repository->save(newBusiness($repository));
+
+    expect($repository->findBySlug(new BusinessSlug('no-existe')))->toBeNull();
+});
+
 it('gives every new business a distinct time-ordered uuid', function () {
     $repository = new EloquentBusinessRepository;
 
