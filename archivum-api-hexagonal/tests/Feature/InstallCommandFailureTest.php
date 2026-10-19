@@ -68,8 +68,10 @@ it('reports a failed query without exposing its sql, bindings or driver details'
     withInstallerFailureEnvironment(function () use ($diagnostic, $literalPassword, $boundPassword, $driverPassword): void {
         expect(Artisan::call('archivum:install'))->toBe(1);
 
-        expect(Artisan::output())->toContain($diagnostic)
-            ->not->toContain('CREATE ROLE', 'SQL:', $literalPassword, $boundPassword, $driverPassword, 'fictitious-invalid-state');
+        $output = Artisan::output();
+
+        expect($output)->toContain($diagnostic);
+        expect($output)->not->toContain('CREATE ROLE', 'SQL:', $literalPassword, $boundPassword, $driverPassword, 'fictitious-invalid-state');
     });
 })->with([
     'Spanish SQLSTATE' => ['es', '42501', 'Falló una operación de PostgreSQL (SQLSTATE 42501).'],
