@@ -33,7 +33,7 @@ it('reconstitutes a business keeping its stored settings', function (): void {
         new BusinessName('Archivum'),
         new BusinessSlug('archivum'),
         new BusinessTimezone('America/Costa_Rica'),
-        new AppointmentPlace(''),
+        null,
         new BusinessSettings(interviewMarginColones: 8000, decantSizesMl: [3]),
     );
 

@@ -9,6 +9,9 @@ use Src\Businesses\Members\Domain\Exceptions\AlreadyAMemberException;
 
 interface MemberRepository
 {
+    /** Generate the identity of a new member. */
+    public function nextId(): MemberId;
+
     /**
      * Persist a new or modified member.
      *
