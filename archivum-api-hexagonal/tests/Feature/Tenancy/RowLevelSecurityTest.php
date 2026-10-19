@@ -96,11 +96,15 @@ it('forces row-level security with its isolation policy on every table with busi
     sort($protected);
     $modelled = array_keys(protectedModels());
     sort($modelled);
+    // The catalog tables (#37) have no Eloquent model or seeded rows yet (#38, #39); CatalogSchemaTest exercises them.
+    $catalog = ['perfume_notes', 'perfume_tags', 'perfume_variants', 'perfumes'];
+    $withPolicy = [...$protected, ...$catalog];
+    sort($withPolicy);
 
-    expect($tables)->toBe($protected)
+    expect($tables)->toBe($withPolicy)
         ->and($modelled)->toBe($protected);
 
-    foreach ($tables as $table) {
+    foreach ($withPolicy as $table) {
         $security = DB::selectOne(
             'select relrowsecurity, relforcerowsecurity from pg_class where oid = ?::regclass',
             [$table],
