@@ -71,6 +71,6 @@ it('refuses an invalid name or slug before opening a transaction', function (str
     expect($transaction->runs())->toBe(0)
         ->and($owners->registered())->toBe([]);
 })->with([
-    'empty name' => ['  ', 'archivumparfums', 'businesses.name_empty'],
+    'empty name' => ['  ', 'archivumparfums', 'businesses.name_invalid'],
     'slug with uppercase letters' => ['ArchivumParfums', 'Archivum', 'businesses.slug_invalid'],
 ]);
