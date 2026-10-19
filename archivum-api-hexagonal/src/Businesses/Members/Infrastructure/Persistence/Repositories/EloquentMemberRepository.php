@@ -26,7 +26,7 @@ final readonly class EloquentMemberRepository implements MemberRepository
     {
         try {
             DB::transaction(fn () => MemberModel::query()->updateOrCreate(
-                ['id' => $member->id->value],
+                ['id' => $member->id->value, 'business_id' => $member->businessId->value],
                 [
                     'business_id' => $member->businessId->value,
                     'user_id' => $member->userId->value,
