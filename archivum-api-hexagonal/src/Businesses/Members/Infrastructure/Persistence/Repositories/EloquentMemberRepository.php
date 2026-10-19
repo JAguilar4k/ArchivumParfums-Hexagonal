@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Src\Businesses\Members\Domain\Contracts\MemberRepository;
 use Src\Businesses\Members\Domain\Entities\Member;
-use Src\Businesses\Members\Domain\Exceptions\AlreadyAMemberException;
+use Src\Businesses\Members\Domain\Exceptions\AccountAlreadyOnStaffException;
 use Src\Businesses\Members\Domain\ValueObjects\MemberRole;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Src\Shared\Domain\ValueObjects\BusinessId;
@@ -38,7 +38,7 @@ final readonly class EloquentMemberRepository implements MemberRepository
                 ],
             ));
         } catch (UniqueConstraintViolationException) {
-            throw AlreadyAMemberException::create();
+            throw AccountAlreadyOnStaffException::create();
         }
     }
 

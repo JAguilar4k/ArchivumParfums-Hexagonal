@@ -96,11 +96,9 @@ php artisan archivum:create-business "ArchivumParfums" archivumparfums "Valeria 
 | `slug` | Identificador de la tienda en las direcciones públicas: minúsculas, dígitos y guiones. No puede repetirse. |
 | `owner-name` | Nombre del dueño. |
 | `owner-email` | Correo del dueño, con el que ingresa. No puede pertenecer a otra cuenta. |
-| `--password=` | Contraseña del dueño, de 8 caracteres como mínimo. Si se omite, el comando la pide sin mostrarla. |
+| `--password=` | Contraseña del dueño, de 8 caracteres como mínimo. Si se omite, el comando la pide sin mostrarla; si el terminal no puede ocultar la entrada, el comando falla y debe usarse `--password`. |
 
 El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 1 si rechaza algún dato, con el motivo en pantalla. Sin `--password` y sin terminal interactiva rechaza la contraseña. Una contraseña escrita en `--password` queda en el historial del terminal; para uso manual conviene dejar que el comando la pida.
-
-El nombre de una cuenta admite hasta 255 caracteres, como la columna original `users.name`. A diferencia de SodaYa, cuyo esquema de cuentas nace con 120, Archivum conserva las cuentas de la migración inicial de Laravel: al reconstruirlas desde la base, sus nombres se mantienen completos.
 
 ## Endpoints
 
@@ -123,7 +121,7 @@ curl -X POST http://localhost:8000/api/v1/sesiones \
 
 ## Datos de demostración
 
-`php artisan db:seed` crea dos tiendas ficticias, solo para desarrollo local y la demostración en clase. Todas las cuentas usan la contraseña de `ARCHIVUM_DEMO_PASSWORD` en `.env`; sin ella, `db:seed` se detiene sin crear nada. Ejecutarlo otra vez no duplica nada.
+`php artisan db:seed` crea dos tiendas ficticias, solo para desarrollo local y la demostración en clase: `BusinessesSeeder` siembra las tiendas, `StaffSeeder` su personal y `CustomersSeeder` sus clientes, cada tienda en una transacción que la fija. Todas las cuentas usan la contraseña de `ARCHIVUM_DEMO_PASSWORD` en `.env`; sin ella, `db:seed` se detiene sin crear nada. Ejecutarlo otra vez no duplica nada y repone las filas de demostración que falten.
 
 | Tienda | Cuenta | Papel |
 |---|---|---|
@@ -134,7 +132,7 @@ curl -X POST http://localhost:8000/api/v1/sesiones \
 | Esencias del Norte (`esencias-del-norte`) | `dueno@esenciasdelnorte.test` | Dueño; atiende citas. |
 | | `lucia@clientes.test`, `sofia@clientes.test` | Clientes. `sofia@clientes.test` es cliente de las dos tiendas. |
 
-La segunda tienda sirve para demostrar el aislamiento entre tiendas. Los nombres son inventados, los correos usan el dominio reservado `.test` y los teléfonos son de prueba. Como las contraseñas de los sembradores son conocidas, `db:seed` nunca se ejecuta en producción.
+Las tiendas tienen identificadores fijos: `0192f0c4-0000-7000-8000-000000000001` es ArchivumParfums y `0192f0c4-0000-7000-8000-000000000002` es Esencias del Norte. La segunda tienda sirve para demostrar el aislamiento entre tiendas. Los nombres son inventados, los correos usan el dominio reservado `.test` y los teléfonos son de prueba. Como las contraseñas de los sembradores son conocidas, `db:seed` nunca se ejecuta en producción.
 
 ## Variables de entorno
 

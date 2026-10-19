@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use Src\Businesses\Members\Application\DTOs\AddMemberCommand;
 use Src\Businesses\Members\Application\UseCases\AddMember;
-use Src\Businesses\Members\Domain\Exceptions\AlreadyAMemberException;
+use Src\Businesses\Members\Domain\Exceptions\AccountAlreadyOnStaffException;
 use Src\Businesses\Members\Domain\ValueObjects\MemberRole;
 use Tests\Support\Businesses\InMemoryMemberRepository;
 
@@ -28,4 +28,4 @@ it('refuses an account that already belongs to another business', function () {
     $addMember->execute(new AddMemberCommand(ADD_MEMBER_USER, ADD_MEMBER_BUSINESS, MemberRole::Owner, false));
 
     $addMember->execute(new AddMemberCommand(ADD_MEMBER_USER, ADD_MEMBER_OTHER_BUSINESS, MemberRole::Staff, false));
-})->throws(AlreadyAMemberException::class);
+})->throws(AccountAlreadyOnStaffException::class);
