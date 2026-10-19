@@ -115,7 +115,7 @@ El dominio nunca pregunta la hora. El momento actual se crea en el borde (la pet
 
 El contexto `Accounts` guarda las cuentas en el módulo `Accounts/Users` y el ingreso en `Accounts/Sessions`. El agregado `User` es PHP puro: no conoce Eloquent ni Sanctum. Dos puertos lo separan del framework: `UserRepository`, con su adaptador `EloquentUserRepository`, y `PasswordHasher`, cuyo adaptador `BcryptPasswordHasher` usa la fachada `Hash` de Laravel con bcrypt.
 
-El modelo `UserModel` vive en la infraestructura de `Accounts/Users`, extiende el usuario autenticable de Laravel y usa `HasApiTokens` de Sanctum. `config/auth.php` lo declara como el proveedor `users`, y con él el guard `sanctum` autentica el token Bearer de las rutas que piden `auth:sanctum`.
+El modelo `UserModel` vive en la infraestructura de `Accounts/Users`, extiende el usuario autenticable de Laravel y usa `HasApiTokens` de Sanctum. `config/auth.php` lo declara como el proveedor `users`. El guard `sanctum` autentica el token Bearer de las rutas que piden `auth:sanctum` y entrega la cuenta dueña del token.
 
 El caso de uso `StartSession` emite el token por el puerto `TokenIssuer`. Su adaptador, `SanctumTokenIssuer`, crea un token de Sanctum con el nombre del dispositivo, y Sanctum guarda solo su hash SHA-256. `GetCurrentAccount` pregunta el rol y la tienda de la cuenta al puerto `StaffMemberships`, en `Application/Contracts` del módulo. Su adaptador, `BusinessesStaffMemberships`, los obtiene con los casos de uso `FindMemberByAccount` de `Businesses/Members` y `FindBusiness` de `Businesses/Profile`; una cuenta que no está en el personal de ninguna tienda es cliente. El dominio y la aplicación de `Accounts/Sessions` no importan clases de `Businesses`: solo las importa ese adaptador.
 
