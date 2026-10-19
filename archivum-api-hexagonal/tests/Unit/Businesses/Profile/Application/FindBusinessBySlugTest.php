@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Src\Businesses\Profile\Application\UseCases\FindBusinessBySlug;
 use Src\Businesses\Profile\Domain\Entities\Business;
 use Src\Businesses\Profile\Domain\Exceptions\BusinessNotFoundException;
-use Src\Businesses\Profile\Domain\ValueObjects\AppointmentPlace;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessName;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessSlug;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessTimezone;
