@@ -113,7 +113,7 @@ final class UpdateProfile extends FormRequest
         foreach (self::FIELDS as $field => $name) {
             if (array_key_exists($field, $validated)) {
                 // A null place clears it: the business has no place configured.
-                $changes[$name] = (string) $validated[$field];
+                $changes[$name] = $field === 'lugar_cita' && $validated[$field] === null ? null : (string) $validated[$field];
             }
         }
 

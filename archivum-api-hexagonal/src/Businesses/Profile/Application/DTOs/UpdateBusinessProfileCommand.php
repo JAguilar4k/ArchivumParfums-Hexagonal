@@ -12,7 +12,7 @@ final readonly class UpdateBusinessProfileCommand
      *
      * @param array{
      *     name?: string,
-     *     appointment_place?: string,
+     *     appointment_place?: string|null,
      *     timezone?: string,
      *     settings?: array<string, int|float|string|list<int>|null>,
      * } $changes

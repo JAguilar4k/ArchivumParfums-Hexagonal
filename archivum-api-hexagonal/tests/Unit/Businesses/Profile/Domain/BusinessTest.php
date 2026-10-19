@@ -33,7 +33,7 @@ it('reconstitutes a business keeping its stored settings', function (): void {
         new BusinessName('Archivum'),
         new BusinessSlug('archivum'),
         new BusinessTimezone('America/Costa_Rica'),
-        new AppointmentPlace(''),
+        null,
         new BusinessSettings(bottleMarginColones: 8000, decantSizesMl: [3]),
     );
 
@@ -51,7 +51,7 @@ it('revises the profile and the settings but keeps its identity and its slug', f
         new BusinessName('Archivum'),
         new BusinessSlug('archivum'),
         new BusinessTimezone('America/Costa_Rica'),
-        new AppointmentPlace(''),
+        null,
     );
 
     $business->revise(
@@ -65,7 +65,7 @@ it('revises the profile and the settings but keeps its identity and its slug', f
         ->and($business->slug->value)->toBe('archivum')
         ->and($business->name->value)->toBe('Archivum Parfums')
         ->and($business->timezone->value)->toBe('America/Panama')
-        ->and($business->appointmentPlace->value)->toBe('Café del parque central')
+        ->and($business->appointmentPlace?->value)->toBe('Café del parque central')
         ->and($business->settings->bottleMarginColones)->toBe(6000)
         ->and($business->settings->decantSizesMl)->toBe([2, 5, 10]);
 });

@@ -30,13 +30,16 @@ final readonly class UpdateBusinessProfile
                 ?? throw BusinessNotFoundException::create();
 
             $changes = $command->changes;
+            $place = $business->appointmentPlace;
+
+            if (array_key_exists('appointment_place', $changes)) {
+                $place = $changes['appointment_place'] === null ? null : new AppointmentPlace($changes['appointment_place']);
+            }
 
             $business->revise(
                 isset($changes['name']) ? new BusinessName($changes['name']) : $business->name,
                 isset($changes['timezone']) ? new BusinessTimezone($changes['timezone']) : $business->timezone,
-                isset($changes['appointment_place'])
-                    ? new AppointmentPlace($changes['appointment_place'])
-                    : $business->appointmentPlace,
+                $place,
                 isset($changes['settings']) ? $business->settings->with($changes['settings']) : $business->settings,
             );
 

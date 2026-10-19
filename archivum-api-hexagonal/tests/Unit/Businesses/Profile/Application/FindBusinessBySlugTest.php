@@ -24,7 +24,7 @@ function findBusinessBySlugWiring(): array
         new BusinessName('ArchivumParfums'),
         new BusinessSlug('archivumparfums'),
         new BusinessTimezone('America/Costa_Rica'),
-        new AppointmentPlace(''),
+        null,
     );
     $businesses->save($business);
 

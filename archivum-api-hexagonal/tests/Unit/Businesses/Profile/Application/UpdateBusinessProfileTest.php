@@ -47,7 +47,7 @@ it('changes only the fields given and keeps the slug', function () {
     ]));
 
     expect($updated->name->value)->toBe('Archivum Parfums')
-        ->and($updated->appointmentPlace->value)->toBe('Café del parque central')
+        ->and($updated->appointmentPlace?->value)->toBe('Café del parque central')
         ->and($updated->timezone->value)->toBe('America/Costa_Rica')
         ->and($updated->slug->value)->toBe('archivumparfums')
         ->and($updated->settings->bottleMarginColones)->toBe(7000)

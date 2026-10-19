@@ -18,7 +18,7 @@ it('reads the profile of a business', function () {
         new BusinessName('ArchivumParfums'),
         new BusinessSlug('archivumparfums'),
         new BusinessTimezone('America/Costa_Rica'),
-        new AppointmentPlace(''),
+        null,
     );
     $businesses->save($business);
 

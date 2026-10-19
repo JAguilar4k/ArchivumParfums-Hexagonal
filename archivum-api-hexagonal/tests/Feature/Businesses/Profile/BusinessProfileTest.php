@@ -103,7 +103,7 @@ it('clears the place of the appointment with null', function () {
 
     patchJson(PROFILE_ENDPOINT, ['lugar_cita' => null])->assertOk()->assertJsonPath('data.lugar_cita', null);
 
-    expect(DB::table('businesses')->where('slug', TwoBusinesses::FIRST)->value('location_text'))->toBe('');
+    expect(DB::table('businesses')->where('slug', TwoBusinesses::FIRST)->value('location_text'))->toBeNull();
 });
 
 it('accepts and keeps each valid setting', function (string $field, mixed $value) {
