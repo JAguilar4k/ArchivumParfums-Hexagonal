@@ -7,7 +7,6 @@ namespace Tests\Support\Businesses;
 use Illuminate\Support\Facades\DB;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
-use Src\Businesses\Members\Domain\ValueObjects\MemberRole;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
@@ -25,40 +24,39 @@ final readonly class StaffedBusiness
         public UserModel $customer,
     ) {}
 
-    /** Create the business and its three people inside the transaction of the test. */
+    /**
+     * Create the business and its three people inside the transaction of the test. The factories pin the
+     * transaction to the business of each row they insert, so the business the test had pinned comes back after.
+     */
     public static function create(): self
     {
         return DB::transaction(function (): self {
-            $business = BusinessModel::factory()->create();
-            $owner = UserModel::factory()->create();
-            $staff = UserModel::factory()->create();
-            $customer = UserModel::factory()->create();
             $previous = DB::scalar('select current_setting(?, true)', [BusinessTransaction::SETTING]);
-            $transaction = new BusinessTransaction;
 
             try {
-                return $transaction->run($business->id, function () use ($business, $owner, $staff, $customer): self {
-                    MemberModel::query()->create([
-                        'business_id' => $business->id,
-                        'user_id' => $owner->id,
-                        'role' => MemberRole::Owner->value,
-                        'attends_appointments' => true,
-                    ]);
-                    MemberModel::query()->create([
-                        'business_id' => $business->id,
-                        'user_id' => $staff->id,
-                        'role' => MemberRole::Staff->value,
-                        'attends_appointments' => true,
-                    ]);
-                    CustomerModel::query()->create([
-                        'business_id' => $business->id,
-                        'user_id' => $customer->id,
-                    ]);
+                $business = BusinessModel::factory()->create();
+                $owner = UserModel::factory()->create();
+                $staff = UserModel::factory()->create();
+                $customer = UserModel::factory()->create();
 
-                    return new self($business, $owner, $staff, $customer);
-                });
+                MemberModel::factory()->owner()->create([
+                    'business_id' => $business->id,
+                    'user_id' => $owner->id,
+                    'attends_appointments' => true,
+                ]);
+                MemberModel::factory()->staff()->create([
+                    'business_id' => $business->id,
+                    'user_id' => $staff->id,
+                    'attends_appointments' => true,
+                ]);
+                CustomerModel::factory()->create([
+                    'business_id' => $business->id,
+                    'user_id' => $customer->id,
+                ]);
+
+                return new self($business, $owner, $staff, $customer);
             } finally {
-                $transaction->scope(is_string($previous) ? $previous : null);
+                app(BusinessTransaction::class)->scope(is_string($previous) ? $previous : null);
             }
         });
     }
