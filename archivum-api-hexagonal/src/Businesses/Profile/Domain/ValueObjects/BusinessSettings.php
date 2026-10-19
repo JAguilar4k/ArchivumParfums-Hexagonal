@@ -55,7 +55,10 @@ final readonly class BusinessSettings
         }
 
         if ($bottleDepositPercent < self::MIN_BOTTLE_DEPOSIT_PERCENT || $bottleDepositPercent > self::MAX_BOTTLE_DEPOSIT_PERCENT) {
-            throw new InvalidValueException('businesses.deposit_percent_out_of_range', ['min' => self::MIN_BOTTLE_DEPOSIT_PERCENT, 'max' => self::MAX_BOTTLE_DEPOSIT_PERCENT]);
+            throw new InvalidValueException('businesses.deposit_percent_out_of_range', [
+                'min' => self::MIN_BOTTLE_DEPOSIT_PERCENT,
+                'max' => self::MAX_BOTTLE_DEPOSIT_PERCENT,
+            ]);
         }
 
         if ($decantRoundingColones <= 0) {
