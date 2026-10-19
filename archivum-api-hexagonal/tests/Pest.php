@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\Auth;
 use Laravel\Sanctum\Sanctum;
 use Pest\Support\HigherOrderTapProxy;
 use Tests\Support\Businesses\StaffedBusiness;
@@ -61,11 +62,16 @@ function actingAsCustomer(?StaffedBusiness $business = null): StaffedBusiness
 /** Sign in as a role named as GET /api/v1/cuenta names it; the visitor signs in nobody. */
 function actingAsRole(string $role, ?StaffedBusiness $business = null): StaffedBusiness
 {
+    if ($role === 'visitante') {
+        Auth::forgetGuards();
+
+        return $business ?? StaffedBusiness::create();
+    }
+
     return match ($role) {
         'dueno' => actingAsOwner($business),
         'colaborador' => actingAsStaff($business),
         'cliente' => actingAsCustomer($business),
-        'visitante' => $business ?? StaffedBusiness::create(),
         default => throw new InvalidArgumentException("Unknown role [{$role}]."),
     };
 }

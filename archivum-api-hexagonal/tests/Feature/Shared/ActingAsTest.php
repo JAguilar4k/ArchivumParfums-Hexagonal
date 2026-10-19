@@ -42,6 +42,15 @@ it('answers each role of the permission matrix as expected', function (string $r
     getJson('/api/v1/cuenta')->assertStatus($role === 'visitante' ? 401 : 200);
 })->with('roles');
 
+it('clears the previous identity when switching from an authenticated role to a visitor', function (string $role) {
+    $business = actingAsRole($role);
+    getJson('/api/v1/cuenta')->assertOk();
+
+    expect(actingAsRole('visitante', $business))->toBe($business);
+
+    getJson('/api/v1/cuenta')->assertUnauthorized();
+})->with(['dueno', 'colaborador', 'cliente']);
+
 it('signs in the staff of another business outside the business of the test', function (string $role) {
     $own = StaffedBusiness::create();
     $other = actingAsRole($role);
