@@ -28,7 +28,7 @@ function updateBusinessProfileWiring(): array
         new BusinessName('ArchivumParfums'),
         new BusinessSlug('archivumparfums'),
         new BusinessTimezone('America/Costa_Rica'),
-        new AppointmentPlace('Escazú, frente al parque'),
+        new AppointmentPlace('EscazÃº, frente al parque'),
         new BusinessSettings(bottleMarginColones: 7000),
     );
     $businesses->save($business);
@@ -43,11 +43,11 @@ it('changes only the fields given and keeps the slug', function () {
 
     $updated = $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, [
         'name' => 'Archivum Parfums',
-        'appointment_place' => 'Café del parque central',
+        'appointment_place' => 'CafÃ© del parque central',
     ]));
 
     expect($updated->name->value)->toBe('Archivum Parfums')
-        ->and($updated->appointmentPlace?->value)->toBe('Café del parque central')
+        ->and($updated->appointmentPlace?->value)->toBe('CafÃ© del parque central')
         ->and($updated->timezone->value)->toBe('America/Costa_Rica')
         ->and($updated->slug->value)->toBe('archivumparfums')
         ->and($updated->settings->bottleMarginColones)->toBe(7000)
@@ -100,4 +100,14 @@ it('commits the profile changes in one transaction', function () {
     expect($transaction->runs())->toBe(1)
         ->and($transaction->committed())->toBe(1)
         ->and($transaction->rolledBack())->toBe(0);
+});
+
+it('clears the place with null and retains its absence when another field changes', function () {
+    [$updateProfile, $business] = updateBusinessProfileWiring();
+
+    $cleared = $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, ['appointment_place' => null]));
+    expect($cleared->appointmentPlace)->toBeNull();
+
+    $renamed = $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, ['name' => 'Archivum Parfums']));
+    expect($renamed->appointmentPlace)->toBeNull();
 });
