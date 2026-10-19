@@ -13,6 +13,7 @@ use Src\Shared\Domain\ValueObjects\BusinessId;
 
 final class Business
 {
+    /** Hold the full state of a business. */
     private function __construct(
         public readonly BusinessId $id,
         public private(set) BusinessName $name,
@@ -22,7 +23,7 @@ final class Business
         public private(set) BusinessSettings $settings,
     ) {}
 
-    /** Register a new business with the default settings. */
+    /** Register a new business with the default settings, with or without an appointment place. */
     public static function create(
         BusinessId $id,
         BusinessName $name,
