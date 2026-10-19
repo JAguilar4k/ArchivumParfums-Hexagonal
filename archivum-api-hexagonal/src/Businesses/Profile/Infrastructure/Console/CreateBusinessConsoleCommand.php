@@ -52,7 +52,7 @@ final class CreateBusinessConsoleCommand extends Command
             'name' => $business->name->value,
             'slug' => $business->slug->value,
             'id' => $business->id->value,
-            'email' => mb_strtolower(trim($ownerEmail)),
+            'email' => $ownerEmail,
         ]));
 
         return self::SUCCESS;

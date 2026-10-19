@@ -96,11 +96,12 @@ it('asks for every missing datum and hides the password', function () {
         ->expectsQuestion('Nombre del dueño', 'Valeria Solano Ruiz')
         ->expectsQuestion('Correo del dueño', 'Duena@ArchivumParfums.test')
         ->expectsQuestion('Contraseña del dueño', 'clave-segura')
-        ->expectsOutputToContain('Dueño: duena@archivumparfums.test.')
+        ->expectsOutputToContain('Dueño: Duena@ArchivumParfums.test.')
         ->doesntExpectOutputToContain('clave-segura')
         ->assertExitCode(0);
 
     expect(BusinessModel::query()->sole()->slug)->toBe('archivumparfums')
+        ->and(UserModel::query()->sole()->email)->toBe('duena@archivumparfums.test')
         ->and(Hash::check('clave-segura', UserModel::query()->sole()->password))->toBeTrue();
 });
 
