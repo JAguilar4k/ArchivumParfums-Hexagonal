@@ -167,6 +167,7 @@ return [
     ],
 
     'attributes' => [
+        'contrasena' => 'contraseña',
         'precio_venta' => 'precio de venta',
     ],
 

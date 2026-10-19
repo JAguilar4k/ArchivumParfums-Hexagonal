@@ -102,19 +102,27 @@ it('refuses incompatible passwords equally for existing and unknown accounts', f
     'long password' => str_repeat('x', 100),
 ]);
 
-it('refuses missing or malformed credentials with the errors of each field', function (array $payload, array $fields) {
-    $response = postJson('/api/v1/sesiones', $payload)
+it('refuses each missing or malformed field with its message in spanish', function (string $field, mixed $value, string $message) {
+    $response = postJson('/api/v1/sesiones', sessionCredentials([$field => $value]))
         ->assertUnprocessable()
         ->assertHeader('Content-Type', 'application/problem+json')
-        ->assertJsonPath('type', rtrim((string) config('app.url'), '/').'/problemas/datos-invalidos');
+        ->assertJsonPath('type', rtrim((string) config('app.url'), '/').'/problemas/datos-invalidos')
+        ->assertJsonPath("errores.{$field}.0", $message);
 
-    expect(array_keys($response->json('errores')))->toBe($fields);
+    expect(array_keys($response->json('errores')))->toBe([$field]);
 })->with([
-    'nothing' => [[], ['correo', 'contrasena', 'dispositivo']],
-    'malformed email' => [sessionCredentials(['correo' => 'duena.archivumparfums.test']), ['correo']],
-    'missing device' => [sessionCredentials(['dispositivo' => null]), ['dispositivo']],
-    'device too long' => [sessionCredentials(['dispositivo' => str_repeat('a', 101)]), ['dispositivo']],
+    'missing email' => ['correo', null, 'El campo correo es obligatorio.'],
+    'malformed email' => ['correo', 'duena.archivumparfums.test', 'El campo correo debe ser un correo electrónico válido.'],
+    'missing password' => ['contrasena', null, 'El campo contraseña es obligatorio.'],
+    'missing device' => ['dispositivo', null, 'El campo dispositivo es obligatorio.'],
+    'device too long' => ['dispositivo', str_repeat('a', 101), 'El campo dispositivo no debe tener más de 100 caracteres.'],
 ]);
+
+it('reports every missing field of an empty body', function () {
+    $response = postJson('/api/v1/sesiones', [])->assertUnprocessable();
+
+    expect(array_keys($response->json('errores')))->toBe(['correo', 'contrasena', 'dispositivo']);
+});
 
 it('accepts a device name of up to 100 characters', function () {
     postJson('/api/v1/sesiones', sessionCredentials(['dispositivo' => str_repeat('a', 100)]))->assertCreated();
