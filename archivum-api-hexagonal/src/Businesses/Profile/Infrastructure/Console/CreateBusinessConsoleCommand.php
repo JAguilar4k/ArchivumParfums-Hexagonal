@@ -10,7 +10,7 @@ use Src\Businesses\Profile\Application\DTOs\RegisterBusinessCommand;
 use Src\Businesses\Profile\Application\UseCases\RegisterBusiness;
 use Src\Shared\Domain\Exceptions\DomainException;
 
-#[Signature('archivum:create-business {name? : Nombre de la tienda} {slug? : Slug de la tienda} {owner-name? : Nombre del dueño} {owner-email? : Correo del dueño} {--password= : Contraseña del dueño}')]
+#[Signature('archivum:create-business {name?} {slug?} {owner-name?} {owner-email?} {--password=}')]
 final class CreateBusinessConsoleCommand extends Command
 {
     /** Describe the command in Spanish for the command list. */

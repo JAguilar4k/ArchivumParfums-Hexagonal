@@ -60,6 +60,15 @@ it('is registered with the agreed arguments, option and spanish description', fu
         ->and($command->getDescription())->toBe('Da de alta una tienda con los ajustes por defecto y la cuenta de su dueño.');
 });
 
+it('keeps its spanish texts in lang/es instead of the signature', function () {
+    $definition = Artisan::all()[CREATE_BUSINESS]->getDefinition();
+    $inputs = [...$definition->getArguments(), $definition->getOption('password')];
+
+    foreach ($inputs as $input) {
+        expect($input->getDescription())->toBe('');
+    }
+});
+
 it('registers the business with the default settings and its owner, without echoing the password', function () {
     $exitCode = Artisan::call(CREATE_BUSINESS, createBusinessArguments(['--password' => 'clave-segura']));
 
