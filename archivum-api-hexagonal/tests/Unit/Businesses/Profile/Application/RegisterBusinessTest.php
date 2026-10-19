@@ -38,6 +38,7 @@ it('registers the business with the default settings and its owner in one transa
     expect($business->name->value)->toBe('ArchivumParfums')
         ->and($business->slug->value)->toBe('archivumparfums')
         ->and($business->timezone->value)->toBe('America/Costa_Rica')
+        ->and($business->appointmentPlace)->toBeNull()
         ->and($business->settings)->toEqual(BusinessSettings::defaults())
         ->and($businesses->all())->toEqual([$business])
         ->and($owners->registered())->toBe([[
