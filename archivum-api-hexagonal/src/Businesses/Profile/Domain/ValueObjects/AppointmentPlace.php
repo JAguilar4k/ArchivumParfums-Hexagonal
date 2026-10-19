@@ -12,15 +12,15 @@ final readonly class AppointmentPlace
 
     public string $value;
 
-    /** Free text with the address or meeting point; an empty text means not configured yet. */
+    /** Trim the address or meeting point and reject empty or oversized values. */
     public function __construct(string $value)
     {
-        $trimmed = trim($value);
+        $value = trim($value);
 
-        if (mb_strlen($trimmed) > self::MAX_LENGTH) {
-            throw new InvalidValueException('businesses.place_too_long', ['max' => self::MAX_LENGTH]);
+        if ($value === '' || mb_strlen($value) > self::MAX_LENGTH) {
+            throw new InvalidValueException('businesses.appointment_place_invalid', ['max' => self::MAX_LENGTH]);
         }
 
-        $this->value = $trimmed;
+        $this->value = $value;
     }
 }

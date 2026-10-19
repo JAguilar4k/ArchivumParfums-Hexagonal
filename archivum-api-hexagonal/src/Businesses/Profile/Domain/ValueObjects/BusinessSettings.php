@@ -19,12 +19,15 @@ final readonly class BusinessSettings
 
     public const int DEFAULT_TRIAL_APPOINTMENT_PRICE_COLONES = 0;
 
+    /** @var list<int> */
+    public array $decantSizesMl;
+
     /**
-     * @param  list<int>  $decantSizesMl
+     * @param  array<array-key, mixed>  $decantSizesMl
      */
     public function __construct(
         public int $interviewMarginColones = self::DEFAULT_INTERVIEW_MARGIN_COLONES,
-        public array $decantSizesMl = self::DEFAULT_DECANT_SIZES_ML,
+        array $decantSizesMl = self::DEFAULT_DECANT_SIZES_ML,
         public int $bottleDepositPercent = self::DEFAULT_BOTTLE_DEPOSIT_PERCENT,
         public int $decantRoundingColones = self::DEFAULT_DECANT_ROUNDING_COLONES,
         public int $trialAppointmentPriceColones = self::DEFAULT_TRIAL_APPOINTMENT_PRICE_COLONES,
@@ -33,18 +36,22 @@ final readonly class BusinessSettings
             throw new InvalidValueException('businesses.margin_negative');
         }
 
-        if ($decantSizesMl === []) {
+        if ($decantSizesMl === [] || ! array_is_list($decantSizesMl)) {
             throw new InvalidValueException('businesses.decant_sizes_invalid');
         }
 
+        $sizes = [];
+
         foreach ($decantSizesMl as $size) {
-            if ($size <= 0) {
+            if (! is_int($size) || $size <= 0) {
                 throw new InvalidValueException('businesses.decant_sizes_invalid');
             }
+
+            $sizes[] = $size;
         }
 
         if ($bottleDepositPercent < 0 || $bottleDepositPercent > 100) {
-            throw new InvalidValueException('businesses.deposit_percent_invalid');
+            throw new InvalidValueException('businesses.deposit_percent_out_of_range', ['min' => 0, 'max' => 100]);
         }
 
         if ($decantRoundingColones <= 0) {
@@ -54,6 +61,8 @@ final readonly class BusinessSettings
         if ($trialAppointmentPriceColones < 0) {
             throw new InvalidValueException('businesses.trial_price_negative');
         }
+
+        $this->decantSizesMl = $sizes;
     }
 
     /** Settings that every new business starts with. */

@@ -12,19 +12,15 @@ final readonly class BusinessName
 
     public string $value;
 
-    /** Reject empty names and names longer than the maximum. */
+    /** Trim the name and reject empty or oversized values. */
     public function __construct(string $value)
     {
-        $trimmed = trim($value);
+        $value = trim($value);
 
-        if ($trimmed === '') {
-            throw new InvalidValueException('businesses.name_empty');
+        if ($value === '' || mb_strlen($value) > self::MAX_LENGTH) {
+            throw new InvalidValueException('businesses.name_invalid', ['max' => self::MAX_LENGTH]);
         }
 
-        if (mb_strlen($trimmed) > self::MAX_LENGTH) {
-            throw new InvalidValueException('businesses.name_too_long', ['max' => self::MAX_LENGTH]);
-        }
-
-        $this->value = $trimmed;
+        $this->value = $value;
     }
 }
