@@ -83,5 +83,6 @@ El enunciado permite usar asistentes de IA con una condición: cada integrante d
 | `docs/especificacion.md`, `docs/plan.md` y `CLAUDE.md` | Por declarar | Por declarar | Por declarar |
 | Correcciones de API, cuentas, migraciones y perfil de tienda | Codex | Conservación de estados HTTP, transición de cuentas a UUID sin pérdida de datos, validación de contraseñas incompatibles, lectura del lugar de cita opcional y actualización concurrente del perfil, con sus pruebas automatizadas de regresión. | Revisión humana del equipo y ejecución integrada de las pruebas pendientes. |
 | Contrato de autenticación (#28) | Codex | Alineación con SodaYa: credenciales incorrectas 401 `credenciales-invalidas`, validación 422 y regresiones. | Verificación automatizada en el PR; revisión humana pendiente. |
+| Compatibilidad de cuentas (#27) | Codex | Nombres heredados hasta 255 caracteres sin truncamiento y regresiones del dominio y la persistencia. | Verificación automatizada en el PR; revisión humana pendiente. |
 
 | Compatibilidad del dominio con #25 | Codex | Contratos opcionales con null, validación estricta y persistencia de MemberId conforme al guía, conservando las funciones del issue de esta rama. | Verificación automatizada en el PR; revisión humana pendiente. |
