@@ -77,6 +77,8 @@ El constructor de esquemas de Laravel no cubre funciones, procedimientos, trigge
 | Trigger | `trg_` | `BEFORE` por fila para validar o completar; `AFTER` por fila para propagar a otras tablas |
 | Vista | `v_` | `security_invoker = true`, para que apliquen las políticas de quien consulta |
 | Vista materializada | `mv_` | Índice único para refrescar con `CONCURRENTLY`; se consulta a través de una vista |
+| Política | `<tabla>_business_isolation` | Una por tabla de una tienda, con la misma expresión, `business_id = NULLIF(current_setting('app.business_id', true), '')::uuid`, en `USING` y `WITH CHECK` |
+| Política de lectura | `<tabla>_definer_read` | `FOR SELECT TO archivum_owner USING (true)`, solo en las tablas que lee una función `SECURITY DEFINER` |
 
 ## Extensiones
 
@@ -126,7 +128,7 @@ La tienda vive en la variable `app.business_id` y se fija con `set_config('app.b
 | Un recurso del cliente, `/api/v1/cuenta/...` | `auth:sanctum` y `business:account` | La del recurso, si es de la cuenta autenticada |
 | Un listado del cliente, `/api/v1/cuenta/...` | `auth:sanctum` | Cada tienda donde la cuenta es cliente, una transacción por tienda con `eachBusiness()` |
 
-Como el dueño de las tablas también está sujeto a las políticas, los sembradores y el comando `archivum:create-business` (#27) fijan la tienda antes de escribir el personal y los clientes. En las pruebas, `TwoBusinesses::scopeQueriesTo()` fija la tienda antes de preparar o leer filas.
+Como el dueño de las tablas también está sujeto a las políticas, los sembradores escriben el personal y los clientes de cada tienda de demostración dentro de `BusinessTransaction`, y el comando `archivum:create-business` (#27) fija la tienda nueva antes de escribir a su dueño en `members`. En las pruebas cada fábrica fija la tienda de su fila antes de insertarla, con el trait `CreatesRowsOfABusiness`, y el trait `Tests\Support\Shared\ScopesQueriesToBusiness` fija la tienda de las consultas de una prueba. `businesses` y `users` no tienen política, así que se escriben sin fijar una tienda.
 
 ### Funciones que leen sin tienda
 
@@ -162,8 +164,8 @@ PostgreSQL revisa las llaves únicas, las restricciones de exclusión y las llav
 
 1. La tabla lleva `business_id`, y sus llaves únicas y foráneas lo incluyen.
 2. Una migración habilita y fuerza la seguridad a nivel de fila y crea la política `<tabla>_business_isolation` con `business_id = NULLIF(current_setting('app.business_id', true), '')::uuid` en `USING` y en `WITH CHECK`; su `down()` deshace los tres pasos.
-3. Las rutas que la usan pasan por el middleware `business` y sus pruebas fijan la tienda antes de preparar filas.
-4. La tabla se suma a `protectedTables()` y su modelo a `protectedModels()` en `RowLevelSecurityTest`, que revisa el catálogo de PostgreSQL y falla si una tabla con `business_id` no tiene la seguridad habilitada, forzada y con su política, o si falta en esas listas.
+3. Las rutas que la usan pasan por el middleware `business`, y su fábrica usa el trait `CreatesRowsOfABusiness`.
+4. La tabla se suma a `protectedTables()` y su modelo a `protectedModels()` en `RowLevelSecurityTest`, que crea con la fábrica de cada modelo una fila en cada una de dos tiendas, revisa el catálogo de PostgreSQL y falla si una tabla con `business_id` no tiene la seguridad habilitada, forzada y con su política, o si falta en esas listas.
 
 ## Reparto de responsabilidades
 
