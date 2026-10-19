@@ -19,15 +19,32 @@ beforeEach(function () {
     seed();
 });
 
-it('answers a bearer token for the owner, the advisor and a customer of the seeders', function (string $email) {
-    $response = postJson('/api/v1/sesiones', ['correo' => $email, 'contrasena' => SESSION_PASSWORD])
+/**
+ * Credentials of a demo account signing in from a computer, with some fields replaced.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function sessionCredentials(array $overrides = []): array
+{
+    return [
+        'correo' => 'duena@archivumparfums.test',
+        'contrasena' => SESSION_PASSWORD,
+        'dispositivo' => 'Computadora',
+        ...$overrides,
+    ];
+}
+
+it('answers a bearer token named after the device for the owner, the advisor and a customer of the seeders', function (string $email) {
+    $response = postJson('/api/v1/sesiones', sessionCredentials(['correo' => $email, 'dispositivo' => 'Celular de la tienda']))
         ->assertCreated()
         ->assertJsonPath('data.tipo', 'Bearer');
 
-    $user = UserModel::query()->where('email', $email)->sole();
+    $token = UserModel::query()->where('email', $email)->sole()->tokens()->sole();
 
     expect(array_keys($response->json('data')))->toBe(['token', 'tipo'])
-        ->and($response->json('data.token'))->toStartWith($user->tokens()->sole()->getKey().'|');
+        ->and($response->json('data.token'))->toStartWith($token->getKey().'|')
+        ->and($token->name)->toBe('Celular de la tienda');
 })->with([
     'owner' => 'duena@archivumparfums.test',
     'advisor' => 'asesor@archivumparfums.test',
@@ -35,22 +52,23 @@ it('answers a bearer token for the owner, the advisor and a customer of the seed
 ]);
 
 it('finds the account whatever the case of the email', function () {
-    postJson('/api/v1/sesiones', ['correo' => 'Duena@ArchivumParfums.TEST', 'contrasena' => SESSION_PASSWORD])
+    postJson('/api/v1/sesiones', sessionCredentials(['correo' => 'Duena@ArchivumParfums.TEST']))
         ->assertCreated();
 });
 
-it('gives every sign-in its own token', function () {
-    postJson('/api/v1/sesiones', ['correo' => 'mariana@clientes.test', 'contrasena' => SESSION_PASSWORD])->assertCreated();
-    postJson('/api/v1/sesiones', ['correo' => 'mariana@clientes.test', 'contrasena' => SESSION_PASSWORD])->assertCreated();
+it('gives every sign-in its own token, named after its device', function () {
+    postJson('/api/v1/sesiones', sessionCredentials(['correo' => 'mariana@clientes.test', 'dispositivo' => 'Celular']))->assertCreated();
+    postJson('/api/v1/sesiones', sessionCredentials(['correo' => 'mariana@clientes.test', 'dispositivo' => 'Computadora']))->assertCreated();
 
-    expect(UserModel::query()->where('email', 'mariana@clientes.test')->sole()->tokens()->count())->toBe(2);
+    expect(UserModel::query()->where('email', 'mariana@clientes.test')->sole()->tokens()->orderBy('id')->pluck('name')->all())
+        ->toBe(['Celular', 'Computadora']);
 });
 
 it('answers an unknown email and a wrong password with the same 401 problem, without telling which one failed', function () {
-    $unknownEmail = postJson('/api/v1/sesiones', ['correo' => 'nadie@archivumparfums.test', 'contrasena' => SESSION_PASSWORD])
+    $unknownEmail = postJson('/api/v1/sesiones', sessionCredentials(['correo' => 'nadie@archivumparfums.test']))
         ->assertUnauthorized()
         ->assertHeader('Content-Type', 'application/problem+json');
-    $wrongPassword = postJson('/api/v1/sesiones', ['correo' => 'duena@archivumparfums.test', 'contrasena' => 'otra-clave'])
+    $wrongPassword = postJson('/api/v1/sesiones', sessionCredentials(['contrasena' => 'otra-clave']))
         ->assertUnauthorized()
         ->assertHeader('Content-Type', 'application/problem+json');
 
@@ -63,15 +81,15 @@ it('answers an unknown email and a wrong password with the same 401 problem, wit
 });
 
 it('does not trim the password', function () {
-    postJson('/api/v1/sesiones', ['correo' => 'duena@archivumparfums.test', 'contrasena' => ' '.SESSION_PASSWORD.' '])
+    postJson('/api/v1/sesiones', sessionCredentials(['contrasena' => ' '.SESSION_PASSWORD.' ']))
         ->assertUnauthorized();
 });
 
 it('refuses incompatible passwords equally for existing and unknown accounts', function (string $password) {
-    $existing = postJson('/api/v1/sesiones', ['correo' => 'duena@archivumparfums.test', 'contrasena' => $password])
+    $existing = postJson('/api/v1/sesiones', sessionCredentials(['contrasena' => $password]))
         ->assertUnauthorized()
         ->assertHeader('Content-Type', 'application/problem+json');
-    $unknown = postJson('/api/v1/sesiones', ['correo' => 'nadie@archivumparfums.test', 'contrasena' => $password])
+    $unknown = postJson('/api/v1/sesiones', sessionCredentials(['correo' => 'nadie@archivumparfums.test', 'contrasena' => $password]))
         ->assertUnauthorized()
         ->assertHeader('Content-Type', 'application/problem+json');
 
@@ -84,14 +102,28 @@ it('refuses incompatible passwords equally for existing and unknown accounts', f
     'long password' => str_repeat('x', 100),
 ]);
 
-it('refuses missing or malformed credentials with the errors of each field', function (array $payload, array $fields) {
-    $response = postJson('/api/v1/sesiones', $payload)
+it('refuses each missing or malformed field with its message in spanish', function (string $field, mixed $value, string $message) {
+    $response = postJson('/api/v1/sesiones', sessionCredentials([$field => $value]))
         ->assertUnprocessable()
         ->assertHeader('Content-Type', 'application/problem+json')
-        ->assertJsonPath('type', rtrim((string) config('app.url'), '/').'/problemas/datos-invalidos');
+        ->assertJsonPath('type', rtrim((string) config('app.url'), '/').'/problemas/datos-invalidos')
+        ->assertJsonPath("errores.{$field}.0", $message);
 
-    expect(array_keys($response->json('errores')))->toBe($fields);
+    expect(array_keys($response->json('errores')))->toBe([$field]);
 })->with([
-    'nothing' => [[], ['correo', 'contrasena']],
-    'malformed email' => [['correo' => 'duena.archivumparfums.test', 'contrasena' => SESSION_PASSWORD], ['correo']],
+    'missing email' => ['correo', null, 'El campo correo es obligatorio.'],
+    'malformed email' => ['correo', 'duena.archivumparfums.test', 'El campo correo debe ser un correo electrónico válido.'],
+    'missing password' => ['contrasena', null, 'El campo contraseña es obligatorio.'],
+    'missing device' => ['dispositivo', null, 'El campo dispositivo es obligatorio.'],
+    'device too long' => ['dispositivo', str_repeat('a', 101), 'El campo dispositivo no debe tener más de 100 caracteres.'],
 ]);
+
+it('reports every missing field of an empty body', function () {
+    $response = postJson('/api/v1/sesiones', [])->assertUnprocessable();
+
+    expect(array_keys($response->json('errores')))->toBe(['correo', 'contrasena', 'dispositivo']);
+});
+
+it('accepts a device name of up to 100 characters', function () {
+    postJson('/api/v1/sesiones', sessionCredentials(['dispositivo' => str_repeat('a', 100)]))->assertCreated();
+});

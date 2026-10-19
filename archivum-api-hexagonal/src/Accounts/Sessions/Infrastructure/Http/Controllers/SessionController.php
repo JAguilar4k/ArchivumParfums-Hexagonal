@@ -9,16 +9,16 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Src\Accounts\Sessions\Application\UseCases\EndSession;
 use Src\Accounts\Sessions\Application\UseCases\StartSession;
-use Src\Accounts\Sessions\Infrastructure\Http\Requests\StoreSession;
-use Src\Accounts\Sessions\Infrastructure\Http\Resources\SessionToken;
+use Src\Accounts\Sessions\Infrastructure\Http\Requests\StoreSessionRequest;
+use Src\Accounts\Sessions\Infrastructure\Http\Resources\SessionTokenResource;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 
 final readonly class SessionController
 {
     /** Sign in with email and password and answer a bearer token. */
-    public function store(StoreSession $request, StartSession $startSession): JsonResponse
+    public function store(StoreSessionRequest $request, StartSession $startSession): JsonResponse
     {
-        return new SessionToken($startSession->execute($request->toCommand()))
+        return new SessionTokenResource($startSession->execute($request->toCommand()))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }

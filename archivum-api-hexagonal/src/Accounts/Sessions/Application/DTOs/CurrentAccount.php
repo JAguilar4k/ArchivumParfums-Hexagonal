@@ -6,7 +6,7 @@ namespace Src\Accounts\Sessions\Application\DTOs;
 
 use Src\Accounts\Sessions\Domain\ValueObjects\AccountRole;
 
-final readonly class CurrentAccountView
+final readonly class CurrentAccount
 {
     /** Carry the data of the signed-in account, with its business when it belongs to a staff. */
     public function __construct(

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Businesses\Profile\Infrastructure\Members;
+namespace Src\Businesses\Profile\Infrastructure\Accounts;
 
 use SensitiveParameter;
 use Src\Accounts\Users\Application\DTOs\RegisterAccountCommand;
@@ -14,7 +14,7 @@ use Src\Businesses\Profile\Application\Contracts\OwnerAccounts;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 
-final readonly class StaffOwnerAccounts implements OwnerAccounts
+final readonly class AccountsOwnerAccounts implements OwnerAccounts
 {
     /** Receive the use cases that open an account and add it to a staff, and the transaction of one business. */
     public function __construct(
@@ -23,7 +23,7 @@ final readonly class StaffOwnerAccounts implements OwnerAccounts
         private BusinessTransaction $transaction,
     ) {}
 
-    /** Pin the new business in the open transaction, then open the owner account and add it as owner. */
+    /** Pin the new business in the open transaction, open the owner account through Accounts and add it as owner. */
     public function registerOwner(
         BusinessId $businessId,
         string $name,
