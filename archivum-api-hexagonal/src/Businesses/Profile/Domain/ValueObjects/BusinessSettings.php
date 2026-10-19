@@ -39,16 +39,19 @@ final readonly class BusinessSettings
     /** @var list<string> */
     public const array GATEWAYS = [self::GATEWAY_ONVO, self::GATEWAY_PAYPAL];
 
+    /** @var list<int> */
+    public array $decantSizesMl;
+
     /**
      * Hold the settings of a business; the defaults are the ones of section 10 of the specification.
      *
-     * @param  list<int>  $decantSizesMl
+     * @param  array<array-key, mixed>  $decantSizesMl
      * @param  list<int>  $reminderHours  Hours before an appointment when each reminder goes out.
      * @param  float|null  $usdExchangeRate  Colones per dollar for PayPal; null until the business sets it.
      */
     public function __construct(
         public int $bottleMarginColones = self::DEFAULT_BOTTLE_MARGIN_COLONES,
-        public array $decantSizesMl = self::DEFAULT_DECANT_SIZES_ML,
+        array $decantSizesMl = self::DEFAULT_DECANT_SIZES_ML,
         public int $bottleDepositPercent = self::DEFAULT_BOTTLE_DEPOSIT_PERCENT,
         public int $decantRoundingColones = self::DEFAULT_DECANT_ROUNDING_COLONES,
         public int $trialAppointmentPriceColones = self::DEFAULT_TRIAL_APPOINTMENT_PRICE_COLONES,
@@ -65,18 +68,26 @@ final readonly class BusinessSettings
             throw new InvalidValueException('businesses.margin_negative');
         }
 
-        if ($decantSizesMl === [] || count(array_unique($decantSizesMl)) !== count($decantSizesMl)) {
+        if ($decantSizesMl === [] || ! array_is_list($decantSizesMl)) {
             throw new InvalidValueException('businesses.decant_sizes_invalid');
         }
 
+        $sizes = [];
+
         foreach ($decantSizesMl as $size) {
-            if ($size <= 0) {
+            if (! is_int($size) || $size <= 0) {
                 throw new InvalidValueException('businesses.decant_sizes_invalid');
             }
+
+            $sizes[] = $size;
+        }
+
+        if (count(array_unique($sizes)) !== count($sizes)) {
+            throw new InvalidValueException('businesses.decant_sizes_invalid');
         }
 
         if ($bottleDepositPercent < 0 || $bottleDepositPercent > 100) {
-            throw new InvalidValueException('businesses.deposit_percent_invalid');
+            throw new InvalidValueException('businesses.deposit_percent_out_of_range', ['min' => 0, 'max' => 100]);
         }
 
         if ($decantRoundingColones <= 0) {
@@ -104,6 +115,8 @@ final readonly class BusinessSettings
         if ($usdExchangeRate !== null && $usdExchangeRate <= 0) {
             throw new InvalidValueException('businesses.exchange_rate_invalid');
         }
+
+        $this->decantSizesMl = $sizes;
     }
 
     /** Settings that every new business starts with. */

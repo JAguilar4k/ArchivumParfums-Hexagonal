@@ -36,7 +36,7 @@ final readonly class EloquentBusinessRepository implements BusinessRepository
                     'name' => $business->name->value,
                     'slug' => $business->slug->value,
                     'timezone' => $business->timezone->value,
-                    'location_text' => $business->appointmentPlace->value,
+                    'location_text' => $business->appointmentPlace?->value,
                     // As an object, so a business without changes stores {} instead of a JSON array.
                     'settings' => (object) $this->storedSettings($business->settings),
                 ],
@@ -78,7 +78,7 @@ final readonly class EloquentBusinessRepository implements BusinessRepository
             new BusinessName($model->name),
             new BusinessSlug($model->slug),
             new BusinessTimezone($model->timezone),
-            new AppointmentPlace($model->location_text ?? ''),
+            ($model->location_text === null || trim($model->location_text) === '') ? null : new AppointmentPlace($model->location_text),
             $this->settingsOf($model->settings),
         );
     }

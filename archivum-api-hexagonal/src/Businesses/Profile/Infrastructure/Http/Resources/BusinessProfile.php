@@ -32,7 +32,7 @@ final class BusinessProfile extends JsonResource
             'id' => $this->business->id->value,
             'nombre' => $this->business->name->value,
             'slug' => $this->business->slug->value,
-            'lugar_cita' => $this->business->appointmentPlace->value === '' ? null : $this->business->appointmentPlace->value,
+            'lugar_cita' => $this->business->appointmentPlace?->value,
             'zona_horaria' => $this->business->timezone->value,
             'ajustes' => [
                 'margen_botella' => $settings->bottleMarginColones,

@@ -15,11 +15,11 @@ it('trims the business name', function (): void {
 
 it('rejects an empty business name', function (): void {
     new BusinessName('   ');
-})->throws(InvalidValueException::class, 'businesses.name_empty');
+})->throws(InvalidValueException::class, 'businesses.name_invalid');
 
 it('rejects a business name that is too long', function (): void {
     new BusinessName(str_repeat('a', BusinessName::MAX_LENGTH + 1));
-})->throws(InvalidValueException::class, 'businesses.name_too_long');
+})->throws(InvalidValueException::class, 'businesses.name_invalid');
 
 it('accepts a valid slug', function (): void {
     expect((new BusinessSlug('mi-tienda-2'))->value)->toBe('mi-tienda-2');
@@ -49,13 +49,13 @@ it('rejects a timezone that is not IANA', function (string $timezone): void {
     'empty timezone' => '',
 ])->throws(InvalidValueException::class, 'businesses.timezone_invalid');
 
-it('accepts an empty appointment place', function (): void {
-    expect((new AppointmentPlace('  '))->value)->toBe('');
-});
+it('rejects an empty appointment place', function () {
+    new AppointmentPlace('  ');
+})->throws(InvalidValueException::class, 'businesses.appointment_place_invalid');
 
 it('rejects an appointment place that is too long', function (): void {
     new AppointmentPlace(str_repeat('a', AppointmentPlace::MAX_LENGTH + 1));
-})->throws(InvalidValueException::class, 'businesses.place_too_long');
+})->throws(InvalidValueException::class, 'businesses.appointment_place_invalid');
 
 it('starts settings with the specification defaults', function (): void {
     $settings = BusinessSettings::defaults();
@@ -91,7 +91,7 @@ it('starts settings with the deposit, rounding and free trial appointment defaul
 it('rejects a deposit percent outside 0 to 100', function (int $percent): void {
     new BusinessSettings(bottleDepositPercent: $percent);
 })->with([-1, 101])
-    ->throws(InvalidValueException::class, 'businesses.deposit_percent_invalid');
+    ->throws(InvalidValueException::class, 'businesses.deposit_percent_out_of_range');
 
 it('rejects a decant rounding that is not positive', function (int $rounding): void {
     new BusinessSettings(decantRoundingColones: $rounding);
@@ -161,3 +161,20 @@ it('combines the changed settings with the current ones and validates the result
 it('validates the combination, not only the changed setting', function (): void {
     (new BusinessSettings(bookingHorizonDays: 1))->with(['minimumNoticeHours' => 25]);
 })->throws(InvalidValueException::class, 'businesses.horizon_before_notice');
+
+it('rejects decant sizes that are not a list of positive integers', function (array $sizes): void {
+    new BusinessSettings(decantSizesMl: $sizes);
+})->with([
+    'text' => [['texto']],
+    'numeric string' => [['5']],
+    'boolean' => [[true]],
+    'fractional float' => [[2.5]],
+    'whole float' => [[5.0]],
+    'associative array' => [['small' => 2]],
+    'nonzero first index' => [[1 => 5]],
+    'nested array' => [[[5]]],
+])->throws(InvalidValueException::class, 'businesses.decant_sizes_invalid');
+
+it('rejects a slug ending in a line break', function (string $slug) {
+    new BusinessSlug($slug);
+})->with(["archivum\n", "archivum\r", "archivum\r\n"])->throws(InvalidValueException::class, 'businesses.slug_invalid');

@@ -18,7 +18,7 @@ final class Business
         public private(set) BusinessName $name,
         public readonly BusinessSlug $slug,
         public private(set) BusinessTimezone $timezone,
-        public private(set) AppointmentPlace $appointmentPlace,
+        public private(set) ?AppointmentPlace $appointmentPlace,
         public private(set) BusinessSettings $settings,
     ) {}
 
@@ -28,7 +28,7 @@ final class Business
         BusinessName $name,
         BusinessSlug $slug,
         BusinessTimezone $timezone,
-        AppointmentPlace $appointmentPlace,
+        ?AppointmentPlace $appointmentPlace,
     ): self {
         return new self($id, $name, $slug, $timezone, $appointmentPlace, BusinessSettings::defaults());
     }
@@ -39,7 +39,7 @@ final class Business
         BusinessName $name,
         BusinessSlug $slug,
         BusinessTimezone $timezone,
-        AppointmentPlace $appointmentPlace,
+        ?AppointmentPlace $appointmentPlace,
         BusinessSettings $settings,
     ): self {
         return new self($id, $name, $slug, $timezone, $appointmentPlace, $settings);
@@ -49,7 +49,7 @@ final class Business
     public function revise(
         BusinessName $name,
         BusinessTimezone $timezone,
-        AppointmentPlace $appointmentPlace,
+        ?AppointmentPlace $appointmentPlace,
         BusinessSettings $settings,
     ): void {
         $this->name = $name;
