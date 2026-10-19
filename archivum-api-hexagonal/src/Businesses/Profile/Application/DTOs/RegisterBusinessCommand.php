@@ -16,7 +16,7 @@ final readonly class RegisterBusinessCommand
         public string $ownerEmail,
         #[SensitiveParameter] public string $ownerPassword,
         public string $timezone = 'America/Costa_Rica',
-        public string $appointmentPlace = '',
+        public ?string $appointmentPlace = null,
         public bool $ownerAttendsAppointments = false,
     ) {}
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 return [
     'name_empty' => 'El nombre de la tienda no puede estar vacío.',
     'name_too_long' => 'El nombre de la tienda no puede superar los :max caracteres.',
-    'slug_invalid' => 'El slug solo puede tener minúsculas, dígitos y guiones.',
+    'slug_invalid' => 'El slug solo puede tener minúsculas, dígitos y guiones, y no puede superar los :max caracteres.',
     'timezone_invalid' => 'La zona horaria no es un identificador IANA válido.',
     'place_too_long' => 'El lugar de la cita no puede superar los :max caracteres.',
     'margin_negative' => 'El margen no puede ser negativo.',
@@ -23,4 +23,7 @@ return [
     'owner_email_prompt' => 'Correo del dueño',
     'owner_password_prompt' => 'Contraseña del dueño',
     'business_registered' => 'Tienda registrada: :name (:slug, :id). Dueño: :email.',
+    'appointment_place_invalid' => 'El lugar de la cita no puede estar vacío ni superar los :max caracteres.',
+    'deposit_percent_out_of_range' => 'El porcentaje de depósito debe estar entre :min y :max.',
+    'name_invalid' => 'El nombre de la tienda es obligatorio y no puede superar los :max caracteres.',
 ];

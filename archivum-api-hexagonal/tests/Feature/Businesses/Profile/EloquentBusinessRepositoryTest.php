@@ -19,6 +19,6 @@ it('reconstitutes a business with the null appointment place supplied by the dat
 
     $business = app(BusinessRepository::class)->find(new BusinessId($id));
 
-    expect($business?->appointmentPlace->value)->toBe('');
+    expect($business?->appointmentPlace)->toBeNull();
     expect(DB::table('businesses')->where('id', $id)->value('location_text'))->toBeNull();
 });
