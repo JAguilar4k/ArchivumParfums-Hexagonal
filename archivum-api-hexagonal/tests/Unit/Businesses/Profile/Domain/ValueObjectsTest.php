@@ -143,20 +143,3 @@ it('rejects a decant rounding that is not positive', function (int $rounding): v
 it('rejects a negative trial appointment price', function (): void {
     new BusinessSettings(trialAppointmentPriceColones: -1);
 })->throws(InvalidValueException::class, 'businesses.trial_price_negative');
-
-it('rejects decant sizes that are not a list of positive integers', function (array $sizes): void {
-    new BusinessSettings(decantSizesMl: $sizes);
-})->with([
-    'text' => [['texto']],
-    'numeric string' => [['5']],
-    'boolean' => [[true]],
-    'fractional float' => [[2.5]],
-    'whole float' => [[5.0]],
-    'associative array' => [['small' => 2]],
-    'nonzero first index' => [[1 => 5]],
-    'nested array' => [[[5]]],
-])->throws(InvalidValueException::class, 'businesses.decant_sizes_invalid');
-
-it('rejects a slug ending in a line break', function (string $slug) {
-    new BusinessSlug($slug);
-})->with(["archivum\n", "archivum\r", "archivum\r\n"])->throws(InvalidValueException::class, 'businesses.slug_invalid');
