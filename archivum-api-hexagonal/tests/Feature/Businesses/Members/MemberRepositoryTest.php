@@ -28,6 +28,9 @@ it('persists the aggregate identity and retains it when the member changes', fun
     $repository->save($member);
     $repository->save(Member::reconstitute($id, $member->userId, $member->businessId, MemberRole::Owner, true));
 
+    $restored = $repository->findByUser(new UserId($user->id));
+    expect($restored?->id->value)->toBe($id->value);
+
     assertDatabaseCount('members', 1);
     assertDatabaseHas('members', [
         'id' => $id->value,
