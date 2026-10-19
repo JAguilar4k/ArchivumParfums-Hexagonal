@@ -15,8 +15,6 @@ use function Pest\Laravel\json;
 
 pest()->use(RefreshDatabaseAsOwner::class);
 
-const CO_OWNER = 'coduena@archivumparfums.test';
-
 /**
  * Routes kept for the owners of the business, by method and URI; '*' is any method and a URI covers the routes
  * under it. Logo, bottles and suppliers join when they arrive.
@@ -96,7 +94,7 @@ function ownerOnlyEndpoints(): array
 function customerOnlyEndpoints(): array
 {
     return [
-        'example: join a business as a customer (test route)' => ['POST', '/api/v1/tiendas/esencias-del-norte/pruebas/clientes', []],
+        'example: join a business as a customer (test route)' => ['POST', '/api/v1/tiendas/'.TwoBusinesses::SECOND.'/pruebas/clientes', []],
     ];
 }
 
@@ -128,7 +126,7 @@ function expectForbiddenWithoutWrites(string $email, string $method, string $pat
 }
 
 beforeEach(function () {
-    TwoBusinesses::seed();
+    TwoBusinesses::create();
 
     // Examples of both groups until their first endpoints exist: a read and a write for the owners, a write for customers.
     Route::prefix('api/v1/panel/pruebas/ajustes')->middleware(['api', 'auth:sanctum', 'business:staff', 'role:owner'])->group(function (): void {
@@ -151,7 +149,7 @@ it('lets the owner and the co-owner through the owners only group', function (st
     expect(json($method, $path, $payload)->status())->not->toBeIn([401, 403]);
 })->with(ownerOnlyEndpoints())->with([
     'owner' => TwoBusinesses::OWNERS[TwoBusinesses::FIRST],
-    'co-owner' => CO_OWNER,
+    'co-owner' => TwoBusinesses::CO_OWNER,
 ]);
 
 it('forbids the advisor and the customer in the owners only group, also the reads, and writes nothing', function (string $method, string $path, array $payload, string $email) {
@@ -171,7 +169,7 @@ it('forbids every account with a row in members in the customers only group and 
     expectForbiddenWithoutWrites($email, $method, $path, $payload);
 })->with(customerOnlyEndpoints())->with([
     'owner' => TwoBusinesses::OWNERS[TwoBusinesses::FIRST],
-    'co-owner' => CO_OWNER,
+    'co-owner' => TwoBusinesses::CO_OWNER,
     'advisor' => TwoBusinesses::ADVISOR,
     'owner of the other business' => TwoBusinesses::OWNERS[TwoBusinesses::SECOND],
 ]);
