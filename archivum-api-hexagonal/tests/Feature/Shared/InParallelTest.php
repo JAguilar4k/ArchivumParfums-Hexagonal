@@ -45,6 +45,8 @@ it('lets only one of two conditional updates of the same row take effect', funct
                     $deadline = microtime(true) + 10;
 
                     do {
+                        // PostgreSQL keeps one picture of pg_stat_activity per transaction; a fresh one shows a session that connected later.
+                        DB::statement('select pg_stat_clear_snapshot()');
                         $overlapped = (bool) DB::scalar(<<<'SQL'
                             select exists (
                                 select 1 from pg_stat_activity
