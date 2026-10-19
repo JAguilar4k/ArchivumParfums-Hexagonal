@@ -8,9 +8,10 @@ use SensitiveParameter;
 
 final readonly class StartSessionCommand
 {
-    /** Carry the credentials of the person who signs in. */
+    /** Carry the credentials and the name of the device that signs in. */
     public function __construct(
         public string $email,
         #[SensitiveParameter] public string $password,
+        public string $deviceName,
     ) {}
 }

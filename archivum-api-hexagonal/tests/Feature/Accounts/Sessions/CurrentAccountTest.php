@@ -24,7 +24,7 @@ beforeEach(function () {
  */
 function signInAs(string $email): array
 {
-    $token = postJson('/api/v1/sesiones', ['correo' => $email, 'contrasena' => 'clave-de-demostracion'])->json('data.token');
+    $token = postJson('/api/v1/sesiones', ['correo' => $email, 'contrasena' => 'clave-de-demostracion', 'dispositivo' => 'Computadora'])->json('data.token');
 
     return ['Authorization' => "Bearer {$token}"];
 }

@@ -116,7 +116,7 @@ it('lets every demo account sign in with the password of the configuration', fun
     seed();
 
     foreach (DB::table('users')->pluck('email') as $email) {
-        postJson('/api/v1/sesiones', ['correo' => $email, 'contrasena' => 'clave-de-demostracion'])->assertCreated();
+        postJson('/api/v1/sesiones', ['correo' => $email, 'contrasena' => 'clave-de-demostracion', 'dispositivo' => 'Computadora'])->assertCreated();
     }
 });
 
