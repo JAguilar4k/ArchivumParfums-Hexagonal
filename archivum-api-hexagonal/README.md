@@ -143,7 +143,7 @@ Para cerrar esa sesión se envía el mismo token; la respuesta es `204` y las de
 curl -X DELETE http://localhost:8000/api/v1/sesiones/actual -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
 ```
 
-Mientras llegan las abilities y las policies de #102 y #104, dos middleware separan los grupos de rutas por rol. `role:owner` deja pasar solo a los dueños de la tienda: la configuración (perfil y ajustes, servicios, horarios, bloqueos, perfumes, botellas y proveedores) y las citas que se reservan, reprograman o cancelan en nombre de un cliente. `role:customer` deja pasar solo a las cuentas sin fila en `members`: las reservas, los pedidos y las rutas de `/api/v1/cuenta/...`. Cualquier otra cuenta recibe 403 `prohibido` antes de que la petición escriba algo, y `GET /api/v1/cuenta` sigue abierta a los tres roles. `tests/Feature/Accounts/Sessions/RoleGroupsTest.php` falla si una ruta de esos grupos no lleva su middleware, y cada endpoint nuevo de los dos grupos suma su fila a su dataset, con el estado exacto que recibe el rol permitido.
+Mientras llegan las abilities y las policies de #102 y #104, el middleware `RequireAccountRole` separa los grupos de rutas según el rol indicado. `role:owner` deja pasar solo a los dueños de la tienda: la configuración (perfil y ajustes, servicios, horarios, bloqueos, perfumes, botellas y proveedores) y las citas que se reservan, reprograman o cancelan en nombre de un cliente. `role:customer` deja pasar solo a las cuentas sin fila en `members`: las reservas, los pedidos y las rutas de `/api/v1/cuenta/...`. Cualquier otra cuenta recibe 403 `prohibido` antes de que la petición escriba algo, y `GET /api/v1/cuenta` sigue abierta a los tres roles. `tests/Feature/Accounts/Sessions/RoleGroupsTest.php` falla si una ruta de esos grupos no lleva su middleware, y cada endpoint nuevo de los dos grupos suma su fila a su dataset, con el estado exacto que recibe el rol permitido.
 
 La tienda de `/api/v1/panel/tienda` siempre es la de la sesión: un `business_id` o un slug en el cuerpo se ignoran. `PATCH` acepta `nombre`, `lugar_cita` (`null` lo deja sin configurar), `zona_horaria` (identificador IANA) y, dentro de `ajustes`, cualquiera de estos campos; los que no se envían conservan su valor:
 
@@ -161,6 +161,8 @@ La tienda de `/api/v1/panel/tienda` siempre es la de la sesión: un `business_id
 | `tipo_cambio_usd` | Colones por dólar para cobrar con PayPal, mayor que cero | `null` |
 
 La base guarda en `businesses.settings` solo los ajustes que difieren de los valores por defecto, así una tienda sigue un cambio posterior de un valor por defecto.
+
+La actualización lee y bloquea la fila de la tienda dentro de una transacción antes de combinar los cambios. Dos peticiones simultáneas que editan ajustes distintos conservan ambos cambios; `UpdateBusinessProfileConcurrencyTest` lo verifica con dos conexiones de PostgreSQL, fuera de una transacción de prueba.
 
 ## Datos de demostración
 
