@@ -18,6 +18,7 @@ return [
     'note_layer_invalid' => 'La capa de la nota debe ser salida, corazón o fondo.',
     'occasion_invalid' => 'La ocasión es obligatoria y no puede superar los :max caracteres.',
     'perfume_already_exists' => 'Ya existe un perfume con esa marca, nombre y concentración en la tienda.',
+    'perfume_not_found' => 'El perfume no existe.',
     'size_ml_invalid' => 'Los mililitros deben ser un número entero entre 1 y :max.',
     'tag_kind_invalid' => 'El tipo de etiqueta debe ser momento del día, clima u ocasión.',
     'time_of_day_invalid' => 'El momento del día debe ser día, tarde o noche.',
