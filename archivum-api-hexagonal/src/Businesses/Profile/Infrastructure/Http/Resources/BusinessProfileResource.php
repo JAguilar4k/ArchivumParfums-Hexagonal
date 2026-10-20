@@ -11,7 +11,7 @@ use Src\Businesses\Profile\Domain\Entities\Business;
 /**
  * @property-read Business $resource
  */
-final class BusinessProfile extends JsonResource
+final class BusinessProfileResource extends JsonResource
 {
     /** Wrap a business aggregate. */
     public function __construct(private readonly Business $business)

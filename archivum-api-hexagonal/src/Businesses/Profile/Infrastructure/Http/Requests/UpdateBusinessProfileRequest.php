@@ -17,7 +17,7 @@ use Src\Businesses\Profile\Domain\ValueObjects\BusinessSettings;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Stringable;
 
-final class UpdateProfile extends FormRequest
+final class UpdateBusinessProfileRequest extends FormRequest
 {
     /**
      * Profile fields of the payload paired with the names the use case expects.
