@@ -124,10 +124,9 @@ El glosario completo está en la sección 4 de la especificación y se pasa a `d
 ## Comandos (en `archivum-api-hexagonal/`)
 
 ```bash
-psql -U postgres -v owner_password='…' -v app_password='…' -f database/roles.sql
-composer install && cp .env.example .env && php artisan key:generate
-php artisan migrate --database=pgsql_admin
-php artisan db:seed
+composer install     # .env, clave, roles, bases, migraciones y datos de demostración (archivum:install)
+php artisan archivum:install   # lo mismo a mano; en Windows pide aquí la contraseña de postgres
+php artisan migrate --database=pgsql_admin   # migraciones nuevas, siempre con el rol dueño
 composer lint        # Pint sin modificar
 composer format      # Pint corrigiendo
 composer analyse     # Larastan nivel 8
