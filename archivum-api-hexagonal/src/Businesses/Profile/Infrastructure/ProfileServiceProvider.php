@@ -10,6 +10,8 @@ use Src\Businesses\Profile\Domain\Contracts\BusinessRepository;
 use Src\Businesses\Profile\Infrastructure\Accounts\AccountsOwnerAccounts;
 use Src\Businesses\Profile\Infrastructure\Console\CreateBusinessConsoleCommand;
 use Src\Businesses\Profile\Infrastructure\Persistence\Repositories\EloquentBusinessRepository;
+use Src\Businesses\Profile\Infrastructure\Tenancy\RouteBusinessContext;
+use Src\Shared\Infrastructure\Tenancy\ScopeRequestToBusiness;
 
 final class ProfileServiceProvider extends ServiceProvider
 {
@@ -22,6 +24,12 @@ final class ProfileServiceProvider extends ServiceProvider
         BusinessRepository::class => EloquentBusinessRepository::class,
         OwnerAccounts::class => AccountsOwnerAccounts::class,
     ];
+
+    /** Offer the business of the URL to the public routes of a business. */
+    public function register(): void
+    {
+        $this->app->bind(ScopeRequestToBusiness::contextFor(ScopeRequestToBusiness::ROUTE), RouteBusinessContext::class);
+    }
 
     /** Register the console command of the module. */
     public function boot(): void

@@ -51,7 +51,21 @@ final readonly class EloquentBusinessRepository implements BusinessRepository
     {
         $model = BusinessModel::query()->find($id->value);
 
-        return $model === null ? null : Business::reconstitute(
+        return $model === null ? null : $this->toDomain($model);
+    }
+
+    /** Find a business by the slug of its public addresses. */
+    public function findBySlug(BusinessSlug $slug): ?Business
+    {
+        $model = BusinessModel::query()->where('slug', $slug->value)->first();
+
+        return $model === null ? null : $this->toDomain($model);
+    }
+
+    /** Rebuild the aggregate from its stored state. */
+    private function toDomain(BusinessModel $model): Business
+    {
+        return Business::reconstitute(
             new BusinessId($model->id),
             new BusinessName($model->name),
             new BusinessSlug($model->slug),

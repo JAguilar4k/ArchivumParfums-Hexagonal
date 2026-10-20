@@ -7,6 +7,8 @@ namespace Src\Businesses\Members\Infrastructure;
 use Illuminate\Support\ServiceProvider;
 use Src\Businesses\Members\Domain\Contracts\MemberRepository;
 use Src\Businesses\Members\Infrastructure\Persistence\Repositories\EloquentMemberRepository;
+use Src\Businesses\Members\Infrastructure\Tenancy\StaffBusinessContext;
+use Src\Shared\Infrastructure\Tenancy\ScopeRequestToBusiness;
 
 final class MembersServiceProvider extends ServiceProvider
 {
@@ -18,4 +20,10 @@ final class MembersServiceProvider extends ServiceProvider
     public array $bindings = [
         MemberRepository::class => EloquentMemberRepository::class,
     ];
+
+    /** Offer the business of the session to the panel routes. */
+    public function register(): void
+    {
+        $this->app->bind(ScopeRequestToBusiness::contextFor(ScopeRequestToBusiness::STAFF), StaffBusinessContext::class);
+    }
 }
