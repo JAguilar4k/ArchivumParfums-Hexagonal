@@ -161,6 +161,12 @@ return [
     'uuid' => 'El campo :attribute debe ser un UUID válido.',
 
     'custom' => [
+        'ajustes.anticipacion_minima_horas' => [
+            'lte' => 'El horizonte de reserva no puede ser menor que la anticipación mínima.',
+        ],
+        'ajustes.horizonte_reserva_dias' => [
+            'gte' => 'El horizonte de reserva no puede ser menor que la anticipación mínima.',
+        ],
         'attribute-name' => [
             'rule-name' => 'mensaje-personalizado',
         ],

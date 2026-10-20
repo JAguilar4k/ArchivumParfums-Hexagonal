@@ -117,7 +117,9 @@ it('accepts and keeps each valid setting', function (string $field, mixed $value
     'free bottle margin' => ['margen_botella', 0],
     'decant sizes' => ['tamanos_decant_ml', [3, 8, 15]],
     'minimum notice' => ['anticipacion_minima_horas', 24],
+    'notice as long as the stored horizon' => ['anticipacion_minima_horas', 720],
     'booking horizon' => ['horizonte_reserva_dias', 60],
+    'horizon as short as the stored notice' => ['horizonte_reserva_dias', 1],
     'appointment change cutoff' => ['plazo_cambio_cita_horas', 6],
     'waitlist hold' => ['apartado_lista_espera_horas', 4],
     'unpaid expiry' => ['vencimiento_sin_pago_minutos', 45],
@@ -126,6 +128,13 @@ it('accepts and keeps each valid setting', function (string $field, mixed $value
     'paypal gateway' => ['pasarela_por_defecto', 'paypal'],
     'exchange rate' => ['tipo_cambio_usd', 512.5],
 ]);
+
+it('accepts a horizon as long as the notice sent with it', function () {
+    patchJson(PROFILE_ENDPOINT, ['ajustes' => ['anticipacion_minima_horas' => 48, 'horizonte_reserva_dias' => 2]])
+        ->assertOk()
+        ->assertJsonPath('data.ajustes.anticipacion_minima_horas', 48)
+        ->assertJsonPath('data.ajustes.horizonte_reserva_dias', 2);
+});
 
 it('reads a number sent as text as a number', function () {
     patchJson(PROFILE_ENDPOINT, ['ajustes' => ['margen_botella' => '7500', 'tamanos_decant_ml' => ['3', '8'], 'tipo_cambio_usd' => '512.5']])

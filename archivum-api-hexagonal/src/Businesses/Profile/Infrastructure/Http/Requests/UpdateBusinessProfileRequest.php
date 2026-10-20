@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace Src\Businesses\Profile\Infrastructure\Http\Requests;
 
-use Closure;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Validator;
 use Src\Businesses\Profile\Application\DTOs\UpdateBusinessProfileCommand;
-use Src\Businesses\Profile\Application\UseCases\GetBusinessProfile;
+use Src\Businesses\Profile\Domain\Contracts\BusinessRepository;
 use Src\Businesses\Profile\Domain\ValueObjects\AppointmentPlace;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessName;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessSettings;
@@ -53,9 +51,10 @@ final class UpdateBusinessProfileRequest extends FormRequest
      *
      * @return array<string, list<Stringable|string>>
      */
-    public function rules(): array
+    public function rules(BusinessContext $businessContext, BusinessRepository $businesses): array
     {
         $amount = ['sometimes', 'required', 'integer', 'min:0'];
+        [$horizonBound, $noticeBound] = $this->bookingBounds($businessContext, $businesses);
 
         return [
             'nombre' => ['sometimes', 'required', 'string', 'max:'.BusinessName::MAX_LENGTH],
@@ -65,8 +64,8 @@ final class UpdateBusinessProfileRequest extends FormRequest
             'ajustes.margen_botella' => $amount,
             'ajustes.tamanos_decant_ml' => ['sometimes', 'array', 'list', 'min:1'],
             'ajustes.tamanos_decant_ml.*' => ['required', 'integer', 'min:1', 'distinct'],
-            'ajustes.anticipacion_minima_horas' => $amount,
-            'ajustes.horizonte_reserva_dias' => $amount,
+            'ajustes.anticipacion_minima_horas' => [...$amount, ...$noticeBound],
+            'ajustes.horizonte_reserva_dias' => [...$amount, ...$horizonBound],
             'ajustes.plazo_cambio_cita_horas' => $amount,
             'ajustes.apartado_lista_espera_horas' => $amount,
             'ajustes.vencimiento_sin_pago_minutos' => $amount,
@@ -75,33 +74,6 @@ final class UpdateBusinessProfileRequest extends FormRequest
             'ajustes.pasarela_por_defecto' => ['sometimes', 'required', 'string', Rule::in(BusinessSettings::GATEWAYS)],
             'ajustes.tipo_cambio_usd' => ['sometimes', 'nullable', 'numeric', 'gt:0'],
         ];
-    }
-
-    /**
-     * Check the booking horizon against the minimum notice, taking the stored value of the one not sent.
-     *
-     * @return list<Closure(Validator): void>
-     */
-    public function after(BusinessContext $businessContext, GetBusinessProfile $getProfile): array
-    {
-        return [function (Validator $validator) use ($businessContext, $getProfile): void {
-            $notice = $this->input('ajustes.anticipacion_minima_horas');
-            $horizon = $this->input('ajustes.horizonte_reserva_dias');
-
-            if (($notice === null && $horizon === null)
-                || $validator->errors()->hasAny(['ajustes', 'ajustes.anticipacion_minima_horas', 'ajustes.horizonte_reserva_dias'])) {
-                return;
-            }
-
-            $stored = $getProfile->execute($businessContext->current()->value)->settings;
-
-            if ((int) ($horizon ?? $stored->bookingHorizonDays) * 24 < (int) ($notice ?? $stored->minimumNoticeHours)) {
-                $validator->errors()->add(
-                    $horizon === null ? 'ajustes.anticipacion_minima_horas' : 'ajustes.horizonte_reserva_dias',
-                    __('businesses.horizon_before_notice'),
-                );
-            }
-        }];
     }
 
     /** Map the validated payload to the use case input; the business comes from the session, never from the payload. */
@@ -141,5 +113,35 @@ final class UpdateBusinessProfileRequest extends FormRequest
         }
 
         return new UpdateBusinessProfileCommand($businessContext->current()->value, $changes);
+    }
+
+    /**
+     * Rules that keep the booking horizon from falling below the minimum notice. A horizon sent may not be shorter
+     * than the notice sent or stored, and a notice sent alone may not go beyond the stored horizon. The stored
+     * settings are read only when one of the two comes alone.
+     *
+     * @return array{list<string>, list<string>} The rules for the horizon and the rules for the notice.
+     */
+    private function bookingBounds(BusinessContext $businessContext, BusinessRepository $businesses): array
+    {
+        $notice = $this->input('ajustes.anticipacion_minima_horas');
+        $horizon = $this->input('ajustes.horizonte_reserva_dias');
+
+        if ($horizon !== null) {
+            // A notice sent that is not a whole number already has its own error, so it bounds nothing.
+            $hours = $notice === null
+                ? $businesses->find($businessContext->current())?->settings->minimumNoticeHours
+                : filter_var($notice, FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+
+            return [is_int($hours) ? ['gte:'.(int) ceil($hours / 24)] : [], []];
+        }
+
+        if ($notice !== null) {
+            $days = $businesses->find($businessContext->current())?->settings->bookingHorizonDays;
+
+            return [[], $days === null ? [] : ['lte:'.($days * 24)]];
+        }
+
+        return [[], []];
     }
 }
