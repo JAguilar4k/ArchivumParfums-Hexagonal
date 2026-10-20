@@ -112,7 +112,7 @@ El dominio nunca pregunta la hora. El momento actual se crea en el borde (la pet
 Toda operación del panel se limita a la tienda que entrega `BusinessContext` (R54). La regla tiene cuatro partes (#31):
 
 1. Cada repositorio de una tabla con `business_id` filtra por el `BusinessId` en cada lectura y escritura. El filtro se escribe en cada consulta, no con un scope global que se desactiva con una llamada.
-2. Un recurso de otra tienda responde 404 `no-encontrado`, con el mismo cuerpo que uno inexistente (R56): los dos lanzan la misma excepción del dominio. La respuesta no revela que el recurso existe en otra tienda.
+2. Un identificador de otra tienda o de otro cliente en la URL responde 404 `no-encontrado`, con el mismo cuerpo que uno inexistente (R56): los dos lanzan la misma excepción del dominio. Uno en el cuerpo o en la consulta, como `servicio` y `persona` al consultar la disponibilidad, responde 422 `datos-invalidos` con el mismo error en ese campo que uno inexistente. La respuesta no revela que el recurso existe en otra tienda.
 3. Los listados nunca muestran filas de otra tienda y ninguna escritura las toca. Los datos de otra tienda tampoco impiden nada: dos tiendas pueden tener el mismo perfume, porque las llaves únicas incluyen `business_id`.
 4. Cada endpoint del panel tiene su prueba de aislamiento con dos tiendas, y cada endpoint nuevo agrega la suya.
 
@@ -122,7 +122,22 @@ PostgreSQL es la segunda barrera: las políticas de seguridad a nivel de fila oc
 
 El dominio lanza excepciones que extienden `Src\Shared\Domain\Exceptions\DomainException`. Cada excepción lleva una clave de traducción, no un texto: el mensaje en español se resuelve en la infraestructura desde `lang/es` ([ADR 0006](adr/0006-user-messages-from-translation-files.md)).
 
-Toda respuesta de error sigue RFC 9457 (`application/problem+json`) con los tipos del repo guía (`datos-invalidos`, `no-encontrado`, `conflicto`, `error-interno`…), el miembro `errores` en la validación e `instance` con el identificador de la solicitud. El renderizador y la tabla de excepciones llegan con #46, y el encabezado `X-Request-Id` con #45.
+Toda respuesta de error sigue RFC 9457 (`application/problem+json`). `ProblemDetailsRenderer` convierte cada excepción en un documento con `type`, `title`, `status`, `detail` e `instance`:
+
+| Excepción | Tipo de problema | HTTP |
+| --- | --- | --- |
+| Validación de un Form Request | `datos-invalidos`, con `errores` por campo | 422 |
+| `InvalidValueException` | `datos-invalidos` | 422 |
+| `NotFoundException`, también para un recurso de otra tienda o de otro cliente | `no-encontrado` | 404 |
+| `AuthenticationFailedException`, como un correo o una contraseña incorrectos | `credenciales-invalidas` | 401 |
+| Ruta protegida sin un token válido (`AuthenticationException` del framework) | `no-autenticado` | 401 |
+| Otra excepción del dominio, como un horario que ya no está disponible | `conflicto` | 409 |
+| Excepción HTTP del framework | El tipo de su código de estado | 4xx o 5xx |
+| Cualquier otra | `error-interno`, sin detalles técnicos | 500 |
+
+El `type` es la URL de la aplicación más `/problemas/<tipo>`. El catálogo de tipos está en `Src\Shared\Infrastructure\Http\Problem\ProblemType`, y el título y el detalle de cada uno, en `lang/es/problems.php`.
+
+El campo `instance` repite el identificador de la solicitud como `urn:uuid:<id>`, el mismo que viaja en el encabezado `X-Request-Id` (#45).
 
 ## Contrato de la API
 
