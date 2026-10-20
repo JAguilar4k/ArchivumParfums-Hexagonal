@@ -39,7 +39,7 @@ Cada tienda ve solo sus datos gracias a dos barreras: el puerto `BusinessContext
 
 ## Estado
 
-Avance 1 está en curso. M01 (proyecto base) y M02 (arquitectura hexagonal y API versionada) tienen todos sus issues integrados: PostgreSQL 18 con roles separados, zona horaria y español, estructura hexagonal, documentación de arquitectura y acceso inicial a `/api/v1`. M03 (calidad e integración continua) y M05 (multi-inquilino y acceso del personal) todavía tienen pull requests en revisión. El despliegue en una dirección pública está pendiente ([#21](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/21)). El trabajo está planificado en 29 milestones, uno por módulo, en el [tablero del proyecto](https://github.com/users/JAguilar4k/projects/4).
+Avance 1 está en curso. M01 (proyecto base) y M02 (arquitectura hexagonal y API versionada) tienen todos sus issues integrados: PostgreSQL 18 con roles separados, zona horaria y español, estructura hexagonal, documentación de arquitectura y acceso inicial a `/api/v1`. M03 (calidad e integración continua) todavía tiene pull requests en revisión. El despliegue en una dirección pública está pendiente ([#21](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/21)). El trabajo está planificado en 29 milestones, uno por módulo, en el [tablero del proyecto](https://github.com/users/JAguilar4k/projects/4).
 
 | Corte | Fecha | Qué se entrega | Estado |
 | --- | --- | --- | --- |
