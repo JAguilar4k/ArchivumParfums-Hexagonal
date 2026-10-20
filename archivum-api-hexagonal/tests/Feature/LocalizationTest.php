@@ -33,7 +33,7 @@ it('keeps the same translation keys in spanish and english', function (string $f
 
     expect(array_values(array_diff($english, $spanish)))->toBe([], "Missing in lang/es/{$file}.php")
         ->and(array_values(array_diff($spanish, $english)))->toBe([], "Missing in lang/en/{$file}.php");
-})->with(['auth', 'pagination', 'passwords', 'validation']);
+})->with(['auth', 'install', 'pagination', 'passwords', 'validation']);
 
 it('writes validation messages in spanish', function () {
     $validator = Validator::make(['nombre' => null], ['nombre' => 'required']);

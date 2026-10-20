@@ -26,7 +26,9 @@ El script `database/roles.sql` crea los dos roles y las dos bases, le quita a `P
 psql -U postgres -v owner_password='…' -v app_password='…' -f database/roles.sql
 ```
 
-Las contraseñas nunca se versionan: cada integrante las escribe en su propio `.env`, que tampoco se versiona.
+En desarrollo no hace falta ejecutarlo a mano: `composer install` llama a `php artisan archivum:install`, que hace lo mismo con el superusuario y deja contraseñas generadas en `.env` (#215). El script queda para los servidores donde no corre esa instalación de desarrollo.
+
+Las contraseñas nunca se versionan: quedan en el `.env` de cada integrante, que tampoco se versiona.
 
 La primera migración, `0001_01_01_000000_grant_privileges_to_the_application_role`, otorga al rol de la aplicación, con `ALTER DEFAULT PRIVILEGES`, lectura y escritura sobre toda tabla y secuencia que el dueño cree después. Ninguna tabla nueva necesita un paso manual. `DatabaseRolesTest` comprueba que `archivum_app` no tiene atributos elevados, no es dueño de ningún objeto, puede leer y escribir en toda tabla y no puede crear, alterar ni borrar tablas.
 
