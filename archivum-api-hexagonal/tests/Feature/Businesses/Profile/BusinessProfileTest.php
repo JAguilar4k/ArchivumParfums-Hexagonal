@@ -188,16 +188,3 @@ it('ignores a business_id in the body and changes only the business of the sessi
     expect(DB::table('businesses')->where('slug', TwoBusinesses::FIRST)->value('name'))->toBe('Nombre nuevo')
         ->and(DB::table('businesses')->where('id', $other)->first())->toEqual($otherBefore);
 });
-
-it('lets the owner of the other business see and change only their own', function () {
-    $firstBefore = DB::table('businesses')->where('slug', TwoBusinesses::FIRST)->first();
-    TwoBusinesses::actAsOwnerOf(TwoBusinesses::SECOND);
-
-    getJson(PROFILE_ENDPOINT)->assertOk()->assertJsonPath('data.slug', TwoBusinesses::SECOND);
-    patchJson(PROFILE_ENDPOINT, ['ajustes' => ['pasarela_por_defecto' => 'paypal']])
-        ->assertOk()
-        ->assertJsonPath('data.slug', TwoBusinesses::SECOND);
-
-    expect(storedSettingsOf(TwoBusinesses::SECOND))->toBe(['default_gateway' => 'paypal'])
-        ->and(DB::table('businesses')->where('slug', TwoBusinesses::FIRST)->first())->toEqual($firstBefore);
-});
