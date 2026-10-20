@@ -33,7 +33,7 @@ El tercer adaptador de `BusinessContext`, `CustomerBusinessContext`, las usa a t
 
 ## Consecuencias
 
-- Cada tipo de recurso del cliente se agrega en tres lugares: la rama de `fn_customer_resource_business`, el enum `CustomerResourceType` y el parámetro de ruta en `CustomerBusinessContext::RESOURCES`. `BusinessRoutesTest` falla si una ruta de la cuenta que nombra un recurso no usa `business:account`.
+- Cada tipo de recurso del cliente se agrega en tres lugares: la rama de `fn_customer_resource_business`, el enum `CustomerResourceType` y el parámetro de ruta en `CustomerBusinessContext::RESOURCES`. `BusinessOfTheSessionTest` falla si una ruta de la cuenta que nombra un recurso no usa `business:account`.
 - Un listado del cliente hace una consulta por tienda. Las tiendas de un cliente son pocas, así que el costo es bajo.
 - Las funciones `SECURITY DEFINER` son la única puerta para leer sin tienda, y sus pruebas revisan su dueño, su `search_path` y quién puede ejecutarlas.
 - El detalle de las políticas está en [database.md](../database.md#seguridad-a-nivel-de-fila).

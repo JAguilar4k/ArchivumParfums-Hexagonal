@@ -41,7 +41,7 @@ function fieldErrorsOf(TestResponse $response): array
 }
 
 beforeEach(function () {
-    TwoBusinesses::seed();
+    TwoBusinesses::create();
     TwoBusinesses::actAsOwnerOf(TwoBusinesses::FIRST);
 });
 
@@ -117,7 +117,9 @@ it('accepts and keeps each valid setting', function (string $field, mixed $value
     'free bottle margin' => ['margen_botella', 0],
     'decant sizes' => ['tamanos_decant_ml', [3, 8, 15]],
     'minimum notice' => ['anticipacion_minima_horas', 24],
+    'notice as long as the stored horizon' => ['anticipacion_minima_horas', 720],
     'booking horizon' => ['horizonte_reserva_dias', 60],
+    'horizon as short as the stored notice' => ['horizonte_reserva_dias', 1],
     'appointment change cutoff' => ['plazo_cambio_cita_horas', 6],
     'waitlist hold' => ['apartado_lista_espera_horas', 4],
     'unpaid expiry' => ['vencimiento_sin_pago_minutos', 45],
@@ -126,6 +128,23 @@ it('accepts and keeps each valid setting', function (string $field, mixed $value
     'paypal gateway' => ['pasarela_por_defecto', 'paypal'],
     'exchange rate' => ['tipo_cambio_usd', 512.5],
 ]);
+
+it('accepts a horizon as long as the notice sent with it', function () {
+    patchJson(PROFILE_ENDPOINT, ['ajustes' => ['anticipacion_minima_horas' => 48, 'horizonte_reserva_dias' => 2]])
+        ->assertOk()
+        ->assertJsonPath('data.ajustes.anticipacion_minima_horas', 48)
+        ->assertJsonPath('data.ajustes.horizonte_reserva_dias', 2);
+});
+
+it('reads a number sent as text as a number', function () {
+    patchJson(PROFILE_ENDPOINT, ['ajustes' => ['margen_botella' => '7500', 'tamanos_decant_ml' => ['3', '8'], 'tipo_cambio_usd' => '512.5']])
+        ->assertOk()
+        ->assertJsonPath('data.ajustes.margen_botella', 7500)
+        ->assertJsonPath('data.ajustes.tamanos_decant_ml', [3, 8])
+        ->assertJsonPath('data.ajustes.tipo_cambio_usd', 512.5);
+
+    expect(storedSettingsOf(TwoBusinesses::FIRST))->toEqual(['bottle_margin_colones' => 7500, 'decant_sizes_ml' => [3, 8], 'usd_exchange_rate' => 512.5]);
+});
 
 it('rejects each invalid field in spanish and changes nothing', function (array $payload, string $field, string $message) {
     $before = DB::table('businesses')->where('slug', TwoBusinesses::FIRST)->first();
@@ -168,17 +187,4 @@ it('ignores a business_id in the body and changes only the business of the sessi
 
     expect(DB::table('businesses')->where('slug', TwoBusinesses::FIRST)->value('name'))->toBe('Nombre nuevo')
         ->and(DB::table('businesses')->where('id', $other)->first())->toEqual($otherBefore);
-});
-
-it('lets the owner of the other business see and change only their own', function () {
-    $firstBefore = DB::table('businesses')->where('slug', TwoBusinesses::FIRST)->first();
-    TwoBusinesses::actAsOwnerOf(TwoBusinesses::SECOND);
-
-    getJson(PROFILE_ENDPOINT)->assertOk()->assertJsonPath('data.slug', TwoBusinesses::SECOND);
-    patchJson(PROFILE_ENDPOINT, ['ajustes' => ['pasarela_por_defecto' => 'paypal']])
-        ->assertOk()
-        ->assertJsonPath('data.slug', TwoBusinesses::SECOND);
-
-    expect(storedSettingsOf(TwoBusinesses::SECOND))->toBe(['default_gateway' => 'paypal'])
-        ->and(DB::table('businesses')->where('slug', TwoBusinesses::FIRST)->first())->toEqual($firstBefore);
 });

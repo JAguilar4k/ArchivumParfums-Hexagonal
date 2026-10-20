@@ -131,14 +131,4 @@ final readonly class BusinessSettings
     {
         return new self;
     }
-
-    /**
-     * Combine these settings with the changed ones, by property name, and validate the result as a whole.
-     *
-     * @param  array<string, mixed>  $changes
-     */
-    public function with(array $changes): self
-    {
-        return new self(...[...get_object_vars($this), ...$changes]);
-    }
 }

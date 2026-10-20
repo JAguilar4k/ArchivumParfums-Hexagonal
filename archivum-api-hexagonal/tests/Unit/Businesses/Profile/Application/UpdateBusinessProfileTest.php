@@ -16,7 +16,7 @@ use Tests\Support\Businesses\InMemoryBusinessRepository;
 use Tests\Support\Shared\RecordingTransactionRunner;
 
 /**
- * Wire the use case to an in-memory repository with a business whose margin is already changed.
+ * Wire the use case to an in-memory repository with a business whose margin, deposit and trial price are already changed.
  *
  * @return array{UpdateBusinessProfile, Business, InMemoryBusinessRepository, RecordingTransactionRunner}
  */
@@ -28,8 +28,8 @@ function updateBusinessProfileWiring(): array
         new BusinessName('ArchivumParfums'),
         new BusinessSlug('archivumparfums'),
         new BusinessTimezone('America/Costa_Rica'),
-        new AppointmentPlace('EscazÃº, frente al parque'),
-        new BusinessSettings(bottleMarginColones: 7000),
+        new AppointmentPlace('Escazú, frente al parque'),
+        new BusinessSettings(bottleMarginColones: 7000, bottleDepositPercent: 40, trialAppointmentPriceColones: 3000),
     );
     $businesses->save($business);
 
@@ -43,11 +43,11 @@ it('changes only the fields given and keeps the slug', function () {
 
     $updated = $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, [
         'name' => 'Archivum Parfums',
-        'appointment_place' => 'CafÃ© del parque central',
+        'appointment_place' => 'Café del parque central',
     ]));
 
     expect($updated->name->value)->toBe('Archivum Parfums')
-        ->and($updated->appointmentPlace?->value)->toBe('CafÃ© del parque central')
+        ->and($updated->appointmentPlace?->value)->toBe('Café del parque central')
         ->and($updated->timezone->value)->toBe('America/Costa_Rica')
         ->and($updated->slug->value)->toBe('archivumparfums')
         ->and($updated->settings->bottleMarginColones)->toBe(7000)
@@ -59,7 +59,7 @@ it('combines the settings given with the stored ones', function () {
 
     $updated = $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, [
         'timezone' => 'America/Panama',
-        'settings' => ['decantSizesMl' => [3, 8], 'defaultGateway' => 'paypal', 'usdExchangeRate' => 512.5],
+        'settings' => ['decant_sizes_ml' => [3, 8], 'default_gateway' => 'paypal', 'usd_exchange_rate' => 512.5],
     ]));
 
     expect($updated->timezone->value)->toBe('America/Panama')
@@ -70,14 +70,36 @@ it('combines the settings given with the stored ones', function () {
         ->and($updated->settings->minimumNoticeHours)->toBe(12);
 });
 
+it('keeps the stored settings that the profile does not expose', function () {
+    [$updateProfile, $business] = updateBusinessProfileWiring();
+
+    $updated = $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, [
+        'settings' => ['bottle_margin_colones' => 6000],
+    ]));
+
+    expect($updated->settings->bottleMarginColones)->toBe(6000)
+        ->and($updated->settings->bottleDepositPercent)->toBe(40)
+        ->and($updated->settings->decantRoundingColones)->toBe(BusinessSettings::DEFAULT_DECANT_ROUNDING_COLONES)
+        ->and($updated->settings->trialAppointmentPriceColones)->toBe(3000);
+});
+
+it('clears the exchange rate with null', function () {
+    [$updateProfile, $business] = updateBusinessProfileWiring();
+    $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, ['settings' => ['usd_exchange_rate' => 512.5]]));
+
+    $updated = $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, ['settings' => ['usd_exchange_rate' => null]]));
+
+    expect($updated->settings->usdExchangeRate)->toBeNull();
+});
+
 it('validates the horizon against the stored notice when only one of them changes', function () {
     [$updateProfile, $business, $businesses] = updateBusinessProfileWiring();
-    $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, ['settings' => ['minimumNoticeHours' => 72]]));
+    $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, ['settings' => ['minimum_notice_hours' => 72]]));
 
     $error = null;
 
     try {
-        $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, ['settings' => ['bookingHorizonDays' => 2]]));
+        $updateProfile->execute(new UpdateBusinessProfileCommand($business->id->value, ['settings' => ['booking_horizon_days' => 2]]));
     } catch (InvalidValueException $exception) {
         $error = $exception;
     }

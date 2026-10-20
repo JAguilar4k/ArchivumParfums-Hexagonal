@@ -18,7 +18,7 @@ it('preserves independent profile changes made by two concurrent connections', f
     $operation = static function () use ($id): void {
         DB::statement("select set_config('application_name', 'archivum-profile-concurrency', false)");
         app(UpdateBusinessProfile::class)->execute(new UpdateBusinessProfileCommand($id, [
-            'settings' => ['reminderHours' => [48, 2]],
+            'settings' => ['reminder_hours' => [48, 2]],
         ]));
     };
     $operation = Closure::bind($operation, null, null);
@@ -35,7 +35,7 @@ it('preserves independent profile changes made by two concurrent connections', f
     try {
         DB::beginTransaction();
         app(UpdateBusinessProfile::class)->execute(new UpdateBusinessProfileCommand($id, [
-            'settings' => ['bottleMarginColones' => 6000],
+            'settings' => ['bottle_margin_colones' => 6000],
         ]));
         $parent = (int) DB::scalar('select pg_backend_pid()');
         $process->start();

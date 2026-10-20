@@ -60,7 +60,7 @@ it('revises the profile and the settings but keeps its identity and its slug', f
         new BusinessName('Archivum Parfums'),
         new BusinessTimezone('America/Panama'),
         new AppointmentPlace('Café del parque central'),
-        $business->settings->with(['bottleMarginColones' => 6000]),
+        new BusinessSettings(bottleMarginColones: 6000),
     );
 
     expect($business->id->value)->toBe(BUSINESS_UUID)

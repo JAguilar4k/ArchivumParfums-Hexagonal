@@ -1,6 +1,6 @@
 # ADR 0005: Multi-inquilino por un puerto y por seguridad a nivel de fila
 
-Estado: aceptada. La primera barrera llega con #25, #30 y #31: el puerto `BusinessContext`, su adaptador para el panel y los filtros de los repositorios. La segunda, las políticas de fila, llega con #32 y se describe en [database.md](../database.md).
+Estado: aceptada e implementada. La primera barrera son los adaptadores `StaffBusinessContext`, `RouteBusinessContext` y `CustomerBusinessContext` del puerto `BusinessContext` con los filtros de los repositorios; la segunda, las políticas `<tabla>_business_isolation` descritas en [database.md](../database.md).
 
 ## Contexto
 

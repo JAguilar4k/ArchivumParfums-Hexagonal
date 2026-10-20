@@ -6,22 +6,28 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Tests\Support\Businesses\TwoBusinesses;
 use Tests\Support\RefreshDatabaseAsOwner;
+use Tests\Support\Shared\ScopesQueriesToBusiness;
 
-pest()->use(RefreshDatabaseAsOwner::class);
+pest()->use(RefreshDatabaseAsOwner::class, ScopesQueriesToBusiness::class);
 
 const UNKNOWN_ACCOUNT = '0192f0c4-7b1e-7c3a-9f1d-2b6a4e8c0d98';
 
-/** Identifier of the customer record of an account in one of the two businesses. */
-function customerIdOf(string $email, string $slug): string
+/**
+ * Identifier of the customer record of an account in one of the two businesses, read with that business pinned
+ * and leaving the transaction without a business again.
+ *
+ * @param  Closure(?string): void  $scopeQueriesTo
+ */
+function customerIdOf(Closure $scopeQueriesTo, string $email, string $slug): string
 {
     $businessId = TwoBusinesses::idOf($slug);
-    TwoBusinesses::scopeQueriesTo($businessId);
+    $scopeQueriesTo($businessId);
 
     $customerId = DB::table('customers')
         ->where('business_id', $businessId)
         ->where('user_id', TwoBusinesses::userIdOf($email))
         ->value('id');
-    TwoBusinesses::scopeQueriesTo(null);
+    $scopeQueriesTo(null);
 
     return (string) $customerId;
 }
@@ -33,8 +39,8 @@ function businessOfCustomerRecord(string $customerId, string $userId): mixed
 }
 
 beforeEach(function () {
-    TwoBusinesses::seed();
-    TwoBusinesses::scopeQueriesTo(null);
+    TwoBusinesses::create();
+    $this->scopeQueriesTo(null);
 });
 
 it('answers only the business and the role of a person of the staff', function (string $email, string $slug, string $role) {
@@ -71,14 +77,14 @@ it('answers only the businesses where the account is a customer', function (stri
 ]);
 
 it('answers the business of a resource of the customer in each business', function (string $slug) {
-    $customerId = customerIdOf(TwoBusinesses::CUSTOMER_OF_BOTH, $slug);
+    $customerId = customerIdOf($this->scopeQueriesTo(...), TwoBusinesses::CUSTOMER_OF_BOTH, $slug);
 
     expect(businessOfCustomerRecord($customerId, TwoBusinesses::userIdOf(TwoBusinesses::CUSTOMER_OF_BOTH)))
         ->toBe(TwoBusinesses::idOf($slug));
 })->with([TwoBusinesses::FIRST, TwoBusinesses::SECOND]);
 
 it('answers no business for a resource of another customer or one that does not exist', function () {
-    $foreign = customerIdOf(TwoBusinesses::CUSTOMER_OF_BOTH, TwoBusinesses::FIRST);
+    $foreign = customerIdOf($this->scopeQueriesTo(...), TwoBusinesses::CUSTOMER_OF_BOTH, TwoBusinesses::FIRST);
     $userId = TwoBusinesses::userIdOf(TwoBusinesses::CUSTOMER);
 
     expect(businessOfCustomerRecord($foreign, $userId))->toBeNull()

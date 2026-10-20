@@ -15,8 +15,6 @@ use function Pest\Laravel\json;
 
 pest()->use(RefreshDatabaseAsOwner::class);
 
-const CO_OWNER = 'coduena@archivumparfums.test';
-
 /**
  * Routes kept for the owners of the business, by method and URI; '*' is any method and a URI covers the routes
  * under it. Logo, bottles and suppliers join when they arrive.
@@ -76,27 +74,29 @@ function routeFallsUnder(RouteDefinition $route, array $rules): bool
 }
 
 /**
- * Endpoints of the owners only group: method, path and payload. Every issue that adds one adds its row.
+ * Endpoints of the owners only group: method, path, payload and the status an owner gets. Every issue that adds
+ * one adds its row.
  *
- * @return array<string, array{string, string, array<string, mixed>}>
+ * @return array<string, array{string, string, array<string, mixed>, int}>
  */
 function ownerOnlyEndpoints(): array
 {
     return [
-        'read the profile of the business' => ['GET', '/api/v1/panel/tienda', []],
-        'change the profile of the business' => ['PATCH', '/api/v1/panel/tienda', ['nombre' => 'Otro nombre', 'ajustes' => ['margen_botella' => 9000]]],
+        'read the profile of the business' => ['GET', '/api/v1/panel/tienda', [], 200],
+        'change the profile of the business' => ['PATCH', '/api/v1/panel/tienda', ['nombre' => 'Otro nombre', 'ajustes' => ['margen_botella' => 9000]], 200],
     ];
 }
 
 /**
- * Endpoints of the customers only group: method, path and payload. Every issue that adds one adds its row.
+ * Endpoints of the customers only group: method, path, payload and the status a customer gets. Every issue that
+ * adds one adds its row.
  *
- * @return array<string, array{string, string, array<string, mixed>}>
+ * @return array<string, array{string, string, array<string, mixed>, int}>
  */
 function customerOnlyEndpoints(): array
 {
     return [
-        'example: join a business as a customer (test route)' => ['POST', '/api/v1/tiendas/esencias-del-norte/pruebas/clientes', []],
+        'example: join a business as a customer (test route)' => ['POST', '/api/v1/pruebas/tiendas/'.TwoBusinesses::SECOND.'/clientes', [], 201],
     ];
 }
 
@@ -128,10 +128,11 @@ function expectForbiddenWithoutWrites(string $email, string $method, string $pat
 }
 
 beforeEach(function () {
-    TwoBusinesses::seed();
+    TwoBusinesses::create();
 
-    // Example of the customers only group until its first endpoint exists.
-    Route::post('api/v1/tiendas/{tienda}/pruebas/clientes', fn (BusinessContext $context, Request $request) => response()->json(['data' => DB::table('customers')->insertGetId([
+    // Example of the customers only group until its first endpoint exists. Like the other throwaway routes, it lives
+    // under api/v1/pruebas, outside the prefixes that the route scans walk.
+    Route::post('api/v1/pruebas/tiendas/{tienda}/clientes', fn (BusinessContext $context, Request $request) => response()->json(['data' => DB::table('customers')->insertGetId([
         'business_id' => $context->current()->value,
         'user_id' => $request->user()?->getAuthIdentifier(),
         'created_at' => now(),
@@ -139,39 +140,41 @@ beforeEach(function () {
     ])], 201))->middleware(['api', 'auth:sanctum', 'business:route', 'role:customer']);
 });
 
-it('lets the owner and the co-owner through the owners only group', function (string $method, string $path, array $payload, string $email) {
+it('lets the owner and the co-owner through the owners only group', function (string $method, string $path, array $payload, int $status, string $email) {
     TwoBusinesses::actAs($email);
 
-    expect(json($method, $path, $payload)->status())->not->toBeIn([401, 403]);
+    json($method, $path, $payload)->assertStatus($status);
 })->with(ownerOnlyEndpoints())->with([
     'owner' => TwoBusinesses::OWNERS[TwoBusinesses::FIRST],
-    'co-owner' => CO_OWNER,
+    'co-owner' => TwoBusinesses::CO_OWNER,
 ]);
 
-it('forbids the advisor and the customer in the owners only group, also the reads, and writes nothing', function (string $method, string $path, array $payload, string $email) {
+it('forbids the advisor and the customer in the owners only group, also the reads, and writes nothing', function (string $method, string $path, array $payload, int $ownerStatus, string $email) {
     expectForbiddenWithoutWrites($email, $method, $path, $payload);
 })->with(ownerOnlyEndpoints())->with([
     'advisor' => TwoBusinesses::ADVISOR,
     'customer' => TwoBusinesses::CUSTOMER,
 ]);
 
-it('lets a customer through the customers only group', function (string $method, string $path, array $payload) {
+it('lets a customer through the customers only group', function (string $method, string $path, array $payload, int $status) {
     TwoBusinesses::actAs(TwoBusinesses::CUSTOMER);
 
-    expect(json($method, $path, $payload)->status())->not->toBeIn([401, 403]);
+    json($method, $path, $payload)->assertStatus($status);
 })->with(customerOnlyEndpoints());
 
-it('forbids every account with a row in members in the customers only group and writes nothing', function (string $method, string $path, array $payload, string $email) {
+it('forbids every account with a row in members in the customers only group and writes nothing', function (string $method, string $path, array $payload, int $customerStatus, string $email) {
     expectForbiddenWithoutWrites($email, $method, $path, $payload);
 })->with(customerOnlyEndpoints())->with([
     'owner' => TwoBusinesses::OWNERS[TwoBusinesses::FIRST],
-    'co-owner' => CO_OWNER,
+    'co-owner' => TwoBusinesses::CO_OWNER,
     'advisor' => TwoBusinesses::ADVISOR,
     'owner of the other business' => TwoBusinesses::OWNERS[TwoBusinesses::SECOND],
 ]);
 
 it('asks for a token in both groups', function (string $method, string $path, array $payload) {
-    json($method, $path, $payload)->assertUnauthorized();
+    json($method, $path, $payload)
+        ->assertUnauthorized()
+        ->assertJsonPath('type', rtrim((string) config('app.url'), '/').'/problemas/no-autenticado');
 })->with([...ownerOnlyEndpoints(), ...customerOnlyEndpoints()]);
 
 it('keeps GET /cuenta open to the three roles', function (string $email) {

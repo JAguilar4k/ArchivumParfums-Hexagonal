@@ -24,7 +24,7 @@ final readonly class BusinessesStaffMemberships implements StaffMemberships
     public function of(UserId $userId): ?StaffMembership
     {
         $member = $this->findMember->execute($userId->value);
-        $business = $member === null ? null : $this->findBusiness->execute($member->businessId->value);
+        $business = $member === null ? null : $this->findBusiness->execute($member->businessId);
 
         if ($member === null || $business === null) {
             return null;

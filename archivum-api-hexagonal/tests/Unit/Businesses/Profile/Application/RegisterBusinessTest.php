@@ -27,7 +27,16 @@ function registerBusinessWiring(): array
 /** Build the command of a business, overriding only what a scenario changes. */
 function registerBusinessCommand(string $name = 'ArchivumParfums', string $slug = 'archivumparfums'): RegisterBusinessCommand
 {
-    return new RegisterBusinessCommand($name, $slug, 'Valeria Solano', 'duena@archivumparfums.test', 'clave-segura');
+    return new RegisterBusinessCommand(
+        $name,
+        $slug,
+        'Valeria Solano',
+        'duena@archivumparfums.test',
+        'clave-segura',
+        'America/Costa_Rica',
+        null,
+        false,
+    );
 }
 
 it('registers the business with the default settings and its owner in one transaction', function () {
