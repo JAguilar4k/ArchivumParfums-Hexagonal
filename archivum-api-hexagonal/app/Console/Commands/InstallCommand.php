@@ -283,7 +283,7 @@ final class InstallCommand extends Command
         return $password;
     }
 
-    /** Retry pending migrations and the idempotent seeder, rolling back a failed seed. */
+    /** Retry pending migrations and seed an empty installation, rolling back a failed seed. */
     private function migrateAndSeed(): void
     {
         if ($this->call('migrate', ['--database' => 'pgsql_admin', '--force' => true]) !== self::SUCCESS) {
@@ -291,6 +291,10 @@ final class InstallCommand extends Command
         }
 
         DB::connection('pgsql')->transaction(function (): void {
+            if (DB::table('users')->exists()) {
+                return;
+            }
+
             if ($this->call('db:seed', ['--force' => true]) !== self::SUCCESS) {
                 throw new RuntimeException(__('install.seeding_failed'));
             }
