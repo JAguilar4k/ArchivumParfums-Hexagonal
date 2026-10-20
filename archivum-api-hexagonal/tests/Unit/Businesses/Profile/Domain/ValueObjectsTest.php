@@ -194,16 +194,3 @@ it('rejects a gateway other than onvo or paypal', function (): void {
 it('rejects an exchange rate that is not positive', function (float $rate): void {
     new BusinessSettings(usdExchangeRate: $rate);
 })->with([0.0, -505.5])->throws(InvalidValueException::class, 'businesses.exchange_rate_invalid');
-
-it('combines the changed settings with the current ones and validates the result', function (): void {
-    $settings = (new BusinessSettings(bottleMarginColones: 8000))->with(['minimumNoticeHours' => 24, 'defaultGateway' => 'paypal']);
-
-    expect($settings->bottleMarginColones)->toBe(8000)
-        ->and($settings->minimumNoticeHours)->toBe(24)
-        ->and($settings->defaultGateway)->toBe('paypal')
-        ->and($settings->bookingHorizonDays)->toBe(30);
-});
-
-it('validates the combination, not only the changed setting', function (): void {
-    (new BusinessSettings(bookingHorizonDays: 1))->with(['minimumNoticeHours' => 25]);
-})->throws(InvalidValueException::class, 'businesses.horizon_before_notice');

@@ -127,6 +127,16 @@ it('accepts and keeps each valid setting', function (string $field, mixed $value
     'exchange rate' => ['tipo_cambio_usd', 512.5],
 ]);
 
+it('reads a number sent as text as a number', function () {
+    patchJson(PROFILE_ENDPOINT, ['ajustes' => ['margen_botella' => '7500', 'tamanos_decant_ml' => ['3', '8'], 'tipo_cambio_usd' => '512.5']])
+        ->assertOk()
+        ->assertJsonPath('data.ajustes.margen_botella', 7500)
+        ->assertJsonPath('data.ajustes.tamanos_decant_ml', [3, 8])
+        ->assertJsonPath('data.ajustes.tipo_cambio_usd', 512.5);
+
+    expect(storedSettingsOf(TwoBusinesses::FIRST))->toEqual(['bottle_margin_colones' => 7500, 'decant_sizes_ml' => [3, 8], 'usd_exchange_rate' => 512.5]);
+});
+
 it('rejects each invalid field in spanish and changes nothing', function (array $payload, string $field, string $message) {
     $before = DB::table('businesses')->where('slug', TwoBusinesses::FIRST)->first();
 

@@ -31,21 +31,21 @@ final class UpdateBusinessProfileRequest extends FormRequest
     ];
 
     /**
-     * Settings of the payload paired with the properties of BusinessSettings. Any other key of ajustes is ignored.
+     * Settings of the payload paired with the names the use case expects. Any other key of ajustes is ignored.
      *
      * @var array<string, string>
      */
     private const array SETTINGS = [
-        'margen_botella' => 'bottleMarginColones',
-        'tamanos_decant_ml' => 'decantSizesMl',
-        'anticipacion_minima_horas' => 'minimumNoticeHours',
-        'horizonte_reserva_dias' => 'bookingHorizonDays',
-        'plazo_cambio_cita_horas' => 'appointmentChangeCutoffHours',
-        'apartado_lista_espera_horas' => 'waitlistHoldHours',
-        'vencimiento_sin_pago_minutos' => 'unpaidExpiryMinutes',
-        'recordatorios_horas' => 'reminderHours',
-        'pasarela_por_defecto' => 'defaultGateway',
-        'tipo_cambio_usd' => 'usdExchangeRate',
+        'margen_botella' => 'bottle_margin_colones',
+        'tamanos_decant_ml' => 'decant_sizes_ml',
+        'anticipacion_minima_horas' => 'minimum_notice_hours',
+        'horizonte_reserva_dias' => 'booking_horizon_days',
+        'plazo_cambio_cita_horas' => 'appointment_change_cutoff_hours',
+        'apartado_lista_espera_horas' => 'waitlist_hold_hours',
+        'vencimiento_sin_pago_minutos' => 'unpaid_expiry_minutes',
+        'recordatorios_horas' => 'reminder_hours',
+        'pasarela_por_defecto' => 'default_gateway',
+        'tipo_cambio_usd' => 'usd_exchange_rate',
     ];
 
     /**
@@ -119,9 +119,20 @@ final class UpdateBusinessProfileRequest extends FormRequest
 
         $settings = [];
 
-        foreach (self::SETTINGS as $field => $property) {
+        foreach (self::SETTINGS as $field => $name) {
             if (Arr::has($validated, "ajustes.{$field}")) {
-                $settings[$property] = $this->settingValue($field, Arr::get($validated, "ajustes.{$field}"));
+                $value = Arr::get($validated, "ajustes.{$field}");
+
+                // Each setting takes the type the use case expects, so a number sent as text arrives as a number.
+                if ($name === 'decant_sizes_ml' || $name === 'reminder_hours') {
+                    $settings[$name] = array_values(array_map(intval(...), (array) $value));
+                } elseif ($name === 'default_gateway') {
+                    $settings[$name] = (string) $value;
+                } elseif ($name === 'usd_exchange_rate') {
+                    $settings[$name] = $value === null ? null : (float) $value;
+                } else {
+                    $settings[$name] = (int) $value;
+                }
             }
         }
 
@@ -130,20 +141,5 @@ final class UpdateBusinessProfileRequest extends FormRequest
         }
 
         return new UpdateBusinessProfileCommand($businessContext->current()->value, $changes);
-    }
-
-    /**
-     * Give a validated setting the type of its property.
-     *
-     * @return int|float|string|list<int>|null
-     */
-    private function settingValue(string $field, mixed $value): int|float|string|array|null
-    {
-        return match ($field) {
-            'tamanos_decant_ml', 'recordatorios_horas' => array_values(array_map(intval(...), (array) $value)),
-            'pasarela_por_defecto' => (string) $value,
-            'tipo_cambio_usd' => $value === null ? null : (float) $value,
-            default => (int) $value,
-        };
     }
 }
