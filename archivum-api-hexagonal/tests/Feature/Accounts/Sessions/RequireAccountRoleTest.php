@@ -27,7 +27,7 @@ function actAsAccountOfRole(?string $memberState): void
 /**
  * Run the role middleware with its roles and tell whether the request reached the route behind it.
  *
- * @param  list<string>  $roles
+ * @param  array<string>  $roles
  */
 function passesRoleMiddleware(array $roles): bool
 {
