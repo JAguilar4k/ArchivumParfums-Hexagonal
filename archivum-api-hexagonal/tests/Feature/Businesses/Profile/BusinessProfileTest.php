@@ -41,7 +41,7 @@ function fieldErrorsOf(TestResponse $response): array
 }
 
 beforeEach(function () {
-    TwoBusinesses::seed();
+    TwoBusinesses::create();
     TwoBusinesses::actAsOwnerOf(TwoBusinesses::FIRST);
 });
 
