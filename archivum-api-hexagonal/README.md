@@ -40,7 +40,7 @@ Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macO
 
    que sí la pide. Si el superusuario tiene otro nombre, se indica con `--superuser=nombre`; en un script, la contraseña puede venir de la variable de entorno `DB_SUPERUSER_PASSWORD`.
 
-4. Volver a ejecutar `composer install` no borra nada: conserva la clave, aplica solo las migraciones pendientes y completa los datos de demostración que falten sin modificar los existentes. La siembra corre en una transacción: si falla, se revierte y se puede reintentar después de corregir el error, aunque las migraciones ya estén aplicadas. En la integración continua, con `composer install --no-dev` o con `APP_ENV` distinto de `local`, `archivum:install` no hace nada.
+4. Volver a ejecutar `composer install` conserva la clave y aplica solo las migraciones pendientes. La siembra automática se ejecuta únicamente cuando la tabla `users` está vacía; si ya hay cuentas, no vuelve a sembrar ni cambia sus datos. La carga manual sigue disponible con `php artisan db:seed` para restaurar las filas de demostración que falten. La siembra corre en una transacción: si falla, se revierte y se puede reintentar después de corregir el error, aunque las migraciones ya estén aplicadas. En la integración continua, con `composer install --no-dev` o con `APP_ENV` distinto de `local`, `archivum:install` no hace nada.
 
 5. Levantar el servidor:
 
