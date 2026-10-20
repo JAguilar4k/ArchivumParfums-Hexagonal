@@ -95,6 +95,41 @@ erDiagram
         uuid user_id FK
         text phone
     }
+    perfumes {
+        uuid id PK
+        uuid business_id FK
+        varchar brand
+        varchar name
+        varchar concentration
+        varchar gender
+        varchar family
+        varchar description
+        varchar image_path
+        boolean is_active
+    }
+    perfume_notes {
+        uuid id PK
+        uuid business_id FK
+        uuid perfume_id FK
+        varchar layer
+        varchar note
+    }
+    perfume_tags {
+        uuid id PK
+        uuid business_id FK
+        uuid perfume_id FK
+        varchar kind
+        varchar value
+    }
+    perfume_variants {
+        uuid id PK
+        uuid business_id FK
+        uuid perfume_id FK
+        smallint size_ml
+        integer sale_price
+        integer sale_price_override
+        boolean is_active
+    }
     personal_access_tokens {
         bigint id PK
         varchar tokenable_type
@@ -195,13 +230,89 @@ La crea Laravel Sanctum. Cada fila es un token de acceso emitido para una cuenta
 
 Sin `business_id` ni política de fila: el token pertenece a la cuenta. Sin llave foránea hacia `users`, por ser polimórfica.
 
+### perfumes
+
+Cada fila es un perfume del catálogo de una tienda: lo que el dueño carga y la vitrina muestra (R5). Las notas, las etiquetas y las presentaciones viven en sus propias tablas.
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Llave foránea a `businesses` (`perfumes_business_id_foreign`), borrado en cascada |
+| `brand` | `varchar(120)` | Obligatoria |
+| `name` | `varchar(120)` | Obligatoria |
+| `concentration` | `varchar(60)` | Opcional |
+| `gender` | `varchar(30)` | Opcional |
+| `family` | `varchar(60)` | Opcional; la familia olfativa |
+| `description` | `varchar(1000)` | Opcional |
+| `image_path` | `varchar(255)` | Opcional |
+| `is_active` | `boolean` | Por defecto `true`; la vitrina muestra solo los activos |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+- Llaves candidatas: `id` y `(id, business_id)` (`perfumes_id_business_id_unique`), que las notas, las etiquetas y las presentaciones usan en sus llaves foráneas compuestas.
+- Índice `perfumes_business_id_is_active_index` sobre `(business_id, is_active)`: la vitrina lista los perfumes activos de una tienda.
+- Sin `CHECK`. No hay una llave única por marca, nombre y concentración: es una decisión de negocio que sigue abierta en #37.
+- Política de fila: `perfumes_business_isolation`, igual que `members` (`USING` y `WITH CHECK` con `business_id` igual a la tienda de la transacción), habilitada y forzada por la migración `enable_row_level_security_on_catalog_tables`.
+
+### perfume_notes
+
+Cada fila es una nota olfativa de un perfume, en una de sus tres capas (R5).
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Llave foránea a `businesses` (`perfume_notes_business_id_foreign`), borrado en cascada |
+| `perfume_id` | `uuid` | Llave foránea compuesta `(perfume_id, business_id)` a `perfumes(id, business_id)` (`perfume_notes_perfume_id_business_id_foreign`), borrado en cascada |
+| `layer` | `varchar(10)` | `perfume_notes_layer_check`: `top`, `heart` o `base` |
+| `note` | `varchar(80)` | Obligatoria |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+- Llaves candidatas: `id` y `(business_id, perfume_id, layer, note)` (`perfume_notes_business_id_perfume_id_layer_note_unique`): una misma nota no se repite en la misma capa de un perfume.
+- Política de fila: `perfume_notes_business_isolation`.
+
+### perfume_tags
+
+Cada fila es una etiqueta de un perfume: el momento del día, el clima o la ocasión (R5). La vitrina y el recomendador las usan para filtrar.
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Llave foránea a `businesses` (`perfume_tags_business_id_foreign`), borrado en cascada |
+| `perfume_id` | `uuid` | Llave foránea compuesta `(perfume_id, business_id)` a `perfumes(id, business_id)` (`perfume_tags_perfume_id_business_id_foreign`), borrado en cascada |
+| `kind` | `varchar(20)` | `perfume_tags_kind_check`: `time_of_day`, `climate` u `occasion` |
+| `value` | `varchar(60)` | `perfume_tags_value_check`: con `time_of_day`, solo `day`, `afternoon` o `night`; con `climate`, solo `warm`, `temperate` o `cold`; con `occasion`, texto libre |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+- Llaves candidatas: `id` y `(business_id, perfume_id, kind, value)` (`perfume_tags_business_id_perfume_id_kind_value_unique`): un perfume no repite la misma etiqueta.
+- Los valores cerrados se guardan en inglés, como el resto de la base (ver [Idioma](ubiquitous-language.md#convención-de-idioma)).
+- Política de fila: `perfume_tags_business_isolation`.
+
+### perfume_variants
+
+Cada fila es una presentación de un perfume: un tamaño en ml y su precio de venta (R1). Las botellas para decants y los costos de los proveedores se refieren a la presentación.
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Llave foránea a `businesses` (`perfume_variants_business_id_foreign`), borrado en cascada |
+| `perfume_id` | `uuid` | Llave foránea compuesta `(perfume_id, business_id)` a `perfumes(id, business_id)` (`perfume_variants_perfume_id_business_id_foreign`), borrado en cascada |
+| `size_ml` | `smallint` | `perfume_variants_size_ml_check`: mayor que 0 |
+| `sale_price` | `integer` | Opcional; colones enteros; `perfume_variants_sale_price_check`: no negativo. Nulo mientras la presentación no tiene costo de proveedor ni precio manual (#43) |
+| `sale_price_override` | `integer` | Opcional; el precio que el dueño fijó a mano y reemplaza al calculado (R1); `perfume_variants_sale_price_override_check`: no negativo |
+| `is_active` | `boolean` | Por defecto `true` |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+- Llaves candidatas: `id` y `(business_id, perfume_id, size_ml)` (`perfume_variants_business_id_perfume_id_size_ml_unique`): un perfume no repite un tamaño.
+- Índice `perfume_variants_business_id_is_active_index` sobre `(business_id, is_active)`.
+- Los `CHECK` de precio solo prohíben los montos negativos: el rango del precio sigue abierto en #36, y un valor nulo pasa un `CHECK`.
+- `sale_price` guarda un valor calculable; la [excepción](#excepciones-deliberadas) está justificada abajo.
+- Política de fila: `perfume_variants_business_isolation`.
+
 ## Tablas previstas
 
 Existen en el diagrama, pero su detalle llega en el pull request de la migración que las crea (sección 7 de la especificación).
 
 | Grupo | Tablas | Llega con |
 |---|---|---|
-| Catálogo | `perfumes`, `perfume_notes`, `perfume_tags`, `perfume_variants` | #37 (M06) |
 | Horarios y servicios | `services`, `business_hours`, `staff_schedules`, `schedule_blocks` | #52 (M08) |
 | Citas | `appointments`, `appointment_perfumes`, `appointment_reminders` | #59 (M09) |
 | Lista de espera | `waitlist_entries` | M19 |
@@ -222,6 +333,10 @@ Se revisa tabla por tabla. Una dependencia funcional `A → B` significa que A d
 | `members` | Un rol por fila; no hay lista de tiendas | Llave de una sola columna. La llave candidata `(id, business_id)` no introduce dependencias parciales: `id` ya determina `business_id` | `role` y `attends_appointments` dependen del miembro. Nada del usuario ni de la tienda se copia aquí |
 | `customers` | Un teléfono por ficha | Llave de una sola columna; `(business_id, user_id)` es una llave candidata y `phone` depende de ambos, no de uno solo | `phone` es un dato de la relación cuenta-tienda: `users` no lo tiene, por lo que no hay un dato que dependa de otro que no sea llave |
 | `personal_access_tokens` | Un token por fila; `abilities` es el texto de Sanctum | Llave de una sola columna | Todo describe al token |
+| `perfumes` | Una columna por dato. Las notas, las etiquetas y las presentaciones no son listas dentro del perfume: tienen sus tablas | Llave de una sola columna; `(id, business_id)` es una llave candidata y `id` ya determina `business_id` | Marca, nombre, concentración, género, familia y descripción describen al perfume. La tienda y los precios no se copian aquí |
+| `perfume_notes` | Una nota por fila, no una lista de notas | Llave de una sola columna; `(business_id, perfume_id, layer, note)` es una llave candidata y ninguna columna depende de una parte de ella | La capa y la nota describen la fila. Nada del perfume se copia aquí |
+| `perfume_tags` | Una etiqueta por fila, no una lista | Llave de una sola columna; `(business_id, perfume_id, kind, value)` es una llave candidata y ninguna columna depende de una parte de ella | El tipo y el valor describen la etiqueta. Nada del perfume se copia aquí |
+| `perfume_variants` | Un tamaño por fila | Llave de una sola columna; `(business_id, perfume_id, size_ml)` es una llave candidata y los precios dependen de los tres, no de uno solo | `size_ml` y los dos precios describen la presentación. El nombre y la marca no se copian aquí. `sale_price` es la excepción justificada abajo |
 
 Las tablas previstas se revisan contra esta misma tabla cuando se crean.
 
