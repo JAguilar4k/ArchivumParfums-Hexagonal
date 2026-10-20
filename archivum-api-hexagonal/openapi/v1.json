@@ -708,9 +708,6 @@
                         }
                     }
                 },
-                "required": [
-                    "ajustes"
-                ],
                 "title": "UpdateBusinessProfileRequest"
             }
         },

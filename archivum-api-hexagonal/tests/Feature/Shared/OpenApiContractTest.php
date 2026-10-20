@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
+use Tests\Support\Businesses\TwoBusinesses;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 use function Pest\Laravel\get;
+use function Pest\Laravel\patchJson;
 use function Pest\Laravel\postJson;
 
 pest()->use(RefreshDatabaseAsOwner::class);
@@ -167,3 +169,19 @@ it('answers missing and invalid fields as the contract documents them', function
     'every field missing' => [[], ['correo', 'contrasena', 'dispositivo']],
     'an email that is not one' => [['correo' => 'no-es-un-correo', 'contrasena' => 'x', 'dispositivo' => 'Celular'], ['correo']],
 ]);
+
+it('accepts as the contract documents it a partial update with only the name', function () {
+    TwoBusinesses::create();
+    TwoBusinesses::actAsOwnerOf(TwoBusinesses::FIRST);
+
+    $contract = generatedContract();
+    $reference = $contract['paths']['/panel/tienda']['patch']['requestBody']['content']['application/json']['schema']['$ref'];
+    $required = $contract['components']['schemas'][basename((string) $reference)]['required'] ?? [];
+    $body = ['nombre' => 'Solo nombre'];
+
+    patchJson('/api/v1/panel/tienda', $body)
+        ->assertOk()
+        ->assertJsonPath('data.nombre', 'Solo nombre');
+
+    expect(array_diff($required, array_keys($body)))->toBe([]);
+});

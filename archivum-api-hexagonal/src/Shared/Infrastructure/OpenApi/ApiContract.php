@@ -35,6 +35,7 @@ final class ApiContract
 
         Scramble::configure()
             ->withOperationTransformers(self::documentSecurity(...))
+            ->withOperationTransformers(OptionalFields::document(...))
             ->withDocumentTransformers(self::documentContract(...))
             ->withDocumentTransformers(ProblemResponses::class);
     }
