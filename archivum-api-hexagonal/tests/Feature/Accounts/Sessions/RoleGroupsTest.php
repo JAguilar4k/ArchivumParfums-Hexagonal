@@ -74,27 +74,29 @@ function routeFallsUnder(RouteDefinition $route, array $rules): bool
 }
 
 /**
- * Endpoints of the owners only group: method, path and payload. Every issue that adds one adds its row.
+ * Endpoints of the owners only group: method, path, payload and the status an owner gets. Every issue that adds
+ * one adds its row.
  *
- * @return array<string, array{string, string, array<string, mixed>}>
+ * @return array<string, array{string, string, array<string, mixed>, int}>
  */
 function ownerOnlyEndpoints(): array
 {
     return [
-        'example: read the settings (test route)' => ['GET', '/api/v1/pruebas/panel/ajustes', []],
-        'example: change the settings (test route)' => ['PATCH', '/api/v1/pruebas/panel/ajustes', ['nombre' => 'Otro nombre']],
+        'example: read the settings (test route)' => ['GET', '/api/v1/pruebas/panel/ajustes', [], 200],
+        'example: change the settings (test route)' => ['PATCH', '/api/v1/pruebas/panel/ajustes', ['nombre' => 'Otro nombre'], 200],
     ];
 }
 
 /**
- * Endpoints of the customers only group: method, path and payload. Every issue that adds one adds its row.
+ * Endpoints of the customers only group: method, path, payload and the status a customer gets. Every issue that
+ * adds one adds its row.
  *
- * @return array<string, array{string, string, array<string, mixed>}>
+ * @return array<string, array{string, string, array<string, mixed>, int}>
  */
 function customerOnlyEndpoints(): array
 {
     return [
-        'example: join a business as a customer (test route)' => ['POST', '/api/v1/pruebas/tiendas/'.TwoBusinesses::SECOND.'/clientes', []],
+        'example: join a business as a customer (test route)' => ['POST', '/api/v1/pruebas/tiendas/'.TwoBusinesses::SECOND.'/clientes', [], 201],
     ];
 }
 
@@ -144,29 +146,29 @@ beforeEach(function () {
     ])], 201))->middleware(['api', 'auth:sanctum', 'business:route', 'role:customer']);
 });
 
-it('lets the owner and the co-owner through the owners only group', function (string $method, string $path, array $payload, string $email) {
+it('lets the owner and the co-owner through the owners only group', function (string $method, string $path, array $payload, int $status, string $email) {
     TwoBusinesses::actAs($email);
 
-    expect(json($method, $path, $payload)->status())->not->toBeIn([401, 403]);
+    json($method, $path, $payload)->assertStatus($status);
 })->with(ownerOnlyEndpoints())->with([
     'owner' => TwoBusinesses::OWNERS[TwoBusinesses::FIRST],
     'co-owner' => TwoBusinesses::CO_OWNER,
 ]);
 
-it('forbids the advisor and the customer in the owners only group, also the reads, and writes nothing', function (string $method, string $path, array $payload, string $email) {
+it('forbids the advisor and the customer in the owners only group, also the reads, and writes nothing', function (string $method, string $path, array $payload, int $ownerStatus, string $email) {
     expectForbiddenWithoutWrites($email, $method, $path, $payload);
 })->with(ownerOnlyEndpoints())->with([
     'advisor' => TwoBusinesses::ADVISOR,
     'customer' => TwoBusinesses::CUSTOMER,
 ]);
 
-it('lets a customer through the customers only group', function (string $method, string $path, array $payload) {
+it('lets a customer through the customers only group', function (string $method, string $path, array $payload, int $status) {
     TwoBusinesses::actAs(TwoBusinesses::CUSTOMER);
 
-    expect(json($method, $path, $payload)->status())->not->toBeIn([401, 403]);
+    json($method, $path, $payload)->assertStatus($status);
 })->with(customerOnlyEndpoints());
 
-it('forbids every account with a row in members in the customers only group and writes nothing', function (string $method, string $path, array $payload, string $email) {
+it('forbids every account with a row in members in the customers only group and writes nothing', function (string $method, string $path, array $payload, int $customerStatus, string $email) {
     expectForbiddenWithoutWrites($email, $method, $path, $payload);
 })->with(customerOnlyEndpoints())->with([
     'owner' => TwoBusinesses::OWNERS[TwoBusinesses::FIRST],
@@ -176,7 +178,9 @@ it('forbids every account with a row in members in the customers only group and 
 ]);
 
 it('asks for a token in both groups', function (string $method, string $path, array $payload) {
-    json($method, $path, $payload)->assertUnauthorized();
+    json($method, $path, $payload)
+        ->assertUnauthorized()
+        ->assertJsonPath('type', rtrim((string) config('app.url'), '/').'/problemas/no-autenticado');
 })->with([...ownerOnlyEndpoints(), ...customerOnlyEndpoints()]);
 
 it('keeps GET /cuenta open to the three roles', function (string $email) {
