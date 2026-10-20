@@ -1,0 +1,766 @@
+{
+    "openapi": "3.1.2",
+    "info": {
+        "title": "ArchivumParfums \u00b7 API v1",
+        "version": "1.0.0",
+        "description": "API REST de ArchivumParfums: citas de prueba de olores, pedidos bajo pedido, decants y pagos para perfumer\u00edas. Las rutas y los atributos JSON est\u00e1n en espa\u00f1ol; los errores siguen el RFC 9457 (`application/problem+json`)."
+    },
+    "servers": [
+        {
+            "url": "/api/v1"
+        }
+    ],
+    "paths": {
+        "/": {
+            "get": {
+                "operationId": "index",
+                "summary": "Describe the API and the version being served",
+                "tags": [
+                    "ApiIndex"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "nombre": {
+                                            "type": "string"
+                                        },
+                                        "version": {
+                                            "type": "string",
+                                            "const": "v1"
+                                        }
+                                    },
+                                    "required": [
+                                        "nombre",
+                                        "version"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/panel/tienda": {
+            "get": {
+                "operationId": "businesses.profile.show",
+                "summary": "Show the profile and the settings of the business of the session",
+                "tags": [
+                    "BusinessProfile"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`BusinessProfileResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/BusinessProfileResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "businesses.profile.update",
+                "summary": "Change the profile fields and settings sent for the business of the session",
+                "tags": [
+                    "BusinessProfile"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateBusinessProfileRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`BusinessProfileResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/BusinessProfileResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/cuenta": {
+            "get": {
+                "operationId": "accounts.current.show",
+                "summary": "Answer the data and the role of the account that owns the token",
+                "tags": [
+                    "CurrentAccount"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`CurrentAccountResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CurrentAccountResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/sesiones": {
+            "post": {
+                "operationId": "accounts.sessions.store",
+                "summary": "Sign in with email and password and answer a bearer token",
+                "tags": [
+                    "Session"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreSessionRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`SessionTokenResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/SessionTokenResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciales inv\u00e1lidas",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/sesiones/actual": {
+            "delete": {
+                "operationId": "accounts.sessions.destroy",
+                "summary": "Sign out by revoking the token of the request",
+                "tags": [
+                    "Session"
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "securitySchemes": {
+            "sanctum": {
+                "type": "http",
+                "description": "Token de Sanctum que entrega `POST /sesiones`. Se env\u00eda como `Authorization: Bearer <token>`.",
+                "scheme": "bearer"
+            }
+        },
+        "schemas": {
+            "BusinessProfileResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "lugar_cita": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "zona_horaria": {
+                        "type": "string"
+                    },
+                    "ajustes": {
+                        "type": "object",
+                        "properties": {
+                            "margen_botella": {
+                                "type": "integer"
+                            },
+                            "tamanos_decant_ml": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "anticipacion_minima_horas": {
+                                "type": "integer"
+                            },
+                            "horizonte_reserva_dias": {
+                                "type": "integer"
+                            },
+                            "plazo_cambio_cita_horas": {
+                                "type": "integer"
+                            },
+                            "apartado_lista_espera_horas": {
+                                "type": "integer"
+                            },
+                            "vencimiento_sin_pago_minutos": {
+                                "type": "integer"
+                            },
+                            "recordatorios_horas": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "pasarela_por_defecto": {
+                                "type": "string"
+                            },
+                            "tipo_cambio_usd": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "margen_botella",
+                            "tamanos_decant_ml",
+                            "anticipacion_minima_horas",
+                            "horizonte_reserva_dias",
+                            "plazo_cambio_cita_horas",
+                            "apartado_lista_espera_horas",
+                            "vencimiento_sin_pago_minutos",
+                            "recordatorios_horas",
+                            "pasarela_por_defecto",
+                            "tipo_cambio_usd"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "slug",
+                    "lugar_cita",
+                    "zona_horaria",
+                    "ajustes"
+                ],
+                "title": "BusinessProfileResource"
+            },
+            "CurrentAccountResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "correo": {
+                        "type": "string"
+                    },
+                    "rol": {
+                        "type": "string",
+                        "enum": [
+                            "dueno",
+                            "colaborador",
+                            "cliente"
+                        ]
+                    },
+                    "tienda": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            },
+                            "slug": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre",
+                            "slug"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "correo",
+                    "rol",
+                    "tienda"
+                ],
+                "title": "CurrentAccountResource"
+            },
+            "Problema": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URL del tipo de problema."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Resumen corto del problema."
+                    },
+                    "status": {
+                        "type": "integer",
+                        "description": "Estado HTTP de la respuesta."
+                    },
+                    "detail": {
+                        "type": "string",
+                        "description": "Explicaci\u00f3n del problema para quien usa la API."
+                    },
+                    "instance": {
+                        "type": "string",
+                        "description": "Identifica esta ocurrencia: es el `X-Request-Id` como `urn:uuid:<id>`."
+                    }
+                },
+                "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance"
+                ],
+                "title": "Problema"
+            },
+            "ProblemaDeValidacion": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "format": "uri",
+                        "description": "URL del tipo de problema."
+                    },
+                    "title": {
+                        "type": "string",
+                        "description": "Resumen corto del problema."
+                    },
+                    "status": {
+                        "type": "integer",
+                        "description": "Estado HTTP de la respuesta."
+                    },
+                    "detail": {
+                        "type": "string",
+                        "description": "Explicaci\u00f3n del problema para quien usa la API."
+                    },
+                    "instance": {
+                        "type": "string",
+                        "description": "Identifica esta ocurrencia: es el `X-Request-Id` como `urn:uuid:<id>`."
+                    },
+                    "errores": {
+                        "type": "object",
+                        "description": "Mensajes de error por campo.",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "type",
+                    "title",
+                    "status",
+                    "detail",
+                    "instance",
+                    "errores"
+                ],
+                "title": "ProblemaDeValidacion"
+            },
+            "SessionTokenResource": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string"
+                    },
+                    "tipo": {
+                        "type": "string",
+                        "const": "Bearer"
+                    }
+                },
+                "required": [
+                    "token",
+                    "tipo"
+                ],
+                "title": "SessionTokenResource"
+            },
+            "StoreSessionRequest": {
+                "type": "object",
+                "properties": {
+                    "correo": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "contrasena": {
+                        "type": "string"
+                    },
+                    "dispositivo": {
+                        "type": "string",
+                        "maxLength": 100
+                    }
+                },
+                "required": [
+                    "correo",
+                    "contrasena",
+                    "dispositivo"
+                ],
+                "title": "StoreSessionRequest"
+            },
+            "UpdateBusinessProfileRequest": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "lugar_cita": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "zona_horaria": {
+                        "type": "string"
+                    },
+                    "ajustes": {
+                        "type": "object",
+                        "properties": {
+                            "margen_botella": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "tamanos_decant_ml": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                },
+                                "minItems": 1,
+                                "uniqueItems": true
+                            },
+                            "anticipacion_minima_horas": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "horizonte_reserva_dias": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "plazo_cambio_cita_horas": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "apartado_lista_espera_horas": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "vencimiento_sin_pago_minutos": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "recordatorios_horas": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                }
+                            },
+                            "pasarela_por_defecto": {
+                                "type": "string",
+                                "enum": [
+                                    "onvo",
+                                    "paypal"
+                                ]
+                            },
+                            "tipo_cambio_usd": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "title": "UpdateBusinessProfileRequest"
+            }
+        },
+        "responses": {
+            "ValidationException": {
+                "description": "Validation error",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Errors overview."
+                                },
+                                "errors": {
+                                    "type": "object",
+                                    "description": "A detailed description of each field that failed validation.",
+                                    "additionalProperties": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "required": [
+                                "message",
+                                "errors"
+                            ]
+                        }
+                    }
+                }
+            },
+            "AuthenticationException": {
+                "description": "Unauthenticated",
+                "content": {
+                    "application/json": {
+                        "schema": {
+                            "type": "object",
+                            "properties": {
+                                "message": {
+                                    "type": "string",
+                                    "description": "Error overview."
+                                }
+                            },
+                            "required": [
+                                "message"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
