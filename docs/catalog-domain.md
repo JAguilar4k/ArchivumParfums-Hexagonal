@@ -1,10 +1,12 @@
 # Dominio del catálogo de perfumes
 
-Este documento fija las reglas del catálogo que viven en el dominio (`Src\Catalog\Perfumes\Domain`), para que ningún camino de entrada, ni el panel ni la importación de R6, pueda crear un perfume o una presentación inválidos. Cubre el issue #36 (M06 · Catálogo de perfumes, R5, núcleo 1). La implementación del puerto con Eloquent llega con #38 y el cálculo del precio de venta con #43.
+Este documento propone el diseño de las reglas del catálogo que vivirán en el dominio (`Src\Catalog\Perfumes\Domain`), para que ningún camino de entrada, ni el panel ni la importación de R6, pueda crear un perfume o una presentación inválidos. Es la base del issue #36 (M06 · Catálogo de perfumes, R5, núcleo 1). La implementación del puerto con Eloquent llega con #38 y el cálculo del precio de venta con #43.
 
 Las convenciones de capas están en [architecture.md](architecture.md), las de nombres en [ubiquitous-language.md](ubiquitous-language.md) y las tablas en las que se guarda este agregado en [data-model.md](data-model.md) y [database.md](database.md).
 
-> **Valores de prueba.** Todo lo que el issue dejó «pendiente de definir» (largos, rangos, listas y campos obligatorios) se resuelve aquí con **valores de prueba**: son decisiones provisionales para poder construir y probar el dominio, no reglas confirmadas con la perfumería. Cada uno está marcado con 🧪 y reunido en la sección [Valores de prueba](#valores-de-prueba). Cambiar uno es cambiar una constante y su prueba.
+> **Estado: propuesta documental parcial.** Este documento solo describe el diseño. **Todavía no existen** las clases, las constantes, `Colones`, `lang/es/catalog.php`, el puerto ni las pruebas unitarias que se nombran aquí, y R5 sigue en `tests/Architecture/pending-rules.php`. Por eso **#36 aún no está cumplido**: sus criterios de aceptación (agregado, objetos de valor, ciclo de activación, `create()`/`reconstitute()`, puerto y pruebas de Pest sin framework) se completan en un pull request aparte. Donde el texto dice «rechaza», «lanza» o «verifica», se lee como «rechazará», «lanzará» o «verificará».
+
+> **Propuestas pendientes de validación.** Lo que el issue dejó «pendiente de definir» (largos, rangos de precio y de ml, listas y campos obligatorios) no está decidido. Los números de este documento, marcados con 🧪, son **ejemplos de partida**, no reglas del producto, y no deben imponerse como invariantes hasta que el equipo o la perfumería los confirme. Se reúnen en la sección [Propuestas pendientes de validación](#propuestas-pendientes-de-validación).
 
 ## Diagrama
 
@@ -66,12 +68,12 @@ Un perfume nace **activo y sin presentaciones**. Las presentaciones se agregan d
 | Dato | Tipo | Obligatorio | Regla |
 | --- | --- | --- | --- |
 | `id` | `PerfumeVariantId` | Sí | UUID v7 |
-| `size` | `SizeMl` | Sí | Entero de 1 a 1000 ml 🧪; no cambia |
+| `size` | `SizeMl` | Sí | Entero positivo; el tope y las fracciones están pendientes (ejemplo 🧪: hasta 1000 ml, sin fracciones); no cambia |
 | `salePrice` | `Colones` | No | Precio calculado (#43); puede faltar mientras no haya costo ni precio manual |
 | `manualPrice` | `Colones` | No | Precio fijado por el dueño (R1); si existe, manda sobre el calculado |
 | `isActive` | `bool` | Sí | `true` al crear |
 
-Cuando existe, el precio —calculado o manual— debe estar entre ₡1 000 y ₡5 000 000 🧪. Un precio fuera de ese rango se rechaza aunque sea un entero no negativo.
+Cuando existe, el precio —calculado o manual— es un entero no negativo en colones. Su mínimo, su máximo y si se admite ₡0 están **pendientes de decisión** (ejemplo 🧪: de ₡1 000 a ₡5 000 000, sin ₡0); mientras no se confirmen, no se rechaza ningún precio por rango.
 
 ## Ciclo de vida
 
@@ -96,7 +98,7 @@ Todos son inmutables y rechazan los datos inválidos al construirse, con `Invali
 | `Brand` | Marca | Vacía o de más de 120 caracteres 🧪 | `catalog.brand_invalid` |
 | `PerfumeName` | Nombre | Vacío o de más de 120 caracteres 🧪 | `catalog.name_invalid` |
 | `PerfumeDetails` | Concentración (60), género (30), familia olfativa (60) y descripción (1000) 🧪 | Un texto más largo que su máximo; un texto en blanco se guarda como ausente | `catalog.concentration_too_long`, `catalog.gender_too_long`, `catalog.family_too_long`, `catalog.description_too_long` |
-| `SizeMl` | Mililitros enteros | Menos de 1 o más de 1000; fracciones como 7,5 ml 🧪 | `catalog.size_ml_invalid` |
+| `SizeMl` | Mililitros enteros | Menos de 1; el tope y las fracciones como 7,5 ml están pendientes (ejemplo 🧪: más de 1000) | `catalog.size_ml_invalid` |
 | `PerfumeNote` | Capa (`top`, `heart`, `base`) y texto | Texto vacío o de más de 80 caracteres 🧪; capa inexistente | `catalog.note_invalid`, `catalog.note_layer_invalid` |
 | `PerfumeTag` | Tipo y valor | Ver la tabla siguiente | `catalog.time_of_day_invalid`, `catalog.climate_invalid`, `catalog.occasion_invalid`, `catalog.tag_kind_invalid` |
 | `Colones` (`Src\Shared`) | Monto entero | Negativo o con fracción | `shared.colones_negative`, `shared.colones_not_integer` |
@@ -120,15 +122,25 @@ Los valores se guardan en inglés, igual que en el `CHECK` de `perfume_tags` (#3
 | # | Invariante | Dónde se verifica | Excepción |
 | --- | --- | --- | --- |
 | 1 | Marca y nombre no están vacíos | `Brand`, `PerfumeName` | `InvalidValueException` |
-| 2 | Los ml son enteros positivos | `SizeMl` | `InvalidValueException` |
-| 3 | Los precios son colones enteros no negativos y están en el rango permitido | `Colones`, `PerfumeVariant` | `InvalidValueException` |
+| 2 | Los ml son positivos (el tope y las fracciones están [pendientes](#propuestas-pendientes-de-validación)) | `SizeMl` | `InvalidValueException` |
+| 3 | Los precios son colones enteros no negativos (el mínimo, el máximo y si vale ₡0 están [pendientes](#propuestas-pendientes-de-validación)) | `Colones` | `InvalidValueException` |
 | 4 | El momento del día es día, tarde o noche; el clima es cálido, templado o frío | `PerfumeTag` | `InvalidValueException` |
 | 5 | No hay dos presentaciones con los mismos ml | `Perfume::addVariant()` | `DuplicateVariantSizeException` |
 | 6 | No hay dos notas iguales en la misma capa ni dos etiquetas iguales del mismo tipo | `Perfume::create()`, `revise()` | `InvalidPerfumeException` |
 | 7 | Solo se cambia o desactiva una presentación que el perfume contiene | `Perfume::deactivateVariant()` y afines | `InvalidPerfumeException` |
 | 8 | Desactivar no elimina | `Perfume`, `PerfumeVariant` | — |
 
-La base repite las invariantes 2, 3, 4, 5 y 6 con `CHECK` y llaves únicas (#37): el dominio da el mensaje claro y la base garantiza el dato aunque entre por SQL directo.
+La base respalda parte de estas invariantes (#37), pero **no todas ni con los mismos rangos**:
+
+| Invariante | Qué exige hoy PostgreSQL |
+| --- | --- |
+| 2 | `perfume_variants_size_ml_check`: `size_ml > 0`, dentro del tipo `smallint`. No hay tope de negocio ni lista de tamaños |
+| 3 | `perfume_variants_sale_price_check` y `perfume_variants_sale_price_override_check`: `>= 0`. No hay mínimo ni máximo de negocio, y ₡0 pasa |
+| 4 | `CHECK` de `perfume_tags` para momento del día y clima |
+| 5 | Llave única `(business_id, perfume_id, size_ml)` |
+| 6 | Llaves únicas de `perfume_notes` y `perfume_tags` |
+
+Los rangos de precio y de ml que se proponen más abajo **no** se replican en SQL, y no se amplían las restricciones de la base hasta que haya una decisión de negocio. Mientras no se confirmen, el dominio no rechaza más de lo que ya rechaza la base.
 
 ## Excepciones
 
@@ -155,25 +167,25 @@ Las violaciones lanzan excepciones de dominio con una clave de traducción; el t
 
 El repositorio filtra por la tienda que indica `BusinessContext`: el puerto no recibe `BusinessId`. La implementación con Eloquent es el issue #38.
 
-## Valores de prueba
+## Propuestas pendientes de validación
 
-Los siete puntos que el issue dejó pendientes quedan resueltos con valores de prueba. Ninguno está confirmado con la perfumería; se revisan antes de `v-avance1`.
+Los puntos que #36 dejó «pendientes de definir» **siguen pendientes**. La columna del medio es solo una propuesta de partida para poder discutir y, más adelante, construir; **no es una regla del producto** y no se impone como invariante hasta que alguien la confirme. Cuando se confirme una, se enlaza aquí la decisión aprobada (issue, ADR o especificación) y se vuelve constante de su objeto de valor.
 
-| Pendiente del issue | Valor de prueba 🧪 | Por qué este valor |
+| Pendiente de #36 | Propuesta 🧪 (sin confirmar) | Respaldo actual |
 | --- | --- | --- |
-| Largos máximos | Marca 120, nombre 120, concentración 60, género 30, familia 60, descripción 1000, nota 80, ocasión 60 | Son los `varchar` de las tablas de #37; el dominio no admite lo que la base no guarda |
-| Precio mínimo y máximo | ₡1 000 a ₡5 000 000; **₡0 no se admite** | El `CHECK` de la base solo prohíbe negativos; el dominio es más estricto para atrapar precios en cero por error |
-| ml permitidos | Rango de 1 a 1000, sin lista cerrada; **sin fracciones** (7,5 ml no vale) | `size_ml` es `smallint`; un rango deja crear presentaciones como 2, 5, 10 (R4) o 100 ml sin tocar el código |
-| Concentración y género | Texto libre. Ejemplos de concentración: `EDP`, `EDT`, `Extrait`; de género: `masculino`, `femenino`, `unisex` | La especificación no cierra la lista y la importación puede traer otros valores |
-| Familia y ocasión | Texto libre | Igual: una lista cerrada rechazaría perfumes legítimos de una perfumería de nicho |
-| Obligatorios al crear desde el panel | **Solo marca y nombre** | Es lo mínimo que también trae la importación de R6; el resto se completa después |
-| Obligatorios de una presentación | Solo los ml; ambos precios pueden faltar | El precio calculado depende de #43 |
+| Largos máximos | Marca 120, nombre 120, concentración 60, género 30, familia 60, descripción 1000, nota 80, ocasión 60 | Son los `varchar` de #37: la base no guarda más. Los largos más cortos que esos serían decisión de negocio |
+| Precio mínimo y máximo, y si vale ₡0 | Ejemplo: ₡1 000 a ₡5 000 000 y ₡0 no se admite | Solo `>= 0` en la base. **Sin decisión** |
+| ml permitidos (rango o lista) y fracciones | Ejemplo: de 1 a 1000, sin lista cerrada y sin fracciones como 7,5 ml | Solo `size_ml > 0` en un `smallint`, que de hecho no admite fracciones. R4 propone 2, 5 y 10 ml como **supuesto** configurable. **Sin decisión** |
+| Valores de concentración y de género | Ejemplo: texto libre; `EDP`, `EDT`, `Extrait` y `masculino`, `femenino`, `unisex` como sugerencias | La base no restringe estas columnas. **Sin decisión** |
+| Familia y ocasión: ¿lista cerrada o texto libre? | Ejemplo: texto libre | La base no restringe la familia; la ocasión es texto libre en el `CHECK` de #37. **Sin decisión** |
+| Obligatorios al crear desde el panel | Ejemplo: solo marca y nombre | La importación de R6 solo trae marca, nombre, ml y costo. **Sin decisión** para el panel |
+| Obligatorios de una presentación | Ejemplo: solo los ml; ambos precios pueden faltar | `sale_price` admite nulo hasta #43. **Sin decisión** |
 
-Cada valor es una constante de su objeto de valor (`Brand::MAX_LENGTH`, `SizeMl::MAX`…), así que ajustarlo toca una línea y su prueba.
+Las decisiones de negocio se consultan antes de implementar, como pide `CLAUDE.md`. Si la implementación necesita avanzar antes de la respuesta, empieza solo con lo que ya respaldan la especificación y la base: marca y nombre no vacíos, ml positivos, precios enteros no negativos, momentos y clima de las listas de R5.
 
-## Pruebas
+## Pruebas (pendientes)
 
-Pruebas unitarias de Pest en `tests/Unit/Catalog/Perfumes/Domain` y `tests/Unit/Shared/Domain`. No arrancan el framework. La primera prueba que nombra la regla se titula `R5: …` y quita a R5 de `tests/Architecture/pending-rules.php`.
+Estas pruebas **todavía no existen**; se escriben junto con la implementación de #36. Serían pruebas unitarias de Pest en `tests/Unit/Catalog/Perfumes/Domain` y `tests/Unit/Shared/Domain`, sin arrancar el framework. La primera que nombre la regla se titularía `R5: …` y quitaría a R5 de `tests/Architecture/pending-rules.php`.
 
 | Prueba | Qué verifica |
 | --- | --- |
@@ -181,7 +193,7 @@ Pruebas unitarias de Pest en `tests/Unit/Catalog/Perfumes/Domain` y `tests/Unit/
 | `Colones` | Rechaza negativos y fracciones; acepta cadenas numéricas enteras |
 | `Perfume` | `create()` y `reconstitute()`; dos presentaciones con los mismos ml; notas y etiquetas repetidas |
 | Estado | Desactivar y reactivar un perfume y una presentación sin perder las presentaciones |
-| Precio | Rango permitido y ausencia de precio |
+| Precio | Ausencia de precio y, una vez confirmado, el rango permitido |
 
 Los casos críticos de PostgreSQL (llaves únicas, `CHECK`, aislamiento por tienda) los cubren las pruebas de la base de #37, no estas.
 
