@@ -32,6 +32,9 @@ final class TwoBusinesses
         self::SECOND => 'dueno@perfumeriasegunda.test',
     ];
 
+    /** Second owner of the first business, with the same permissions as the first one. */
+    public const string CO_OWNER = 'coduena@perfumeriaprimera.test';
+
     /** Staff of the first business, without the permissions of an owner. */
     public const string ADVISOR = 'asesor@perfumeriaprimera.test';
 
@@ -41,7 +44,7 @@ final class TwoBusinesses
     /** Customer of both businesses, with one customer record in each. */
     public const string CUSTOMER_OF_BOTH = 'cliente-de-las-dos@clientes.test';
 
-    /** Create both businesses, the owner of each one, the advisor of the first one and the customers. */
+    /** Create both businesses, the owner of each one, the co-owner and the advisor of the first one and the customers. */
     public static function create(): void
     {
         $customerOfBoth = self::account(self::CUSTOMER_OF_BOTH);
@@ -53,6 +56,7 @@ final class TwoBusinesses
             CustomerModel::factory()->create(['business_id' => $businessId, 'user_id' => $customerOfBoth]);
         }
 
+        MemberModel::factory()->owner()->create(['business_id' => self::idOf(self::FIRST), 'user_id' => self::account(self::CO_OWNER)]);
         MemberModel::factory()->staff()->create(['business_id' => self::idOf(self::FIRST), 'user_id' => self::account(self::ADVISOR)]);
         CustomerModel::factory()->create(['business_id' => self::idOf(self::FIRST), 'user_id' => self::account(self::CUSTOMER)]);
     }
