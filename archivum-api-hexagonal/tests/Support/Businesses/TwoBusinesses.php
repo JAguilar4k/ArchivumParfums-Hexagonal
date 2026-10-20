@@ -4,44 +4,61 @@ declare(strict_types=1);
 
 namespace Tests\Support\Businesses;
 
-use Database\Seeders\DemoBusinessesSeeder;
-use Illuminate\Support\Facades\Auth;
-use Src\Accounts\Sessions\Infrastructure\Security\SanctumTokenIssuer;
+use Laravel\Sanctum\Sanctum;
+use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
+use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel;
-use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
-
-use function Pest\Laravel\withToken;
 
 /**
- * The two demo businesses of the seeders, to prove that each one only reaches its own rows.
+ * Two businesses made with the factories, each with its staff and customers, to prove that each one only reaches
+ * its own rows. They do not use the demo seeders, which serve the live demo.
  */
 final class TwoBusinesses
 {
-    public const string FIRST = 'archivumparfums';
+    public const string FIRST = 'perfumeria-primera';
 
-    public const string SECOND = 'esencias-del-norte';
+    public const string SECOND = 'perfumeria-segunda';
 
-    public const string PASSWORD = 'clave-de-demostracion';
+    /** Name of each business by its slug. */
+    public const array NAMES = [
+        self::FIRST => 'Perfumería Primera',
+        self::SECOND => 'Perfumería Segunda',
+    ];
 
     /** Owner of each business by its slug. */
     public const array OWNERS = [
-        self::FIRST => 'duena@archivumparfums.test',
-        self::SECOND => 'dueno@esenciasdelnorte.test',
+        self::FIRST => 'duena@perfumeriaprimera.test',
+        self::SECOND => 'dueno@perfumeriasegunda.test',
     ];
 
-    public const string ADVISOR = 'asesor@archivumparfums.test';
+    /** Second owner of the first business, with the same permissions as the first one. */
+    public const string CO_OWNER = 'coduena@perfumeriaprimera.test';
 
-    public const string CUSTOMER = 'mariana@clientes.test';
+    /** Staff of the first business, without the permissions of an owner. */
+    public const string ADVISOR = 'asesor@perfumeriaprimera.test';
 
-    public const string CUSTOMER_OF_BOTH = 'sofia@clientes.test';
+    /** Customer of the first business only. */
+    public const string CUSTOMER = 'cliente@clientes.test';
 
-    /** Seed both businesses with their staff and customers. */
-    public static function seed(): void
+    /** Customer of both businesses, with one customer record in each. */
+    public const string CUSTOMER_OF_BOTH = 'cliente-de-las-dos@clientes.test';
+
+    /** Create both businesses, the owner of each one, the co-owner and the advisor of the first one and the customers. */
+    public static function create(): void
     {
-        config(['archivum.demo_password' => self::PASSWORD]);
+        $customerOfBoth = self::account(self::CUSTOMER_OF_BOTH);
 
-        app(DemoBusinessesSeeder::class)->run();
+        foreach (self::NAMES as $slug => $name) {
+            $businessId = BusinessModel::factory()->create(['name' => $name, 'slug' => $slug])->id;
+
+            MemberModel::factory()->owner()->create(['business_id' => $businessId, 'user_id' => self::account(self::OWNERS[$slug])]);
+            CustomerModel::factory()->create(['business_id' => $businessId, 'user_id' => $customerOfBoth]);
+        }
+
+        MemberModel::factory()->owner()->create(['business_id' => self::idOf(self::FIRST), 'user_id' => self::account(self::CO_OWNER)]);
+        MemberModel::factory()->staff()->create(['business_id' => self::idOf(self::FIRST), 'user_id' => self::account(self::ADVISOR)]);
+        CustomerModel::factory()->create(['business_id' => self::idOf(self::FIRST), 'user_id' => self::account(self::CUSTOMER)]);
     }
 
     /** Identifier of one of the two businesses. */
@@ -56,13 +73,11 @@ final class TwoBusinesses
         return UserModel::query()->where('email', $email)->sole()->id;
     }
 
-    /** Send the next requests with a real token of the account of an email, as after signing in. */
+    /** Authenticate the account of an email for the next requests, with every ability, as a sign-in gives it. */
     public static function actAs(string $email): UserModel
     {
         $user = UserModel::query()->where('email', $email)->sole();
-
-        Auth::forgetGuards();
-        withToken($user->createToken(SanctumTokenIssuer::TOKEN_NAME)->plainTextToken);
+        Sanctum::actingAs($user, ['*']);
 
         return $user;
     }
@@ -73,9 +88,9 @@ final class TwoBusinesses
         return self::actAs(self::OWNERS[$slug]);
     }
 
-    /** Make the next queries of the test reach only the rows of one business, to prepare the rows of each one. */
-    public static function scopeQueriesTo(?string $businessId): void
+    /** Create the account of an email and return its identifier. */
+    private static function account(string $email): string
     {
-        app(BusinessTransaction::class)->scope($businessId);
+        return UserModel::factory()->create(['email' => $email])->id;
     }
 }

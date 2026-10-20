@@ -51,6 +51,10 @@ it('accepts an IANA timezone', function (): void {
         ->toBe('America/Costa_Rica');
 });
 
+it('starts a business in costa rica time, the default of the specification', function (): void {
+    expect((new BusinessTimezone(BusinessTimezone::DEFAULT))->value)->toBe('America/Costa_Rica');
+});
+
 it('rejects a timezone that is not IANA', function (string $timezone): void {
     new BusinessTimezone($timezone);
 })->with([

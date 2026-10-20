@@ -179,6 +179,7 @@ return [
         'ajustes.tamanos_decant_ml.*' => 'tamaño de decant',
         'ajustes.tipo_cambio_usd' => 'tipo de cambio',
         'ajustes.vencimiento_sin_pago_minutos' => 'vencimiento sin pago',
+        'contrasena' => 'contraseña',
         'lugar_cita' => 'lugar de la cita',
         'precio_venta' => 'precio de venta',
         'zona_horaria' => 'zona horaria',

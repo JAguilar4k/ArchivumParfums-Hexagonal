@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 return [
 
-    'already_a_member' => 'Esa cuenta ya pertenece al personal de una tienda.',
+    'account_already_on_staff' => 'Esa cuenta ya pertenece al personal de una tienda.',
     'appointment_place_invalid' => 'El lugar de la cita no puede estar vacío ni superar los :max caracteres.',
     'business_not_found' => 'La tienda no existe.',
     'business_registered' => 'Tienda registrada: :name (:slug, :id). Dueño: :email.',
     'create_business_description' => 'Da de alta una tienda con los ajustes por defecto y la cuenta de su dueño.',
     'decant_sizes_invalid' => 'Los tamaños de decant deben ser una lista de números mayores que cero.',
+    'demo_password_missing' => 'Hay que definir ARCHIVUM_DEMO_PASSWORD en .env antes de sembrar las tiendas de demostración.',
     'deposit_percent_out_of_range' => 'El porcentaje de depósito debe estar entre :min y :max.',
     'exchange_rate_invalid' => 'El tipo de cambio debe ser mayor que cero.',
     'gateway_invalid' => 'La pasarela por defecto debe ser onvo o paypal.',

@@ -7,10 +7,10 @@ use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
-use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\RefreshDatabaseAsOwner;
+use Tests\Support\Shared\ScopesQueriesToBusiness;
 
-pest()->use(RefreshDatabaseAsOwner::class);
+pest()->use(RefreshDatabaseAsOwner::class, ScopesQueriesToBusiness::class);
 
 /** Insert a business with the application role and return its identifier. */
 function insertBusiness(string $slug = 'archivum', string $name = 'ArchivumParfums'): string
@@ -35,16 +35,14 @@ function insertUserAccount(string $email): string
     ]);
 }
 
-/** Make the next queries reach only the rows of one business, as every request does, before writing its rows. */
-function pinBusiness(string $businessId): void
+/**
+ * Link an account to a business as staff, with that business pinned first, and return the member identifier.
+ *
+ * @param  Closure(?string): void  $scopeQueriesTo
+ */
+function insertMember(Closure $scopeQueriesTo, string $businessId, string $userId, string $role = 'staff'): string
 {
-    app(BusinessTransaction::class)->scope($businessId);
-}
-
-/** Link an account to a business as staff and return the member identifier. */
-function insertMember(string $businessId, string $userId, string $role = 'staff'): string
-{
-    pinBusiness($businessId);
+    $scopeQueriesTo($businessId);
 
     return (string) DB::table('members')->insertGetId([
         'business_id' => $businessId,
@@ -101,8 +99,8 @@ it('rejects settings that are not an object', function () {
 it('accepts an owner and a staff member who attends appointments', function () {
     $businessId = insertBusiness();
 
-    insertMember($businessId, insertUserAccount('duena@archivum.test'), 'owner');
-    DB::table('members')->where('id', insertMember($businessId, insertUserAccount('asesor@archivum.test')))
+    insertMember($this->scopeQueriesTo(...), $businessId, insertUserAccount('duena@archivum.test'), 'owner');
+    DB::table('members')->where('id', insertMember($this->scopeQueriesTo(...), $businessId, insertUserAccount('asesor@archivum.test')))
         ->update(['attends_appointments' => true]);
 
     expect(DB::table('members')->where('business_id', $businessId)->pluck('role')->sort()->values()->all())
@@ -111,20 +109,20 @@ it('accepts an owner and a staff member who attends appointments', function () {
 });
 
 it('does not let a member attend appointments unless told so', function () {
-    $memberId = insertMember(insertBusiness(), insertUserAccount('asesor@archivum.test'));
+    $memberId = insertMember($this->scopeQueriesTo(...), insertBusiness(), insertUserAccount('asesor@archivum.test'));
 
     expect(DB::table('members')->where('id', $memberId)->sole()->attends_appointments)->toBeFalse();
 });
 
 it('rejects an unknown member role', function () {
-    insertMember(insertBusiness(), insertUserAccount('admin@archivum.test'), 'admin');
+    insertMember($this->scopeQueriesTo(...), insertBusiness(), insertUserAccount('admin@archivum.test'), 'admin');
 })->throws(QueryException::class, 'members_role_check');
 
 it('rejects a second business for the same staff member', function () {
     $userId = insertUserAccount('asesor@archivum.test');
 
-    insertMember(insertBusiness('archivum'), $userId);
-    insertMember(insertBusiness('otra-tienda'), $userId);
+    insertMember($this->scopeQueriesTo(...), insertBusiness('archivum'), $userId);
+    insertMember($this->scopeQueriesTo(...), insertBusiness('otra-tienda'), $userId);
 })->throws(UniqueConstraintViolationException::class, 'members_user_id_unique');
 
 it('declares the id and business pair unique so children can use composite foreign keys', function () {
@@ -135,12 +133,12 @@ it('declares the id and business pair unique so children can use composite forei
 });
 
 it('rejects a member of a business that does not exist', function () {
-    insertMember((string) Str::uuid7(), insertUserAccount('persona@archivum.test'));
+    insertMember($this->scopeQueriesTo(...), (string) Str::uuid7(), insertUserAccount('persona@archivum.test'));
 })->throws(QueryException::class, 'members_business_id_foreign');
 
 it('deletes the staff of a business with the business', function () {
     $businessId = insertBusiness();
-    insertMember($businessId, insertUserAccount('duena@archivum.test'), 'owner');
+    insertMember($this->scopeQueriesTo(...), $businessId, insertUserAccount('duena@archivum.test'), 'owner');
 
     DB::table('businesses')->where('id', $businessId)->delete();
 
@@ -150,7 +148,7 @@ it('deletes the staff of a business with the business', function () {
 
 it('deletes the membership of an account with the account', function () {
     $userId = insertUserAccount('asesor@archivum.test');
-    insertMember(insertBusiness(), $userId);
+    insertMember($this->scopeQueriesTo(...), insertBusiness(), $userId);
 
     DB::table('users')->where('id', $userId)->delete();
 

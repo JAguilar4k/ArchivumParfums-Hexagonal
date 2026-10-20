@@ -11,25 +11,28 @@ use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Tests\Support\Businesses\TwoBusinesses;
 use Tests\Support\RefreshDatabaseAsOwner;
+use Tests\Support\Shared\ScopesQueriesToBusiness;
 
 use function Pest\Laravel\getJson;
 
-pest()->use(RefreshDatabaseAsOwner::class);
+pest()->use(RefreshDatabaseAsOwner::class, ScopesQueriesToBusiness::class);
 
 const MISSING_CUSTOMER_RESOURCE = '0192f0c4-7b1e-7c3a-9f1d-2b6a4e8c0d97';
 
 /**
- * Identifiers of the customer records of an account in each demo business where it has one, by slug.
+ * Identifiers of the customer records of an account in each of the two businesses where it has one, by slug,
+ * read with each business pinned in turn.
  *
+ * @param  Closure(?string): void  $scopeQueriesTo
  * @return array<string, string>
  */
-function customerRecordsOf(string $email): array
+function customerRecordsOf(Closure $scopeQueriesTo, string $email): array
 {
     $records = [];
 
     foreach ([TwoBusinesses::FIRST, TwoBusinesses::SECOND] as $slug) {
         $businessId = TwoBusinesses::idOf($slug);
-        TwoBusinesses::scopeQueriesTo($businessId);
+        $scopeQueriesTo($businessId);
         $id = DB::table('customers')
             ->where('business_id', $businessId)
             ->where('user_id', TwoBusinesses::userIdOf($email))
@@ -44,11 +47,12 @@ function customerRecordsOf(string $email): array
 }
 
 beforeEach(function () {
-    TwoBusinesses::seed();
+    TwoBusinesses::create();
 
     // An example of the routes of /api/v1/cuenta until the first resource of a customer exists (#59): a listing
     // that reads one business at a time and a resource whose business comes from fn_customer_resource_business.
-    Route::prefix('api/v1/cuenta/pruebas/clientes')->middleware(['api', 'auth:sanctum', 'role:customer'])->group(function (): void {
+    // Like the other throwaway routes, it lives under api/v1/pruebas, outside the prefixes that the route scans walk.
+    Route::prefix('api/v1/pruebas/cuenta/clientes')->middleware(['api', 'auth:sanctum', 'role:customer'])->group(function (): void {
         Route::get('/', fn (Request $request, CustomerBusinessContext $context) => ['data' => Arr::flatten(
             $context->eachBusiness(fn (BusinessId $businessId): array => DB::table('customers')
                 ->where('business_id', $businessId->value)
@@ -71,10 +75,10 @@ beforeEach(function () {
 });
 
 it('lists the resources of a customer in every business where it is one, pinning each business in turn', function () {
-    $records = customerRecordsOf(TwoBusinesses::CUSTOMER_OF_BOTH);
+    $records = customerRecordsOf($this->scopeQueriesTo(...), TwoBusinesses::CUSTOMER_OF_BOTH);
     TwoBusinesses::actAs(TwoBusinesses::CUSTOMER_OF_BOTH);
 
-    $listed = getJson('/api/v1/cuenta/pruebas/clientes')->assertOk()->json('data');
+    $listed = getJson('/api/v1/pruebas/cuenta/clientes')->assertOk()->json('data');
 
     expect(array_column($listed, 'id', 'tienda'))->toEqual([
         TwoBusinesses::idOf(TwoBusinesses::FIRST) => $records[TwoBusinesses::FIRST],
@@ -87,21 +91,21 @@ it('lists the resources of a customer in every business where it is one, pinning
 });
 
 it('lists none of the resources of another customer', function () {
-    $foreign = array_values(customerRecordsOf(TwoBusinesses::CUSTOMER_OF_BOTH));
-    $own = array_values(customerRecordsOf(TwoBusinesses::CUSTOMER));
+    $foreign = array_values(customerRecordsOf($this->scopeQueriesTo(...), TwoBusinesses::CUSTOMER_OF_BOTH));
+    $own = array_values(customerRecordsOf($this->scopeQueriesTo(...), TwoBusinesses::CUSTOMER));
     TwoBusinesses::actAs(TwoBusinesses::CUSTOMER);
 
-    $listed = getJson('/api/v1/cuenta/pruebas/clientes')->assertOk()->json('data.*.id');
+    $listed = getJson('/api/v1/pruebas/cuenta/clientes')->assertOk()->json('data.*.id');
 
     expect($listed)->toBe($own)
         ->and(array_intersect($listed, $foreign))->toBe([]);
 });
 
 it('pins the business of a resource of the customer, in each business', function (string $slug) {
-    $record = customerRecordsOf(TwoBusinesses::CUSTOMER_OF_BOTH)[$slug];
+    $record = customerRecordsOf($this->scopeQueriesTo(...), TwoBusinesses::CUSTOMER_OF_BOTH)[$slug];
     TwoBusinesses::actAs(TwoBusinesses::CUSTOMER_OF_BOTH);
 
-    getJson("/api/v1/cuenta/pruebas/clientes/{$record}")->assertOk()->assertExactJson(['data' => [
+    getJson("/api/v1/pruebas/cuenta/clientes/{$record}")->assertOk()->assertExactJson(['data' => [
         'id' => $record,
         'tienda' => TwoBusinesses::idOf($slug),
         'tienda_fijada' => TwoBusinesses::idOf($slug),
@@ -109,12 +113,12 @@ it('pins the business of a resource of the customer, in each business', function
 })->with([TwoBusinesses::FIRST, TwoBusinesses::SECOND]);
 
 it('answers a resource of another customer exactly like one that does not exist or a malformed one', function () {
-    $foreign = customerRecordsOf(TwoBusinesses::CUSTOMER_OF_BOTH)[TwoBusinesses::FIRST];
+    $foreign = customerRecordsOf($this->scopeQueriesTo(...), TwoBusinesses::CUSTOMER_OF_BOTH)[TwoBusinesses::FIRST];
     TwoBusinesses::actAs(TwoBusinesses::CUSTOMER);
 
     $responses = array_map(
         fn (string $id): array => Arr::except(
-            getJson("/api/v1/cuenta/pruebas/clientes/{$id}")->assertNotFound()->json(),
+            getJson("/api/v1/pruebas/cuenta/clientes/{$id}")->assertNotFound()->json(),
             'instance',
         ),
         [$foreign, MISSING_CUSTOMER_RESOURCE, 'no-es-un-identificador'],
@@ -128,6 +132,6 @@ it('answers a resource of another customer exactly like one that does not exist 
 it('asks for a token on the routes of the account', function (string $path) {
     getJson($path)->assertUnauthorized();
 })->with([
-    'listing' => '/api/v1/cuenta/pruebas/clientes',
-    'resource' => '/api/v1/cuenta/pruebas/clientes/'.MISSING_CUSTOMER_RESOURCE,
+    'listing' => '/api/v1/pruebas/cuenta/clientes',
+    'resource' => '/api/v1/pruebas/cuenta/clientes/'.MISSING_CUSTOMER_RESOURCE,
 ]);
