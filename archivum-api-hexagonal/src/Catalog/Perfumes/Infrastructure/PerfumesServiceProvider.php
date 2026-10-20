@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Src\Catalog\Perfumes\Infrastructure;
 
 use Illuminate\Support\ServiceProvider;
+use Src\Catalog\Perfumes\Application\Contracts\PerfumeSearch;
 use Src\Catalog\Perfumes\Domain\Contracts\PerfumeRepository;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Repositories\EloquentPerfumeRepository;
 
@@ -17,5 +18,6 @@ final class PerfumesServiceProvider extends ServiceProvider
      */
     public array $bindings = [
         PerfumeRepository::class => EloquentPerfumeRepository::class,
+        PerfumeSearch::class => EloquentPerfumeRepository::class,
     ];
 }

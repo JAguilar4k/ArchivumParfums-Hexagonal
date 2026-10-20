@@ -10,6 +10,8 @@ Route::prefix('panel/perfumes')
     ->name('catalog.perfumes.')
     ->controller(PerfumeController::class)
     ->group(function (): void {
+        Route::get('/', 'index')->name('index');
         Route::post('/', 'store')->name('store');
+        Route::get('/{perfume}', 'show')->whereUuid('perfume')->name('show');
         Route::patch('/{perfume}', 'update')->whereUuid('perfume')->name('update');
     });
