@@ -69,7 +69,7 @@ beforeEach(function () {
 it('resolves the business of every panel route from the session and never from the URL', function () {
     $violations = [];
 
-    // The scan proves nothing on an empty list, as the guide's assertNotEmpty($staff).
+    // An empty list would let the scan pass without checking any route.
     expect(routesUnder('api/v1/panel'))->not->toBeEmpty();
 
     foreach (routesUnder('api/v1/panel') as $route) {
