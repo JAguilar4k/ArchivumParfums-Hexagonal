@@ -8,11 +8,37 @@ Antes de cualquier tarea, leé:
 - `docs/plan.md`: módulos (un milestone por módulo), etiquetas, forma de trabajo y cortes.
 - `docs/enunciado.pdf`: enunciado oficial y rúbricas. Es local y no se versiona.
 
-## Repositorio guía: solo lectura
+## Repositorio guía: se trabaja igual que ahí
 
-La estructura, la arquitectura, la documentación y la forma de trabajo copian el proyecto guía del curso: https://github.com/BryanChavesSalas/SodaYa-Hexagonal
+El proyecto toma su estructura y su forma de trabajo del proyecto guía del curso: https://github.com/BryanChavesSalas/SodaYa-Hexagonal. Todos los integrantes del equipo tienen acceso a ese repositorio.
 
-**Está prohibido modificarlo de cualquier forma**: ni push, ni ramas, ni issues, ni pull requests, ni comentarios, ni etiquetas, ni milestones, ni reacciones. Solo se lee:
+**Regla:** antes de crear o cambiar cualquier parte de este proyecto (carpetas, módulos, clases, migraciones, pruebas, documentación, CI, plantillas, ramas, commits o pull requests), se busca su equivalente en el repo guía y se hace de la misma manera. Si el repo guía ya resolvió algo, no se inventa otra solución.
+
+Equivalencias concretas:
+
+| En el repo guía | En este proyecto |
+|---|---|
+| `sodaya-api-hexagonal/` | `archivum-api-hexagonal/`, con los mismos archivos de raíz (`README.md` con la puesta en marcha, `CLAUDE.md` y `AGENTS.md` de Laravel Boost, `pint.json`, `phpstan.neon`, `openapi/`, `lang/es`) |
+| `src/<Contexto>/<Módulo>/{Domain,Application,Infrastructure}` (por ejemplo `src/Catalog/Dishes`) | La misma forma para cada módulo de Archivum (por ejemplo `src/Scheduling/Appointments`, con los contextos de la sección 4 de `docs/especificacion.md`) |
+| `Domain/{Contracts,Entities,Exceptions,ValueObjects}` | Las mismas subcarpetas |
+| `Application/{DTOs,UseCases}` y, si hace falta, `Application/Contracts` | Las mismas subcarpetas |
+| `Infrastructure/Http/{Controllers,Requests,Resources,routes.php}`, `Infrastructure/Persistence/{Models,Repositories}` y `<Módulo>ServiceProvider.php` | Los mismos archivos y carpetas |
+| `src/Shared` (`Http/Problem`, `Http/Middleware`, `Tenancy`, `OpenApi`) | `src/Shared` con las mismas piezas |
+| `database/roles.sql`, `migrations`, `seeders`, `factories` | Lo mismo, con los roles `archivum_owner` y `archivum_app` |
+| `tests/{Unit,Feature,Architecture,Support}` | Las mismas carpetas, escritas con Pest |
+| `docs/architecture.md`, `database.md`, `data-model.md`, `ubiquitous-language.md`, `patterns.md` y `docs/adr/NNNN-titulo.md` | Los mismos documentos, con las decisiones de Archivum |
+| `.github/workflows/ci.yml`, `dependabot.yml`, `pull_request_template.md`, `ISSUE_TEMPLATE/historia-de-usuario.md` | Los mismos archivos, más el job de `archivum-web` en CI |
+| README raíz: contenido, arquitectura, estado, puesta en marcha, forma de trabajo e idioma | Las mismas secciones, más **Uso de IA** |
+
+Al empezar un issue, se abre en el repo guía el módulo o archivo más parecido y se sigue su forma: nombres, capas, pruebas y documentación.
+
+Diferencias decididas que el repo guía no cambia:
+
+- Pruebas con Pest (el repo guía usa PHPUnit) y cliente web en Vue 3 con TypeScript, porque así lo exige el enunciado.
+- Las etiquetas de corte son las de este proyecto (`avance-1`, `investigacion-1`, `avance-2`, `investigacion-2`, `entrega-final`, `extra`) y no `clase-NN`. Las etiquetas de git de entrega son `v-avance1`, `v-avance2` y `v-final`.
+- Los issues citan las reglas R1–R56 de `docs/especificacion.md` y son al menos tan descriptivos como los del repo guía en cada sección.
+
+**Solo lectura.** Está prohibido modificar el repo guía de cualquier forma: ni push, ni ramas, ni issues, ni pull requests, ni comentarios, ni etiquetas, ni milestones, ni reacciones.
 
 - Se clona con `--depth 1` en una carpeta temporal fuera de este repo y se le quita el remoto (`git remote remove origin`).
 - Con `gh` solo se hacen lecturas sobre él. Ningún comando que escriba en GitHub lleva ese repositorio como destino.
