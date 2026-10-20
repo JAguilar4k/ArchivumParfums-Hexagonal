@@ -30,7 +30,7 @@ En desarrollo no hace falta ejecutarlo a mano: `composer install` llama a `php a
 
 Las contraseñas nunca se versionan: quedan en el `.env` de cada integrante, que tampoco se versiona.
 
-La primera migración, `0000_00_00_000000_grant_privileges_to_the_application_role`, otorga al rol de la aplicación, con `ALTER DEFAULT PRIVILEGES`, lectura y escritura sobre toda tabla y secuencia que el dueño cree después. Ninguna tabla nueva necesita un paso manual. `DatabaseRolesTest` comprueba que `archivum_app` no tiene atributos elevados, no es dueño de ningún objeto, puede leer y escribir en toda tabla y no puede crear, alterar ni borrar tablas.
+La primera migración, `0001_01_01_000000_grant_privileges_to_the_application_role`, otorga al rol de la aplicación, con `ALTER DEFAULT PRIVILEGES`, lectura y escritura sobre toda tabla y secuencia que el dueño cree después. Ninguna tabla nueva necesita un paso manual. `DatabaseRolesTest` comprueba que `archivum_app` no tiene atributos elevados, no es dueño de ningún objeto, puede leer y escribir en toda tabla y no puede crear, alterar ni borrar tablas.
 
 ### Por qué las migraciones corren con `--database=pgsql_admin`
 
@@ -66,6 +66,8 @@ La aplicación genera el identificador antes de guardar, con el objeto de valor 
 
 Las excepciones a las llaves con `business_id`, como la llave única global `members(user_id)` o las foráneas hacia `users`, se justifican en `docs/data-model.md`.
 
+`personal_access_tokens.id` es `bigint` y no `uuid`: la tabla pertenece a Sanctum, el token que recibe el cliente tiene la forma `<id>|<secreto>` y Sanctum busca la fila por ese número, así que no es un identificador del negocio. Tampoco tiene llave foránea a `users`, porque Sanctum relaciona el token con su dueño por `tokenable_type` y `tokenable_id`, y un token cuya cuenta ya no existe no autentica a nadie.
+
 ## Objetos programables
 
 El constructor de esquemas de Laravel no cubre funciones, procedimientos, triggers, políticas ni vistas. Se crean dentro de una migración con `DB::statement()` o `DB::unprepared()`, y su `down()` los elimina.
@@ -77,6 +79,8 @@ El constructor de esquemas de Laravel no cubre funciones, procedimientos, trigge
 | Trigger | `trg_` | `BEFORE` por fila para validar o completar; `AFTER` por fila para propagar a otras tablas |
 | Vista | `v_` | `security_invoker = true`, para que apliquen las políticas de quien consulta |
 | Vista materializada | `mv_` | Índice único para refrescar con `CONCURRENTLY`; se consulta a través de una vista |
+| Política | `<tabla>_business_isolation` | Una por tabla de una tienda, con la misma expresión, `business_id = NULLIF(current_setting('app.business_id', true), '')::uuid`, en `USING` y `WITH CHECK` |
+| Política de lectura | `<tabla>_definer_read` | `FOR SELECT TO archivum_owner USING (true)`, solo en las tablas que lee una función `SECURITY DEFINER` |
 
 ## Extensiones
 
@@ -90,7 +94,80 @@ Se crea con `CREATE EXTENSION IF NOT EXISTS` y ninguna reversión la borra, porq
 
 Es la segunda barrera del aislamiento entre tiendas. La primera está en el código: el puerto `BusinessContext` dice a qué tienda pertenece la operación y cada repositorio filtra por `business_id`. Si una consulta olvida ese filtro, PostgreSQL igual devuelve solo las filas de la tienda en curso.
 
-La forma de las políticas se documenta en esta sección con #32.
+### Qué protege
+
+Toda tabla con `business_id` tiene la seguridad a nivel de fila habilitada y forzada, con la política `<tabla>_business_isolation`. Hoy son `members` y `customers`; la migración `enable_row_level_security_on_business_tables` las protege:
+
+```sql
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers FORCE ROW LEVEL SECURITY;
+CREATE POLICY customers_business_isolation ON customers
+    USING (business_id = NULLIF(current_setting('app.business_id', true), '')::uuid)
+    WITH CHECK (business_id = NULLIF(current_setting('app.business_id', true), '')::uuid);
+```
+
+| Parte | Qué hace |
+|---|---|
+| `ENABLE ROW LEVEL SECURITY` | Aplica las políticas a todo rol que no sea el dueño de la tabla; sin una política que lo permita, no se ve ninguna fila |
+| `FORCE ROW LEVEL SECURITY` | Las aplica también al dueño, `archivum_owner` |
+| `USING` | Decide qué filas existentes se pueden leer, actualizar o borrar |
+| `WITH CHECK` | Valida cada fila insertada o modificada: no se puede crear ni mover una fila a otra tienda |
+| `current_setting('app.business_id', true)` | Lee la tienda de la transacción; con `true` devuelve `NULL` en lugar de fallar si la variable no existe |
+| `NULLIF(..., '')` | Convierte el texto vacío en `NULL`; `business_id = NULL` nunca es verdadero, así que sin tienda no se ve ninguna fila |
+
+Una escritura que no cumple `WITH CHECK` falla con el SQLSTATE `42501` y el mensaje `new row violates row-level security policy`. Un `UPDATE` o un `DELETE` sin tienda no falla: no encuentra filas.
+
+### Cómo se fija la tienda
+
+La tienda vive en la variable `app.business_id` y se fija con `set_config('app.business_id', ?, true)`. El tercer argumento la limita a la transacción en curso: al confirmar o deshacer, desaparece, y una conexión reutilizada nunca hereda la tienda de la petición anterior. Después de su primera transacción, la variable de esa conexión queda como texto vacío y no como `NULL`; por eso la política usa `NULLIF`.
+
+`BusinessTransaction`, en `Src\Shared\Infrastructure\Tenancy`, abre una transacción y fija la tienda antes de cualquier consulta. El middleware `business` la usa con el adaptador de `BusinessContext` de cada grupo de rutas:
+
+| Rutas | Middleware | Tienda de la transacción |
+|---|---|---|
+| Panel, `/api/v1/panel` | `auth:sanctum` y `business:staff` | La de la persona del personal autenticada |
+| Públicas, `/api/v1/tiendas/{tienda}` | `business:route` | La del slug de la URL |
+| Un recurso del cliente, `/api/v1/cuenta/...` | `auth:sanctum` y `business:account` | La del recurso, si es de la cuenta autenticada |
+| Un listado del cliente, `/api/v1/cuenta/...` | `auth:sanctum` | Cada tienda donde la cuenta es cliente, una transacción por tienda con `eachBusiness()` |
+
+Como el dueño de las tablas también está sujeto a las políticas, los sembradores escriben el personal y los clientes de cada tienda de demostración dentro de `BusinessTransaction`, y el comando `archivum:create-business` (#27) fija la tienda nueva antes de escribir a su dueño en `members`. En las pruebas cada fábrica fija la tienda de su fila antes de insertarla, con el trait `CreatesRowsOfABusiness`, y el trait `Tests\Support\Shared\ScopesQueriesToBusiness` fija la tienda de las consultas de una prueba. `businesses` y `users` no tienen política, así que se escriben sin fijar una tienda.
+
+### Funciones que leen sin tienda
+
+Hay preguntas que se responden antes de saber la tienda: al ingresar, de qué tienda es una persona del personal; en las rutas del cliente, en qué tiendas es cliente una cuenta y de qué tienda es uno de sus recursos. Las responden tres funciones:
+
+| Función | Devuelve | La usa |
+|---|---|---|
+| `fn_member_business(user_id)` | La tienda y el rol de la persona del personal | `PostgresMemberships`, al ingresar y en el panel |
+| `fn_customer_businesses(user_id)` | Las tiendas donde la cuenta tiene fila en `customers` | Los listados de `/api/v1/cuenta` |
+| `fn_customer_resource_business(tipo, id, user_id)` | La tienda de un recurso propio, o `NULL` si es de otro cliente o no existe | Las rutas de un recurso de `/api/v1/cuenta` |
+
+Las tres son `SECURITY DEFINER` con `search_path` vacío y nombres calificados, propiedad de `archivum_owner` y con `EXECUTE` solo para `archivum_app`. Devuelven identificadores y el rol, nunca filas completas. Como `FORCE` también somete a `archivum_owner`, las tablas que consultan agregan la política de solo lectura `<tabla>_definer_read`, `FOR SELECT TO archivum_owner USING (true)`; `archivum_app` sigue sin ver filas sin tienda.
+
+`fn_customer_resource_business` acepta una lista cerrada de tipos y rechaza cualquier otro con el SQLSTATE `22023`. Hoy solo conoce `customer`, la ficha del cliente en una tienda; cada esquema con recursos del cliente agrega el suyo a la función, al enum `CustomerResourceType` y a `CustomerBusinessContext::RESOURCES`: `appointment` con #59 y `order` con #78. El mecanismo está registrado en el [ADR 0011](adr/0011-customer-routes-resolve-the-business-through-definer-functions.md).
+
+`php artisan migrate:fresh` borra las tablas pero no las funciones. Por eso cada migración elimina sus funciones antes de crearlas.
+
+### Excepciones
+
+| Tabla | Por qué no tiene política |
+|---|---|
+| `users` | No tiene `business_id`: una cuenta puede ser cliente de varias tiendas, y el ingreso la busca por su correo antes de saber la tienda |
+| `businesses` | No tiene `business_id`: cada fila es una tienda, y las rutas públicas la buscan por el slug de la URL |
+| `personal_access_tokens` | No tiene `business_id`: el token pertenece a la cuenta |
+
+### Llaves únicas y foráneas
+
+PostgreSQL revisa las llaves únicas, las restricciones de exclusión y las llaves foráneas sin aplicar las políticas. Por eso todas incluyen `business_id`. Una llave única sin la tienda rechazaría un valor que ya usa otra tienda y revelaría que existe; una llave foránea sin la tienda permitiría que una fila apunte a la de otra tienda.
+
+`BusinessKeysTest` lee `pg_constraint` y `pg_index` y falla si una de esas llaves no incluye `business_id`, salvo una lista de excepciones que `docs/data-model.md` (#35) justifica: la llave única global `members(user_id)` (una tienda por persona del personal) y las foráneas de `members` y `customers` hacia `users`.
+
+### Cómo agregar una tabla de una tienda
+
+1. La tabla lleva `business_id`, y sus llaves únicas y foráneas lo incluyen.
+2. Una migración habilita y fuerza la seguridad a nivel de fila y crea la política `<tabla>_business_isolation` con `business_id = NULLIF(current_setting('app.business_id', true), '')::uuid` en `USING` y en `WITH CHECK`; su `down()` deshace los tres pasos.
+3. Las rutas que la usan pasan por el middleware `business`, y su fábrica usa el trait `CreatesRowsOfABusiness`.
+4. La tabla se suma a `protectedTables()` y su modelo a `protectedModels()` en `RowLevelSecurityTest`, que crea con la fábrica de cada modelo una fila en cada una de dos tiendas, revisa el catálogo de PostgreSQL y falla si una tabla con `business_id` no tiene la seguridad habilitada, forzada y con su política, o si falta en esas listas.
 
 ## Reparto de responsabilidades
 

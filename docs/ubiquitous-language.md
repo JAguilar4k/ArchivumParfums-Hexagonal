@@ -21,11 +21,33 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Negocio | Código | Base de datos | API |
 |---|---|---|---|
 | Tienda | `Business` | `businesses` | `tiendas` |
+| Nombre | `BusinessName`, `UserName` | `name` | `nombre` |
+| Slug | `BusinessSlug` | `businesses.slug` | `slug`, `{tienda}` en las rutas públicas |
+| Zona horaria | `BusinessTimezone` | `businesses.timezone` | `zona_horaria` |
+| Lugar de la cita | `AppointmentPlace` | `businesses.location_text` | `lugar_cita` |
+| Ajustes de la tienda | `BusinessSettings` | `businesses.settings` | `ajustes` |
+| Margen por botella | `bottleMarginColones` | `settings.bottle_margin_colones` | `margen_botella` |
+| Tamaños de decant | `decantSizesMl` | `settings.decant_sizes_ml` | `tamanos_decant_ml` |
+| Anticipación mínima | `minimumNoticeHours` | `settings.minimum_notice_hours` | `anticipacion_minima_horas` |
+| Horizonte de reserva | `bookingHorizonDays` | `settings.booking_horizon_days` | `horizonte_reserva_dias` |
+| Plazo para cambiar la cita | `appointmentChangeCutoffHours` | `settings.appointment_change_cutoff_hours` | `plazo_cambio_cita_horas` |
+| Apartado de la lista de espera | `waitlistHoldHours` | `settings.waitlist_hold_hours` | `apartado_lista_espera_horas` |
+| Vencimiento sin pago | `unpaidExpiryMinutes` | `settings.unpaid_expiry_minutes` | `vencimiento_sin_pago_minutos` |
+| Recordatorios | `reminderHours` | `settings.reminder_hours` | `recordatorios_horas` |
+| Pasarela por defecto | `defaultGateway` | `settings.default_gateway` | `pasarela_por_defecto` |
+| Tipo de cambio | `usdExchangeRate` | `settings.usd_exchange_rate` | `tipo_cambio_usd` |
 | Personal | `Member` | `members` | `personal` |
-| Dueño | `Owner` | — | — |
-| Colaborador | `Staff` | — | — |
-| Cliente | `Customer` | `customers` | — |
+| Dueño | `Owner` | — | `dueno` |
+| Colaborador | `Staff` | — | `colaborador` |
+| Cliente | `Customer` | `customers` | `cliente` |
 | Visitante | `Visitor` | — | — |
+| Cuenta | `User` | `users` | `cuenta` |
+| Correo | `Email` | `email` | `correo` |
+| Contraseña | `PlainPassword` | `password`, solo el hash | `contrasena` |
+| Sesión | `StartSession`, `EndSession` | `personal_access_tokens` | `sesiones` |
+| Token de acceso | `StartedSession` | `personal_access_tokens.token`, solo el hash | `token` |
+| Dispositivo | `deviceName` | `personal_access_tokens.name` | `dispositivo` |
+| Rol | `AccountRole` | `members.role` | `rol` |
 | Servicio | `Service` | `services` | `servicios` |
 | Horario de la tienda | `BusinessHours` | `business_hours` | `horario` |
 | Horario de atención | `StaffSchedule` | `staff_schedules` | `horario` (bajo `personal/{persona}`) |
@@ -50,7 +72,9 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Línea de la orden de compra | `PurchaseOrderLine` | `purchase_order_lines` | `lineas` |
 | Recomendación | `Recommendation` | — | `recomendaciones` |
 
-El dueño y el colaborador son los dos roles del personal: en la base son los valores `owner` y `staff` de `members.role`.
+El dueño y el colaborador son los dos roles del personal: en la base son los valores `owner` y `staff` de `members.role`. Una cuenta que no está en el personal de ninguna tienda es cliente. En la API, `rol` vale `dueno`, `colaborador` o `cliente`.
+
+Los ajustes de la tienda son claves de `businesses.settings`: la base guarda solo las que difieren de los valores por defecto de la [sección 10 de la especificación](especificacion.md#10-valores-por-defecto).
 
 ## Estados
 
