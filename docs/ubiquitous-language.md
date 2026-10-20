@@ -29,7 +29,7 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Cuenta | `User` | `users` | `cuenta` |
 | Correo | `Email` | `email` | `correo` |
 | Contraseña | `PlainPassword` | `password`, solo el hash | `contrasena` |
-| Sesión | `StartSession` | `personal_access_tokens` | `sesiones` |
+| Sesión | `StartSession`, `EndSession` | `personal_access_tokens` | `sesiones` |
 | Token de acceso | `StartedSession` | `personal_access_tokens.token`, solo el hash | `token` |
 | Dispositivo | `deviceName` | `personal_access_tokens.name` | `dispositivo` |
 | Rol | `AccountRole` | `members.role` | `rol` |

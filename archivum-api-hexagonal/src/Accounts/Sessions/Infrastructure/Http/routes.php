@@ -11,6 +11,7 @@ Route::prefix('sesiones')
     ->controller(SessionController::class)
     ->group(function (): void {
         Route::post('/', 'store')->name('store');
+        Route::delete('actual', 'destroy')->middleware('auth:sanctum')->name('destroy');
     });
 
 Route::prefix('cuenta')

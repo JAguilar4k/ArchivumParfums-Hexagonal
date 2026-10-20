@@ -119,6 +119,8 @@ El modelo `UserModel` vive en la infraestructura de `Accounts/Users`, extiende e
 
 El caso de uso `StartSession` emite el token por el puerto `TokenIssuer`. Su adaptador, `SanctumTokenIssuer`, crea un token de Sanctum con el nombre del dispositivo, y Sanctum guarda solo su hash SHA-256. `GetCurrentAccount` pregunta el rol y la tienda de la cuenta al puerto `StaffMemberships`, en `Application/Contracts` del módulo. Su adaptador, `BusinessesStaffMemberships`, los obtiene con los casos de uso `FindMemberByAccount` de `Businesses/Members` y `FindBusiness` de `Businesses/Profile`; una cuenta que no está en el personal de ninguna tienda es cliente. El dominio y la aplicación de `Accounts/Sessions` no importan clases de `Businesses`: solo las importa ese adaptador.
 
+El caso de uso `EndSession` cierra la sesión por el puerto `TokenRevoker`. Su adaptador, `SanctumTokenRevoker`, borra la fila del token de la petición, así las demás sesiones de la cuenta siguen abiertas. El mismo puerto borra todos los tokens de una cuenta con `revokeAll`; lo usarán el cambio de rol y la desactivación del personal (#106) y la eliminación de la cuenta (#112).
+
 Las operaciones del personal preguntan su tienda al puerto `BusinessContext` de `Shared`. Sus adaptadores, que la toman de la sesión del personal o de la URL, llegan con #30.
 
 ## Aislamiento entre tiendas
