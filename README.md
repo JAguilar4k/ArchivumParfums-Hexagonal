@@ -39,7 +39,7 @@ Cada tienda ve solo sus datos gracias a dos barreras: el puerto `BusinessContext
 
 ## Estado
 
-Avance 1 está en curso y todavía no hay módulos cerrados. El proyecto base de la API, su configuración (PostgreSQL 18, zona horaria y español), la estructura hexagonal, la API bajo `/api/v1`, Pint, Larastan y la integración continua están en pull requests en revisión. El despliegue en una dirección pública está pendiente ([#21](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/21)). El trabajo está planificado en 29 milestones, uno por módulo, en el [tablero del proyecto](https://github.com/users/JAguilar4k/projects/4).
+Avance 1 está en curso. El proyecto base de la API, su configuración (PostgreSQL 18, zona horaria y español), la estructura hexagonal, la API bajo `/api/v1`, Pint, Larastan y la integración continua están en pull requests en revisión. El despliegue en una dirección pública está pendiente ([#21](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/21)). El trabajo está planificado en 29 milestones, uno por módulo, en el [tablero del proyecto](https://github.com/users/JAguilar4k/projects/4).
 
 | Corte | Fecha | Qué se entrega | Estado |
 | --- | --- | --- | --- |
@@ -49,7 +49,13 @@ Avance 1 está en curso y todavía no hay módulos cerrados. El proyecto base de
 | Investigación 2 | 25/11/2026 | Issues `investigacion-2`: auditoría cruzada (M14). | Pendiente |
 | Entrega final | 07/12/2026 | Issues `entrega-final`: paquetes, lista de espera, colas, avisos, agenda en vivo, proveedores y observabilidad, y los hallazgos de la auditoría corregidos. | Pendiente |
 
-Al cerrar un módulo se actualiza esta sección con lo que quedó listo.
+Módulos cerrados:
+
+| Módulo | Entrega |
+| --- | --- |
+| [M05 · Multi-inquilino y acceso del personal](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/5) | Tiendas y su personal, alta de tiendas y dueños por consola, perfil y ajustes de la tienda, ingreso y cierre de sesión con Sanctum, tienda de la sesión del personal o del slug de la URL, grupos de rutas por rol y aislamiento entre tiendas con dos barreras, la segunda con seguridad a nivel de fila. |
+
+Al cerrar un módulo se agrega su fila a esta tabla con lo que quedó listo.
 
 ## Puesta en marcha
 
