@@ -10,7 +10,11 @@ use Illuminate\Support\Str;
 use Src\Businesses\Profile\Domain\Contracts\BusinessRepository;
 use Src\Businesses\Profile\Domain\Entities\Business;
 use Src\Businesses\Profile\Domain\Exceptions\SlugAlreadyInUseException;
+use Src\Businesses\Profile\Domain\ValueObjects\AppointmentPlace;
+use Src\Businesses\Profile\Domain\ValueObjects\BusinessName;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessSettings;
+use Src\Businesses\Profile\Domain\ValueObjects\BusinessSlug;
+use Src\Businesses\Profile\Domain\ValueObjects\BusinessTimezone;
 use Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 
@@ -40,6 +44,38 @@ final readonly class EloquentBusinessRepository implements BusinessRepository
         } catch (UniqueConstraintViolationException) {
             throw SlugAlreadyInUseException::create();
         }
+    }
+
+    /** Find a business by its identity. */
+    public function find(BusinessId $id): ?Business
+    {
+        $model = BusinessModel::query()->find($id->value);
+
+        return $model === null ? null : Business::reconstitute(
+            new BusinessId($model->id),
+            new BusinessName($model->name),
+            new BusinessSlug($model->slug),
+            new BusinessTimezone($model->timezone),
+            ($model->location_text === null || trim($model->location_text) === '') ? null : new AppointmentPlace($model->location_text),
+            $this->settingsOf($model->settings),
+        );
+    }
+
+    /**
+     * Rebuild the settings from the stored changes; every setting not stored keeps its default.
+     *
+     * @param  array<string, mixed>  $stored
+     */
+    private function settingsOf(array $stored): BusinessSettings
+    {
+        $known = get_object_vars(BusinessSettings::defaults());
+        $changes = array_filter(
+            array_combine(array_map(Str::camel(...), array_keys($stored)), $stored),
+            fn (string $name): bool => array_key_exists($name, $known),
+            ARRAY_FILTER_USE_KEY,
+        );
+
+        return new BusinessSettings(...$changes);
     }
 
     /**

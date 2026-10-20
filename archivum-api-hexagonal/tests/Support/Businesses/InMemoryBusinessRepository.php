@@ -34,6 +34,12 @@ final class InMemoryBusinessRepository implements BusinessRepository
         $this->businesses[$business->id->value] = $business;
     }
 
+    /** Find a business by its identity. */
+    public function find(BusinessId $id): ?Business
+    {
+        return $this->businesses[$id->value] ?? null;
+    }
+
     /**
      * List the stored businesses.
      *

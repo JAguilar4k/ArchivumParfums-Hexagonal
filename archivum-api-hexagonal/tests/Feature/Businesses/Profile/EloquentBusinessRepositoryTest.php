@@ -12,6 +12,7 @@ use Src\Businesses\Profile\Domain\ValueObjects\BusinessSlug;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessTimezone;
 use Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel;
 use Src\Businesses\Profile\Infrastructure\Persistence\Repositories\EloquentBusinessRepository;
+use Src\Shared\Domain\ValueObjects\BusinessId;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 use function Pest\Laravel\assertDatabaseCount;
@@ -122,6 +123,46 @@ it('raises the domain error for a repeated slug and keeps the transaction usable
     expect(fn () => $repository->save(newBusiness($repository)))->toThrow(SlugAlreadyInUseException::class);
 
     assertDatabaseCount('businesses', 1);
+});
+
+it('reads a saved business back unchanged by its identity', function () {
+    $repository = new EloquentBusinessRepository;
+    $business = Business::reconstitute(
+        $repository->nextId(),
+        new BusinessName('ArchivumParfums'),
+        new BusinessSlug('archivumparfums'),
+        new BusinessTimezone(BusinessTimezone::DEFAULT),
+        new AppointmentPlace('Escazú, San Rafael'),
+        new BusinessSettings(interviewMarginColones: 7_000),
+    );
+
+    $repository->save($business);
+
+    expect($repository->find($business->id))->toEqual($business);
+});
+
+it('reads an absent or empty appointment place as null and saves it back as null', function (?string $place) {
+    $id = (string) DB::table('businesses')->insertGetId([
+        'name' => 'Tienda sin lugar configurado',
+        'slug' => 'sin-lugar',
+        'location_text' => $place,
+        'created_at' => '2026-10-18 10:00:00',
+        'updated_at' => '2026-10-18 10:00:00',
+    ]);
+    $repository = new EloquentBusinessRepository;
+
+    $business = $repository->find(new BusinessId($id)) ?? throw new RuntimeException('The fixture must exist.');
+    $repository->save($business);
+
+    expect($business->appointmentPlace)->toBeNull()
+        ->and(DB::table('businesses')->where('id', $id)->value('location_text'))->toBeNull();
+})->with(['absent' => null, 'empty text' => '']);
+
+it('finds nothing for an unknown identity', function () {
+    $repository = new EloquentBusinessRepository;
+    $repository->save(newBusiness($repository));
+
+    expect($repository->find($repository->nextId()))->toBeNull();
 });
 
 it('gives every new business a distinct time-ordered uuid', function () {

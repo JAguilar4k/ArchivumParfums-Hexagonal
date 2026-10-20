@@ -8,6 +8,7 @@ use Src\Accounts\Users\Domain\ValueObjects\Email;
 use Src\Accounts\Users\Domain\ValueObjects\UserName;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Accounts\Users\Infrastructure\Persistence\Repositories\EloquentUserRepository;
+use Src\Shared\Domain\ValueObjects\UserId;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 use function Pest\Laravel\assertDatabaseCount;
@@ -45,6 +46,21 @@ it('finds nothing for an unknown email', function () {
     UserModel::factory()->create();
 
     expect((new EloquentUserRepository)->findByEmail(new Email('nadie@archivumparfums.test')))->toBeNull();
+});
+
+it('reads a saved account back unchanged by its identity', function () {
+    $repository = new EloquentUserRepository;
+    $user = newAccount($repository, 'duena@archivumparfums.test');
+
+    $repository->save($user);
+
+    expect($repository->find($user->id))->toEqual($user);
+});
+
+it('finds nothing for an unknown identity', function () {
+    UserModel::factory()->create();
+
+    expect((new EloquentUserRepository)->find(new UserId('0192f0c4-0000-7000-8000-0000000000ff')))->toBeNull();
 });
 
 it('stores the hash the aggregate carries and hides it from serialization', function () {

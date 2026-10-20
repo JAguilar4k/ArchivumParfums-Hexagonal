@@ -66,6 +66,8 @@ La aplicación genera el identificador antes de guardar, con el objeto de valor 
 
 Las excepciones a las llaves con `business_id`, como la llave única global `members(user_id)` o las foráneas hacia `users`, se justifican en `docs/data-model.md`.
 
+`personal_access_tokens.id` es `bigint` y no `uuid`: la tabla pertenece a Sanctum, el token que recibe el cliente tiene la forma `<id>|<secreto>` y Sanctum busca la fila por ese número, así que no es un identificador del negocio. Tampoco tiene llave foránea a `users`, porque Sanctum relaciona el token con su dueño por `tokenable_type` y `tokenable_id`, y un token cuya cuenta ya no existe no autentica a nadie.
+
 ## Objetos programables
 
 El constructor de esquemas de Laravel no cubre funciones, procedimientos, triggers, políticas ni vistas. Se crean dentro de una migración con `DB::statement()` o `DB::unprepared()`, y su `down()` los elimina.

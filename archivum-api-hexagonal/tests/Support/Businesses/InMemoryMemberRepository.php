@@ -8,6 +8,7 @@ use Src\Businesses\Members\Domain\Contracts\MemberRepository;
 use Src\Businesses\Members\Domain\Entities\Member;
 use Src\Businesses\Members\Domain\Exceptions\AccountAlreadyOnStaffException;
 use Src\Shared\Domain\ValueObjects\MemberId;
+use Src\Shared\Domain\ValueObjects\UserId;
 
 final class InMemoryMemberRepository implements MemberRepository
 {
@@ -32,6 +33,12 @@ final class InMemoryMemberRepository implements MemberRepository
         }
 
         $this->members[$member->userId->value] = $member;
+    }
+
+    /** Find the membership of an account. */
+    public function findByUser(UserId $userId): ?Member
+    {
+        return $this->members[$userId->value] ?? null;
     }
 
     /**

@@ -7,6 +7,7 @@ namespace Src\Businesses\Members\Domain\Contracts;
 use Src\Businesses\Members\Domain\Entities\Member;
 use Src\Businesses\Members\Domain\Exceptions\AccountAlreadyOnStaffException;
 use Src\Shared\Domain\ValueObjects\MemberId;
+use Src\Shared\Domain\ValueObjects\UserId;
 
 interface MemberRepository
 {
@@ -19,4 +20,7 @@ interface MemberRepository
      * @throws AccountAlreadyOnStaffException
      */
     public function save(Member $member): void;
+
+    /** Find the membership of an account; an account belongs to the staff of one business at most. */
+    public function findByUser(UserId $userId): ?Member;
 }

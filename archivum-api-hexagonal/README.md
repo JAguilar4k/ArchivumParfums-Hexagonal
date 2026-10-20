@@ -102,10 +102,26 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/` | Cualquiera | Redirección temporal (302) a `/api/v1`, para que abrir el servidor en el navegador no dé 404. |
 | GET | `/up` | Cualquiera | Estado de la aplicación, fuera del prefijo `/api/v1`. |
 | GET | `/api/v1` | Cualquiera | Nombre y versión de la API. |
+| POST | `/api/v1/sesiones` | Cualquiera | Ingresa con `correo`, `contrasena` y el nombre del `dispositivo` y devuelve un token Bearer. |
+| GET | `/api/v1/cuenta` | Con token | Nombre, correo y rol de la cuenta (`dueno`, `colaborador` o `cliente`) y, para el personal, su tienda. |
 
 Las rutas sin versión, como `/api`, responden 404: toda ruta de la API lleva el prefijo `/api/v1`.
 
 Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial).
+
+El token de `POST /api/v1/sesiones` se muestra una sola vez y se envía en cada petición en el encabezado `Authorization: Bearer <token>`; cada ingreso crea un token nuevo con el nombre de su dispositivo, así cada sesión se distingue de las demás. Un correo inexistente y una contraseña incorrecta reciben la misma respuesta 401 `credenciales-invalidas`, sin indicar cuál dato falló, como en el proyecto guía. Los campos ausentes o mal formados responden 422 `datos-invalidos` con sus errores de validación. Sin token, o con uno inválido, las rutas protegidas responden 401 `no-autenticado`. Para ingresar con una cuenta de los [datos de demostración](#datos-de-demostración):
+
+```bash
+curl -X POST http://localhost:8000/api/v1/sesiones \
+  -H 'Content-Type: application/json' -H 'Accept: application/json' \
+  -d '{"correo": "duena@archivumparfums.test", "contrasena": "<ARCHIVUM_DEMO_PASSWORD>", "dispositivo": "Computadora"}'
+```
+
+La respuesta `201` trae el token en `data.token`. Con él se consulta la cuenta que ingresó:
+
+```bash
+curl http://localhost:8000/api/v1/cuenta -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
+```
 
 ## Datos de demostración
 
@@ -142,7 +158,7 @@ El código nunca lee variables de entorno directamente: lo hacen los archivos de
 ```
 app/         Arranque del framework
 bootstrap/   Rutas, middleware y proveedores de la aplicación
-config/      Configuración: aplicación, base de datos y colas
+config/      Configuración: aplicación, autenticación (auth.php, sanctum.php), base de datos y colas
 database/    Roles (roles.sql), migraciones, factories y seeders
 lang/        Mensajes al usuario en español, con el inglés como respaldo
 routes/      Punto de entrada de las rutas de cada módulo

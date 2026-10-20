@@ -1,0 +1,129 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Arr;
+use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
+use Tests\Support\RefreshDatabaseAsOwner;
+
+use function Pest\Laravel\assertDatabaseCount;
+use function Pest\Laravel\postJson;
+use function Pest\Laravel\seed;
+
+pest()->use(RefreshDatabaseAsOwner::class);
+
+const SESSION_PASSWORD = 'clave-de-demostracion';
+
+beforeEach(function () {
+    config(['archivum.demo_password' => SESSION_PASSWORD]);
+    seed();
+});
+
+/**
+ * Credentials of a demo account signing in from a computer, with some fields replaced.
+ *
+ * @param  array<string, mixed>  $overrides
+ * @return array<string, mixed>
+ */
+function sessionCredentials(array $overrides = []): array
+{
+    return [
+        'correo' => 'duena@archivumparfums.test',
+        'contrasena' => SESSION_PASSWORD,
+        'dispositivo' => 'Computadora',
+        ...$overrides,
+    ];
+}
+
+it('answers a bearer token named after the device for the owner, the advisor and a customer of the seeders', function (string $email) {
+    $response = postJson('/api/v1/sesiones', sessionCredentials(['correo' => $email, 'dispositivo' => 'Celular de la tienda']))
+        ->assertCreated()
+        ->assertJsonPath('data.tipo', 'Bearer');
+
+    $token = UserModel::query()->where('email', $email)->sole()->tokens()->sole();
+
+    expect(array_keys($response->json('data')))->toBe(['token', 'tipo'])
+        ->and($response->json('data.token'))->toStartWith($token->getKey().'|')
+        ->and($token->name)->toBe('Celular de la tienda');
+})->with([
+    'owner' => 'duena@archivumparfums.test',
+    'advisor' => 'asesor@archivumparfums.test',
+    'customer' => 'mariana@clientes.test',
+]);
+
+it('finds the account whatever the case of the email', function () {
+    postJson('/api/v1/sesiones', sessionCredentials(['correo' => 'Duena@ArchivumParfums.TEST']))
+        ->assertCreated();
+});
+
+it('gives every sign-in its own token, named after its device', function () {
+    postJson('/api/v1/sesiones', sessionCredentials(['correo' => 'mariana@clientes.test', 'dispositivo' => 'Celular']))->assertCreated();
+    postJson('/api/v1/sesiones', sessionCredentials(['correo' => 'mariana@clientes.test', 'dispositivo' => 'Computadora']))->assertCreated();
+
+    expect(UserModel::query()->where('email', 'mariana@clientes.test')->sole()->tokens()->orderBy('id')->pluck('name')->all())
+        ->toBe(['Celular', 'Computadora']);
+});
+
+it('answers an unknown email and a wrong password with the same 401 problem, without telling which one failed', function () {
+    $unknownEmail = postJson('/api/v1/sesiones', sessionCredentials(['correo' => 'nadie@archivumparfums.test']))
+        ->assertUnauthorized()
+        ->assertHeader('Content-Type', 'application/problem+json');
+    $wrongPassword = postJson('/api/v1/sesiones', sessionCredentials(['contrasena' => 'otra-clave']))
+        ->assertUnauthorized()
+        ->assertHeader('Content-Type', 'application/problem+json');
+
+    expect($unknownEmail->json('detail'))->toBe('El correo o la contraseña no son correctos.')
+        ->and(Arr::except($unknownEmail->json(), 'instance'))->toBe(Arr::except($wrongPassword->json(), 'instance'))
+        ->and($unknownEmail->json('type'))->toEndWith('/problemas/credenciales-invalidas')
+        ->and($unknownEmail->json('title'))->toBe('Credenciales inválidas')
+        ->and($unknownEmail->json('status'))->toBe(401);
+    assertDatabaseCount('personal_access_tokens', 0);
+});
+
+it('does not trim the password', function () {
+    postJson('/api/v1/sesiones', sessionCredentials(['contrasena' => ' '.SESSION_PASSWORD.' ']))
+        ->assertUnauthorized();
+});
+
+it('refuses incompatible passwords equally for existing and unknown accounts', function (string $password) {
+    $existing = postJson('/api/v1/sesiones', sessionCredentials(['contrasena' => $password]))
+        ->assertUnauthorized()
+        ->assertHeader('Content-Type', 'application/problem+json');
+    $unknown = postJson('/api/v1/sesiones', sessionCredentials(['correo' => 'nadie@archivumparfums.test', 'contrasena' => $password]))
+        ->assertUnauthorized()
+        ->assertHeader('Content-Type', 'application/problem+json');
+
+    expect(Arr::except($existing->json(), 'instance'))->toBe(Arr::except($unknown->json(), 'instance'))
+        ->and($unknown->json('detail'))->toBe('El correo o la contraseña no son correctos.')
+        ->and($unknown->json('type'))->toEndWith('/problemas/credenciales-invalidas');
+    assertDatabaseCount('personal_access_tokens', 0);
+})->with([
+    'embedded null byte' => "clave\0incompatible",
+    'long password' => str_repeat('x', 100),
+]);
+
+it('refuses each missing or malformed field with its message in spanish', function (string $field, mixed $value, string $message) {
+    $response = postJson('/api/v1/sesiones', sessionCredentials([$field => $value]))
+        ->assertUnprocessable()
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonPath('type', rtrim((string) config('app.url'), '/').'/problemas/datos-invalidos')
+        ->assertJsonPath("errores.{$field}.0", $message);
+
+    expect(array_keys($response->json('errores')))->toBe([$field]);
+})->with([
+    'missing email' => ['correo', null, 'El campo correo es obligatorio.'],
+    'malformed email' => ['correo', 'duena.archivumparfums.test', 'El campo correo debe ser un correo electrónico válido.'],
+    'missing password' => ['contrasena', null, 'El campo contraseña es obligatorio.'],
+    'missing device' => ['dispositivo', null, 'El campo dispositivo es obligatorio.'],
+    'device too long' => ['dispositivo', str_repeat('a', 101), 'El campo dispositivo no debe tener más de 100 caracteres.'],
+]);
+
+it('reports every missing field of an empty body', function () {
+    $response = postJson('/api/v1/sesiones', [])->assertUnprocessable();
+
+    expect(array_keys($response->json('errores')))->toBe(['correo', 'contrasena', 'dispositivo']);
+});
+
+it('accepts a device name of up to 100 characters', function () {
+    postJson('/api/v1/sesiones', sessionCredentials(['dispositivo' => str_repeat('a', 100)]))->assertCreated();
+});
