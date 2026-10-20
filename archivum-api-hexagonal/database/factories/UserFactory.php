@@ -4,22 +4,23 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
+use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 
 /**
- * @extends Factory<User>
+ * @extends Factory<UserModel>
  */
-class UserFactory extends Factory
+final class UserFactory extends Factory
 {
-    /**
-     * The current password being used by the factory.
-     */
-    protected static ?string $password;
+    public const string PASSWORD = 'password';
+
+    protected $model = UserModel::class;
+
+    private static ?string $passwordHash = null;
 
     /**
-     * Define the model's default state.
+     * Default state of a fictitious account.
      *
      * @return array<string, mixed>
      */
@@ -27,8 +28,8 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
-            'password' => static::$password ??= Hash::make('password'),
+            'email' => fake()->unique()->userName().'@archivum.test',
+            'password' => self::$passwordHash ??= Hash::make(self::PASSWORD),
         ];
     }
 }

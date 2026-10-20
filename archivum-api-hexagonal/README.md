@@ -40,7 +40,7 @@ Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macO
 
    que sí la pide. Si el superusuario tiene otro nombre, se indica con `--superuser=nombre`; en un script, la contraseña puede venir de la variable de entorno `DB_SUPERUSER_PASSWORD`.
 
-4. Volver a ejecutar `composer install` no borra nada: conserva la clave, aplica solo las migraciones pendientes y completa los datos de demostración que falten sin modificar los existentes. La siembra corre en una transacción: si falla, se revierte y se puede reintentar después de corregir el error, aunque las migraciones ya estén aplicadas. En la integración continua, con `composer install --no-dev` o con `APP_ENV` distinto de `local`, `archivum:install` no hace nada.
+4. Volver a ejecutar `composer install` conserva la clave y aplica solo las migraciones pendientes. La siembra automática se ejecuta únicamente cuando la tabla `users` está vacía; si ya hay cuentas, no vuelve a sembrar ni cambia sus datos. La carga manual sigue disponible con `php artisan db:seed` para restaurar las filas de demostración que falten. La siembra corre en una transacción: si falla, se revierte y se puede reintentar después de corregir el error, aunque las migraciones ya estén aplicadas. En la integración continua, con `composer install --no-dev` o con `APP_ENV` distinto de `local`, `archivum:install` no hace nada.
 
 5. Levantar el servidor:
 
@@ -73,8 +73,27 @@ La aplicación se conecta con `archivum_app`, que no puede cambiar el esquema; l
 | `composer analyse` | Análisis estático con Larastan en nivel 8. |
 | `composer openapi` | Regenera el contrato `openapi/v1.json`. Llega con #50. |
 | `composer audit` | Revisa vulnerabilidades conocidas en las dependencias. |
+| `php artisan archivum:create-business` | Da de alta una tienda y la cuenta de su dueño. Ver [Dar de alta una tienda](#dar-de-alta-una-tienda). |
 
 Antes de abrir un pull request deben pasar `composer lint`, `composer analyse` y `composer test`. Si cambió un endpoint, hay que regenerar el contrato con `composer openapi` y versionarlo. La integración continua ejecuta los mismos pasos, más `composer audit`, en cada pull request.
+
+## Dar de alta una tienda
+
+La API no ofrece rutas para crear tiendas: se dan de alta desde la consola. Un solo comando crea la tienda, con los ajustes por defecto de la sección 10 de la [especificación](../docs/especificacion.md#10-valores-por-defecto), y la cuenta de su dueño; si alguno de los dos pasos falla, no queda ninguno.
+
+```bash
+php artisan archivum:create-business "ArchivumParfums" archivumparfums "Valeria Solano Ruiz" duena@archivumparfums.test
+```
+
+| Parámetro | Qué es |
+|---|---|
+| `name` | Nombre de la tienda, de 100 caracteres como máximo. |
+| `slug` | Identificador de la tienda en las direcciones públicas: minúsculas, dígitos y guiones. No puede repetirse. |
+| `owner-name` | Nombre del dueño. |
+| `owner-email` | Correo del dueño, con el que ingresa. No puede pertenecer a otra cuenta. |
+| `--password=` | Contraseña del dueño, de 8 caracteres como mínimo. Si se omite, el comando la pide sin mostrarla; si el terminal no puede ocultar la entrada, el comando falla y debe usarse `--password`. |
+
+El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 1 si rechaza algún dato, con el motivo en pantalla. Sin `--password` y sin terminal interactiva rechaza la contraseña. Una contraseña escrita en `--password` queda en el historial del terminal; para uso manual conviene dejar que el comando la pida.
 
 ## Endpoints
 
@@ -90,7 +109,18 @@ Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista p
 
 ## Datos de demostración
 
-`php artisan db:seed` crea una cuenta ficticia, `test@example.com`, con la contraseña `password`. Las tiendas de demostración y su personal llegan con #27. Todos los datos de los sembradores son ficticios y sus contraseñas son conocidas: `db:seed` nunca se ejecuta en producción.
+`php artisan db:seed` crea dos tiendas ficticias, solo para desarrollo local y la demostración en clase: `BusinessesSeeder` siembra las tiendas, `StaffSeeder` su personal y `CustomersSeeder` sus clientes, cada tienda en una transacción que la fija. Todas las cuentas usan la contraseña de `ARCHIVUM_DEMO_PASSWORD` en `.env`; sin ella, `db:seed` se detiene sin crear nada. Ejecutarlo otra vez no duplica nada y repone las filas de demostración que falten.
+
+| Tienda | Cuenta | Papel |
+|---|---|---|
+| ArchivumParfums (`archivumparfums`) | `duena@archivumparfums.test` | Dueña; atiende citas. |
+| | `coduena@archivumparfums.test` | Co-dueña; no atiende citas. |
+| | `asesor@archivumparfums.test` | Colaborador; atiende citas. |
+| | `mariana@clientes.test`, `carlos@clientes.test`, `sofia@clientes.test` | Clientes. |
+| Esencias del Norte (`esencias-del-norte`) | `dueno@esenciasdelnorte.test` | Dueño; atiende citas. |
+| | `lucia@clientes.test`, `sofia@clientes.test` | Clientes. `sofia@clientes.test` es cliente de las dos tiendas. |
+
+Las tiendas tienen identificadores fijos: `0192f0c4-0000-7000-8000-000000000001` es ArchivumParfums y `0192f0c4-0000-7000-8000-000000000002` es Esencias del Norte. La segunda tienda sirve para demostrar el aislamiento entre tiendas. Los nombres son inventados, los correos usan el dominio reservado `.test` y los teléfonos son de prueba. Como las contraseñas de los sembradores son conocidas, `db:seed` nunca se ejecuta en producción.
 
 ## Variables de entorno
 
@@ -103,6 +133,7 @@ Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista p
 | `DB_USERNAME`, `DB_PASSWORD` | Rol de la aplicación, `archivum_app`, y su contraseña. Atiende las peticiones. |
 | `DB_ADMIN_USERNAME`, `DB_ADMIN_PASSWORD` | Rol dueño del esquema, `archivum_owner`, y su contraseña. Lo usa la conexión `pgsql_admin` para migrar. |
 | `DB_SSLMODE` | Modo SSL de las dos conexiones. Por defecto, `prefer`. |
+| `ARCHIVUM_DEMO_PASSWORD` | Contraseña de las cuentas de los [datos de demostración](#datos-de-demostración). Se deja vacía fuera del desarrollo local. |
 
 El código nunca lee variables de entorno directamente: lo hacen los archivos de `config/`, y Larastan falla si una llamada a `env()` aparece fuera de ellos. `.env` nunca se versiona; `.env.example` se actualiza en el mismo pull request que agrega una variable.
 
