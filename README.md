@@ -103,6 +103,7 @@ El enunciado permite usar asistentes de IA con una condición: cada integrante d
 | Pruebas y correcciones heredadas (#13) | Codex | Fixtures acotados a la tienda con RLS, migración UUID sin pérdida de datos, rechazo bcrypt, perfiles sin lugar de cita, estados HTTP y regresiones automáticas. La migración UUID se retiró el 19/10, por decisión de Julián, cuando `users` volvió a crearse en su propia migración, como en la guía. | Pendiente de revisión humana del equipo. |
 | Matriz de roles (#13) | Codex | Corrección del cambio de usuario autenticado a visitante en el helper de pruebas y regresiones para los tres roles autenticados. | Verificación automatizada; revisión humana pendiente. |
 | Pruebas de concurrencia (#13) | Codex | Barrera de inicio que espera a todos los procesos, limpieza de recursos y regresiones de solapamiento real y fallo de una operación. | Cinco pruebas y trece aserciones automáticas pasan en PostgreSQL 18; revisión humana pendiente. |
+| Integración del instalador con las cuentas de demostración (#27, #215) | Codex | Siembra automática solo cuando no hay cuentas; conserva los datos editados al repetir la instalación y mantiene la carga manual de los datos de demostración. | La regresión existente de `InstallCommandTest` comprueba que una segunda instalación conserva los datos; revisión humana pendiente. |
 
 Cómo se mantiene:
 
