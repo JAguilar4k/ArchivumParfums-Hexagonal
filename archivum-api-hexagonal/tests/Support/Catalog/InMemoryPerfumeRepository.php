@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Support\Catalog;
 
+use Src\Catalog\Perfumes\Application\Contracts\PerfumeSearch;
+use Src\Catalog\Perfumes\Application\DTOs\PerfumePage;
 use Src\Catalog\Perfumes\Domain\Contracts\PerfumeRepository;
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
 use Src\Catalog\Perfumes\Domain\Exceptions\DuplicatePerfumeException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeId;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeVariantId;
 
-final class InMemoryPerfumeRepository implements PerfumeRepository
+final class InMemoryPerfumeRepository implements PerfumeRepository, PerfumeSearch
 {
     /** @var array<string, Perfume> */
     private array $perfumes = [];
@@ -51,6 +53,20 @@ final class InMemoryPerfumeRepository implements PerfumeRepository
     public function findForUpdate(PerfumeId $id): ?Perfume
     {
         return $this->find($id);
+    }
+
+    /** Search the stored perfumes by brand and name, ordered like the database does, and page the result. */
+    public function search(?string $text, int $page, int $perPage): PerfumePage
+    {
+        $found = array_values(array_filter(
+            $this->perfumes,
+            fn (Perfume $perfume): bool => $text === null
+                || str_contains(mb_strtolower($perfume->brand->value), mb_strtolower($text))
+                || str_contains(mb_strtolower($perfume->name->value), mb_strtolower($text)),
+        ));
+        usort($found, fn (Perfume $a, Perfume $b): int => [mb_strtolower($a->brand->value), mb_strtolower($a->name->value)] <=> [mb_strtolower($b->brand->value), mb_strtolower($b->name->value)]);
+
+        return new PerfumePage(array_slice($found, ($page - 1) * $perPage, $perPage), count($found), $page, $perPage);
     }
 
     /** Count the stored perfumes. */
