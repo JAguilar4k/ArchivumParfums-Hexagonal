@@ -13,7 +13,7 @@ final class PerfumeVariant
     /** Hold the full state of a presentation. */
     private function __construct(
         public readonly PerfumeVariantId $id,
-        public readonly SizeMl $size,
+        public private(set) SizeMl $size,
         public private(set) ?Colones $salePrice,
         public private(set) ?Colones $manualPrice,
         public private(set) bool $isActive,
@@ -34,6 +34,12 @@ final class PerfumeVariant
         bool $isActive,
     ): self {
         return new self($id, $size, $salePrice, $manualPrice, $isActive);
+    }
+
+    /** Change the milliliters; the perfume checks that no other presentation has them. */
+    public function resize(SizeMl $size): void
+    {
+        $this->size = $size;
     }
 
     /** Change the calculated price and the manual price of the owner. */

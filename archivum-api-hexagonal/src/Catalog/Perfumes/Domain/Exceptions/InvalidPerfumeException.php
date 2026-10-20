@@ -19,10 +19,4 @@ final class InvalidPerfumeException extends InvalidValueException
     {
         return new self('catalog.duplicate_tag');
     }
-
-    /** Build the exception for a presentation that the perfume does not contain. */
-    public static function variantNotFound(): self
-    {
-        return new self('catalog.variant_not_found');
-    }
 }

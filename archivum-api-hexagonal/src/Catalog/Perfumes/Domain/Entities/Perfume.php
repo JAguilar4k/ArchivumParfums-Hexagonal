@@ -6,6 +6,7 @@ namespace Src\Catalog\Perfumes\Domain\Entities;
 
 use Src\Catalog\Perfumes\Domain\Exceptions\DuplicateVariantSizeException;
 use Src\Catalog\Perfumes\Domain\Exceptions\InvalidPerfumeException;
+use Src\Catalog\Perfumes\Domain\Exceptions\PerfumeVariantNotFoundException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\Brand;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeDetails;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeId;
@@ -142,7 +143,35 @@ final class Perfume
         $this->variant($id)->activate();
     }
 
-    private function variant(PerfumeVariantId $id): PerfumeVariant
+    /**
+     * Change the milliliters, the manual price and the state of one presentation; the perfume refuses milliliters that another has.
+     *
+     * @throws DuplicateVariantSizeException
+     * @throws PerfumeVariantNotFoundException
+     */
+    public function editVariant(PerfumeVariantId $id, SizeMl $size, ?Colones $manualPrice, bool $isActive): void
+    {
+        $variant = $this->variant($id);
+
+        foreach ($this->variants as $other) {
+            if (! $other->id->equals($id) && $other->size->equals($size)) {
+                throw DuplicateVariantSizeException::create();
+            }
+        }
+
+        $variant->resize($size);
+        $variant->reprice($variant->salePrice, $manualPrice);
+        $isActive ? $variant->activate() : $variant->deactivate();
+
+        $this->variants = self::sortedVariants($this->variants);
+    }
+
+    /**
+     * Find one of the presentations of the perfume.
+     *
+     * @throws PerfumeVariantNotFoundException
+     */
+    public function variant(PerfumeVariantId $id): PerfumeVariant
     {
         foreach ($this->variants as $variant) {
             if ($variant->id->equals($id)) {
@@ -150,7 +179,7 @@ final class Perfume
             }
         }
 
-        throw InvalidPerfumeException::variantNotFound();
+        throw PerfumeVariantNotFoundException::create();
     }
 
     /**
