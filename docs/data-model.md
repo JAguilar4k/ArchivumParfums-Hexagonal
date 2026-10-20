@@ -26,6 +26,7 @@ erDiagram
     members ||--o{ appointments : "atiende"
     services ||--o{ appointments : "se reserva como"
     services ||--o{ waitlist_entries : "se espera para"
+    members |o--o{ waitlist_entries : "se prefiere en"
     customers ||--o{ appointments : "reserva"
     customers ||--o{ waitlist_entries : "se anota en"
     waitlist_entries |o--o| appointments : "ofrece"
@@ -95,7 +96,7 @@ erDiagram
         text phone
     }
     personal_access_tokens {
-        uuid id PK
+        bigint id PK
         varchar tokenable_type
         uuid tokenable_id
         varchar token UK
@@ -111,7 +112,7 @@ Las tablas sin columnas en el diagrama están previstas y todavía no existen. `
 
 ## Tablas creadas
 
-Todas las llaves primarias son `id uuid DEFAULT uuidv7()`. Las columnas `created_at` y `updated_at` son `timestamptz` y las llena Eloquent (Laravel las declara opcionales). El nombre de las llaves que no se listan con nombre propio es el que da Laravel: `<tabla>_<columna>_foreign` y `<tabla>_<columna>_unique`.
+Todas las llaves primarias son `id uuid DEFAULT uuidv7()`, salvo la de `personal_access_tokens`, que es un `bigint` autoincremental porque así la define Sanctum (ver [Excepciones deliberadas](#excepciones-deliberadas)). Las columnas `created_at` y `updated_at` son `timestamptz` y las llena Eloquent (Laravel las declara opcionales). El nombre de las llaves que no se listan con nombre propio es el que da Laravel: `<tabla>_<columna>_foreign` y `<tabla>_<columna>_unique`.
 
 ### businesses
 
@@ -183,8 +184,8 @@ La crea Laravel Sanctum. Cada fila es un token de acceso emitido para una cuenta
 
 | Columna | Tipo | Regla |
 |---|---|---|
-| `id` | `uuid` | Llave primaria; es `uuid` y no `bigint` para seguir la convención del proyecto |
-| `tokenable_type`, `tokenable_id` | `varchar`, `uuid` | Dueño del token (relación polimórfica); índice sobre ambas |
+| `id` | `bigint` | Llave primaria autoincremental. Es la excepción a la llave `uuid` del proyecto: el token que recibe el cliente tiene la forma `<id>\|<secreto>` y Sanctum busca la fila por ese número |
+| `tokenable_type`, `tokenable_id` | `varchar`, `uuid` | Dueño del token (relación polimórfica); `tokenable_id` es `uuid` porque las cuentas tienen llave `uuid`; índice sobre ambas |
 | `name` | `text` | Nombre del dispositivo |
 | `token` | `varchar(64)` | Único; hash del token, nunca el token |
 | `abilities` | `text` | Opcional |
@@ -235,6 +236,7 @@ Cada una se aparta de la 3FN o de la regla de llaves con una razón. Las cuatro 
 | `webhook_events` no tiene `business_id` | El evento de la pasarela llega antes de saber a qué tienda pertenece, y se identifica por `(gateway, event_id)` para procesarse una sola vez (R38). La tienda se obtiene después, por el pago que el evento menciona. No tiene política de fila porque no tiene `business_id` |
 | `business_id` se repite en las tablas hijas | Una tabla hija como `appointments` lleva `business_id` aunque su padre ya lo implique. Es lo que permite las llaves foráneas compuestas `(parent_id, business_id)` hacia la llave `(id, business_id)` del padre, que impiden que una fila apunte al recurso de otra tienda (R56), y la política de fila directa. Los dos valores no pueden discrepar: lo garantiza la llave compuesta |
 | `businesses.settings` es un `jsonb` | Guarda los ajustes por tienda (sección 10 de la especificación). Cada ajuste se lee y se escribe entero y ninguno se consulta ni se une con otras tablas; un `CHECK` exige que sea un objeto. Si un ajuste necesitara consultarse o validarse por columna, se promueve a columna |
+| `personal_access_tokens.id` es `bigint` y no `uuid` | La tabla es de Sanctum: el token que recibe el cliente tiene la forma `<id>\|<secreto>` y Sanctum busca la fila por ese número. No es un identificador del negocio. Su dueño sí se identifica con un `uuid` (`tokenable_id`) |
 | `personal_access_tokens` no tiene llave foránea a `users` | Sanctum define la relación polimórfica `tokenable_type`/`tokenable_id`. Un token cuya cuenta ya no existe no autentica a nadie |
 
 ### Excepciones previstas por la especificación
