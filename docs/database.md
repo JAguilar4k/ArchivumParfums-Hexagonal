@@ -96,7 +96,7 @@ Es la segunda barrera del aislamiento entre tiendas. La primera está en el cód
 
 ### Qué protege
 
-Toda tabla con `business_id` tiene la seguridad a nivel de fila habilitada y forzada, con la política `<tabla>_business_isolation`. Hoy son `members` y `customers`; la migración `enable_row_level_security_on_business_tables` las protege:
+Toda tabla con `business_id` tiene la seguridad a nivel de fila habilitada y forzada, con la política `<tabla>_business_isolation`. Hoy son `members` y `customers`, que protege la migración `enable_row_level_security_on_business_tables`, y las cuatro del catálogo (`perfumes`, `perfume_notes`, `perfume_tags` y `perfume_variants`), que protege `enable_row_level_security_on_catalog_tables`. Las dos migraciones aplican lo mismo a cada tabla; por ejemplo, a `customers`:
 
 ```sql
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
