@@ -85,11 +85,11 @@ it('stores only the settings that differ from the defaults, in snake_case', func
         $business->slug,
         $business->timezone,
         $business->appointmentPlace,
-        new BusinessSettings(interviewMarginColones: 7_000, decantSizesMl: [3, 5]),
+        new BusinessSettings(bottleMarginColones: 7_000, decantSizesMl: [3, 5]),
     ));
 
     expect(storedSettings($business->id->value))->toEqual([
-        'interview_margin_colones' => 7_000,
+        'bottle_margin_colones' => 7_000,
         'decant_sizes_ml' => [3, 5],
     ]);
 });
@@ -133,7 +133,7 @@ it('reads a saved business back unchanged by its identity', function () {
         new BusinessSlug('archivumparfums'),
         new BusinessTimezone(BusinessTimezone::DEFAULT),
         new AppointmentPlace('Escazú, San Rafael'),
-        new BusinessSettings(interviewMarginColones: 7_000),
+        new BusinessSettings(bottleMarginColones: 7_000),
     );
 
     $repository->save($business);

@@ -161,14 +161,34 @@ return [
     'uuid' => 'El campo :attribute debe ser un UUID válido.',
 
     'custom' => [
+        'ajustes.anticipacion_minima_horas' => [
+            'lte' => 'El horizonte de reserva no puede ser menor que la anticipación mínima.',
+        ],
+        'ajustes.horizonte_reserva_dias' => [
+            'gte' => 'El horizonte de reserva no puede ser menor que la anticipación mínima.',
+        ],
         'attribute-name' => [
             'rule-name' => 'mensaje-personalizado',
         ],
     ],
 
     'attributes' => [
+        'ajustes.anticipacion_minima_horas' => 'anticipación mínima',
+        'ajustes.apartado_lista_espera_horas' => 'apartado de la lista de espera',
+        'ajustes.horizonte_reserva_dias' => 'horizonte de reserva',
+        'ajustes.margen_botella' => 'margen por botella',
+        'ajustes.pasarela_por_defecto' => 'pasarela por defecto',
+        'ajustes.plazo_cambio_cita_horas' => 'plazo para cambiar la cita',
+        'ajustes.recordatorios_horas' => 'recordatorios',
+        'ajustes.recordatorios_horas.*' => 'recordatorio',
+        'ajustes.tamanos_decant_ml' => 'tamaños de decant',
+        'ajustes.tamanos_decant_ml.*' => 'tamaño de decant',
+        'ajustes.tipo_cambio_usd' => 'tipo de cambio',
+        'ajustes.vencimiento_sin_pago_minutos' => 'vencimiento sin pago',
         'contrasena' => 'contraseña',
+        'lugar_cita' => 'lugar de la cita',
         'precio_venta' => 'precio de venta',
+        'zona_horaria' => 'zona horaria',
     ],
 
 ];

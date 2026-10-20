@@ -46,6 +46,20 @@ function panelResourcesById(): array
     ];
 }
 
+/**
+ * Panel endpoints that act on the business of the session itself, with no identifier in the path: method, path
+ * and payload. Every issue that adds one adds its row.
+ *
+ * @return array<string, array{string, string, array<string, mixed>}>
+ */
+function panelBusinessEndpoints(): array
+{
+    return [
+        'read the profile of the business' => ['GET', '/api/v1/panel/tienda', []],
+        'change the profile of the business' => ['PATCH', '/api/v1/panel/tienda', ['nombre' => 'Nombre nuevo', 'ajustes' => ['pasarela_por_defecto' => 'paypal']]],
+    ];
+}
+
 /** Create a customer with its own account in a business and return the customer identifier. */
 function exampleCustomer(string $businessId): string
 {
@@ -96,6 +110,19 @@ it('answers a resource of the other business exactly like one that does not exis
             ->and(DB::table($table)->where('id', $foreign)->first())->toEqual($before);
     }
 })->with(panelResourcesById());
+
+it('acts on the business of the session and leaves the other as it was, for the owner of each one', function (string $method, string $path, array $payload) {
+    foreach ([TwoBusinesses::FIRST => TwoBusinesses::SECOND, TwoBusinesses::SECOND => TwoBusinesses::FIRST] as $own => $other) {
+        $before = DB::table('businesses')->where('id', TwoBusinesses::idOf($other))->first();
+        TwoBusinesses::actAsOwnerOf($own);
+
+        json($method, $path, $payload)
+            ->assertOk()
+            ->assertJsonPath('data.id', TwoBusinesses::idOf($own));
+
+        expect(DB::table('businesses')->where('id', TwoBusinesses::idOf($other))->first())->toEqual($before);
+    }
+})->with(panelBusinessEndpoints());
 
 it('lets each person of the two businesses act with their own role and business', function (string $email, string $role, ?string $slug) {
     TwoBusinesses::actAs($email);

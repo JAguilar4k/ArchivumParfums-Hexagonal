@@ -82,8 +82,8 @@ function routeFallsUnder(RouteDefinition $route, array $rules): bool
 function ownerOnlyEndpoints(): array
 {
     return [
-        'example: read the settings (test route)' => ['GET', '/api/v1/pruebas/panel/ajustes', [], 200],
-        'example: change the settings (test route)' => ['PATCH', '/api/v1/pruebas/panel/ajustes', ['nombre' => 'Otro nombre'], 200],
+        'read the profile of the business' => ['GET', '/api/v1/panel/tienda', [], 200],
+        'change the profile of the business' => ['PATCH', '/api/v1/panel/tienda', ['nombre' => 'Otro nombre', 'ajustes' => ['margen_botella' => 9000]], 200],
     ];
 }
 
@@ -130,14 +130,8 @@ function expectForbiddenWithoutWrites(string $email, string $method, string $pat
 beforeEach(function () {
     TwoBusinesses::create();
 
-    // Examples of both groups until their first endpoints exist: a read and a write for the owners, a write for customers.
-    // Like the other throwaway routes, they live under api/v1/pruebas, outside the prefixes that the route scans walk.
-    Route::prefix('api/v1/pruebas/panel/ajustes')->middleware(['api', 'auth:sanctum', 'business:staff', 'role:owner'])->group(function (): void {
-        Route::get('/', fn (BusinessContext $context) => ['data' => DB::table('businesses')->where('id', $context->current()->value)->first(['name'])]);
-        Route::patch('/', fn (BusinessContext $context, Request $request) => ['data' => DB::table('businesses')
-            ->where('id', $context->current()->value)
-            ->update(['name' => $request->string('nombre')->value()])]);
-    });
+    // Example of the customers only group until its first endpoint exists. Like the other throwaway routes, it lives
+    // under api/v1/pruebas, outside the prefixes that the route scans walk.
     Route::post('api/v1/pruebas/tiendas/{tienda}/clientes', fn (BusinessContext $context, Request $request) => response()->json(['data' => DB::table('customers')->insertGetId([
         'business_id' => $context->current()->value,
         'user_id' => $request->user()?->getAuthIdentifier(),

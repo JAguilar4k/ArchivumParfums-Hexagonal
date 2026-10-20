@@ -83,22 +83,22 @@ it('rejects an empty or oversized appointment place', function (string $place): 
 it('starts settings with the specification defaults', function (): void {
     $settings = BusinessSettings::defaults();
 
-    expect($settings->interviewMarginColones)->toBe(5000)
+    expect($settings->bottleMarginColones)->toBe(5000)
         ->and($settings->decantSizesMl)->toBe([2, 5, 10]);
 });
 
 it('accepts the edges of each setting', function (): void {
-    $lowest = new BusinessSettings(interviewMarginColones: 0, bottleDepositPercent: 0, decantRoundingColones: 1);
+    $lowest = new BusinessSettings(bottleMarginColones: 0, bottleDepositPercent: 0, decantRoundingColones: 1);
     $highest = new BusinessSettings(bottleDepositPercent: 100);
 
-    expect($lowest->interviewMarginColones)->toBe(0)
+    expect($lowest->bottleMarginColones)->toBe(0)
         ->and($lowest->bottleDepositPercent)->toBe(0)
         ->and($lowest->decantRoundingColones)->toBe(1)
         ->and($highest->bottleDepositPercent)->toBe(100);
 });
 
 it('rejects a negative margin', function (): void {
-    new BusinessSettings(interviewMarginColones: -1);
+    new BusinessSettings(bottleMarginColones: -1);
 })->throws(InvalidValueException::class, 'businesses.margin_negative');
 
 it('rejects empty decant sizes', function (): void {
@@ -147,3 +147,50 @@ it('rejects a decant rounding that is not positive', function (int $rounding): v
 it('rejects a negative trial appointment price', function (): void {
     new BusinessSettings(trialAppointmentPriceColones: -1);
 })->throws(InvalidValueException::class, 'businesses.trial_price_negative');
+
+it('rejects repeated decant sizes', function (): void {
+    new BusinessSettings(decantSizesMl: [5, 5]);
+})->throws(InvalidValueException::class, 'businesses.decant_sizes_invalid');
+
+it('starts settings with the booking, waitlist, payment and reminder defaults', function (): void {
+    $settings = BusinessSettings::defaults();
+
+    expect($settings->minimumNoticeHours)->toBe(12)
+        ->and($settings->bookingHorizonDays)->toBe(30)
+        ->and($settings->appointmentChangeCutoffHours)->toBe(2)
+        ->and($settings->waitlistHoldHours)->toBe(2)
+        ->and($settings->unpaidExpiryMinutes)->toBe(30)
+        ->and($settings->reminderHours)->toBe([24, 2])
+        ->and($settings->defaultGateway)->toBe('onvo')
+        ->and($settings->usdExchangeRate)->toBeNull();
+});
+
+it('rejects a negative term', function (string $setting): void {
+    new BusinessSettings(...[$setting => -1]);
+})->with([
+    'minimumNoticeHours',
+    'bookingHorizonDays',
+    'appointmentChangeCutoffHours',
+    'waitlistHoldHours',
+    'unpaidExpiryMinutes',
+])->throws(InvalidValueException::class, 'businesses.term_negative');
+
+it('rejects a negative reminder', function (): void {
+    new BusinessSettings(reminderHours: [24, -2]);
+})->throws(InvalidValueException::class, 'businesses.term_negative');
+
+it('rejects a booking horizon shorter than the minimum notice', function (): void {
+    new BusinessSettings(minimumNoticeHours: 49, bookingHorizonDays: 2);
+})->throws(InvalidValueException::class, 'businesses.horizon_before_notice');
+
+it('accepts a booking horizon as long as the minimum notice', function (): void {
+    expect((new BusinessSettings(minimumNoticeHours: 48, bookingHorizonDays: 2))->bookingHorizonDays)->toBe(2);
+});
+
+it('rejects a gateway other than onvo or paypal', function (): void {
+    new BusinessSettings(defaultGateway: 'stripe');
+})->throws(InvalidValueException::class, 'businesses.gateway_invalid');
+
+it('rejects an exchange rate that is not positive', function (float $rate): void {
+    new BusinessSettings(usdExchangeRate: $rate);
+})->with([0.0, -505.5])->throws(InvalidValueException::class, 'businesses.exchange_rate_invalid');

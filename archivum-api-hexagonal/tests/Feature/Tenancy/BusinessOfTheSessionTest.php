@@ -69,6 +69,9 @@ beforeEach(function () {
 it('resolves the business of every panel route from the session and never from the URL', function () {
     $violations = [];
 
+    // An empty list would let the scan pass without checking any route.
+    expect(routesUnder('api/v1/panel'))->not->toBeEmpty();
+
     foreach (routesUnder('api/v1/panel') as $route) {
         $middleware = $route->gatherMiddleware();
 
