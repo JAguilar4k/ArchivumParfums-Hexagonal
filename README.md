@@ -13,7 +13,7 @@ La estructura, la arquitectura y la forma de trabajo siguen el proyecto guía de
 | [`docs/especificacion.md`](docs/especificacion.md) | Roles, glosario, reglas de negocio (R1–R56), estados, modelo de datos y API. |
 | [`docs/plan.md`](docs/plan.md) | Módulos, etiquetas, forma de trabajo y cortes. |
 | [`CLAUDE.md`](CLAUDE.md) | Instrucciones del proyecto para los asistentes de IA. |
-| [`.github/`](.github/) | Plantillas de issue y de pull request e integración continua ([`ci.yml`](.github/workflows/ci.yml)). Dependabot llega con [M03](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/3). |
+| [`.github/`](.github/) | Plantillas de issue y de pull request, integración continua ([`ci.yml`](.github/workflows/ci.yml)) y Dependabot ([`dependabot.yml`](.github/dependabot.yml)). |
 | [`archivum-api-hexagonal/`](archivum-api-hexagonal/) | API REST en Laravel 13 sobre PostgreSQL 18. |
 | `archivum-web/` | Cliente web en Vue 3 con TypeScript. Llega con [M16](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/16). |
 | [`docs/architecture.md`](docs/architecture.md) | Estructura, capas, contextos, regla de dependencias y recorrido de una petición. |
