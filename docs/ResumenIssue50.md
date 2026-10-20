@@ -1,6 +1,6 @@
 # Resumen del issue #50 · Generar el contrato OpenAPI y publicar la documentación
 
-Rama: `50-generar-el-contrato-openapi-y-publicar-la-documentacion`. Todo el trabajo está **solo en el equipo local**: no hay commits, ni `push`, ni pull request.
+Rama: `50-generar-el-contrato-openapi-y-publicar-la-documentacion`. El trabajo está en la rama y en el pull request #234, que espera la revisión de otra persona del equipo; incorpora la revisión del 20/10 (el 401 `credenciales-invalidas` de `POST /sesiones` y la prueba que contrasta el HTTP real con el contrato).
 
 ## A. Resumen de lo realizado hasta el momento
 
