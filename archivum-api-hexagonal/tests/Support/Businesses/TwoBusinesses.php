@@ -63,6 +63,12 @@ final class TwoBusinesses
         return BusinessModel::query()->where('slug', $slug)->sole()->id;
     }
 
+    /** Identifier of the account of an email. */
+    public static function userIdOf(string $email): string
+    {
+        return UserModel::query()->where('email', $email)->sole()->id;
+    }
+
     /** Authenticate the account of an email for the next requests, with every ability, as a sign-in gives it. */
     public static function actAs(string $email): UserModel
     {

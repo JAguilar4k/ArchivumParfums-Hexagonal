@@ -10,11 +10,8 @@ use Illuminate\Support\Str;
 use Src\Businesses\Members\Domain\Contracts\MemberRepository;
 use Src\Businesses\Members\Domain\Entities\Member;
 use Src\Businesses\Members\Domain\Exceptions\AccountAlreadyOnStaffException;
-use Src\Businesses\Members\Domain\ValueObjects\MemberRole;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
-use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\MemberId;
-use Src\Shared\Domain\ValueObjects\UserId;
 
 final readonly class EloquentMemberRepository implements MemberRepository
 {
@@ -40,22 +37,5 @@ final readonly class EloquentMemberRepository implements MemberRepository
         } catch (UniqueConstraintViolationException) {
             throw AccountAlreadyOnStaffException::create();
         }
-    }
-
-    /**
-     * Find the membership of an account by members_user_id_unique. It is the one read without a business,
-     * because the business of a person is what it finds; #32 moves it to fn_member_business.
-     */
-    public function findByUser(UserId $userId): ?Member
-    {
-        $model = MemberModel::query()->where('user_id', $userId->value)->first();
-
-        return $model === null ? null : Member::reconstitute(
-            new MemberId($model->id),
-            new UserId($model->user_id),
-            new BusinessId($model->business_id),
-            MemberRole::from($model->role),
-            $model->attends_appointments,
-        );
     }
 }

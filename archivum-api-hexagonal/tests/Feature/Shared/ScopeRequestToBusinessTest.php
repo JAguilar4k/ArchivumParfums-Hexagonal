@@ -5,9 +5,11 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Laravel\Sanctum\Sanctum;
+use Src\Accounts\Users\Application\Contracts\CustomerBusinesses;
+use Src\Accounts\Users\Domain\ValueObjects\CustomerResourceType;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
-use Src\Businesses\Members\Domain\Contracts\MemberRepository;
-use Src\Businesses\Members\Domain\Entities\Member;
+use Src\Businesses\Members\Application\Contracts\Memberships;
+use Src\Businesses\Members\Application\DTOs\Membership;
 use Src\Businesses\Members\Domain\ValueObjects\MemberRole;
 use Src\Businesses\Profile\Domain\Contracts\BusinessRepository;
 use Src\Businesses\Profile\Domain\Entities\Business;
@@ -16,17 +18,18 @@ use Src\Businesses\Profile\Domain\ValueObjects\BusinessSlug;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessTimezone;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\ValueObjects\BusinessId;
-use Src\Shared\Domain\ValueObjects\MemberId;
-use Src\Shared\Domain\ValueObjects\UserId;
 use Src\Shared\Infrastructure\Tenancy\UnresolvedBusinessContext;
+use Tests\Support\Accounts\InMemoryCustomerBusinesses;
 use Tests\Support\Businesses\InMemoryBusinessRepository;
-use Tests\Support\Businesses\InMemoryMemberRepository;
+use Tests\Support\Businesses\InMemoryMemberships;
 
 use function Pest\Laravel\getJson;
 
 const SCOPED_BUSINESS_ID = '0192f0c4-0000-7000-8000-0000000000aa';
 
 const SCOPED_ACCOUNT_ID = '0192f0c4-0000-7000-8000-0000000000bb';
+
+const SCOPED_CUSTOMER_ID = '0192f0c4-0000-7000-8000-0000000000dd';
 
 /** Whether the closure of a test route ran, which stands for reaching a use case. */
 function reachedScopedRoute(?bool $reached = null): bool
@@ -59,7 +62,7 @@ function requestScope(BusinessContext $context): array
 beforeEach(function () {
     reachedScopedRoute(false);
 
-    // The businesses and their staff live in memory, so these requests touch no row of the database.
+    // The businesses, their staff and their customers live in memory, so these requests touch no row of the database.
     $businesses = new InMemoryBusinessRepository;
     $businesses->save(Business::create(
         new BusinessId(SCOPED_BUSINESS_ID),
@@ -70,19 +73,19 @@ beforeEach(function () {
     ));
     app()->instance(BusinessRepository::class, $businesses);
 
-    $members = new InMemoryMemberRepository;
-    $members->save(Member::create(
-        new MemberId('0192f0c4-0000-7000-8000-0000000000cc'),
-        new UserId(SCOPED_ACCOUNT_ID),
-        new BusinessId(SCOPED_BUSINESS_ID),
-        MemberRole::Owner,
-    ));
-    app()->instance(MemberRepository::class, $members);
+    $memberships = new InMemoryMemberships;
+    $memberships->add(SCOPED_ACCOUNT_ID, new Membership(SCOPED_BUSINESS_ID, MemberRole::Owner));
+    app()->instance(Memberships::class, $memberships);
+
+    $customers = new InMemoryCustomerBusinesses;
+    $customers->add(CustomerResourceType::Customer, SCOPED_CUSTOMER_ID, SCOPED_ACCOUNT_ID, new BusinessId(SCOPED_BUSINESS_ID));
+    app()->instance(CustomerBusinesses::class, $customers);
 
     // Throwaway routes that report the scope of their request.
     Route::prefix('api/v1/pruebas')->middleware('api')->group(function (): void {
         Route::get('panel', fn (BusinessContext $context): array => requestScope($context))->middleware(['auth:sanctum', 'business:staff']);
         Route::get('tiendas/{tienda}', fn (BusinessContext $context): array => requestScope($context))->middleware('business:route');
+        Route::get('cuenta/clientes/{cliente}', fn (BusinessContext $context): array => requestScope($context))->middleware(['auth:sanctum', 'business:account']);
     });
 });
 
@@ -107,6 +110,14 @@ it('runs a public request in one transaction pinned to the business of the slug 
         ->assertExactJson(['tienda' => SCOPED_BUSINESS_ID, 'fijada' => SCOPED_BUSINESS_ID, 'transacciones' => 1]);
 });
 
+it('runs a request for a resource of the customer in one transaction pinned to the business of the resource', function () {
+    Sanctum::actingAs(UserModel::factory()->make(['id' => SCOPED_ACCOUNT_ID]));
+
+    getJson('/api/v1/pruebas/cuenta/clientes/'.SCOPED_CUSTOMER_ID)
+        ->assertOk()
+        ->assertExactJson(['tienda' => SCOPED_BUSINESS_ID, 'fijada' => SCOPED_BUSINESS_ID, 'transacciones' => 1]);
+});
+
 it('answers 404 to an unknown or malformed slug before reaching any use case', function (string $slug) {
     getJson("/api/v1/pruebas/tiendas/{$slug}")
         ->assertNotFound()
@@ -124,4 +135,8 @@ it('ends the pinned business with the transaction of the request', function (str
 
     expect(DB::transactionLevel())->toBe(0)
         ->and(DB::scalar("select current_setting('app.business_id', true)"))->toBe('');
-})->with(['panel' => '/api/v1/pruebas/panel', 'public' => '/api/v1/pruebas/tiendas/esencias-del-norte']);
+})->with([
+    'panel' => '/api/v1/pruebas/panel',
+    'public' => '/api/v1/pruebas/tiendas/esencias-del-norte',
+    'account' => '/api/v1/pruebas/cuenta/clientes/'.SCOPED_CUSTOMER_ID,
+]);

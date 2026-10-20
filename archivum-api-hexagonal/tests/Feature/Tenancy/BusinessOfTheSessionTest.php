@@ -6,6 +6,7 @@ use Database\Seeders\BusinessesSeeder;
 use Illuminate\Routing\Route as RouteDefinition;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Src\Accounts\Users\Infrastructure\Tenancy\CustomerBusinessContext;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Tests\Support\Accounts\DemoAccounts;
 use Tests\Support\RefreshDatabaseAsOwner;
@@ -89,6 +90,24 @@ it('resolves the business of every public route of a business from its slug', fu
     foreach (routesUnder('api/v1/tiendas/{tienda}') as $route) {
         if (! in_array('business:route', $route->gatherMiddleware(), true)) {
             $violations[] = "{$route->uri()} lacks business:route";
+        }
+    }
+
+    expect($violations)->toBe([]);
+});
+
+it('resolves the business of every route of the account from a resource of the customer and never from the URL', function () {
+    $violations = [];
+
+    foreach (routesUnder('api/v1/cuenta') as $route) {
+        $namesAResource = array_intersect($route->parameterNames(), array_keys(CustomerBusinessContext::RESOURCES)) !== [];
+
+        if ($namesAResource && ! in_array('business:account', $route->gatherMiddleware(), true)) {
+            $violations[] = "{$route->uri()} lacks business:account";
+        }
+
+        if (array_intersect($route->parameterNames(), ['tienda', 'business', 'business_id']) !== []) {
+            $violations[] = "{$route->uri()} takes the business from the URL";
         }
     }
 

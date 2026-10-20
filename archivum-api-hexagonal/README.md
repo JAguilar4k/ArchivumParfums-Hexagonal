@@ -61,6 +61,15 @@ Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macO
 
 La aplicación se conecta con `archivum_app`, que no puede cambiar el esquema; las migraciones corren con `archivum_owner` a través de la conexión `pgsql_admin`. Por eso `php artisan migrate` sin `--database=pgsql_admin` falla con `Insufficient privilege` en cuanto hay una tabla que crear o cambiar. El motivo está en [docs/database.md](../docs/database.md).
 
+Las tablas de una tienda tienen seguridad a nivel de fila forzada: `archivum_app` solo ve y escribe las filas de la tienda fijada en la transacción, y `archivum_owner` tampoco puede escribirlas sin fijarla. `archivum_owner` sí lee todas las filas de `members` y `customers`, por la política `<tabla>_definer_read`, que existe para las funciones `SECURITY DEFINER` que buscan la tienda de una cuenta antes de fijarla. `archivum_app` no es dueño de las tablas ni tiene `BYPASSRLS`, y nunca se le debe otorgar. Para revisar a mano los clientes de la tienda de demostración ArchivumParfums en `psql`, conectado como `archivum_app`:
+
+```sql
+BEGIN;
+SELECT set_config('app.business_id', '0192f0c4-0000-7000-8000-000000000001', true);
+SELECT id, user_id, created_at FROM customers;
+COMMIT;
+```
+
 ## Comandos
 
 | Comando | Qué hace |
