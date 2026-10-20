@@ -5,8 +5,8 @@ declare(strict_types=1);
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Request;
 use Src\Shared\Infrastructure\Http\Middleware\AssignRequestId;
+use Src\Shared\Infrastructure\Http\Problem\ProblemDetailsRenderer;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -17,9 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);
+        $middleware->redirectGuestsTo(null);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        $exceptions->shouldRenderJsonWhen(
-            fn (Request $request): bool => $request->is('api/*') || $request->expectsJson(),
-        );
+        $exceptions->render(new ProblemDetailsRenderer);
     })->create();
