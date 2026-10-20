@@ -1,0 +1,29 @@
+version: 2
+
+updates:
+  - package-ecosystem: composer
+    directory: /archivum-api-hexagonal
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Costa_Rica
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: build
+      include: scope
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: America/Costa_Rica
+    commit-message:
+      prefix: ci
