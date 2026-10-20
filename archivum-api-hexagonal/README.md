@@ -80,8 +80,11 @@ Antes de abrir un pull request deben pasar `composer lint`, `composer analyse` y
 
 | Método | Ruta | Quién | Descripción |
 |---|---|---|---|
+| GET | `/` | Cualquiera | Redirección temporal (302) a `/api/v1`, para que abrir el servidor en el navegador no dé 404. |
 | GET | `/up` | Cualquiera | Estado de la aplicación, fuera del prefijo `/api/v1`. |
 | GET | `/api/v1` | Cualquiera | Nombre y versión de la API. |
+
+Las rutas sin versión, como `/api`, responden 404: toda ruta de la API lleva el prefijo `/api/v1`.
 
 Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial).
 
