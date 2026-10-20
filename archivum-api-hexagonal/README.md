@@ -24,38 +24,31 @@ Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macO
    cd ArchivumParfums-Hexagonal/archivum-api-hexagonal
    ```
 
-2. Crear los dos roles y las dos bases de datos, la de desarrollo y la de pruebas. Se hace una sola vez por servidor, con el superusuario de PostgreSQL y con dos contraseñas propias, una para cada rol:
-
-   ```bash
-   psql -U postgres -v owner_password='una-clave' -v app_password='otra-clave' -f database/roles.sql
-   ```
-
-   Si `psql` responde que el rol o la base ya existen, ese paso ya se hizo en esta computadora.
-
-3. Instalar las dependencias y crear el archivo de entorno:
+2. Instalar las dependencias y preparar el entorno:
 
    ```bash
    composer install
-   cp .env.example .env
-   php artisan key:generate
    ```
 
-   En `cmd` de Windows, `cp` se escribe `copy`.
+   Al terminar de instalar, Composer ejecuta `php artisan archivum:install`, que deja todo listo en este orden: crea `.env` a partir de `.env.example`, genera la clave de la aplicación, crea los roles `archivum_owner` y `archivum_app` y las bases de desarrollo y de pruebas igual que `database/roles.sql`, migra con el rol dueño y carga los datos de demostración. Las contraseñas se generan solo para los roles nuevos y quedan en `.env`. Si los roles ya existen en este servidor, se deben escribir sus contraseñas actuales en `DB_ADMIN_PASSWORD` y `DB_PASSWORD`; el instalador nunca las cambia, de modo que otra copia del proyecto sigue conectándose.
 
-4. Escribir en `.env` las dos contraseñas del paso 2:
-
-   ```dotenv
-   DB_PASSWORD=otra-clave
-   DB_ADMIN_PASSWORD=una-clave
-   ```
-
-5. Crear el esquema con el rol dueño, cargar los datos de demostración y levantar el servidor:
+3. La primera vez hace falta la contraseña del superusuario `postgres` para crear los roles y las bases. Se pide sin mostrarla y no se guarda. En Windows, Composer no deja escribir en sus scripts: la instalación termina con un aviso y basta ejecutar una vez
 
    ```bash
-   php artisan migrate --database=pgsql_admin
-   php artisan db:seed
-   php artisan serve
+   php artisan archivum:install
    ```
+
+   que sí la pide. Si el superusuario tiene otro nombre, se indica con `--superuser=nombre`; en un script, la contraseña puede venir de la variable de entorno `DB_SUPERUSER_PASSWORD`.
+
+4. Volver a ejecutar `composer install` no borra nada: conserva la clave, aplica solo las migraciones pendientes y completa los datos de demostración que falten sin modificar los existentes. La siembra corre en una transacción: si falla, se revierte y se puede reintentar después de corregir el error, aunque las migraciones ya estén aplicadas. En la integración continua, con `composer install --no-dev` o con `APP_ENV` distinto de `local`, `archivum:install` no hace nada.
+
+5. Levantar el servidor:
+
+   ```bash
+   composer run dev
+   ```
+
+   Este comando inicia `php artisan serve` y funciona en Windows, Linux y macOS sin Node.js ni la extensión PCNTL. Si se necesita procesar trabajos en cola durante el desarrollo, se abre otra terminal en esta misma carpeta y se ejecuta `php artisan queue:work --tries=1`. Los registros están en `storage/logs/laravel.log`.
 
 6. Comprobar que todo responde:
 
@@ -81,6 +74,8 @@ COMMIT;
 
 | Comando | Qué hace |
 |---|---|
+| `php artisan archivum:install` | Prepara el entorno local paso a paso. Lo ejecuta `composer install`; a mano solo hace falta para escribir la contraseña de `postgres` en Windows. |
+| `composer run dev` | Levanta el servidor local de la API. El worker de colas se inicia en otra terminal. |
 | `composer test` | Ejecuta las pruebas de Pest contra la base `archivum_hexagonal_testing`. |
 | `composer lint` | Verifica el estilo con Laravel Pint, sin modificar archivos. |
 | `composer format` | Corrige el estilo. |
@@ -113,11 +108,14 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 
 | Método | Ruta | Quién | Descripción |
 |---|---|---|---|
+| GET | `/` | Cualquiera | Redirección temporal (302) a `/api/v1`, para que abrir el servidor en el navegador no dé 404. |
 | GET | `/up` | Cualquiera | Estado de la aplicación, fuera del prefijo `/api/v1`. |
 | GET | `/api/v1` | Cualquiera | Nombre y versión de la API. |
 | POST | `/api/v1/sesiones` | Cualquiera | Ingresa con `correo`, `contrasena` y el nombre del `dispositivo` y devuelve un token Bearer. |
 | DELETE | `/api/v1/sesiones/actual` | Con token | Cierra la sesión: revoca solo el token de la petición y responde 204. |
 | GET | `/api/v1/cuenta` | Con token | Nombre, correo y rol de la cuenta (`dueno`, `colaborador` o `cliente`) y, para el personal, su tienda. |
+
+Las rutas sin versión, como `/api`, responden 404: toda ruta de la API lleva el prefijo `/api/v1`.
 
 Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial).
 
