@@ -55,6 +55,152 @@
                 }
             }
         },
+        "/panel/tienda": {
+            "get": {
+                "operationId": "businesses.profile.show",
+                "summary": "Show the profile and the settings of the business of the session",
+                "tags": [
+                    "BusinessProfile"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`BusinessProfileResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/BusinessProfileResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "businesses.profile.update",
+                "summary": "Change the profile fields and settings sent for the business of the session",
+                "tags": [
+                    "BusinessProfile"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateBusinessProfileRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`BusinessProfileResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/BusinessProfileResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/cuenta": {
             "get": {
                 "operationId": "accounts.current.show",
@@ -64,14 +210,14 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "`CurrentAccount`",
+                        "description": "`CurrentAccountResource`",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/components/schemas/CurrentAccount"
+                                            "$ref": "#/components/schemas/CurrentAccountResource"
                                         }
                                     },
                                     "required": [
@@ -121,26 +267,36 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/StoreSession"
+                                "$ref": "#/components/schemas/StoreSessionRequest"
                             }
                         }
                     }
                 },
                 "responses": {
                     "201": {
-                        "description": "`SessionToken`",
+                        "description": "`SessionTokenResource`",
                         "content": {
                             "application/json": {
                                 "schema": {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/components/schemas/SessionToken"
+                                            "$ref": "#/components/schemas/SessionTokenResource"
                                         }
                                     },
                                     "required": [
                                         "data"
                                     ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciales inv\u00e1lidas",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
                                 }
                             }
                         }
@@ -217,7 +373,95 @@
             }
         },
         "schemas": {
-            "CurrentAccount": {
+            "BusinessProfileResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "lugar_cita": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "zona_horaria": {
+                        "type": "string"
+                    },
+                    "ajustes": {
+                        "type": "object",
+                        "properties": {
+                            "margen_botella": {
+                                "type": "integer"
+                            },
+                            "tamanos_decant_ml": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "anticipacion_minima_horas": {
+                                "type": "integer"
+                            },
+                            "horizonte_reserva_dias": {
+                                "type": "integer"
+                            },
+                            "plazo_cambio_cita_horas": {
+                                "type": "integer"
+                            },
+                            "apartado_lista_espera_horas": {
+                                "type": "integer"
+                            },
+                            "vencimiento_sin_pago_minutos": {
+                                "type": "integer"
+                            },
+                            "recordatorios_horas": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer"
+                                }
+                            },
+                            "pasarela_por_defecto": {
+                                "type": "string"
+                            },
+                            "tipo_cambio_usd": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "margen_botella",
+                            "tamanos_decant_ml",
+                            "anticipacion_minima_horas",
+                            "horizonte_reserva_dias",
+                            "plazo_cambio_cita_horas",
+                            "apartado_lista_espera_horas",
+                            "vencimiento_sin_pago_minutos",
+                            "recordatorios_horas",
+                            "pasarela_por_defecto",
+                            "tipo_cambio_usd"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "slug",
+                    "lugar_cita",
+                    "zona_horaria",
+                    "ajustes"
+                ],
+                "title": "BusinessProfileResource"
+            },
+            "CurrentAccountResource": {
                 "type": "object",
                 "properties": {
                     "id": {
@@ -267,7 +511,7 @@
                     "rol",
                     "tienda"
                 ],
-                "title": "CurrentAccount"
+                "title": "CurrentAccountResource"
             },
             "Problema": {
                 "type": "object",
@@ -348,7 +592,7 @@
                 ],
                 "title": "ProblemaDeValidacion"
             },
-            "SessionToken": {
+            "SessionTokenResource": {
                 "type": "object",
                 "properties": {
                     "token": {
@@ -363,9 +607,9 @@
                     "token",
                     "tipo"
                 ],
-                "title": "SessionToken"
+                "title": "SessionTokenResource"
             },
-            "StoreSession": {
+            "StoreSessionRequest": {
                 "type": "object",
                 "properties": {
                     "correo": {
@@ -375,13 +619,99 @@
                     },
                     "contrasena": {
                         "type": "string"
+                    },
+                    "dispositivo": {
+                        "type": "string",
+                        "maxLength": 100
                     }
                 },
                 "required": [
                     "correo",
-                    "contrasena"
+                    "contrasena",
+                    "dispositivo"
                 ],
-                "title": "StoreSession"
+                "title": "StoreSessionRequest"
+            },
+            "UpdateBusinessProfileRequest": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "lugar_cita": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "zona_horaria": {
+                        "type": "string"
+                    },
+                    "ajustes": {
+                        "type": "object",
+                        "properties": {
+                            "margen_botella": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "tamanos_decant_ml": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                },
+                                "minItems": 1,
+                                "uniqueItems": true
+                            },
+                            "anticipacion_minima_horas": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "horizonte_reserva_dias": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "plazo_cambio_cita_horas": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "apartado_lista_espera_horas": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "vencimiento_sin_pago_minutos": {
+                                "type": "integer",
+                                "minimum": 0
+                            },
+                            "recordatorios_horas": {
+                                "type": "array",
+                                "items": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                }
+                            },
+                            "pasarela_por_defecto": {
+                                "type": "string",
+                                "enum": [
+                                    "onvo",
+                                    "paypal"
+                                ]
+                            },
+                            "tipo_cambio_usd": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "ajustes"
+                ],
+                "title": "UpdateBusinessProfileRequest"
             }
         },
         "responses": {

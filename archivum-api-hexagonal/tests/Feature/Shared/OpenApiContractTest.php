@@ -3,8 +3,12 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Artisan;
+use Tests\Support\RefreshDatabaseAsOwner;
 
 use function Pest\Laravel\get;
+use function Pest\Laravel\postJson;
+
+pest()->use(RefreshDatabaseAsOwner::class);
 
 const OPENAPI_CONTRACT = 'openapi/v1.json';
 
@@ -110,3 +114,56 @@ it('hides the documentation in production until the monitoring panel decides how
 
     get('/docs/api')->assertForbidden();
 });
+
+/**
+ * The problem schema the contract documents for an operation and a status.
+ *
+ * @return array<string, mixed>
+ */
+function documentedProblem(string $uri, string $method, int $status): array
+{
+    $contract = generatedContract();
+    $reference = $contract['paths'][$uri][$method]['responses'][(string) $status]['content']['application/problem+json']['schema']['$ref'];
+
+    return $contract['components']['schemas'][basename((string) $reference)];
+}
+
+it('documents the 401 problem of signing in, which needs no Sanctum token', function () {
+    $operation = generatedContract()['paths']['/sesiones']['post'];
+
+    expect($operation['responses'])->toHaveKey('401')
+        ->and($operation['responses']['401']['description'])->toBe('Credenciales inválidas')
+        ->and($operation)->not->toHaveKey('security')
+        ->and(documentedProblem('/sesiones', 'post', 401)['properties'])->not->toHaveKey('errores');
+});
+
+it('answers rejected credentials as the contract documents them', function () {
+    $documented = documentedProblem('/sesiones', 'post', 401);
+
+    $response = postJson('/api/v1/sesiones', [
+        'correo' => 'nadie@archivumparfums.test',
+        'contrasena' => 'una-clave-cualquiera',
+        'dispositivo' => 'Prueba del contrato',
+    ])->assertUnauthorized()->assertHeader('Content-Type', 'application/problem+json');
+
+    expect(array_keys($response->json()))->toEqualCanonicalizing($documented['required'])
+        ->and($response->json())->not->toHaveKey('errores')
+        ->and($response->json('status'))->toBe(401)
+        ->and($response->json('type'))->toEndWith('/problemas/credenciales-invalidas');
+});
+
+it('answers missing and invalid fields as the contract documents them', function (array $body, array $fields) {
+    $documented = documentedProblem('/sesiones', 'post', 422);
+
+    $response = postJson('/api/v1/sesiones', $body)
+        ->assertUnprocessable()
+        ->assertHeader('Content-Type', 'application/problem+json');
+
+    expect($documented['required'])->toContain('errores')
+        ->and(array_keys($response->json()))->toEqualCanonicalizing($documented['required'])
+        ->and(array_keys($response->json('errores')))->toEqualCanonicalizing($fields)
+        ->and($response->json('type'))->toEndWith('/problemas/datos-invalidos');
+})->with([
+    'every field missing' => [[], ['correo', 'contrasena', 'dispositivo']],
+    'an email that is not one' => [['correo' => 'no-es-un-correo', 'contrasena' => 'x', 'dispositivo' => 'Celular'], ['correo']],
+]);

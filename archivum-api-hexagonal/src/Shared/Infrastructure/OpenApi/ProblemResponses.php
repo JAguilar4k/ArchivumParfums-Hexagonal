@@ -78,6 +78,10 @@ final class ProblemResponses implements DocumentTransformer
             $types[] = ProblemType::Forbidden;
         }
 
+        if ($this->rejectsCredentials($path, $operation)) {
+            $types[] = ProblemType::InvalidCredentials;
+        }
+
         if (str_contains($path, '{')) {
             $types[] = ProblemType::NotFound;
         }
@@ -114,6 +118,12 @@ final class ProblemResponses implements DocumentTransformer
                 $operation->parameters,
                 fn (Parameter|Reference $parameter): bool => $parameter instanceof Parameter && $parameter->in === 'query',
             );
+    }
+
+    /** Signing in is public, yet it answers 401 when the email or the password is wrong, with no Sanctum token involved. */
+    private function rejectsCredentials(string $path, Operation $operation): bool
+    {
+        return ltrim($path, '/') === 'sesiones' && strtolower($operation->method) === 'post';
     }
 
     /** The panel is the part of the API that checks the role of the member. */
