@@ -13,7 +13,7 @@ La estructura, la arquitectura y la forma de trabajo siguen el proyecto guía de
 | [`docs/especificacion.md`](docs/especificacion.md) | Roles, glosario, reglas de negocio (R1–R56), estados, modelo de datos y API. |
 | [`docs/plan.md`](docs/plan.md) | Módulos, etiquetas, forma de trabajo y cortes. |
 | [`CLAUDE.md`](CLAUDE.md) | Instrucciones del proyecto para los asistentes de IA. |
-| [`.github/`](.github/) | Plantillas de issue y de pull request e integración continua ([`ci.yml`](.github/workflows/ci.yml)). Dependabot llega con [M03](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/3). |
+| [`.github/`](.github/) | Plantillas de issue y de pull request, integración continua ([`ci.yml`](.github/workflows/ci.yml)) y Dependabot ([`dependabot.yml`](.github/dependabot.yml)). |
 | [`archivum-api-hexagonal/`](archivum-api-hexagonal/) | API REST en Laravel 13 sobre PostgreSQL 18. |
 | `archivum-web/` | Cliente web en Vue 3 con TypeScript. Llega con [M16](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/16). |
 | [`docs/architecture.md`](docs/architecture.md) | Estructura, capas, contextos, regla de dependencias y recorrido de una petición. |
@@ -74,13 +74,24 @@ El código, la base de datos y los comentarios están en inglés. Las rutas, los
 
 ## Uso de IA
 
-El enunciado permite usar asistentes de IA con una condición: cada integrante debe entender lo que se entrega y poder modificarlo en vivo. Esta tabla declara qué partes se generaron con asistencia y qué verificó el equipo. Quien integre trabajo asistido actualiza su fila en el mismo pull request.
+El enunciado permite usar asistentes de IA con una condición: cada integrante debe entender lo que se entrega y poder modificarlo en vivo. Declararlo no baja la nota; ocultarlo tiene consecuencias. Esta tabla declara qué partes se generaron con asistencia y qué verificó el equipo, y cómo.
 
 | Parte | Asistente | Qué generó la IA | Qué verificó el equipo |
 | --- | --- | --- | --- |
-| README, `.gitignore` y plantillas de `.github/` | Claude Code (Claude Opus 5.5) | Redacción adaptada del proyecto guía. | Pendiente |
-| Etiquetas, milestones, issues y tablero | Claude Code (Claude Opus 5.5) | Redacción de milestones e issues a partir de la especificación, el plan y el enunciado, y su creación con `gh`. | Pendiente |
-| `docs/especificacion.md`, `docs/plan.md` y `CLAUDE.md` | Por declarar | Por declarar | Por declarar |
+| README, `.gitignore` y plantillas de `.github/` (commit inicial) | Claude Code | Redacción adaptada del proyecto guía. | Los revisó el PM, Julián Aguilar Salas. |
+| Etiquetas, milestones e issues | Claude Code | Redacción de los 29 milestones y los 196 issues a partir de la especificación, el plan y el enunciado, con el estilo descriptivo del proyecto guía, y su creación con `gh`. El tablero KanbanBoard lo creó Julián. | El PM, Julián Aguilar Salas, revisó la redacción de los issues, los milestones y sus formatos para que sigan estándares y buenas prácticas, y aprobó su creación el 10/10/2026. |
+| `docs/especificacion.md`, `docs/plan.md` y `CLAUDE.md` | Claude Code | La redacción de la especificación, el plan y las instrucciones del proyecto (commit inicial), bajo la supervisión del PM, a partir del enunciado, de los requisitos de usuario recogidos en la entrevista con el cliente y de los requerimientos que especificó el PM; y la regla de `CLAUDE.md` de seguir el proyecto guía en cada parte ([#199](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/pull/199)). | El PM, Julián Aguilar Salas, revisó y aprobó todo el contenido, y revisó y fusionó #199. |
+| Proyecto base y configuración de la API: Laravel 13 sobre la rama de Nelson (#1), PostgreSQL 18 (#2), roles (#3), zona horaria (#5), español (#6), estructura hexagonal (#7), `/api/v1` (#8), Pint (#11), Larastan (#12), integración continua (#15) e instalación con `composer install` (#215) | Claude Code | El código, la configuración, las pruebas de Pest y los commits de los pull requests #200 a #209 y #216, sobre el commit de Nelson. | Pest, Pint, Larastan y `composer audit` pasan en la integración continua de #206, que contiene los anteriores, y de #208, #209 y #216. sanlealc-code revisó y aprobó #207 (#1). Julián fusionó #200 a #206 sin revisión de otra persona, antes de que la regla de `main` la exigiera (#16). #208, #209 y #216: revisión pendiente. |
+| Documentación: `docs/database.md` (#4), `docs/ubiquitous-language.md` (#9), `docs/architecture.md`, `docs/adr/` y `docs/patterns.md` (#10), README de la API (#18) y esta sección (#19) | Claude Code | La redacción, adaptada del proyecto guía y de la especificación, y la prueba de reversibilidad de las migraciones (#4). | Revisión de otra persona del equipo: pendiente. Los pasos de instalación los debe seguir alguien que no los escribió (#18). |
 | Identificador de las solicitudes (#45, PR #218) | Claude Code; Codex (declaración) | Claude Code generó el middleware `X-Request-Id`, la configuración CORS y las pruebas HTTP con la forma del repo guía; Codex agregó esta declaración. | Revisión humana pendiente. |
 | Errores HTTP de la API (#46) | Codex | Preservación de estados HTTP originales en RFC 9457 y regresiones automáticas. | Pendiente de revisión humana del equipo. |
 | Esquema de tiendas, cuentas, personal y clientes (#26) | Claude Code; Codex | Claude Code generó las migraciones de `businesses`, `users`, `members` y `customers` con la forma del repo guía y sus pruebas de esquema. Codex agregó la preservación de estados HTTP con sus regresiones y una migración que convertía las cuentas existentes a UUID; esa conversión se retiró el 19/10, por decisión de Julián, y `users` volvió a crearse en su propia migración, como en la guía. | Pruebas, Pint y Larastan automáticos en el PR #220. Revisión humana del equipo pendiente. |
+| Actualización de dependencias (#17, PR #230) | Claude Code; Codex (declaración) | Claude Code adaptó la configuración de Dependabot del repo guía para Composer y GitHub Actions y agregó su enlace al README; Codex agregó esta declaración. | Revisión humana pendiente. |
+| Correcciones de migraciones, autenticación, respuestas HTTP, concurrencia del perfil, fixtures por tienda, instalación y acceso inicial (#13, #26, #28, #33, #46, #215 y #232) | Codex | Inspección del código, correcciones y pruebas de regresión; documentación del arranque y de las verificaciones automáticas en los PR correspondientes. | Revisión humana pendiente. Las ejecuciones automáticas se registran por PR y no equivalen a una aprobación del equipo. |
+
+Cómo se mantiene:
+
+- Cada pull request con trabajo asistido marca la casilla "Si usé IA" de la plantilla y agrega o actualiza su fila en el mismo pull request.
+- La verificación se describe con hechos comprobables: qué pruebas se corrieron y quién revisó el pull request. Cuando la revisión ocurre, quien revisó actualiza la columna.
+- Abarca el código, las pruebas, la documentación y la redacción de los issues, no solo el código.
+- Antes de crear cada etiqueta de entrega (`v-avance1`, `v-avance2`, `v-final`), la tabla cubre todos los pull requests fusionados del corte.
