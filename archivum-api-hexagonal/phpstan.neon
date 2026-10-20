@@ -13,3 +13,8 @@ parameters:
         -
             identifier: trait.unused
             path: tests/Support/*
+        # Pest binds each test closure to the test case, which has those traits, but PHPStan reads $this as TestCall.
+        -
+            message: '#^Call to an undefined method Pest\\PendingCalls\\TestCall::scopeQueriesTo\(\)\.$#'
+            identifier: method.notFound
+            path: tests/Feature/*

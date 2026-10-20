@@ -42,7 +42,10 @@ final readonly class EloquentMemberRepository implements MemberRepository
         }
     }
 
-    /** Find the membership of an account by members_user_id_unique. */
+    /**
+     * Find the membership of an account by members_user_id_unique. It is the one read without a business,
+     * because the business of a person is what it finds; #32 moves it to fn_member_business.
+     */
     public function findByUser(UserId $userId): ?Member
     {
         $model = MemberModel::query()->where('user_id', $userId->value)->first();
