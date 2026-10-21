@@ -47,7 +47,7 @@ Rutas relativas a `archivum-api-hexagonal/`.
 | `tests/Unit/Businesses/PublicProfile/Application/GetPublicBusinessTest.php` | El caso de uso sin framework |
 | `tests/Feature/Businesses/PublicProfile/PublicBusinessProfileTest.php` | El endpoint contra PostgreSQL con dos tiendas |
 
-Solo se modificó un archivo de apoyo de ramas anteriores: `tests/Support/Catalog/ServesCatalog.php`, que ahora sirve también este módulo.
+Para integrarlo en la aplicación se modificaron `bootstrap/providers.php` (el provider), `routes/api.php` (las rutas) y `openapi/v1.json` (el contrato regenerado).
 
 ## Decisiones
 
@@ -67,6 +67,12 @@ Solo se modificó un archivo de apoyo de ramas anteriores: `tests/Support/Catalo
 | Dos tiendas, cada `slug` con sus datos | «gives each slug only the data of its own business» |
 | 404 `no-encontrado` | «answers 404 in the format of RFC 9457…» |
 
-## Pendiente de hacer a mano
+## Integración y verificación
 
-Registrar `PublicProfileServiceProvider` en `bootstrap/providers.php`, cargar `src/Businesses/PublicProfile/Infrastructure/Http/routes.php` desde `routes/api.php` y regenerar el contrato con `composer openapi`, además de lo de las ramas anteriores.
+No queda nada manual de integración: `PublicProfileServiceProvider` está registrado en `bootstrap/providers.php`, `routes/api.php` carga las rutas del módulo y `openapi/v1.json` incluye `GET /tiendas/{tienda}`. Las pruebas ejercen ese arranque; ya no instalan nada por su cuenta.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Pint | Sin diferencias |
+| Larastan, nivel 8 | Sin errores (`[OK] No errors`) |
+| Pest, suite completa | 855 pruebas en verde, con `php -d memory_limit=1G vendor/bin/pest` |
