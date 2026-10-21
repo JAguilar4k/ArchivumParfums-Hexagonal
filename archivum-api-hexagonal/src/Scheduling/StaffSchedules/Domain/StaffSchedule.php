@@ -22,11 +22,13 @@ final class StaffSchedule
         return new self($memberId);
     }
 
+    /**
+     * @param array<int, array<int, \Src\Scheduling\Shared\Domain\ValueObjects\TimeRange>> $slots
+     */
     public static function reconstitute(string $memberId, array $slots): self
     {
         $schedule = new self($memberId);
         $schedule->slots = $slots;
-
         return $schedule;
     }
 
@@ -47,6 +49,14 @@ final class StaffSchedule
         $this->slots[$dayValue][] = $newRange;
     }
 
+    public function getMemberId(): string
+    {
+        return $this->memberId;
+    }
+
+    /**
+     * @return array<int, array<int, \Src\Scheduling\Shared\Domain\ValueObjects\TimeRange>>
+     */
     public function getSlots(): array
     {
         return $this->slots;

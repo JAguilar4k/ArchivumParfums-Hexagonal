@@ -22,6 +22,11 @@ final class BusinessHours
         return new self($businessId);
     }
 
+    public function getBusinessId(): string
+    {
+        return $this->businessId;
+    }
+
     /**
      * Reconstituye el horario desde la BD.
      * Recibe los slots ya armados asumiendo que son válidos.
@@ -53,6 +58,10 @@ final class BusinessHours
 
         $this->slots[$dayValue][] = $newRange;
     }
+
+    /**
+     * @return array<int, array<int, \Src\Scheduling\Shared\Domain\ValueObjects\TimeRange>>
+     */
 
     public function getSlots(): array
     {

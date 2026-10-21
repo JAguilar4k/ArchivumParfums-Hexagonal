@@ -44,4 +44,34 @@ final class ScheduleBlock
     ): self {
         return new self($id, $memberId, $startAt, $endAt, $reason, $origin);
     }
+
+    public function getId(): string
+    {
+        return $this->id;
+    }
+
+    public function getMemberId(): ?string
+    {
+        return $this->memberId;
+    }
+
+    public function getStartAt(): DateTimeImmutable
+    {
+        return $this->startAt;
+    }
+
+    public function getEndAt(): DateTimeImmutable
+    {
+        return $this->endAt;
+    }
+
+    public function getReason(): string
+    {
+        return $this->reason;
+    }
+
+    public function getOrigin(): BlockOrigin
+    {
+        return $this->origin;
+    }
 }

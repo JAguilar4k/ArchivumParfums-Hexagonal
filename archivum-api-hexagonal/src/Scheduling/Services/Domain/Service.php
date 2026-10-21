@@ -68,4 +68,34 @@ final class Service
     {
         return $this->isActive;
     }
+
+    public function getId(): string
+    {
+        return $this->id;
+    }
+
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    public function getDuration(): int
+    {
+        return $this->duration;
+    }
+
+    public function getPrice(): int
+    {
+        return $this->price;
+    }
+
+    public function getMargin(): int
+    {
+        return $this->margin;
+    }
+
+    public function getMaxPerfumes(): int
+    {
+        return $this->maxPerfumes;
+    }
 }
