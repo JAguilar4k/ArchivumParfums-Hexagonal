@@ -748,6 +748,306 @@
                 ]
             }
         },
+        "/panel/perfumes/{perfume}/presentaciones": {
+            "get": {
+                "operationId": "catalog.perfumes.variants.index",
+                "summary": "List every presentation of a perfume of the business of the session, active or not",
+                "tags": [
+                    "PerfumeVariant"
+                ],
+                "parameters": [
+                    {
+                        "name": "perfume",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PanelPerfumeVariant`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PanelPerfumeVariant"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "catalog.perfumes.variants.store",
+                "summary": "Add a presentation to a perfume; repeated milliliters are reported on the field ml",
+                "tags": [
+                    "PerfumeVariant"
+                ],
+                "parameters": [
+                    {
+                        "name": "perfume",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StorePerfumeVariant"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`PanelPerfumeVariant`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelPerfumeVariant"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/panel/perfumes/{perfume}/presentaciones/{presentacion}": {
+            "patch": {
+                "operationId": "catalog.perfumes.variants.update",
+                "summary": "Change the milliliters, the manual price or the state of a presentation; repeated milliliters are reported on the field ml",
+                "tags": [
+                    "PerfumeVariant"
+                ],
+                "parameters": [
+                    {
+                        "name": "perfume",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "presentacion",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchPerfumeVariant"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PanelPerfumeVariant`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelPerfumeVariant"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/sesiones": {
             "post": {
                 "operationId": "accounts.sessions.store",
@@ -1109,6 +1409,40 @@
                 ],
                 "title": "PanelPerfume"
             },
+            "PanelPerfumeVariant": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "ml": {
+                        "type": "integer"
+                    },
+                    "precio_venta": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "precio_manual": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "activa": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "id",
+                    "ml",
+                    "precio_venta",
+                    "precio_manual",
+                    "activa"
+                ],
+                "title": "PanelPerfumeVariant"
+            },
             "PatchPerfume": {
                 "type": "object",
                 "properties": {
@@ -1237,6 +1571,27 @@
                     }
                 },
                 "title": "PatchPerfume"
+            },
+            "PatchPerfumeVariant": {
+                "type": "object",
+                "properties": {
+                    "ml": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 32767
+                    },
+                    "precio_manual": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0
+                    },
+                    "activa": {
+                        "type": "boolean"
+                    }
+                },
+                "title": "PatchPerfumeVariant"
             },
             "Problema": {
                 "type": "object",
@@ -1466,6 +1821,27 @@
                     "nombre"
                 ],
                 "title": "StorePerfume"
+            },
+            "StorePerfumeVariant": {
+                "type": "object",
+                "properties": {
+                    "ml": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 32767
+                    },
+                    "precio_manual": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 0
+                    }
+                },
+                "required": [
+                    "ml"
+                ],
+                "title": "StorePerfumeVariant"
             },
             "StoreSessionRequest": {
                 "type": "object",
