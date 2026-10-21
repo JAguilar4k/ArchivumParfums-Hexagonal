@@ -163,6 +163,7 @@ it('rejects the data that the value objects cannot hold', function (callable $bu
     'empty name' => [fn () => new PerfumeName(''), 'catalog.name_invalid'],
     'zero milliliters' => [fn () => new SizeMl(0), 'catalog.size_ml_invalid'],
     'negative price' => [fn () => new Colones(-1), 'money.colones_negative'],
+    'price over the integer column' => [fn () => new Colones(Colones::MAX + 1), 'money.colones_too_large'],
     'moment outside the list' => [fn () => PerfumeTag::fromStored('time_of_day', 'evening'), 'catalog.time_of_day_invalid'],
     'climate outside the list' => [fn () => PerfumeTag::fromStored('climate', 'hot'), 'catalog.climate_invalid'],
     'layer outside the list' => [fn () => PerfumeNote::fromStored('middle', 'Rosa'), 'catalog.note_layer_invalid'],
