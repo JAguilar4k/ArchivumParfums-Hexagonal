@@ -30,6 +30,7 @@ function panelListings(): array
 {
     return [
         'example: customers (test route)' => ['/api/v1/pruebas/panel/clientes', exampleCustomer(...)],
+        'list the perfumes' => ['/api/v1/panel/perfumes', examplePerfume(...)],
     ];
 }
 
@@ -44,6 +45,7 @@ function panelResourcesById(): array
 {
     return [
         'example: show a customer (test route)' => ['GET', '/api/v1/pruebas/panel/clientes', [], 'customers', exampleCustomer(...)],
+        'show a perfume' => ['GET', '/api/v1/panel/perfumes', [], 'perfumes', examplePerfume(...)],
         'edit a perfume' => ['PATCH', '/api/v1/panel/perfumes', ['nombre' => 'Nombre nuevo', 'activo' => false], 'perfumes', examplePerfume(...)],
     ];
 }
