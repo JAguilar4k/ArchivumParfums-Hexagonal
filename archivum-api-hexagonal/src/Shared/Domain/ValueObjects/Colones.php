@@ -8,11 +8,18 @@ use Src\Shared\Domain\Exceptions\InvalidValueException;
 
 final readonly class Colones
 {
-    /** Accept only whole amounts that are not negative. */
+    /** Largest amount a column INTEGER of PostgreSQL holds; a technical limit, not a commercial one. */
+    public const int MAX = 2147483647;
+
+    /** Accept only whole amounts that are not negative and fit in the INTEGER columns. */
     public function __construct(public int $amount)
     {
         if ($amount < 0) {
             throw new InvalidValueException('money.colones_negative');
+        }
+
+        if ($amount > self::MAX) {
+            throw new InvalidValueException('money.colones_too_large', ['max' => self::MAX]);
         }
     }
 
