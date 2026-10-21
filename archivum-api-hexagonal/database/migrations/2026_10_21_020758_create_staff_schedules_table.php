@@ -11,15 +11,15 @@ return new class extends Migration
     {
         Schema::create('staff_schedules', function (Blueprint $table) {
             $table->uuid('id')->primary(); //
-            $table->uuid('business_id'); //[cite: 2]
+            $table->uuid('business_id');
             $table->uuid('member_id');
             $table->integer('weekday');
-            $table->time('starts_at'); // Tramos guardan horas locales en time[cite: 2]
-            $table->time('ends_at'); //[cite: 2]
+            $table->time('starts_at'); 
+            $table->time('ends_at');
             $table->timestamps();
 
-            // Llave foránea compuesta con business_id para impedir asignar personal de otra tienda[cite: 2]
-            // Nota: Esto asume que la tabla de personal/usuarios se llama 'users' (del Issue #26)
+            // Llave foránea compuesta con business_id para impedir asignar personal de otra tienda
+            
             $table->foreign(['member_id', 'business_id'])
                 ->references(['id', 'business_id'])
                 ->on('members')
