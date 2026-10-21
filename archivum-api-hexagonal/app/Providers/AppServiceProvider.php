@@ -7,6 +7,8 @@ namespace App\Providers;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\ServiceProvider;
+use Src\Scheduling\Services\Domain\ServiceRepository;
+use Src\Scheduling\Services\Infrastructure\Persistence\EloquentServiceRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,7 +17,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(
+            ServiceRepository::class,
+            EloquentServiceRepository::class
+        );
     }
 
     /**
