@@ -24,5 +24,6 @@ class ServiceModel extends Model
         'price' => 'integer',
         'margin' => 'integer',
         'max_perfumes' => 'integer',
+        'is_active' => 'boolean',
     ];
 }

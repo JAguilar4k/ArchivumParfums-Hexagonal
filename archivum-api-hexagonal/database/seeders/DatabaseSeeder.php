@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 final class DatabaseSeeder extends Seeder
 {
@@ -13,11 +12,11 @@ final class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-        BusinessesSeeder::class,
-        StaffSeeder::class,
-        CustomersSeeder::class,
-        CatalogDemoSeeder::class,
-        //DemoServicesSeeder::class, /
+            BusinessesSeeder::class,
+            StaffSeeder::class,
+            CustomersSeeder::class,
+            CatalogDemoSeeder::class,
+            DemoServicesSeeder::class,
         ]);
     }
 }

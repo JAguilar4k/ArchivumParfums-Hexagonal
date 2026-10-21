@@ -20,6 +20,7 @@ return new class extends Migration
             $table->integer('price');
             $table->integer('margin');
             $table->integer('max_perfumes');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
 
             $table->unique(['id', 'business_id']);

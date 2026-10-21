@@ -54,6 +54,47 @@ final class Service
         return new self($id, $name, $duration, $price, $margin, $maxPerfumes, $isActive);
     }
 
+    public function changeName(string $name): void
+    {
+        $this->name = $name;
+    }
+
+    public function changeDuration(int $duration): void
+    {
+        if ($duration <= 0) {
+            throw new Exception('scheduling.service.invalid_duration');
+        }
+
+        $this->duration = $duration;
+    }
+
+    public function changePrice(int $price): void
+    {
+        if ($price < 0) {
+            throw new Exception('scheduling.service.invalid_price');
+        }
+
+        $this->price = $price;
+    }
+
+    public function changeMargin(int $margin): void
+    {
+        if ($margin < 0) {
+            throw new Exception('scheduling.service.invalid_margin');
+        }
+
+        $this->margin = $margin;
+    }
+
+    public function changeMaxPerfumes(int $maxPerfumes): void
+    {
+        if ($maxPerfumes < 0) {
+            throw new Exception('scheduling.service.invalid_max_perfumes');
+        }
+
+        $this->maxPerfumes = $maxPerfumes;
+    }
+
     public function deactivate(): void
     {
         $this->isActive = false;

@@ -7,6 +7,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Support\Facades\Route;
 use Src\Accounts\Sessions\Infrastructure\Http\Middleware\RequireAccountRole;
+use Src\Scheduling\Services\Infrastructure\Http\Controllers\ServiceController;
 use Src\Shared\Infrastructure\Http\Middleware\AssignRequestId;
 use Src\Shared\Infrastructure\Http\Problem\ProblemDetailsRenderer;
 use Src\Shared\Infrastructure\Tenancy\ScopeRequestToBusiness;
@@ -34,3 +35,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(new ProblemDetailsRenderer);
     })->create();
+
+Route::middleware(['auth:sanctum', 'role:owner'])->prefix('v1/panel')->group(function () {
+    Route::get('/servicios', [ServiceController::class, 'index']);
+    Route::post('/servicios', [ServiceController::class, 'store']);
+    Route::get('/servicios/{servicio}', [ServiceController::class, 'show']);
+    Route::patch('/servicios/{servicio}', [ServiceController::class, 'update']);
+});
