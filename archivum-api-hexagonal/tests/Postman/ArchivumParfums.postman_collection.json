@@ -1,0 +1,1758 @@
+{
+  "info": {
+    "_postman_id": "efae4a59-75c5-4bb7-a50f-1940fd0e0fd5",
+    "name": "ArchivumParfums · pruebas HTTP de la demo",
+    "description": "Cliente de pruebas del adaptador HTTP de ArchivumParfums. Importar y seleccionar el entorno de demo antes de comenzar. Ajustar base_url a la dirección y puerto reales, sin /api/v1 al final. Recorrer las 35 peticiones en orden, una por una con Send.\nUsar una instalación local con los seeders ficticios y la contraseña ARCHIVUM_DEMO_PASSWORD correspondiente. POST y PATCH modifican la demo; cada recorrido crea un perfume y una presentación y no los borra automáticamente. No ejecutar contra producción.\nLos scripts comprueban respuestas y capturan tokens, UUID y enlaces; no hacen peticiones ocultas ni ejecutan migraciones. Los tokens y valores de ejecución se versionan vacíos. No publicar exportaciones posteriores con datos capturados.\nConsultar tests/Postman/README.md para requisitos, orden, resultados esperados y límites del recorrido.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "item": [
+    {
+      "name": "01 · Salud de Laravel",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/up",
+        "description": "Sin autenticación. Solo comprueba HTTP 200; la salud no tiene por qué responder JSON.\n\nEsperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "02 · Visitante · perfil de ArchivumParfums",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/tiendas/archivumparfums",
+        "description": "Perfil público sin autorización. No debe publicar ajustes, personal ni identidad interna de la tienda.\n\nEsperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.slug).to.eql(\"archivumparfums\");",
+              "    pm.expect(body.data).to.have.all.keys(\"nombre\", \"slug\", \"logo_url\", \"lugar_cita\", \"zona_horaria\");",
+              "  });",
+              "",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "03 · Visitante · vitrina de ArchivumParfums",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/tiendas/archivumparfums/perfumes",
+        "description": "Sin autorización. La demo inicial contiene Oud Nocturno, Alba de Azahar, Sal Marina y Tabaco Dulce.\n\nEsperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data).to.be.an(\"array\");",
+              "    pm.expect(body).to.include.all.keys(\"data\", \"links\", \"meta\");",
+              "    pm.expect(body.data.map(p => p.nombre)).to.include(\"Oud Nocturno\");",
+              "  });",
+              "",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "04 · Visitante · vitrina de otra tienda y UUID real",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/tiendas/esencias-del-norte/perfumes",
+        "description": "Sin autorización. Captura Cedro y Bruma para comprobar después existencia y aislamiento con identidades reales.\n\nEsperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.unset(\"other_perfume_id\");",
+              "pm.environment.unset(\"other_perfume_name\");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.map(p => p.nombre)).to.include(\"Cedro y Bruma\");",
+              "    pm.expect(body.data.map(p => p.nombre)).not.to.include(\"Oud Nocturno\");",
+              "  });",
+              "  const other = body.data.find(p => p.nombre === \"Cedro y Bruma\");",
+              "  if (other) {",
+              "    pm.environment.set(\"other_perfume_id\", other.id);",
+              "    pm.environment.set(\"other_perfume_name\", other.nombre);",
+              "  }",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "05 · Login inválido · faltan campos y correo no válido",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/sesiones",
+        "description": "Sin autorización. Error de forma, distinto de credenciales incorrectas.\n\nEsperado: HTTP 422.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"correo\": \"no-es-un-correo\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 422\", function () { pm.response.to.have.status(422); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code === 422) {",
+              "  const problem = pm.response.json();",
+              "  pm.test(\"Problema RFC 9457 esperado\", function () {",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+              "    pm.expect(problem.status).to.eql(422);",
+              "    pm.expect(problem.type).to.match(/\\/problemas\\/datos-invalidos$/);",
+              "    pm.expect(problem.instance).to.eql(\"urn:uuid:\" + pm.response.headers.get(\"X-Request-Id\"));",
+              "  });",
+              "}",
+              "if (pm.response.code === 422) { pm.test(\"Errores por campo\", () => pm.expect(pm.response.json().errores).to.include.all.keys(\"correo\", \"contrasena\", \"dispositivo\")); }"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "06 · Credenciales incorrectas · cuenta ficticia",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/sesiones",
+        "description": "Sin autorización. Correo con forma válida y contraseña intencionalmente incorrecta.\n\nEsperado: HTTP 401.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"correo\": \"duena@archivumparfums.test\",\n  \"contrasena\": \"clave-incorrecta-para-el-ensayo\",\n  \"dispositivo\": \"postman-error-intencional\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code === 401) {",
+              "  const problem = pm.response.json();",
+              "  pm.test(\"Problema RFC 9457 esperado\", function () {",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+              "    pm.expect(problem.status).to.eql(401);",
+              "    pm.expect(problem.type).to.match(/\\/problemas\\/credenciales-invalidas$/);",
+              "    pm.expect(problem.instance).to.eql(\"urn:uuid:\" + pm.response.headers.get(\"X-Request-Id\"));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "07 · Login de la dueña A · capturar token_owner",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/sesiones",
+        "description": "Crea una sesión ficticia. Captura el token solo en el entorno actual; no se imprime ni se agrega a los cuerpos.\n\nEsperado: HTTP 201.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"correo\": \"duena@archivumparfums.test\",\n  \"contrasena\": \"{{demo_password}}\",\n  \"dispositivo\": \"postman-recorrido-token_owner\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.unset(\"token_owner\");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.tipo).to.eql(\"Bearer\");",
+              "    pm.expect(body.data.token).to.be.a(\"string\").and.not.empty;",
+              "  });",
+              "  pm.environment.set(\"token_owner\", body.data.token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "08 · Login del dueño B · capturar token_other_owner",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/sesiones",
+        "description": "Crea una sesión ficticia. Captura el token solo en el entorno actual; no se imprime ni se agrega a los cuerpos.\n\nEsperado: HTTP 201.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"correo\": \"dueno@esenciasdelnorte.test\",\n  \"contrasena\": \"{{demo_password}}\",\n  \"dispositivo\": \"postman-recorrido-token_other_owner\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.unset(\"token_other_owner\");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.tipo).to.eql(\"Bearer\");",
+              "    pm.expect(body.data.token).to.be.a(\"string\").and.not.empty;",
+              "  });",
+              "  pm.environment.set(\"token_other_owner\", body.data.token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "09 · Login del colaborador · capturar token_staff",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/sesiones",
+        "description": "Crea una sesión ficticia. Captura el token solo en el entorno actual; no se imprime ni se agrega a los cuerpos.\n\nEsperado: HTTP 201.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"correo\": \"asesor@archivumparfums.test\",\n  \"contrasena\": \"{{demo_password}}\",\n  \"dispositivo\": \"postman-recorrido-token_staff\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.unset(\"token_staff\");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.tipo).to.eql(\"Bearer\");",
+              "    pm.expect(body.data.token).to.be.a(\"string\").and.not.empty;",
+              "  });",
+              "  pm.environment.set(\"token_staff\", body.data.token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "10 · Dueña A · cuenta y pertenencia",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/cuenta",
+        "description": "Usa exclusivamente token_owner. Cuenta global, rol y tienda se muestran con lista blanca.\n\nEsperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.correo).to.eql(\"duena@archivumparfums.test\");",
+              "    pm.expect(body.data.rol).to.eql(\"dueno\");",
+              "    pm.expect(body.data.tienda.slug).to.eql(\"archivumparfums\");",
+              "    pm.expect(body.data).not.to.have.property(\"password\");",
+              "  });",
+              "",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "11 · Dueña A · perfil del panel",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/tienda",
+        "description": "Lee configuración, sin modificarla. La tienda sale de la sesión y no de un campo en URL/cuerpo.\n\nEsperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.id).to.eql(\"0192f0c4-0000-7000-8000-000000000001\");",
+              "    pm.expect(body.data.slug).to.eql(\"archivumparfums\");",
+              "    pm.expect(body.data.ajustes).to.have.property(\"margen_botella\");",
+              "  });",
+              "",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "12 · Dueña A · crear perfume ficticio",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes",
+        "description": "Escritura de demostración. Captura perfume_id; una repetición del recorrido puede crear otra fila porque la definición comercial de perfume repetido sigue pendiente.\n\nEsperado: HTTP 201.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"marca\": \"Laboratorio Postman\",\n  \"nombre\": \"Recorrido Postman A\",\n  \"concentracion\": \"EDP\",\n  \"genero\": \"unisex\",\n  \"familia\": \"Amaderada\",\n  \"descripcion\": \"Perfume ficticio del recorrido manual de Postman.\",\n  \"notas\": {\n    \"salida\": [\n      \"Bergamota\"\n    ],\n    \"corazon\": [\n      \"Rosa\"\n    ],\n    \"fondo\": [\n      \"Cedro\"\n    ]\n  },\n  \"etiquetas\": {\n    \"momento\": [\n      \"dia\"\n    ],\n    \"clima\": [\n      \"templado\"\n    ],\n    \"ocasion\": [\n      \"Estudio\"\n    ]\n  },\n  \"activo\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.unset(\"perfume_id\");",
+              "pm.environment.unset(\"variant_id\");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+              "    pm.expect(body.data.activo).to.eql(true);",
+              "    pm.expect(body.data).not.to.have.property(\"business_id\");",
+              "    pm.expect(pm.response.headers.get(\"Location\")).to.include(body.data.id);",
+              "  });",
+              "  pm.environment.set(\"perfume_id\", body.data.id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "13 · Dueña A · crear presentación de 50 ml",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes/{{perfume_id}}/presentaciones",
+        "description": "Captura variant_id. El precio manual sustituye el cálculo; no hay costo de proveedor integrado.\n\nEsperado: HTTP 201.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ml\": 50,\n  \"precio_manual\": 12500\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 201\", function () { pm.response.to.have.status(201); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data).to.include({ml: 50, precio_manual: 12500, precio_venta: 12500, activa: true});",
+              "    pm.expect(pm.response.headers.get(\"Location\")).to.include(body.data.id);",
+              "  });",
+              "  pm.environment.set(\"variant_id\", body.data.id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "14 · Dueña A · editar presentación conservando identidad",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes/{{perfume_id}}/presentaciones/{{variant_id}}",
+        "description": "PATCH con campos españoles de presentación. No confundir activa de presentación con activo del perfume.\n\nEsperado: HTTP 200.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ml\": 50,\n  \"precio_manual\": 13500,\n  \"activa\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.id).to.eql(pm.environment.get(\"variant_id\"));",
+              "    pm.expect(body.data).to.include({ml: 50, precio_manual: 13500, precio_venta: 13500, activa: true});",
+              "  });",
+              "",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "15 · Rechazar ml repetidos sin crear otra variante",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes/{{perfume_id}}/presentaciones",
+        "description": "La unicidad se refiere a tamaño dentro del perfume, no a perfumes distintos.\n\nEsperado: HTTP 422.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ml\": 50,\n  \"precio_manual\": 10000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 422\", function () { pm.response.to.have.status(422); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code === 422) {",
+              "  const problem = pm.response.json();",
+              "  pm.test(\"Problema RFC 9457 esperado\", function () {",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+              "    pm.expect(problem.status).to.eql(422);",
+              "    pm.expect(problem.type).to.match(/\\/problemas\\/datos-invalidos$/);",
+              "    pm.expect(problem.instance).to.eql(\"urn:uuid:\" + pm.response.headers.get(\"X-Request-Id\"));",
+              "  });",
+              "}",
+              "if (pm.response.code === 422) { pm.test(\"Señala ml\", () => pm.expect(pm.response.json().errores).to.have.property(\"ml\")); }"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "16 · Rechazar overflow al crear presentación",
+      "request": {
+        "method": "POST",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes/{{perfume_id}}/presentaciones",
+        "description": "2147483648 excede INTEGER. Debe fallar validación y no producir SQLSTATE 22003 ni crear la variante de 100 ml.\n\nEsperado: HTTP 422.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"ml\": 100,\n  \"precio_manual\": 2147483648\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 422\", function () { pm.response.to.have.status(422); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code === 422) {",
+              "  const problem = pm.response.json();",
+              "  pm.test(\"Problema RFC 9457 esperado\", function () {",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+              "    pm.expect(problem.status).to.eql(422);",
+              "    pm.expect(problem.type).to.match(/\\/problemas\\/datos-invalidos$/);",
+              "    pm.expect(problem.instance).to.eql(\"urn:uuid:\" + pm.response.headers.get(\"X-Request-Id\"));",
+              "  });",
+              "}",
+              "if (pm.response.code === 422) { pm.test(\"Señala precio_manual\", () => pm.expect(pm.response.json().errores).to.have.property(\"precio_manual\")); }"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "17 · Rechazar overflow al editar presentación",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes/{{perfume_id}}/presentaciones/{{variant_id}}",
+        "description": "El precio de la presentación existente debe conservarse en 13500. Se comprobará después en el detalle público.\n\nEsperado: HTTP 422.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"precio_manual\": 2147483648\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 422\", function () { pm.response.to.have.status(422); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code === 422) {",
+              "  const problem = pm.response.json();",
+              "  pm.test(\"Problema RFC 9457 esperado\", function () {",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+              "    pm.expect(problem.status).to.eql(422);",
+              "    pm.expect(problem.type).to.match(/\\/problemas\\/datos-invalidos$/);",
+              "    pm.expect(problem.instance).to.eql(\"urn:uuid:\" + pm.response.headers.get(\"X-Request-Id\"));",
+              "  });",
+              "}",
+              "if (pm.response.code === 422) { pm.test(\"Señala precio_manual\", () => pm.expect(pm.response.json().errores).to.have.property(\"precio_manual\")); }"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "18 · Dueña A · PATCH parcial y desactivar perfume",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes/{{perfume_id}}",
+        "description": "Vacía descripción y corazón; conserva salida/fondo y presentaciones. No es una eliminación física.\n\nEsperado: HTTP 200.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Recorrido Postman A revisado\",\n  \"descripcion\": null,\n  \"notas\": {\n    \"corazon\": []\n  },\n  \"activo\": false\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.nombre).to.eql(\"Recorrido Postman A revisado\");",
+              "    pm.expect(body.data.descripcion).to.eql(null);",
+              "    pm.expect(body.data.activo).to.eql(false);",
+              "    pm.expect(body.data.notas).to.eql({salida:[\"Bergamota\"], corazon:[], fondo:[\"Cedro\"]});",
+              "  });",
+              "",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "19 · Visitante · perfume inactivo no publicado",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/tiendas/archivumparfums/perfumes/{{perfume_id}}",
+        "description": "Sin autorización. Un perfume inactivo no es público aunque tenga una presentación con precio.\n\nEsperado: HTTP 404."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code === 404) {",
+              "  const problem = pm.response.json();",
+              "  pm.test(\"Problema RFC 9457 esperado\", function () {",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+              "    pm.expect(problem.status).to.eql(404);",
+              "    pm.expect(problem.type).to.match(/\\/problemas\\/no-encontrado$/);",
+              "    pm.expect(problem.instance).to.eql(\"urn:uuid:\" + pm.response.headers.get(\"X-Request-Id\"));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "20 · Dueña A · reactivar sin reconstruir campos borrados",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes/{{perfume_id}}",
+        "description": "Solo cambia activo; no restaura descripción ni notas que se vaciaron.\n\nEsperado: HTTP 200.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"activo\": true\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.activo).to.eql(true);",
+              "    pm.expect(body.data.descripcion).to.eql(null);",
+              "    pm.expect(body.data.notas.corazon).to.eql([]);",
+              "  });",
+              "",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "21 · Visitante · detalle y precio preservado",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/tiendas/archivumparfums/perfumes/{{perfume_id}}",
+        "description": "Sin autorización. Comprueba publicación, PATCH parcial y ausencia de variantes creadas por errores 422.\n\nEsperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.id).to.eql(pm.environment.get(\"perfume_id\"));",
+              "    pm.expect(body.data.nombre).to.eql(\"Recorrido Postman A revisado\");",
+              "    pm.expect(body.data.descripcion).to.eql(null);",
+              "    pm.expect(body.data.notas.corazon).to.eql([]);",
+              "    pm.expect(body.data.presentaciones).to.eql([{ml:50, precio_venta:13500}]);",
+              "  });",
+              "",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "22 · Dueña A · búsqueda y primera página",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes?texto=MAISON%20NOCTIS&por_pagina=1&pagina=1",
+        "description": "La demo tiene Oud Nocturno y Tabaco Dulce. La búsqueda ignora mayúsculas. Captura el enlace real next.\n\nEsperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.environment.unset(\"panel_next_url\");",
+              "pm.environment.unset(\"panel_prev_url\");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.meta.current_page).to.eql(1);",
+              "    pm.expect(body.meta.total).to.eql(2);",
+              "    pm.expect(body.data[0].nombre).to.eql(\"Oud Nocturno\");",
+              "    pm.expect(body.links.next).to.be.a(\"string\").and.include(\"pagina=2\");",
+              "    pm.expect(body.links.next).not.to.include(\"page=\");",
+              "  });",
+              "  pm.environment.set(\"panel_next_url\", body.links.next);",
+              "  pm.environment.set(\"panel_first_id\", body.data[0].id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "23 · Dueña A · seguir links.next devuelto",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{panel_next_url}}",
+        "description": "No reconstruye la página 2 a mano: usa exactamente el enlace capturado por la petición anterior, con Bearer de la dueña.\n\nEsperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.meta.current_page).to.eql(2);",
+              "    pm.expect(body.data[0].nombre).to.eql(\"Tabaco Dulce\");",
+              "    pm.expect(body.data[0].id).not.to.eql(pm.environment.get(\"panel_first_id\"));",
+              "    pm.expect(body.links.prev).to.include(\"pagina=1\");",
+              "  });",
+              "  pm.environment.set(\"panel_prev_url\", body.links.prev);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "24 · Dueña A · seguir links.prev devuelto",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{panel_prev_url}}",
+        "description": "Vuelve a la página 1 conservando el filtro y tamaño.\n\nEsperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.meta.current_page).to.eql(1);",
+              "    pm.expect(body.data[0].id).to.eql(pm.environment.get(\"panel_first_id\"));",
+              "  });",
+              "",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "25 · Dueño B · confirmar que el UUID ajeno existe",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_other_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes/{{other_perfume_id}}",
+        "description": "Usa token_other_owner, no token_owner. Establece que la siguiente 404 no se debe a un UUID inventado.\n\nEsperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.id).to.eql(pm.environment.get(\"other_perfume_id\"));",
+              "    pm.expect(body.data.nombre).to.eql(pm.environment.get(\"other_perfume_name\"));",
+              "  });",
+              "",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "26 · Dueña A · el mismo UUID de B se oculta",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes/{{other_perfume_id}}",
+        "description": "Usa token_owner. El recurso real de otra tienda se trata como no encontrado.\n\nEsperado: HTTP 404."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 404\", function () { pm.response.to.have.status(404); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code === 404) {",
+              "  const problem = pm.response.json();",
+              "  pm.test(\"Problema RFC 9457 esperado\", function () {",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+              "    pm.expect(problem.status).to.eql(404);",
+              "    pm.expect(problem.type).to.match(/\\/problemas\\/no-encontrado$/);",
+              "    pm.expect(problem.instance).to.eql(\"urn:uuid:\" + pm.response.headers.get(\"X-Request-Id\"));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "27 · Colaborador · cuenta autenticada y rol correcto",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_staff}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/cuenta",
+        "description": "Comprueba que token_staff pertenece al asesor antes de interpretar los 403 como autorización.\n\nEsperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code < 300) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"Datos esperados\", function () {",
+              "    pm.expect(body.data.correo).to.eql(\"asesor@archivumparfums.test\");",
+              "    pm.expect(body.data.rol).to.eql(\"colaborador\");",
+              "    pm.expect(body.data.tienda.slug).to.eql(\"archivumparfums\");",
+              "  });",
+              "",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "28 · Colaborador · listado del panel prohibido",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_staff}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes",
+        "description": "El token es válido pero el rol no administra catálogo.\n\nEsperado: HTTP 403."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 403\", function () { pm.response.to.have.status(403); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code === 403) {",
+              "  const problem = pm.response.json();",
+              "  pm.test(\"Problema RFC 9457 esperado\", function () {",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+              "    pm.expect(problem.status).to.eql(403);",
+              "    pm.expect(problem.type).to.match(/\\/problemas\\/prohibido$/);",
+              "    pm.expect(problem.instance).to.eql(\"urn:uuid:\" + pm.response.headers.get(\"X-Request-Id\"));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "29 · Colaborador · PATCH prohibido",
+      "request": {
+        "method": "PATCH",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_staff}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes/{{perfume_id}}",
+        "description": "Cuerpo válido para que se observe autorización, no un 422 previo. No debe cambiar el nombre.\n\nEsperado: HTTP 403.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"NO DEBE CAMBIAR POR STAFF\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 403\", function () { pm.response.to.have.status(403); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code === 403) {",
+              "  const problem = pm.response.json();",
+              "  pm.test(\"Problema RFC 9457 esperado\", function () {",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+              "    pm.expect(problem.status).to.eql(403);",
+              "    pm.expect(problem.type).to.match(/\\/problemas\\/prohibido$/);",
+              "    pm.expect(problem.instance).to.eql(\"urn:uuid:\" + pm.response.headers.get(\"X-Request-Id\"));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "30 · Dueña A · confirmar que el PATCH prohibido no modificó el perfume",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/panel/perfumes/{{perfume_id}}",
+        "description": "Después del PATCH 403 del colaborador, el dueño comprueba que el nombre y el UUID del perfume siguen intactos. Esperado: HTTP 200."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code === 200) {",
+              "  const body = pm.response.json();",
+              "  pm.test(\"El colaborador no modificó el perfume\", function () {",
+              "    pm.expect(body.data.id).to.eql(pm.environment.get(\"perfume_id\"));",
+              "    pm.expect(body.data.nombre).to.eql(\"Recorrido Postman A revisado\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "31 · Logout del colaborador",
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_staff}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/sesiones/actual",
+        "description": "Revoca el token actual; se conserva su valor local para probar la revocación en la petición siguiente.\n\nEsperado: HTTP 204."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 204\", function () { pm.response.to.have.status(204); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "pm.test(\"Sin cuerpo\", () => pm.expect(pm.response.text()).to.eql(\"\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "32 · Token staff revocado · cuenta rechazada",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_staff}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/cuenta",
+        "description": "Reutiliza exactamente el token revocado; no depende solo de borrar la autorización de la interfaz.\n\nEsperado: HTTP 401."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code === 401) {",
+              "  const problem = pm.response.json();",
+              "  pm.test(\"Problema RFC 9457 esperado\", function () {",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+              "    pm.expect(problem.status).to.eql(401);",
+              "    pm.expect(problem.type).to.match(/\\/problemas\\/no-autenticado$/);",
+              "    pm.expect(problem.instance).to.eql(\"urn:uuid:\" + pm.response.headers.get(\"X-Request-Id\"));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "33 · Logout del dueño B",
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_other_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/sesiones/actual",
+        "description": "Cierra también la sesión de control de la otra tienda.\n\nEsperado: HTTP 204."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 204\", function () { pm.response.to.have.status(204); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "pm.test(\"Sin cuerpo\", () => pm.expect(pm.response.text()).to.eql(\"\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "34 · Logout de la dueña A",
+      "request": {
+        "method": "DELETE",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/sesiones/actual",
+        "description": "Revoca token_owner. La petición siguiente lo reutiliza para comprobar 401.\n\nEsperado: HTTP 204."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 204\", function () { pm.response.to.have.status(204); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "pm.test(\"Sin cuerpo\", () => pm.expect(pm.response.text()).to.eql(\"\"));"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "35 · Token owner revocado · cuenta rechazada",
+      "request": {
+        "method": "GET",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token_owner}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/cuenta",
+        "description": "Fin del recorrido principal. Reutiliza el mismo token y espera no-autenticado.\n\nEsperado: HTTP 401."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP esperado 401\", function () { pm.response.to.have.status(401); });",
+              "pm.test(\"La respuesta identifica la solicitud\", function () { pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i); });",
+              "if (pm.response.code === 401) {",
+              "  const problem = pm.response.json();",
+              "  pm.test(\"Problema RFC 9457 esperado\", function () {",
+              "    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/problem+json\");",
+              "    pm.expect(problem.status).to.eql(401);",
+              "    pm.expect(problem.type).to.match(/\\/problemas\\/no-autenticado$/);",
+              "    pm.expect(problem.instance).to.eql(\"urn:uuid:\" + pm.response.headers.get(\"X-Request-Id\"));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ],
+      "response": []
+    }
+  ]
+}

@@ -27,6 +27,8 @@ const FOREIGN_RESOURCE_ID = '0192f0c4-7b1e-7c3a-9f1d-2b6a4e8c0d02';
 const MISSING_RESOURCE_ID = '0192f0c4-7b1e-7c3a-9f1d-2b6a4e8c0d03';
 
 beforeEach(function () {
+    config(['app.url' => 'https://api.example.test:9443']);
+
     Route::prefix('api/v1/pruebas')->middleware('api')->group(function (): void {
         Route::get('fallo', fn () => throw new RuntimeException('SQLSTATE[42P01] at /var/www/secret.php'));
 
@@ -78,7 +80,7 @@ it('answers an unknown route with a complete not found problem', function () {
     $response->assertNotFound()
         ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE)
         ->assertExactJson([
-            'type' => 'http://localhost/problemas/no-encontrado',
+            'type' => 'https://api.example.test:9443/problemas/no-encontrado',
             'title' => 'Recurso no encontrado',
             'status' => 404,
             'detail' => 'El recurso solicitado no existe.',
@@ -97,7 +99,7 @@ it('lists the validation errors per field in spanish', function () {
     postJson('/api/v1/pruebas/validacion', ['precio' => 'caro'])
         ->assertUnprocessable()
         ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE)
-        ->assertJsonPath('type', 'http://localhost/problemas/datos-invalidos')
+        ->assertJsonPath('type', 'https://api.example.test:9443/problemas/datos-invalidos')
         ->assertJsonPath('title', 'Datos inválidos')
         ->assertJsonPath('detail', 'Los datos enviados no son válidos.')
         ->assertJsonPath('errores.precio.0', 'El campo precio debe ser un número entero.');
@@ -106,7 +108,7 @@ it('lists the validation errors per field in spanish', function () {
 it('answers an invalid value of the domain with its translated message', function () {
     getJson('/api/v1/pruebas/dominio')
         ->assertUnprocessable()
-        ->assertJsonPath('type', 'http://localhost/problemas/datos-invalidos')
+        ->assertJsonPath('type', 'https://api.example.test:9443/problemas/datos-invalidos')
         ->assertJsonPath('detail', 'El identificador no es válido.');
 });
 
@@ -114,7 +116,7 @@ it('answers any other domain exception as a conflict', function () {
     getJson('/api/v1/pruebas/conflicto')
         ->assertConflict()
         ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE)
-        ->assertJsonPath('type', 'http://localhost/problemas/conflicto')
+        ->assertJsonPath('type', 'https://api.example.test:9443/problemas/conflicto')
         ->assertJsonPath('title', 'Conflicto')
         ->assertJsonPath('status', 409)
         ->assertJsonPath('detail', 'El valor del campo slug ya está en uso.');
@@ -124,7 +126,7 @@ it('answers a failed authentication as invalid credentials', function () {
     postJson('/api/v1/pruebas/credenciales')
         ->assertUnauthorized()
         ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE)
-        ->assertJsonPath('type', 'http://localhost/problemas/credenciales-invalidas')
+        ->assertJsonPath('type', 'https://api.example.test:9443/problemas/credenciales-invalidas')
         ->assertJsonPath('title', 'Credenciales inválidas')
         ->assertJsonPath('detail', 'El correo o la contraseña no son correctos.');
 });
@@ -133,7 +135,7 @@ it('answers a protected route without a session as unauthenticated', function (a
     get('/api/v1/pruebas/protegida', $headers)
         ->assertUnauthorized()
         ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE)
-        ->assertJsonPath('type', 'http://localhost/problemas/no-autenticado')
+        ->assertJsonPath('type', 'https://api.example.test:9443/problemas/no-autenticado')
         ->assertJsonPath('detail', 'Debe iniciar sesión para realizar esta acción.');
 })->with([
     'without an accept header' => [[]],
@@ -144,7 +146,7 @@ it('keeps the status of the framework http exceptions with their type', function
     getJson("/api/v1/pruebas/estado/{$status}")
         ->assertStatus($status)
         ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE)
-        ->assertJsonPath('type', "http://localhost/problemas/{$type}")
+        ->assertJsonPath('type', "https://api.example.test:9443/problemas/{$type}")
         ->assertJsonPath('title', $title)
         ->assertJsonPath('status', $status);
 })->with([
@@ -162,7 +164,7 @@ it('keeps the status of the framework http exceptions with their type', function
 it('answers a wrong verb as method not allowed', function () {
     deleteJson('/api/v1')
         ->assertMethodNotAllowed()
-        ->assertJsonPath('type', 'http://localhost/problemas/metodo-no-permitido');
+        ->assertJsonPath('type', 'https://api.example.test:9443/problemas/metodo-no-permitido');
 });
 
 it('keeps unlisted http statuses and headers in the problem response', function (int $status, string $type) {
@@ -170,7 +172,7 @@ it('keeps unlisted http statuses and headers in the problem response', function 
         ->assertStatus($status)
         ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE)
         ->assertHeader('X-Error-Source', 'framework')
-        ->assertJsonPath('type', "http://localhost/problemas/{$type}")
+        ->assertJsonPath('type', "https://api.example.test:9443/problemas/{$type}")
         ->assertJsonPath('status', $status);
 
     $response->assertJsonPath('instance', 'urn:uuid:'.$response->headers->get('X-Request-Id'));
@@ -194,7 +196,7 @@ it('keeps the headers of an http exception', function () {
     getJson('/api/v1/pruebas/limite')
         ->assertTooManyRequests()
         ->assertHeader('Retry-After', '30')
-        ->assertJsonPath('type', 'http://localhost/problemas/demasiadas-solicitudes');
+        ->assertJsonPath('type', 'https://api.example.test:9443/problemas/demasiadas-solicitudes');
 });
 
 it('hides every technical detail of an unexpected failure', function () {
@@ -202,7 +204,7 @@ it('hides every technical detail of an unexpected failure', function () {
 
     $response->assertInternalServerError()
         ->assertHeader('Content-Type', PROBLEM_CONTENT_TYPE)
-        ->assertJsonPath('type', 'http://localhost/problemas/error-interno')
+        ->assertJsonPath('type', 'https://api.example.test:9443/problemas/error-interno')
         ->assertJsonPath('detail', 'Ocurrió un error inesperado. Intente de nuevo más tarde.');
 
     expect(array_keys($response->json()))->toBe(['type', 'title', 'status', 'detail', 'instance']);
@@ -220,7 +222,7 @@ it('answers a path identifier of another business exactly like one that does not
 
     expect(Arr::except($foreign->json(), 'instance'))
         ->toBe(Arr::except($missing->json(), 'instance'))
-        ->toMatchArray(['type' => 'http://localhost/problemas/no-encontrado']);
+        ->toMatchArray(['type' => 'https://api.example.test:9443/problemas/no-encontrado']);
 });
 
 it('answers a body identifier of another business as invalid data in that field', function () {
@@ -231,7 +233,7 @@ it('answers a body identifier of another business as invalid data in that field'
 
     expect(Arr::except($foreign->json(), 'instance'))
         ->toBe(Arr::except($missing->json(), 'instance'))
-        ->toMatchArray(['type' => 'http://localhost/problemas/datos-invalidos'])
+        ->toMatchArray(['type' => 'https://api.example.test:9443/problemas/datos-invalidos'])
         ->and($foreign->json('errores'))->toHaveKey('recurso_id');
 });
 

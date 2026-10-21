@@ -18,7 +18,7 @@ La estructura, la arquitectura y la forma de trabajo siguen el proyecto guía de
 | `archivum-web/` | Cliente web en Vue 3 con TypeScript. Llega con [M16](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/16). |
 | [`docs/architecture.md`](docs/architecture.md) | Estructura, capas, contextos, regla de dependencias y recorrido de una petición. |
 | [`docs/database.md`](docs/database.md) | Roles, migraciones y convenciones de la base de datos. |
-| `docs/data-model.md` | Modelo de datos en tercera forma normal. Llega con [#35](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/35). |
+| [`docs/data-model.md`](docs/data-model.md) | Modelo de datos en tercera forma normal. |
 | [`docs/ubiquitous-language.md`](docs/ubiquitous-language.md) | Glosario del negocio, estados y convenciones de nombres. |
 | [`docs/patterns.md`](docs/patterns.md) | Patrones de diseño usados, previstos y descartados. |
 | [`docs/adr/`](docs/adr/) | Registro de las decisiones de arquitectura. |
@@ -35,11 +35,11 @@ El dominio no depende de Laravel y una prueba de arquitectura lo verifica en cad
 
 Cada tienda ve solo sus datos gracias a dos barreras: el puerto `BusinessContext` indica a qué tienda pertenece la operación y cada repositorio filtra por ella, y PostgreSQL 18 aplica seguridad a nivel de fila en toda tabla con `business_id`. La aplicación se conecta con `archivum_app`, un rol que no es dueño de las tablas; las migraciones corren con `archivum_owner`.
 
-`archivum-web` es una SPA que consume solo la API, con tipos generados desde el contrato `openapi/v1.json`.
+El cliente previsto, `archivum-web`, será una SPA que consuma solo la API, con tipos generados desde el contrato `openapi/v1.json`. Su implementación corresponde a M16; actualmente se utiliza un cliente HTTP como Postman.
 
 ## Estado
 
-Avance 1 está en curso. M01 (proyecto base) y M02 (arquitectura hexagonal y API versionada) tienen todos sus issues integrados: PostgreSQL 18 con roles separados, zona horaria y español, estructura hexagonal, documentación de arquitectura y acceso inicial a `/api/v1`. M03 (calidad e integración continua) todavía tiene pull requests en revisión. El despliegue en una dirección pública está pendiente ([#21](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/21)). El trabajo está planificado en 29 milestones, uno por módulo, en el [tablero del proyecto](https://github.com/users/JAguilar4k/projects/4).
+Avance 1 está en curso. `main` integra la base de Laravel y PostgreSQL, las pruebas y CI, las cuentas y sesiones del personal, el aislamiento por tienda, el perfil y logo de la tienda, el catálogo de perfumes y presentaciones, las fotos, la vitrina pública y el contrato OpenAPI. Los servicios y horarios de M08, la disponibilidad y las citas de M09 y el despliegue público ([#21](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/21)) siguen pendientes de integración. El alcance completo del corte aún no está terminado. El trabajo está planificado en 29 milestones, uno por módulo, en el [tablero del proyecto](https://github.com/users/JAguilar4k/projects/4).
 
 | Corte | Fecha | Qué se entrega | Estado |
 | --- | --- | --- | --- |
@@ -59,7 +59,44 @@ Al cerrar un módulo se agrega su fila a esta tabla con lo que quedó listo.
 
 ## Puesta en marcha
 
-Los requisitos, los pasos de instalación, los comandos y los endpoints están en [archivum-api-hexagonal/README.md](archivum-api-hexagonal/README.md).
+Se necesitan PHP 8.4, Composer 2 y PostgreSQL 18 en ejecución. Los comandos se ejecutan en `archivum-api-hexagonal/`:
+
+```bash
+git clone https://github.com/JAguilar4k/ArchivumParfums-Hexagonal.git
+cd ArchivumParfums-Hexagonal/archivum-api-hexagonal
+composer install
+```
+
+El instalador prepara `.env`, clave, roles, bases, migraciones y datos ficticios. Si solicita completar la contraseña de PostgreSQL en una terminal interactiva, ejecuta `php artisan archivum:install`. Si ya existen los roles, configura sus contraseñas actuales en `.env`. Revisa `DB_HOST`, `DB_PORT` y configura `APP_URL` con la dirección real de la API antes de iniciar el servidor; `http://localhost:8000` es solo un ejemplo local.
+
+```bash
+php artisan config:clear
+php artisan storage:link
+composer run dev
+```
+
+Deja esa terminal abierta. En Postman, envía `GET /api/v1` sobre la dirección del servidor; debe responder 200 con el nombre de la API. La documentación está en `/docs/api` y su JSON en `/docs/api.json` durante desarrollo local. La API se prueba mediante solicitudes HTTP; el cliente Vue todavía está pendiente.
+
+La [colección y el entorno de Postman](archivum-api-hexagonal/tests/Postman/README.md) están incluidos en el repositorio como material de pruebas HTTP. Importa ambos JSON y ajusta `base_url` a la dirección real de la API. Puedes elegir otro host o puerto mediante `php artisan serve --host=localhost --port=8080 --no-reload`; configura también `APP_URL` y `base_url` con ese mismo origen, como explica el README de la API.
+
+Abre otra terminal en la carpeta de la API para verificar el proyecto:
+
+```bash
+composer validate --strict
+composer lint
+composer analyse
+composer test
+composer audit --locked
+```
+
+Pest utiliza la base exclusiva `archivum_hexagonal_testing`; sus pruebas recrean tablas en esa base. Evita que variables `DB_DATABASE` o `DB_URL` heredadas de la terminal apunten a una base con datos que deban conservarse. Si cambias un endpoint, regenera y revisa el contrato:
+
+```bash
+composer openapi
+git diff -- openapi/v1.json
+```
+
+Los comandos, la configuración en PowerShell, la separación de roles, las migraciones, el recorrido de Postman y la resolución de problemas se detallan en [el README de la API](archivum-api-hexagonal/README.md).
 
 ## Forma de trabajo
 
@@ -84,6 +121,7 @@ El enunciado permite usar asistentes de IA con una condición: cada integrante d
 
 | Parte | Asistente | Qué generó la IA | Qué verificó el equipo |
 | --- | --- | --- | --- |
+| Ejecución y pruebas HTTP (#252) | Codex | Actualización de ambos README con comandos, rutas integradas, configuración portable y alcance actual; colección y entorno ficticio de Postman en `tests/Postman`; arranque sin recargador y documentación sin sesiones web, con regresión. | Instalación aislada, Pint, Larastan, Pest, auditoría y comparación del contrato ejecutados automáticamente; recorrido representativo enviado desde la interfaz de Postman. Comprobación de la colección, imágenes y portabilidad registrada en el PR de #252. Julián autorizó la excepción a la revisión previa para integrar esta preparación. |
 | README, `.gitignore` y plantillas de `.github/` (commit inicial) | Claude Code | Redacción adaptada del proyecto guía. | Los revisó el PM, Julián Aguilar Salas. |
 | Etiquetas, milestones e issues | Claude Code | Redacción de los 29 milestones y los 196 issues a partir de la especificación, el plan y el enunciado, con el estilo descriptivo del proyecto guía, y su creación con `gh`. El tablero KanbanBoard lo creó Julián. | El PM, Julián Aguilar Salas, revisó la redacción de los issues, los milestones y sus formatos para que sigan estándares y buenas prácticas, y aprobó su creación el 10/10/2026. |
 | `docs/especificacion.md`, `docs/plan.md` y `CLAUDE.md` | Claude Code | La redacción de la especificación, el plan y las instrucciones del proyecto (commit inicial), bajo la supervisión del PM, a partir del enunciado, de los requisitos de usuario recogidos en la entrevista con el cliente y de los requerimientos que especificó el PM; y la regla de `CLAUDE.md` de seguir el proyecto guía en cada parte ([#199](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/pull/199)). | El PM, Julián Aguilar Salas, revisó y aprobó todo el contenido, y revisó y fusionó #199. |

@@ -51,11 +51,10 @@ return [
     ],
 
     /*
-     * The documentation is gated by the `viewApiDocs` gate, defined in
-     * Src\Shared\Infrastructure\OpenApi\ApiContract.
+     * The API has no browser sessions. Keep the documentation stateless and
+     * gated by `viewApiDocs`, defined in Src\Shared\Infrastructure\OpenApi\ApiContract.
      */
     'middleware' => [
-        'web',
         RestrictedDocsAccess::class,
     ],
 

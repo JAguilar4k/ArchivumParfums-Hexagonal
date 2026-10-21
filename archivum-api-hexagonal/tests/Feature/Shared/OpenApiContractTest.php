@@ -107,14 +107,19 @@ it('requires the Sanctum token only on the routes behind auth:sanctum', function
 });
 
 it('publishes the interactive documentation at /docs/api', function () {
+    // The API has no sessions table; documentation must also work outside Pest's array session driver.
+    config(['session.driver' => 'database']);
+
     get('/docs/api')->assertOk();
     get('/docs/api.json')->assertOk()->assertJsonPath('openapi', fn (string $version) => str_starts_with($version, '3.1'));
 });
 
 it('hides the documentation in production until the monitoring panel decides how to protect it', function () {
+    config(['session.driver' => 'database']);
     app()->detectEnvironment(fn () => 'production');
 
     get('/docs/api')->assertForbidden();
+    get('/docs/api.json')->assertForbidden();
 });
 
 /**
