@@ -89,6 +89,32 @@ it('pages the list with pagina and por_pagina', function () {
         ->and($second->json('meta.total'))->toBe(3);
 });
 
+it('links the pages with pagina and keeps the filters when following next and prev', function () {
+    listScenario();
+
+    $first = getJson(PANEL_PERFUMES.'?texto='.urlencode('tom ford').'&por_pagina=1&pagina=1')->assertOk();
+    $next = (string) $first->json('links.next');
+
+    expect($next)->toContain('pagina=2', 'por_pagina=1', 'texto=')
+        ->and($next)->not->toContain('page=');
+
+    $second = getJson($next)->assertOk();
+
+    expect($second->json('meta.current_page'))->toBe(2)
+        ->and(array_column($second->json('data'), 'nombre'))->toBe(['Tobacco Vanille'])
+        ->and(array_column($first->json('data'), 'nombre'))->toBe(['Oud Wood']);
+
+    $prev = (string) $second->json('links.prev');
+
+    expect($prev)->toContain('pagina=1')
+        ->and($prev)->not->toContain('page=');
+
+    $back = getJson($prev)->assertOk();
+
+    expect($back->json('meta.current_page'))->toBe(1)
+        ->and(array_column($back->json('data'), 'nombre'))->toBe(['Oud Wood']);
+});
+
 it('answers 422 to a page or a size out of range', function (string $query, string $field) {
     listScenario();
 
