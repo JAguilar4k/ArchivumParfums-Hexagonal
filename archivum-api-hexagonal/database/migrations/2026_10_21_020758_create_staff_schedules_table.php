@@ -12,7 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('staff_schedules', function (Blueprint $table) {
-            $table->uuid('id')->primary(); //
+            $table->uuid('id')->primary()->default(DB::raw('uuidv7()'));
+            // $table->uuid('id')->primary(); //
             $table->uuid('business_id');
             $table->uuid('member_id');
             $table->integer('weekday');
@@ -20,19 +21,15 @@ return new class extends Migration
             $table->time('ends_at');
             $table->timestamps();
 
-            // Llave foránea compuesta con business_id para impedir asignar personal de otra tienda
-
             $table->foreign(['member_id', 'business_id'])
                 ->references(['id', 'business_id'])
                 ->on('members')
                 ->cascadeOnDelete();
         });
 
-        // 1. Restricciones CHECK nombradas <tabla>_<columna>_check[cite: 2]
         DB::statement('ALTER TABLE staff_schedules ADD CONSTRAINT staff_schedules_weekday_check CHECK (weekday >= 1 AND weekday <= 7)');
         DB::statement('ALTER TABLE staff_schedules ADD CONSTRAINT staff_schedules_ends_at_check CHECK (ends_at > starts_at)');
 
-        // 2. Restricción de exclusión para evitar traslapes del mismo miembro en el mismo día[cite: 2]
         DB::statement('
             ALTER TABLE staff_schedules 
             ADD CONSTRAINT staff_schedules_overlap_exclude 
@@ -43,7 +40,6 @@ return new class extends Migration
             )
         ');
 
-        // 3. Políticas de seguridad de nivel de fila (RLS)[cite: 2]
         DB::statement('ALTER TABLE staff_schedules ENABLE ROW LEVEL SECURITY');
         DB::statement('ALTER TABLE staff_schedules FORCE ROW LEVEL SECURITY');
         DB::statement("
