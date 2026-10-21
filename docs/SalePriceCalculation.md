@@ -84,8 +84,18 @@ Archivos propios de ramas anteriores que se modificaron: `Perfume.php` (`priceVa
 | Cambios que no son del margen no recalculan | Dos pruebas |
 | Misma transacción | «undoes the change of the margin when the recalculation fails…» |
 
-## Pendiente de hacer a mano
+## Integración y verificación
 
-1. Registrar `ProfileEventsServiceProvider` en `bootstrap/providers.php`, junto a `PerfumesServiceProvider`. Sin él, el evento no se despacha y el recálculo no ocurre.
-2. Añadir la excepción de `sale_price` a `docs/data-model.md`, con la justificación de la tabla de decisiones.
-3. Cargar las rutas y regenerar el contrato, como en las ramas anteriores.
+No queda nada manual de integración, salvo la excepción de `docs/data-model.md` indicada abajo:
+
+- `ProfileEventsServiceProvider`, que registra el observador del margen, está en `bootstrap/providers.php` junto a `PerfumesServiceProvider`; sin él el evento no se despacharía. La prueba del recálculo corre sobre ese arranque, sin instalar nada por su cuenta.
+- El contrato `openapi/v1.json` se regeneró.
+- La prueba del recálculo arma su escenario con una función (`priceScenario()`) y no guarda datos en propiedades dinámicas de Pest, que Larastan no entiende.
+
+**Pendiente (documentación):** la excepción de `sale_price` a la tercera forma normal, justificada en la tabla de decisiones de este documento, debe sumarse a `docs/data-model.md` (#35). Ese archivo no se modificó en este PR.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Pint | Sin diferencias |
+| Larastan, nivel 8 | Sin errores (`[OK] No errors`) |
+| Pest, suite completa | 794 pruebas en verde, con `php -d memory_limit=1G vendor/bin/pest` |
