@@ -30,7 +30,7 @@ flowchart LR
     U -->|save| R[BusinessLogos o PerfumePhotos]
     R --> DB[(businesses.logo_path, perfumes.image_path)]
     U -->|deleteAfterCommit del anterior| S
-    U --> O[BusinessLogoUrl o PerfumePhotoUrl]
+    U --> O[JsonResponse: data.logo_url o data.foto_url]
 ```
 
 El disco se elige por configuración: `config/files.php` (`files.disk`, `public` por defecto) apunta a un disco de `config/filesystems.php`. Cambiar a un disco de la nube no toca el código.
@@ -48,11 +48,11 @@ Rutas relativas a `archivum-api-hexagonal/`.
 | `lang/es/files.php` | Mensajes en español |
 | `src/Businesses/Logo/Application/Contracts/BusinessLogos.php`, `DTOs/UploadBusinessLogoCommand.php`, `UseCases/UploadBusinessLogo.php` | El caso de uso del logo, en el módulo `Src\Businesses\Logo` |
 | `src/Businesses/Logo/Infrastructure/Persistence/EloquentBusinessLogos.php` | Lee y guarda `businesses.logo_path`, la columna que ya existía |
-| `src/Businesses/Logo/Infrastructure/Http/Requests/StoreBusinessLogo.php`, `Resources/BusinessLogoUrl.php`, `Controllers/BusinessLogoController.php`, `routes.php` | La capa HTTP del logo |
+| `src/Businesses/Logo/Infrastructure/Http/Requests/StoreBusinessLogo.php`, `Controllers/BusinessLogoController.php`, `routes.php` | La capa HTTP del logo; el controlador responde con un `JsonResponse` |
 | `src/Businesses/Logo/Infrastructure/LogoServiceProvider.php` | Enlaza `BusinessLogos` y `FileStorage` |
 | `src/Catalog/Perfumes/Application/Contracts/PerfumePhotos.php`, `DTOs/UploadPerfumePhotoCommand.php`, `UseCases/UploadPerfumePhoto.php` | El caso de uso de la foto |
 | `src/Catalog/Perfumes/Infrastructure/Persistence/Repositories/EloquentPerfumePhotos.php` | Lee y guarda `perfumes.image_path`, filtrado por la tienda de la sesión |
-| `src/Catalog/Perfumes/Infrastructure/Http/Requests/StorePerfumePhoto.php`, `Resources/PerfumePhotoUrl.php`, `Controllers/PerfumePhotoController.php` | La capa HTTP de la foto |
+| `src/Catalog/Perfumes/Infrastructure/Http/Requests/StorePerfumePhoto.php`, `Controllers/PerfumePhotoController.php` | La capa HTTP de la foto |
 | `tests/Support/Catalog/FakeImages.php` | Archivos subidos con contenido real, para probar la detección por contenido |
 | `tests/Support/Shared/InMemoryFileStorage.php` | Almacenamiento en memoria que simula «borrar tras confirmar» |
 | `tests/Unit/Shared/Domain/ImageTypeTest.php`, `tests/Unit/Businesses/Logo/Application/UploadBusinessLogoTest.php`, `tests/Unit/Catalog/Perfumes/Application/UploadPerfumePhotoTest.php` | Los tipos y los casos de uso, sin framework |
@@ -88,8 +88,22 @@ Archivos propios de ramas anteriores que se modificaron: `PerfumesServiceProvide
 | El logo de la otra tienda no se toca | «leaves the logo of the other business alone» |
 | El archivo nuevo se descarta si falla el guardado | `UploadBusinessLogoTest` unitaria |
 
-## Pendiente de hacer a mano
+## Integración y verificación
 
-1. Registrar `LogoServiceProvider` en `bootstrap/providers.php` y cargar `src/Businesses/Logo/Infrastructure/Http/routes.php` desde `routes/api.php`, además de lo de las ramas anteriores.
-2. Ejecutar `php artisan storage:link` para servir el disco `public` desde `/storage`.
-3. Si se quiere elegir el disco por variable de entorno: leerla con `env()` en `config/files.php` y añadirla a `.env.example`.
+No queda nada manual de integración, salvo `storage:link` y la variable de entorno opcional:
+
+- `LogoServiceProvider` está registrado en `bootstrap/providers.php` y `routes/api.php` carga las rutas del logo; la ruta de la foto sale del `routes.php` del catálogo, que ya se carga. El contrato `openapi/v1.json` incluye `POST /panel/tienda/logo` y `POST /panel/perfumes/{perfume}/foto`.
+- Las respuestas de logo y foto son un `JsonResponse` con `data.logo_url` o `data.foto_url`, sin clase de Resource: no hay un modelo que el generador del contrato pueda inferir de una cadena, y la forma de la respuesta queda a la vista en el controlador.
+- Las pruebas de la foto arman su escenario con una función (`photoScenario()`) y no guardan datos en propiedades dinámicas de Pest, que Larastan no entiende. Ya no instalan rutas ni providers por su cuenta.
+- La matriz compartida de aislamiento del personal no tiene fila para estos endpoints: la de recurso por id arma `{ruta}/{id}` y la de la tienda espera `data.id`. Su aislamiento lo cubren las pruebas propias de cada endpoint (la tienda ajena y el perfume ajeno no se tocan).
+
+**Pendientes:**
+
+1. Ejecutar `php artisan storage:link` para servir el disco `public` desde `/storage`.
+2. Si se quiere elegir el disco por variable de entorno: leerla con `env()` en `config/files.php` y añadirla a `.env.example`.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Pint | Sin diferencias |
+| Larastan, nivel 8 | Sin errores (`[OK] No errors`) |
+| Pest, suite completa | 841 pruebas en verde, con `php -d memory_limit=1G vendor/bin/pest` |
