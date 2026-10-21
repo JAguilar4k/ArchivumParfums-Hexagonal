@@ -6,16 +6,14 @@ use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Src\Scheduling\BusinessHours\Infrastructure\Models\BusinessHourModel;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 
 test('postgresql impide guardar tramos traslapados en el mismo dia', function () {
     $businessId = Str::uuid()->toString();
 
-    
     DB::table('businesses')->insert([
         'id' => $businessId,
         'name' => 'Tienda de Prueba',
-        'slug' => 'tienda-prueba-' . Str::random(5),
+        'slug' => 'tienda-prueba-'.Str::random(5),
         'timezone' => 'America/Costa_Rica',
         'settings' => '{}',
     ]);

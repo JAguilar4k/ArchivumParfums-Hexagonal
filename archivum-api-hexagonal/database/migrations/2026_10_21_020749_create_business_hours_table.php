@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -24,11 +26,11 @@ return new class extends Migration
         ");
 
         Schema::create('business_hours', function (Blueprint $table) {
-            $table->uuid('id')->primary(); //[cite: 2]
+            $table->uuid('id')->primary(); // [cite: 2]
             $table->uuid('business_id');
             $table->integer('weekday');
             $table->time('opens_at'); // Tramos guardan horas locales en time[cite: 2]
-            $table->time('closes_at'); //[cite: 2]
+            $table->time('closes_at'); // [cite: 2]
             $table->timestamps();
 
             $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();
@@ -65,6 +67,6 @@ return new class extends Migration
         DB::statement('DROP POLICY IF EXISTS isolate_business_hours_tenant ON business_hours');
         Schema::dropIfExists('business_hours');
         // Borramos el tipo, pero la extensión btree_gist no se borra como dice el requerimiento[cite: 2]
-        DB::statement('DROP TYPE IF EXISTS timerange'); 
+        DB::statement('DROP TYPE IF EXISTS timerange');
     }
 };

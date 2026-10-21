@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -14,7 +16,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->uuid('business_id');
             $table->string('name');
-            
+
             // Enteros para duraciones y precios[cite: 2]
             $table->integer('duration');
             $table->integer('price');
@@ -24,7 +26,7 @@ return new class extends Migration
 
             // Llave única (id, business_id) para ser destino de las foráneas compuestas[cite: 2]
             $table->unique(['id', 'business_id']);
-            
+
             // Foránea clásica hacia la tabla de tiendas (asumiendo que viene del issue #26)
             $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();
         });

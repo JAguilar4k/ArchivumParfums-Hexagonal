@@ -12,7 +12,9 @@ class ScheduleBlockModel extends Model
     use HasUuids;
 
     protected $table = 'schedule_blocks';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $guarded = [];

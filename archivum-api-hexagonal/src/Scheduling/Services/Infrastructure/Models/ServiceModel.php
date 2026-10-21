@@ -12,7 +12,9 @@ class ServiceModel extends Model
     use HasUuids;
 
     protected $table = 'services';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $guarded = [];

@@ -12,7 +12,9 @@ class StaffScheduleModel extends Model
     use HasUuids;
 
     protected $table = 'staff_schedules';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $guarded = [];

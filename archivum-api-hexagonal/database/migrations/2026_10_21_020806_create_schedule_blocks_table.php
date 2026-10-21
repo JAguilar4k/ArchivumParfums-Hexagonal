@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -10,25 +12,25 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('schedule_blocks', function (Blueprint $table) {
-            $table->uuid('id')->primary(); //[cite: 1]
-            $table->uuid('business_id'); //[cite: 1]
+            $table->uuid('id')->primary(); // [cite: 1]
+            $table->uuid('business_id'); // [cite: 1]
             // Un bloqueo con member_id nulo cubre a toda la tienda[cite: 1]
-            $table->uuid('member_id')->nullable(); 
-            
+            $table->uuid('member_id')->nullable();
+
             // Los bloqueos guardan instantes en timestamptz[cite: 1]
-            $table->timestampTz('starts_at'); //[cite: 1]
-            $table->timestampTz('ends_at'); //[cite: 1]
-            
+            $table->timestampTz('starts_at'); // [cite: 1]
+            $table->timestampTz('ends_at'); // [cite: 1]
+
             $table->string('reason');
             // source vale manual por defecto y external_id queda nulo[cite: 1]
-            $table->string('source')->default('manual'); //[cite: 1]
-            $table->string('external_id')->nullable(); //[cite: 1]
-            
+            $table->string('source')->default('manual'); // [cite: 1]
+            $table->string('external_id')->nullable(); // [cite: 1]
+
             $table->timestamps();
 
             // Llaves foráneas[cite: 1]
             $table->foreign('business_id')->references('id')->on('businesses')->cascadeOnDelete();
-            
+
             // Llave foránea compuesta que permite nulos para no cruzar personal[cite: 1]
             $table->foreign(['member_id', 'business_id'])
                 ->references(['id', 'business_id'])

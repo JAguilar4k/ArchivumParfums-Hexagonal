@@ -12,7 +12,9 @@ class BusinessHourModel extends Model
     use HasUuids;
 
     protected $table = 'business_hours';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
 
     protected $guarded = [];

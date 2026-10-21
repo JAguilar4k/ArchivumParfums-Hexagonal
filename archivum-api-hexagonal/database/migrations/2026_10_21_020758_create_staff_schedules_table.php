@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -14,12 +16,12 @@ return new class extends Migration
             $table->uuid('business_id');
             $table->uuid('member_id');
             $table->integer('weekday');
-            $table->time('starts_at'); 
+            $table->time('starts_at');
             $table->time('ends_at');
             $table->timestamps();
 
             // Llave foránea compuesta con business_id para impedir asignar personal de otra tienda
-            
+
             $table->foreign(['member_id', 'business_id'])
                 ->references(['id', 'business_id'])
                 ->on('members')
