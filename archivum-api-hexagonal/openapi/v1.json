@@ -1252,6 +1252,65 @@
                 ]
             }
         },
+        "/tiendas/{tienda}": {
+            "get": {
+                "operationId": "businesses.public.show",
+                "summary": "Show the public profile of the business that the slug of the address names",
+                "tags": [
+                    "PublicBusiness"
+                ],
+                "parameters": [
+                    {
+                        "name": "tienda",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`PublicBusiness`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PublicBusiness"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/sesiones": {
             "post": {
                 "operationId": "accounts.sessions.store",
@@ -1876,6 +1935,40 @@
                     "errores"
                 ],
                 "title": "ProblemaDeValidacion"
+            },
+            "PublicBusiness": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "logo_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "lugar_cita": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "zona_horaria": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "nombre",
+                    "slug",
+                    "logo_url",
+                    "lugar_cita",
+                    "zona_horaria"
+                ],
+                "title": "PublicBusiness"
             },
             "SessionTokenResource": {
                 "type": "object",
