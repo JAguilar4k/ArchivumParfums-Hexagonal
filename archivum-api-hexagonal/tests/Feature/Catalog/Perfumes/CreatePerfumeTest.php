@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Testing\TestResponse;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Models\PerfumeModel;
 use Tests\Support\Businesses\TwoBusinesses;
-use Tests\Support\Catalog\ServesCatalog;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Shared\ScopesQueriesToBusiness;
 
@@ -58,7 +57,6 @@ function perfumeErrorsOf(TestResponse $response): array
 
 beforeEach(function () {
     TwoBusinesses::create();
-    ServesCatalog::register();
     TwoBusinesses::actAsOwnerOf(TwoBusinesses::FIRST);
 });
 
