@@ -71,6 +71,14 @@ La ruta tiene dos parámetros, `{tienda}` y `{perfume}`, y Laravel entrega los p
 | Un perfume de otra tienda pedido con este `slug` responde 404 | «answers 404 to the perfume of another store…» |
 | Lista y detalle coinciden | «follows the same rule of visibility as the list…» |
 
-## Pendiente de hacer a mano
+## Integración y verificación
 
-Lo mismo que en #48: registrar `ShowcaseServiceProvider`, cargar las rutas de `Showcase` desde `routes/api.php` y regenerar el contrato con `composer openapi`.
+No queda nada manual de integración: el provider y las rutas de la vitrina ya están en el arranque real (vienen de #48), y el contrato `openapi/v1.json` se regeneró con `GET /tiendas/{tienda}/perfumes/{perfume}`. Las pruebas ejercen ese arranque; ya no instalan nada por su cuenta, y arman su escenario con una función (`detailScenario()`) en vez de propiedades dinámicas de Pest, que Larastan no entiende.
+
+Larastan detectó además que `find` armaba las notas por capa de una manera que no cumplía la forma que declara el DTO; ahora las tres listas se llenan por separado, como las etiquetas de #48. El lector de ejemplo de las pruebas unitarias (`RecordingShowcaseReader`) responde también el método nuevo.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Pint | Sin diferencias |
+| Larastan, nivel 8 | Sin errores (`[OK] No errors`) |
+| Pest, suite completa | 903 pruebas en verde, con `php -d memory_limit=1G vendor/bin/pest` |
