@@ -78,7 +78,18 @@ La prueba que consulta `GET /api/v1/tiendas/{tienda}/perfumes` de cada tienda ne
 | 403 y 401 | «answers 403…» y «answers 401…» |
 | El seeder, por tienda y sin repetir | `CatalogDemoSeederTest` |
 
-## Pendiente de hacer a mano
+## Integración y verificación
 
-1. **Llamar al seeder desde `DatabaseSeeder`.** `database/seeders/DatabaseSeeder.php` es un archivo existente y no se modificó. Hay que añadir `CatalogDemoSeeder::class` a su lista `call([...])`, después de `BusinessesSeeder`. Hasta entonces se corre con `php artisan db:seed --class=CatalogDemoSeeder`.
-2. Registrar `PerfumesServiceProvider`, cargar las rutas del catálogo desde `routes/api.php` y regenerar el contrato con `composer openapi`, como en las ramas anteriores.
+No queda nada manual de integración:
+
+- Las rutas de las presentaciones salen del mismo `routes.php` del catálogo, que `routes/api.php` ya carga; el provider ya está registrado; el contrato `openapi/v1.json` se regeneró con las rutas nuevas.
+- `DatabaseSeeder` llama ahora a `CatalogDemoSeeder`, de modo que `php artisan db:seed` crea el catálogo de ejemplo en las dos tiendas. Una prueba (`DatabaseSeederCatalogTest`) ejecuta el sembrador por defecto, el mismo que corre `db:seed`, y comprueba los perfumes de cada tienda.
+- Las pruebas de las presentaciones arman su escenario con una función (`variantsScenario()`) y no guardan datos en propiedades dinámicas de Pest, que Larastan no entiende. Ya no instalan rutas ni providers por su cuenta.
+
+Las rutas anidadas (`/panel/perfumes/{perfume}/presentaciones/...`) no caben en la matriz compartida de aislamiento del personal, que arma `{ruta}/{id}`; su aislamiento lo cubren las pruebas propias del módulo.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Pint | Sin diferencias |
+| Larastan, nivel 8 | Sin errores (`[OK] No errors`) |
+| Pest, suite completa | 773 pruebas en verde, con `php -d memory_limit=1G vendor/bin/pest` |

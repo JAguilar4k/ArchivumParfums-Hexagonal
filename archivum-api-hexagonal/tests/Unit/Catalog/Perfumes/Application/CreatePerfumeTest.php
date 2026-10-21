@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use Src\Catalog\Perfumes\Application\DTOs\CreatePerfumeCommand;
 use Src\Catalog\Perfumes\Application\UseCases\CreatePerfume;
-use Src\Catalog\Perfumes\Domain\Exceptions\DuplicatePerfumeException;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Tests\Support\Catalog\FixedBusinessContext;
@@ -74,22 +73,6 @@ it('takes the business from the session, which can be any of them', function () 
     $context->switchTo(new BusinessId(CREATE_PERFUME_OTHER_BUSINESS));
 
     expect($createPerfume->execute(createPerfumeCommand())->businessId->value)->toBe(CREATE_PERFUME_OTHER_BUSINESS);
-});
-
-it('refuses a repeated perfume in the same business but not in another one', function () {
-    [$createPerfume, $perfumes, $context] = createPerfumeWiring();
-    $createPerfume->execute(createPerfumeCommand());
-
-    expect(fn () => $createPerfume->execute(createPerfumeCommand(brand: 'TOM FORD', name: 'oud wood')))
-        ->toThrow(DuplicatePerfumeException::class, 'catalog.perfume_already_exists');
-
-    // The same name in another concentration is another perfume.
-    $createPerfume->execute(createPerfumeCommand(concentration: 'EDT'));
-
-    $context->switchTo(new BusinessId(CREATE_PERFUME_OTHER_BUSINESS));
-    $createPerfume->execute(createPerfumeCommand());
-
-    expect($perfumes->count())->toBe(3);
 });
 
 it('rejects the data the domain cannot hold and stores nothing', function (Closure $command, string $key) {

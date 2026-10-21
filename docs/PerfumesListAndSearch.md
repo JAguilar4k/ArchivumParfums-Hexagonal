@@ -78,6 +78,14 @@ Archivos propios de #38 y #39 que se modificaron: `EloquentPerfumeRepository.php
 | 404 del ajeno igual que el inexistente | Dos pruebas de 404 |
 | 403 y 401 | «answers 403…» y «answers 401…» |
 
-## Pendiente de hacer a mano
+## Integración y verificación
 
-Lo mismo que en las ramas anteriores: registrar `PerfumesServiceProvider`, cargar las rutas del catálogo desde `routes/api.php` y regenerar el contrato con `composer openapi`.
+No queda nada manual de integración: las rutas del catálogo, el provider y el contrato ya están en el arranque real, y el contrato se regeneró con las rutas nuevas. Las pruebas no instalan nada por su cuenta.
+
+La matriz compartida de aislamiento del personal (`StaffIsolationTest`) tiene dos filas nuevas: «list the perfumes» y «show a perfume». Las pruebas de este issue arman su escenario con una función (`listScenario()`) y no guardan datos en propiedades dinámicas de Pest, que Larastan no entiende.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Pint | Sin diferencias |
+| Larastan, nivel 8 | Sin errores (`[OK] No errors`) |
+| Pest, suite completa | 738 pruebas en verde, con `php -d memory_limit=1G vendor/bin/pest` |

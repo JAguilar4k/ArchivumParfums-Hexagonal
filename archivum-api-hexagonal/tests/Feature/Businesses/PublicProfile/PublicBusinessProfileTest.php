@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\Businesses\TwoBusinesses;
-use Tests\Support\Catalog\ServesCatalog;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 use function Pest\Laravel\getJson;
@@ -16,7 +15,6 @@ pest()->use(RefreshDatabaseAsOwner::class);
 beforeEach(function () {
     Storage::fake('public');
     TwoBusinesses::create();
-    ServesCatalog::register();
     DB::table('businesses')->where('slug', TwoBusinesses::FIRST)->update(['location_text' => 'Escazú, frente al parque', 'logo_path' => 'logos/primera.png']);
     // Visitors do not sign in.
     Auth::forgetGuards();
