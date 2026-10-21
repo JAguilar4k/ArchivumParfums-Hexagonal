@@ -21,41 +21,30 @@ use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 
 final class CatalogDemoSeeder extends Seeder
 {
-    /**
-     * Fictitious perfumes of each demo business: brand, name, concentration, gender, family, notes by layer, tags by kind
-     * and the presentations as milliliters and manual price in colones. There is no supplier cost yet, so every price is manual.
-     *
-     * @var array<string, list<array{
-     *     string, string, string, string, string,
-     *     array{top: list<string>, heart: list<string>, base: list<string>},
-     *     array{time_of_day: list<string>, climate: list<string>, occasion: list<string>},
-     *     list<array{int, int}>,
-     * }>>
-     */
     private const array CATALOG = [
         BusinessesSeeder::DEMO_ARCHIVUMPARFUMS_ID => [
             [
                 'Maison Noctis', 'Oud Nocturno', 'EDP', 'unisex', 'Amaderada',
                 ['top' => ['Cardamomo', 'Bergamota'], 'heart' => ['Rosa', 'Incienso'], 'base' => ['Oud', 'Ámbar']],
-                ['time_of_day' => ['night'], 'climate' => ['cold'], 'occasion' => ['Cena']],
+                ['time_of_day' => ['night'], 'climate' => ['cold'], 'occasion' => ['cena']],
                 [[50, 185000], [100, 295000]],
             ],
             [
                 'Casa Aurora', 'Alba de Azahar', 'EDT', 'femenino', 'Floral',
                 ['top' => ['Neroli', 'Mandarina'], 'heart' => ['Azahar'], 'base' => ['Almizcle']],
-                ['time_of_day' => ['day'], 'climate' => ['warm'], 'occasion' => ['Boda']],
+                ['time_of_day' => ['day'], 'climate' => ['warm'], 'occasion' => ['boda']],
                 [[50, 98000], [100, 150000]],
             ],
             [
                 'Atelier Brisa', 'Sal Marina', 'EDT', 'unisex', 'Acuática',
                 ['top' => ['Limón'], 'heart' => ['Sal'], 'base' => ['Madera flotada']],
-                ['time_of_day' => ['day', 'afternoon'], 'climate' => ['warm'], 'occasion' => ['Playa']],
+                ['time_of_day' => ['day', 'afternoon'], 'climate' => ['warm'], 'occasion' => ['playa']],
                 [[100, 120000]],
             ],
             [
                 'Maison Noctis', 'Tabaco Dulce', 'EDP', 'masculino', 'Oriental',
                 ['top' => ['Pimienta rosa'], 'heart' => ['Tabaco'], 'base' => ['Vainilla', 'Haba tonka']],
-                ['time_of_day' => ['night'], 'climate' => ['temperate'], 'occasion' => ['Cita']],
+                ['time_of_day' => ['night'], 'climate' => ['temperate'], 'occasion' => ['cita']],
                 [[50, 210000]],
             ],
         ],
@@ -63,25 +52,24 @@ final class CatalogDemoSeeder extends Seeder
             [
                 'Bosque Niebla', 'Cedro y Bruma', 'EDP', 'masculino', 'Amaderada',
                 ['top' => ['Pino'], 'heart' => ['Cedro'], 'base' => ['Vetiver', 'Musgo']],
-                ['time_of_day' => ['day', 'afternoon'], 'climate' => ['cold'], 'occasion' => ['Oficina']],
+                ['time_of_day' => ['day', 'afternoon'], 'climate' => ['cold'], 'occasion' => ['oficina']],
                 [[50, 135000], [100, 205000]],
             ],
             [
                 'Casa Volcán', 'Café y Vainilla', 'EDP', 'unisex', 'Gourmand',
                 ['top' => ['Café'], 'heart' => ['Caramelo'], 'base' => ['Vainilla']],
-                ['time_of_day' => ['afternoon'], 'climate' => ['temperate'], 'occasion' => ['Tarde de lluvia']],
+                ['time_of_day' => ['afternoon'], 'climate' => ['temperate'], 'occasion' => ['lluvia']],
                 [[50, 115000]],
             ],
             [
                 'Flora Quesada', 'Jardín de Orquídeas', 'EDT', 'femenino', 'Floral',
                 ['top' => ['Pera'], 'heart' => ['Orquídea', 'Jazmín'], 'base' => ['Sándalo']],
-                ['time_of_day' => ['day'], 'climate' => ['temperate'], 'occasion' => ['Paseo']],
+                ['time_of_day' => ['day'], 'climate' => ['temperate'], 'occasion' => ['paseo']],
                 [[100, 160000]],
             ],
         ],
     ];
 
-    /** Seed the sample perfumes of each demo business, in the transaction of that business and without repeating the ones already there. */
     public function run(): void
     {
         foreach (self::CATALOG as $businessId => $perfumes) {
@@ -98,7 +86,13 @@ final class CatalogDemoSeeder extends Seeder
                 );
 
                 foreach ($perfumes as [$brand, $name, $concentration, $gender, $family, $notes, $tags, $variants]) {
-                    if (PerfumeModel::query()->where('brand', $brand)->where('name', $name)->where('concentration', $concentration)->exists()) {
+                    // Filtrar la existencia asociándola al business_id para evitar conflictos de RLS
+                    if (PerfumeModel::query()
+                        ->where('business_id', $businessId)
+                        ->where('brand', $brand)
+                        ->where('name', $name)
+                        ->where('concentration', $concentration)
+                        ->exists()) {
                         continue;
                     }
 
