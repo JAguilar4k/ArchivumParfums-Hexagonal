@@ -23,16 +23,16 @@ final class BusinessHours
     }
 
     /**
-     * Reconstituye el horario desde la BD. 
+     * Reconstituye el horario desde la BD.
      * Recibe los slots ya armados asumiendo que son válidos.
-     * 
-     * @param array<int, TimeRange[]> $slots
+     *
+     * @param  array<int, TimeRange[]>  $slots
      */
     public static function reconstitute(string $businessId, array $slots): self
     {
         $businessHours = new self($businessId);
         $businessHours->slots = $slots;
-        
+
         return $businessHours;
     }
 
@@ -40,7 +40,7 @@ final class BusinessHours
     {
         $dayValue = $day->value;
 
-        if (!isset($this->slots[$dayValue])) {
+        if (! isset($this->slots[$dayValue])) {
             $this->slots[$dayValue] = [];
         }
 

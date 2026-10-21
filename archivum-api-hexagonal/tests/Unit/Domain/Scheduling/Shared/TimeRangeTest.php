@@ -5,12 +5,12 @@ declare(strict_types=1);
 use Src\Scheduling\Shared\Domain\ValueObjects\TimeRange;
 
 test('rechaza un tramo con el fin igual al inicio', function () {
-    expect(fn() => TimeRange::create('10:00', '10:00'))
+    expect(fn () => TimeRange::create('10:00', '10:00'))
         ->toThrow(Exception::class, 'scheduling.time_range.invalid_order');
 });
 
 test('rechaza un tramo con el fin anterior al inicio', function () {
-    expect(fn() => TimeRange::create('10:00', '09:00'))
+    expect(fn () => TimeRange::create('10:00', '09:00'))
         ->toThrow(Exception::class, 'scheduling.time_range.invalid_order');
 });
 
