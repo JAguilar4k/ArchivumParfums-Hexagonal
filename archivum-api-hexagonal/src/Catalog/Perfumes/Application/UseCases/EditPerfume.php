@@ -7,7 +7,6 @@ namespace Src\Catalog\Perfumes\Application\UseCases;
 use Src\Catalog\Perfumes\Application\DTOs\EditPerfumeCommand;
 use Src\Catalog\Perfumes\Domain\Contracts\PerfumeRepository;
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
-use Src\Catalog\Perfumes\Domain\Exceptions\DuplicatePerfumeException;
 use Src\Catalog\Perfumes\Domain\Exceptions\PerfumeNotFoundException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\Brand;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeDetails;
@@ -30,7 +29,6 @@ final readonly class EditPerfume
      * Apply the requested changes to a perfume of the business of the session; one of another business is treated as missing.
      *
      * @throws PerfumeNotFoundException
-     * @throws DuplicatePerfumeException
      */
     public function execute(EditPerfumeCommand $command): Perfume
     {

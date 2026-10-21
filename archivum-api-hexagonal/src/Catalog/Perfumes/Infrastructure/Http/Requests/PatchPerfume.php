@@ -13,20 +13,6 @@ use Stringable;
 final class PatchPerfume extends FormRequest
 {
     /**
-     * Fields of the payload paired with the names the use case expects.
-     *
-     * @var array<string, string>
-     */
-    private const array FIELDS = [
-        'marca' => 'brand',
-        'nombre' => 'name',
-        'concentracion' => 'concentration',
-        'genero' => 'gender',
-        'familia' => 'family',
-        'descripcion' => 'description',
-    ];
-
-    /**
      * The same rules as the creation, but every field is optional.
      *
      * @return array<string, list<Stringable|string>>
@@ -62,10 +48,29 @@ final class PatchPerfume extends FormRequest
         $validated = $this->validated();
         $changes = [];
 
-        foreach (self::FIELDS as $field => $name) {
-            if (array_key_exists($field, $validated)) {
-                $changes[$name] = $validated[$field] === null ? null : (string) $validated[$field];
-            }
+        if (isset($validated['marca'])) {
+            $changes['brand'] = (string) $validated['marca'];
+        }
+
+        if (isset($validated['nombre'])) {
+            $changes['name'] = (string) $validated['nombre'];
+        }
+
+        // The texts that may be missing: sending null clears them.
+        if (array_key_exists('concentracion', $validated)) {
+            $changes['concentration'] = $this->nullableText($validated['concentracion']);
+        }
+
+        if (array_key_exists('genero', $validated)) {
+            $changes['gender'] = $this->nullableText($validated['genero']);
+        }
+
+        if (array_key_exists('familia', $validated)) {
+            $changes['family'] = $this->nullableText($validated['familia']);
+        }
+
+        if (array_key_exists('descripcion', $validated)) {
+            $changes['description'] = $this->nullableText($validated['descripcion']);
         }
 
         $notes = array_filter([
@@ -93,5 +98,11 @@ final class PatchPerfume extends FormRequest
         }
 
         return new EditPerfumeCommand($perfumeId, $changes);
+    }
+
+    /** A text sent, or null when the field was sent empty. */
+    private function nullableText(mixed $value): ?string
+    {
+        return $value === null ? null : (string) $value;
     }
 }

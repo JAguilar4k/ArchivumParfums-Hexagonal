@@ -339,6 +339,110 @@
                 ]
             }
         },
+        "/panel/perfumes/{perfume}": {
+            "patch": {
+                "operationId": "catalog.perfumes.update",
+                "summary": "Change the fields sent of a perfume of the business of the session, also to deactivate or reactivate it",
+                "tags": [
+                    "Perfume"
+                ],
+                "parameters": [
+                    {
+                        "name": "perfume",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchPerfume"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PanelPerfume`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelPerfume"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/sesiones": {
             "post": {
                 "operationId": "accounts.sessions.store",
@@ -694,6 +798,135 @@
                     "activo"
                 ],
                 "title": "PanelPerfume"
+            },
+            "PatchPerfume": {
+                "type": "object",
+                "properties": {
+                    "marca": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "concentracion": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
+                    "genero": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 30
+                    },
+                    "familia": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 60
+                    },
+                    "descripcion": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 1000
+                    },
+                    "notas": {
+                        "type": "object",
+                        "properties": {
+                            "salida": {
+                                "type": [
+                                    "array",
+                                    "null"
+                                ],
+                                "items": {
+                                    "type": "string",
+                                    "maxLength": 80
+                                },
+                                "uniqueItems": true
+                            },
+                            "corazon": {
+                                "type": [
+                                    "array",
+                                    "null"
+                                ],
+                                "items": {
+                                    "type": "string",
+                                    "maxLength": 80
+                                },
+                                "uniqueItems": true
+                            },
+                            "fondo": {
+                                "type": [
+                                    "array",
+                                    "null"
+                                ],
+                                "items": {
+                                    "type": "string",
+                                    "maxLength": 80
+                                },
+                                "uniqueItems": true
+                            }
+                        }
+                    },
+                    "etiquetas": {
+                        "type": "object",
+                        "properties": {
+                            "momento": {
+                                "type": [
+                                    "array",
+                                    "null"
+                                ],
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "dia",
+                                        "tarde",
+                                        "noche"
+                                    ]
+                                },
+                                "uniqueItems": true
+                            },
+                            "clima": {
+                                "type": [
+                                    "array",
+                                    "null"
+                                ],
+                                "items": {
+                                    "type": "string",
+                                    "enum": [
+                                        "calido",
+                                        "templado",
+                                        "frio"
+                                    ]
+                                },
+                                "uniqueItems": true
+                            },
+                            "ocasion": {
+                                "type": [
+                                    "array",
+                                    "null"
+                                ],
+                                "items": {
+                                    "type": "string",
+                                    "maxLength": 60
+                                },
+                                "uniqueItems": true
+                            }
+                        }
+                    },
+                    "activo": {
+                        "type": "boolean"
+                    }
+                },
+                "title": "PatchPerfume"
             },
             "Problema": {
                 "type": "object",
