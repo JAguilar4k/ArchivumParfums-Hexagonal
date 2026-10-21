@@ -124,6 +124,30 @@ it('pages the showcase', function () {
         ->and($second->json('meta.last_page'))->toBe(2);
 });
 
+it('links the pages of the showcase with pagina and keeps the filters when following next and prev', function () {
+    $first = getJson('/api/v1/tiendas/'.TwoBusinesses::FIRST.'/perfumes?precio_maximo=200000&por_pagina=2&pagina=1')->assertOk();
+    $next = (string) $first->json('links.next');
+
+    expect($next)->toContain('pagina=2', 'por_pagina=2', 'precio_maximo=200000')
+        ->and($next)->not->toContain('page=')
+        ->and(array_column($first->json('data'), 'nombre'))->toBe(['Sal Marina', 'Alba de Azahar']);
+
+    $second = getJson($next)->assertOk();
+
+    expect($second->json('meta.current_page'))->toBe(2)
+        ->and(array_column($second->json('data'), 'nombre'))->toBe(['Oud Wood', 'Mixto']);
+
+    $prev = (string) $second->json('links.prev');
+
+    expect($prev)->toContain('pagina=1', 'precio_maximo=200000')
+        ->and($prev)->not->toContain('page=');
+
+    $back = getJson($prev)->assertOk();
+
+    expect($back->json('meta.current_page'))->toBe(1)
+        ->and(array_column($back->json('data'), 'nombre'))->toBe(['Sal Marina', 'Alba de Azahar']);
+});
+
 it('answers 422 to a filter that cannot match anything', function (string $query, string $field) {
     getJson('/api/v1/tiendas/'.TwoBusinesses::FIRST.'/perfumes'.$query)
         ->assertUnprocessable()
