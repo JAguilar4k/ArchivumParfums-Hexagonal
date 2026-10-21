@@ -13,4 +13,5 @@ Route::prefix('tiendas/{tienda}/perfumes')
     ->controller(ShowcaseController::class)
     ->group(function (): void {
         Route::get('/', 'index')->name('index');
+        Route::get('/{perfume}', 'show')->whereUuid('perfume')->name('show');
     });

@@ -68,6 +68,12 @@ final class ShowcasePerfumeModel extends Model
             ->orderBy('size_ml');
     }
 
+    /** @return HasMany<ShowcaseNoteModel, $this> */
+    public function notes(): HasMany
+    {
+        return $this->hasMany(ShowcaseNoteModel::class, 'perfume_id');
+    }
+
     /** @return HasMany<ShowcaseTagModel, $this> */
     public function tags(): HasMany
     {
