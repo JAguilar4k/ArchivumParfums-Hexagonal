@@ -13,7 +13,7 @@ test('postgresql impide guardar tramos traslapados en el mismo dia', function ()
     DB::table('businesses')->insert([
         'id' => $businessId,
         'name' => 'Tienda de Prueba',
-        'slug' => 'tienda-prueba-'. strtolower(Str::random(5)),
+        'slug' => 'tienda-prueba-'.strtolower(Str::random(5)),
         'timezone' => 'America/Costa_Rica',
         'settings' => '{}',
     ]);
