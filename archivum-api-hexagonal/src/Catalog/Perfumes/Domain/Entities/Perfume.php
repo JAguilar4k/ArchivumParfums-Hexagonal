@@ -14,6 +14,7 @@ use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeName;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeNote;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeTag;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeVariantId;
+use Src\Catalog\Perfumes\Domain\ValueObjects\SalePrice;
 use Src\Catalog\Perfumes\Domain\ValueObjects\SizeMl;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\Colones;
@@ -129,6 +130,14 @@ final class Perfume
     public function repriceVariant(PerfumeVariantId $id, ?Colones $salePrice, ?Colones $manualPrice): void
     {
         $this->variant($id)->reprice($salePrice, $manualPrice);
+    }
+
+    /** Give one presentation the sale price that its cost, the margin of the store and its manual price result in. */
+    public function priceVariant(PerfumeVariantId $id, ?Colones $cost, Colones $margin): void
+    {
+        $variant = $this->variant($id);
+
+        $variant->reprice(SalePrice::calculate($cost, $margin, $variant->manualPrice), $variant->manualPrice);
     }
 
     /** Stop offering one presentation without deleting it. */
