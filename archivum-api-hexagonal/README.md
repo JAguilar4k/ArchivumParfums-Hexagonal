@@ -2,6 +2,10 @@
 
 API REST de ArchivumParfums. Laravel 13, PHP 8.4 y PostgreSQL 18.
 
+## Alcance integrado
+
+La API incluye sesiones del personal, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Los servicios y horarios, la disponibilidad, las citas, los pedidos, los pagos y el cliente Vue siguen pendientes de integración. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
+
 ## Requisitos
 
 | Herramienta | Versión |
@@ -15,7 +19,7 @@ API REST de ArchivumParfums. Laravel 13, PHP 8.4 y PostgreSQL 18.
 
 ## Instalación
 
-Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macOS.
+Los comandos de Composer y Artisan sirven en PowerShell, en Git Bash y en una terminal de Linux o macOS. Abre una terminal con PHP y PostgreSQL en el `PATH`; utiliza PHP 8.4, igual que CI. No se necesita Node.js ni Vite para iniciar esta API.
 
 1. Clonar el repositorio y entrar al proyecto:
 
@@ -24,7 +28,27 @@ Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macO
    cd ArchivumParfums-Hexagonal/archivum-api-hexagonal
    ```
 
-2. Instalar las dependencias y preparar el entorno:
+2. Preparar la configuración local. Este comando copia el ejemplo solo si todavía no existe `.env`:
+
+   ```bash
+   php -r "file_exists('.env') || copy('.env.example', '.env');"
+   ```
+
+   Edita `.env` antes de instalar si PostgreSQL usa otro host o puerto. Para el servidor local de esta guía, configura `APP_URL=http://127.0.0.1:8000`. Las conexiones de la aplicación y del dueño del esquema comparten host, puerto y base:
+
+   ```dotenv
+   APP_ENV=local
+   APP_URL=http://127.0.0.1:8000
+   DB_HOST=127.0.0.1
+   DB_PORT=5432
+   DB_DATABASE=archivum_hexagonal
+   DB_USERNAME=archivum_app
+   DB_ADMIN_USERNAME=archivum_owner
+   ```
+
+   Si esos roles ya existen, escribe sus contraseñas actuales en `DB_PASSWORD` y `DB_ADMIN_PASSWORD`. Si son nuevos, el instalador puede generarlas. `ARCHIVUM_DEMO_PASSWORD` define la contraseña de las cuentas ficticias; el ejemplo usa `demo-archivum` para desarrollo local. Las contraseñas SQL y las de las cuentas HTTP cumplen funciones distintas. `DB_URL`, si se configura, debe ser coherente con los campos `DB_*`; para esta instalación por campos separados se puede dejar comentada.
+
+3. Instalar las dependencias y preparar el entorno:
 
    ```bash
    composer install
@@ -32,7 +56,7 @@ Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macO
 
    Al terminar de instalar, Composer ejecuta `php artisan archivum:install`, que deja todo listo en este orden: crea `.env` a partir de `.env.example`, genera la clave de la aplicación, crea los roles `archivum_owner` y `archivum_app` y las bases de desarrollo y de pruebas igual que `database/roles.sql`, migra con el rol dueño y carga los datos de demostración. Las contraseñas se generan solo para los roles nuevos y quedan en `.env`. Si los roles ya existen en este servidor, se deben escribir sus contraseñas actuales en `DB_ADMIN_PASSWORD` y `DB_PASSWORD`; el instalador nunca las cambia, de modo que otra copia del proyecto sigue conectándose.
 
-3. La primera vez hace falta la contraseña del superusuario `postgres` para crear los roles y las bases. Se pide sin mostrarla y no se guarda. En Windows, Composer no deja escribir en sus scripts: la instalación termina con un aviso y basta ejecutar una vez
+4. La primera vez hace falta la contraseña del superusuario `postgres` para crear los roles y las bases. Se pide sin mostrarla y no se guarda. Si el script de Composer no dispone de una terminal interactiva, como puede ocurrir en Windows, completa la preparación ejecutando:
 
    ```bash
    php artisan archivum:install
@@ -40,24 +64,32 @@ Los comandos sirven en PowerShell, en Git Bash y en una terminal de Linux o macO
 
    que sí la pide. Si el superusuario tiene otro nombre, se indica con `--superuser=nombre`; en un script, la contraseña puede venir de la variable de entorno `DB_SUPERUSER_PASSWORD`.
 
-4. Volver a ejecutar `composer install` conserva la clave y aplica solo las migraciones pendientes. La siembra automática se ejecuta únicamente cuando la tabla `users` está vacía; si ya hay cuentas, no vuelve a sembrar ni cambia sus datos. La carga manual sigue disponible con `php artisan db:seed` para restaurar las filas de demostración que falten. La siembra corre en una transacción: si falla, se revierte y se puede reintentar después de corregir el error, aunque las migraciones ya estén aplicadas. En la integración continua, con `composer install --no-dev` o con `APP_ENV` distinto de `local`, `archivum:install` no hace nada.
+   Volver a ejecutar `composer install` conserva la clave y aplica solo las migraciones pendientes. La siembra automática se ejecuta únicamente cuando la tabla `users` está vacía; si ya hay cuentas, no vuelve a sembrar ni cambia sus datos. `php artisan db:seed` vuelve a aplicar los datos de demostración y puede reasignar valores de esas filas: se utiliza deliberadamente en una base local de demo, no en cada arranque. La siembra corre en una transacción: si falla, se revierte y se puede reintentar después de corregir el error, aunque las migraciones ya estén aplicadas. Con `CI=true` o `CI=1`, con `composer install --no-dev` o con `APP_ENV` distinto de `local`, el instalador omite la preparación local.
 
-5. Levantar el servidor:
+5. Preparar las direcciones de archivos públicos y levantar el servidor:
 
    ```bash
+   php artisan config:clear
+   php artisan storage:link
    composer run dev
    ```
 
-   Este comando inicia `php artisan serve` y funciona en Windows, Linux y macOS sin Node.js ni la extensión PCNTL. Si se necesita procesar trabajos en cola durante el desarrollo, se abre otra terminal en esta misma carpeta y se ejecuta `php artisan queue:work --tries=1`. Los registros están en `storage/logs/laravel.log`.
+   `composer run dev` inicia `php artisan serve` y funciona en Windows, Linux y macOS sin Node.js ni la extensión PCNTL. Deja abierta esta terminal; **Ctrl+C** detiene el servidor. El enlace `storage:link` publica los logos y las fotos; si ya existe, no hay que recrearlo. Después de cambiar `.env`, limpia la configuración y reinicia el servidor para que las peticiones HTTP usen el mismo host, puerto y credenciales que la consola. Los registros están en `storage/logs/laravel.log`.
 
-6. Comprobar que todo responde:
+6. En Postman, crea una petición **GET** a `http://127.0.0.1:8000/api/v1`, sin autorización, y pulsa **Send**. Debe responder **200** con `{"nombre":"ArchivumParfums","version":"v1"}`. Consulta también `/up`, `/docs/api`, `/docs/api.json` y `/api/v1/tiendas/archivumparfums/perfumes`. Los dos endpoints de documentación están disponibles fuera de producción.
+
+   Para usar la terminal, abre **otra terminal en esta misma carpeta** y ejecuta:
 
    ```bash
-   curl http://localhost:8000/api/v1
+   curl http://127.0.0.1:8000/api/v1
+   composer validate --strict
+   composer lint
+   composer analyse
    composer test
+   composer audit --locked
    ```
 
-   La primera petición devuelve `{"nombre":"ArchivumParfums","version":"v1"}` y las pruebas deben pasar todas.
+   En Windows PowerShell, usa `curl.exe` si `curl` es un alias de `Invoke-WebRequest`. La suite comprueba la implementación integrada; la finalización de horarios, disponibilidad, reservas y otros módulos se sigue en sus issues.
 
 La aplicación se conecta con `archivum_app`, que no puede cambiar el esquema; las migraciones corren con `archivum_owner` a través de la conexión `pgsql_admin`. Por eso `php artisan migrate` sin `--database=pgsql_admin` falla con `Insufficient privilege` en cuanto hay una tabla que crear o cambiar. El motivo está en [docs/database.md](../docs/database.md).
 
@@ -80,15 +112,49 @@ COMMIT;
 | `composer lint` | Verifica el estilo con Laravel Pint, sin modificar archivos. |
 | `composer format` | Corrige el estilo. |
 | `composer analyse` | Análisis estático con Larastan en nivel 8. |
-| `composer openapi` | Regenera el contrato `openapi/v1.json`. Llega con #50. |
-| `composer audit` | Revisa vulnerabilidades conocidas en las dependencias. |
+| `composer validate --strict` | Verifica que el manifiesto y el archivo de bloqueo de Composer sean coherentes. |
+| `composer openapi` | Regenera el contrato versionado `openapi/v1.json` con Scramble. |
+| `composer audit --locked` | Revisa vulnerabilidades conocidas de las dependencias del archivo de bloqueo, con todas las severidades. |
+| `php artisan config:clear` | Limpia la configuración cacheada después de editar `.env`; reinicia también el servidor HTTP. |
+| `php artisan storage:link` | Hace accesibles los logos y fotos guardados en el disco público. Se ejecuta una vez por instalación. |
+| `php artisan migrate --database=pgsql_admin` | Aplica migraciones pendientes con el rol dueño del esquema, sin volver a sembrar. |
+| `php artisan route:list --path=api --except-vendor` | Muestra las rutas realmente cargadas de la API. Añade `-vv` para consultar sus middleware. |
 | `php artisan archivum:create-business` | Da de alta una tienda y la cuenta de su dueño. Ver [Dar de alta una tienda](#dar-de-alta-una-tienda). |
 
-Antes de abrir un pull request deben pasar `composer lint`, `composer analyse` y `composer test`. Si cambió un endpoint, hay que regenerar el contrato con `composer openapi` y versionarlo. La integración continua ejecuta los mismos pasos, más `composer audit`, en cada pull request.
+Antes de abrir un pull request deben pasar `composer validate --strict`, `composer lint`, `composer analyse` y `composer test`. La auditoría completa se ejecuta con `composer audit --locked`; CI ejecuta `composer audit --locked --ignore-severity=low --ignore-severity=medium` después de las pruebas, por lo que una ejecución local completa puede informar avisos adicionales.
+
+Si cambió un endpoint, regenera el contrato, revisa el diff y versiona el JSON en el mismo PR:
+
+```bash
+composer openapi
+git diff -- openapi/v1.json
+```
+
+Para comprobar que el contrato versionado ya coincide con el generador, usa `git diff --exit-code -- openapi/v1.json` después de exportarlo. Un diff requiere revisar y actualizar el contrato; no significa que se haya ejecutado el comportamiento HTTP.
+
+Cuando se implemente trabajo en cola, el worker local se ejecuta en otra terminal con `php artisan queue:work --tries=1`; el scheduler usa `php artisan schedule:work`. Son procesos separados de `composer run dev`, y se inician cuando el módulo que se prueba los necesita. Este arranque no incorpora pagos, recordatorios o websockets que todavía estén pendientes.
 
 ## Pruebas
 
 Las pruebas usan Pest y se ordenan en tres carpetas de `tests/`:
+
+La base de pruebas es `archivum_hexagonal_testing`, configurada en `phpunit.xml`. Las pruebas de funcionalidad recrean tablas y revierten transacciones allí. Ejecuta la suite en una terminal sin valores heredados de `DB_DATABASE` o `DB_URL` que sustituyan la base de pruebas. Si usaste esas variables para otra ejecución, puedes quitarlas solo de la terminal de verificación:
+
+```powershell
+Remove-Item Env:DB_DATABASE, Env:DB_URL, Env:APP_ENV -ErrorAction SilentlyContinue
+composer test
+```
+
+En Bash, el equivalente para una única ejecución es `env -u DB_DATABASE -u DB_URL -u APP_ENV composer test`. El host, puerto y contraseñas de `.env` deben permitir conectar ambos roles al servidor que contiene la base de pruebas. Estas instrucciones no usan `migrate:fresh` sobre la base de desarrollo.
+
+Si la suite agota la memoria del PHP de consola, puedes ejecutar Pest directamente con un límite temporal de 1 GB, conservando `phpunit.xml` y la base de pruebas:
+
+```bash
+php artisan config:clear
+php -d memory_limit=1G vendor/bin/pest
+```
+
+El ajuste pertenece a ese proceso y no modifica `php.ini`. Poner `-d memory_limit=1G` solo delante de `artisan test` no lo garantiza para Pest, porque Artisan lo inicia en otro proceso PHP.
 
 | Carpeta | Qué prueba | Cómo |
 |---|---|---|
@@ -135,10 +201,63 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/api/v1/cuenta` | Con token | Nombre, correo y rol de la cuenta (`dueno`, `colaborador` o `cliente`) y, para el personal, su tienda. |
 | GET | `/api/v1/panel/tienda` | Dueño | Perfil y ajustes de la tienda de la sesión: nombre, slug, lugar de la cita, zona horaria y ajustes. |
 | PATCH | `/api/v1/panel/tienda` | Dueño | Cambia solo los campos enviados del perfil y de los ajustes. El slug no cambia. |
+| POST | `/api/v1/panel/tienda/logo` | Dueño | Sube el logo mediante `multipart/form-data`. |
+| GET | `/api/v1/panel/perfumes` | Dueño | Lista perfumes de su tienda, incluidos los inactivos, con búsqueda por marca/nombre y paginación. |
+| POST | `/api/v1/panel/perfumes` | Dueño | Crea un perfume con sus notas y etiquetas. |
+| GET | `/api/v1/panel/perfumes/{perfume}` | Dueño | Consulta un perfume de su tienda. |
+| PATCH | `/api/v1/panel/perfumes/{perfume}` | Dueño | Edita los campos enviados; `activo=false` lo desactiva. |
+| POST | `/api/v1/panel/perfumes/{perfume}/foto` | Dueño | Sube la foto mediante `multipart/form-data`. |
+| GET | `/api/v1/panel/perfumes/{perfume}/presentaciones` | Dueño | Lista las presentaciones de ese perfume. |
+| POST | `/api/v1/panel/perfumes/{perfume}/presentaciones` | Dueño | Crea una presentación con volumen y precio. |
+| PATCH | `/api/v1/panel/perfumes/{perfume}/presentaciones/{presentacion}` | Dueño | Edita la presentación o cambia su estado activo. |
+| GET | `/api/v1/tiendas/{tienda}` | Cualquiera | Perfil público de la tienda identificada por su slug. |
+| GET | `/api/v1/tiendas/{tienda}/perfumes` | Cualquiera | Vitrina pública de perfumes activos, con búsqueda, filtros y paginación. |
+| GET | `/api/v1/tiendas/{tienda}/perfumes/{perfume}` | Cualquiera | Detalle público del perfume activo con sus presentaciones activas. |
+| GET | `/docs/api` | Desarrollo local | Documentación interactiva de Scramble; el gate la deniega en producción. |
+| GET | `/docs/api.json` | Desarrollo local | Contrato OpenAPI generado de las rutas. |
 
 Las rutas sin versión, como `/api`, responden 404: toda ruta de la API lleva el prefijo `/api/v1`.
 
-Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial).
+Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial). Las rutas de servicios, horarios, disponibilidad, reservas y pagos de esa lista siguen pendientes de integración y no forman parte de esta tabla de rutas disponibles.
+
+## Recorrido básico en Postman
+
+Realiza este recorrido con las cuentas ficticias de una instalación local. Configura **Accept: application/json**. En los POST y PATCH con JSON, usa **Body → raw → JSON**; en archivos, usa **Body → form-data** y deja que Postman genere `Content-Type` con su boundary.
+
+1. Envía `GET /api/v1/tiendas/archivumparfums/perfumes` sin autorización. Debe responder 200.
+2. Envía `POST /api/v1/sesiones` con este cuerpo, usando la contraseña de `ARCHIVUM_DEMO_PASSWORD` de tu instalación:
+
+   ```json
+   {
+     "correo": "duena@archivumparfums.test",
+     "contrasena": "demo-archivum",
+     "dispositivo": "Postman local"
+   }
+   ```
+
+3. La respuesta 201 contiene `data.token`. Cópialo completo, sin las comillas, en **Authorization → Bearer Token**. Envía `GET /api/v1/cuenta` y confirma el correo, el rol `dueno` y la tienda. El token HTTP se obtiene del login; la contraseña del rol SQL se utiliza únicamente para conectar PostgreSQL.
+4. Con ese token, envía `POST /api/v1/panel/perfumes` con datos ficticios:
+
+   ```json
+   {
+     "marca": "Laboratorio local",
+     "nombre": "Ensayo de catálogo",
+     "familia": "Amaderada",
+     "descripcion": "Perfume ficticio para la demostración",
+     "activo": true
+   }
+   ```
+
+5. Conserva `data.id` de la respuesta 201. Sustituye `{perfume}` en `POST /api/v1/panel/perfumes/{perfume}/presentaciones` y envía `{"ml":50,"precio_manual":9000}`. Debe crear una presentación con 201. Son 9000 colones enteros.
+6. Sin autorización, consulta `GET /api/v1/tiendas/archivumparfums/perfumes/{perfume}`. El mismo UUID bajo `esencias-del-norte` debe recibir 404. La prueba usa un recurso cuya existencia acabas de confirmar.
+7. Ingresa como `asesor@archivumparfums.test` en una petición separada. Confirma su identidad con `GET /api/v1/cuenta` y su token; `GET /api/v1/panel/tienda` debe devolver 403. Un 401 indica un problema de token, no una comprobación correcta del permiso por rol.
+8. Con el token de la dueña, envía `DELETE /api/v1/sesiones/actual`. Responde 204 sin cuerpo. Reutiliza **ese mismo token** en `GET /api/v1/cuenta`: ahora debe recibir 401.
+
+Las validaciones fallidas deben responder 422 con `errores`, y los errores usan `application/problem+json`, `type`, `title`, `status`, `detail` e `instance`, correlacionado con `X-Request-Id`. La tienda del panel se toma de la sesión, por lo que cambiar `business_id` en un cuerpo no cambia su alcance. Verifica los dos dueños y las operaciones prohibidas cuando pruebes aislamiento privado; el recorrido público anterior no sustituye esa comprobación.
+
+Para probar fotos, añade `foto` como archivo en el POST de foto; para el logo, el campo es `logo`. Envía una imagen ficticia del tipo y tamaño admitidos por el contrato y abre la URL devuelta. Ese segundo paso comprueba el enlace público y `APP_URL`, además de la respuesta de subida.
+
+Los ejemplos cURL de la sección siguiente usan sintaxis Bash para continuar líneas; en PowerShell puedes crear las mismas solicitudes en Postman o escribir el comando `curl.exe` en una sola línea.
 
 El token de `POST /api/v1/sesiones` se muestra una sola vez y se envía en cada petición en el encabezado `Authorization: Bearer <token>`; cada ingreso crea un token nuevo con el nombre de su dispositivo, así cada sesión se distingue de las demás, y `DELETE /api/v1/sesiones/actual` borra solo el token de la petición, sin cerrar las demás sesiones de la cuenta. Un correo inexistente y una contraseña incorrecta reciben la misma respuesta 401 `credenciales-invalidas`, sin indicar cuál dato falló, como en el proyecto guía. Los campos ausentes o mal formados responden 422 `datos-invalidos` con sus errores de validación. Sin token, o con uno inválido, las rutas protegidas responden 401 `no-autenticado`. Para ingresar con una cuenta de los [datos de demostración](#datos-de-demostración):
 
