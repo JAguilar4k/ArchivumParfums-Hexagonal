@@ -23,12 +23,13 @@ final class StaffSchedule
     }
 
     /**
-     * @param array<int, array<int, \Src\Scheduling\Shared\Domain\ValueObjects\TimeRange>> $slots
+     * @param  array<int, array<int, TimeRange>>  $slots
      */
     public static function reconstitute(string $memberId, array $slots): self
     {
         $schedule = new self($memberId);
         $schedule->slots = $slots;
+
         return $schedule;
     }
 
@@ -55,7 +56,7 @@ final class StaffSchedule
     }
 
     /**
-     * @return array<int, array<int, \Src\Scheduling\Shared\Domain\ValueObjects\TimeRange>>
+     * @return array<int, array<int, TimeRange>>
      */
     public function getSlots(): array
     {
