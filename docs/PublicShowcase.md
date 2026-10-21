@@ -68,7 +68,7 @@ Rutas relativas a `archivum-api-hexagonal/`.
 | `tests/Feature/Catalog/Showcase/ShowcaseTest.php` | El endpoint contra PostgreSQL con dos tiendas |
 | `tests/Feature/Catalog/Showcase/ShowcaseDemoSeederTest.php` | El seeder de demostración visto por la vitrina de cada tienda |
 
-Archivos de ramas anteriores que se modificaron, solo de apoyo de pruebas: `ServesCatalog.php` (sirve también la vitrina) y `StoredPerfumes.php` (acepta notas, etiquetas, presentaciones inactivas y foto).
+Para integrarla se modificaron `bootstrap/providers.php`, `routes/api.php` y `openapi/v1.json`. De apoyo de pruebas se modificó: `StoredPerfumes.php` (acepta notas, etiquetas, presentaciones inactivas y foto).
 
 La palabras de `momento` y `clima` se toman de `PerfumeVocabulary`, del mismo contexto `Catalog`, para que la entrada del panel y la lectura de la vitrina no se desvíen.
 
@@ -95,6 +95,16 @@ La palabras de `momento` y `clima` se toman de `PerfumeVocabulary`, del mismo co
 | Aislamiento con dos tiendas | «never includes the perfumes of another store…» |
 | Los seeders de #42 en la vitrina de cada tienda | `ShowcaseDemoSeederTest` |
 
-## Pendiente de hacer a mano
+## Integración y verificación
 
-Registrar `ShowcaseServiceProvider` en `bootstrap/providers.php`, cargar `src/Catalog/Showcase/Infrastructure/Http/routes.php` desde `routes/api.php` y regenerar el contrato con `composer openapi`, además de lo de las ramas anteriores.
+No queda nada manual de integración: `ShowcaseServiceProvider` está registrado en `bootstrap/providers.php`, `routes/api.php` carga las rutas de la vitrina y `openapi/v1.json` incluye `GET /tiendas/{tienda}/perfumes`. Las pruebas ejercen ese arranque; ya no instalan nada por su cuenta.
+
+`ShowcaseDemoSeederTest` corre `seed()`, el sembrador por defecto que ejecuta `db:seed` (que ya llama a `CatalogDemoSeeder`), y consulta la vitrina de cada tienda de demostración: cada una muestra sus perfumes y ninguno de la otra. Es la prueba que pedía #42.
+
+Larastan detectó tres cosas que el arreglo corrigió: las etiquetas del lector se arman en tres listas con la forma que el DTO declara, la prueba de la vitrina no usa `collect()` (cuyos tipos no se pueden inferir) y el lector de ejemplo de la prueba unitaria es una clase con nombre (`RecordingShowcaseReader`), porque una clase anónima oculta su propiedad `received` tras el tipo de la interfaz.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Pint | Sin diferencias |
+| Larastan, nivel 8 | Sin errores (`[OK] No errors`) |
+| Pest, suite completa | 888 pruebas en verde, con `php -d memory_limit=1G vendor/bin/pest` |
