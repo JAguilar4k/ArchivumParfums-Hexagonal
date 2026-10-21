@@ -6,6 +6,7 @@ namespace Src\Catalog\Perfumes\Domain\Contracts;
 
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
 use Src\Catalog\Perfumes\Domain\Exceptions\DuplicateVariantSizeException;
+use Src\Catalog\Perfumes\Domain\Exceptions\PerfumeNotFoundException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeId;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeVariantId;
 
@@ -18,8 +19,10 @@ interface PerfumeRepository
     public function nextVariantId(): PerfumeVariantId;
 
     /**
-     * Persist a new or modified perfume with its notes, tags and presentations.
+     * Persist a new or modified perfume with its notes, tags and presentations in the current business; a perfume of another
+     * business is refused, as one that does not exist.
      *
+     * @throws PerfumeNotFoundException
      * @throws DuplicateVariantSizeException
      */
     public function save(Perfume $perfume): void;

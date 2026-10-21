@@ -57,6 +57,30 @@ it('adds presentations in order of size and refuses a second one with the same m
     $perfume->addVariant(new PerfumeVariantId('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a6e'), new SizeMl(10), null, null);
 })->throws(DuplicateVariantSizeException::class, 'catalog.duplicate_variant_size');
 
+it('refuses a presentation with an identity the perfume already has and keeps its state and its identities unique', function (): void {
+    $perfume = newPerfume();
+    $id = new PerfumeVariantId(OTHER_PERFUME_UUID);
+    $perfume->addVariant($id, new SizeMl(5), new Colones(9000), null);
+
+    expect(fn () => $perfume->addVariant($id, new SizeMl(10), null, null))
+        ->toThrow(InvalidPerfumeException::class, 'catalog.duplicate_variant_id')
+        ->and($perfume->variants)->toHaveCount(1)
+        ->and($perfume->variants[0]->size->value)->toBe(5);
+
+    $perfume->deactivateVariant($id);
+
+    expect($perfume->variants[0]->isActive)->toBeFalse();
+});
+
+it('keeps refusing the same milliliters under another identity', function (): void {
+    $perfume = newPerfume();
+    $perfume->addVariant(new PerfumeVariantId(OTHER_PERFUME_UUID), new SizeMl(5), null, null);
+
+    expect(fn () => $perfume->addVariant(new PerfumeVariantId(PERFUME_UUID), new SizeMl(5), null, null))
+        ->toThrow(DuplicateVariantSizeException::class)
+        ->and($perfume->variants)->toHaveCount(1);
+});
+
 it('deactivates and reactivates a perfume and a presentation without deleting anything', function (): void {
     $perfume = newPerfume();
     $variantId = new PerfumeVariantId(OTHER_PERFUME_UUID);
