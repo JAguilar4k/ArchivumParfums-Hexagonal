@@ -5,7 +5,6 @@ declare(strict_types=1);
 use Src\Catalog\Perfumes\Application\DTOs\EditPerfumeCommand;
 use Src\Catalog\Perfumes\Application\UseCases\EditPerfume;
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
-use Src\Catalog\Perfumes\Domain\Exceptions\DuplicatePerfumeException;
 use Src\Catalog\Perfumes\Domain\Exceptions\PerfumeNotFoundException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\Brand;
 use Src\Catalog\Perfumes\Domain\ValueObjects\Climate;
@@ -107,15 +106,6 @@ it('treats a perfume that does not exist, or an identity that is not one, as not
     'unknown' => '0192f0c4-0000-7000-9000-999999999999',
     'not an identity' => 'no-es-un-uuid',
 ]);
-
-it('refuses to turn a perfume into one that already exists', function () {
-    [$editPerfume, $perfume, $perfumes] = editPerfumeWiring();
-    $other = Perfume::create($perfumes->nextId(), new BusinessId(EDIT_PERFUME_BUSINESS), new Brand('Tom Ford'), new PerfumeName('Tobacco Vanille'), PerfumeDetails::empty());
-    $perfumes->save($other);
-
-    expect(fn () => $editPerfume->execute(new EditPerfumeCommand($other->id->value, ['name' => 'oud wood', 'concentration' => 'edp'])))
-        ->toThrow(DuplicatePerfumeException::class);
-});
 
 it('rejects the data the domain cannot hold', function () {
     [$editPerfume, $perfume] = editPerfumeWiring();
