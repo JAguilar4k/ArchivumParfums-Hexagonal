@@ -85,7 +85,7 @@ it('refuses a type that is not accepted and stores nothing', function (string $m
 it('discards the new file and keeps the previous one when the logo cannot be saved', function () {
     $failing = new class implements BusinessLogos
     {
-        public function pathOf(BusinessId $business): ?string
+        public function pathOf(BusinessId $business): string
         {
             return 'logos/vigente.png';
         }

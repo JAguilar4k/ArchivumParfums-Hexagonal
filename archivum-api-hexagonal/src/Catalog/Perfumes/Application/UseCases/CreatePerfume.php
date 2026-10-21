@@ -7,7 +7,6 @@ namespace Src\Catalog\Perfumes\Application\UseCases;
 use Src\Catalog\Perfumes\Application\DTOs\CreatePerfumeCommand;
 use Src\Catalog\Perfumes\Domain\Contracts\PerfumeRepository;
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
-use Src\Catalog\Perfumes\Domain\Exceptions\DuplicatePerfumeException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\Brand;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeDetails;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeName;
@@ -25,11 +24,7 @@ final readonly class CreatePerfume
         private TransactionRunner $transaction,
     ) {}
 
-    /**
-     * Register a perfume with its notes and tags in the business of the session.
-     *
-     * @throws DuplicatePerfumeException
-     */
+    /** Register a perfume with its notes and tags in the business of the session. */
     public function execute(CreatePerfumeCommand $command): Perfume
     {
         return $this->transaction->run(function () use ($command): Perfume {

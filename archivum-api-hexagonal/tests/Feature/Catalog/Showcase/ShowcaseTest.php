@@ -10,7 +10,6 @@ use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeNote;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeTag;
 use Src\Catalog\Perfumes\Domain\ValueObjects\TimeOfDay;
 use Tests\Support\Businesses\TwoBusinesses;
-use Tests\Support\Catalog\ServesCatalog;
 use Tests\Support\Catalog\StoredPerfumes;
 use Tests\Support\RefreshDatabaseAsOwner;
 
@@ -31,7 +30,6 @@ function showcaseNames(string $slug, string $query = ''): array
 beforeEach(function () {
     Storage::fake('public');
     TwoBusinesses::create();
-    ServesCatalog::register();
     $first = TwoBusinesses::idOf(TwoBusinesses::FIRST);
     $second = TwoBusinesses::idOf(TwoBusinesses::SECOND);
 
@@ -65,8 +63,9 @@ it('lists, without authentication, only the active perfumes that have a presenta
 
 it('shows each perfume with its public fields and only the presentations that can be sold', function () {
     $data = getJson('/api/v1/tiendas/'.TwoBusinesses::FIRST.'/perfumes')->assertOk()->json('data');
-    $oud = collect($data)->firstWhere('nombre', 'Oud Wood');
-    $mixed = collect($data)->firstWhere('nombre', 'Mixto');
+    $byName = array_column($data, null, 'nombre');
+    $oud = $byName['Oud Wood'];
+    $mixed = $byName['Mixto'];
 
     expect(array_keys($oud))->toBe(['id', 'marca', 'nombre', 'concentracion', 'familia', 'foto_url', 'etiquetas', 'presentaciones'])
         ->and($oud['foto_url'])->toBe(Storage::disk('public')->url('perfumes/oud.png'))
