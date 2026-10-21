@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support\Catalog;
 
 use Illuminate\Support\Facades\Route;
+use Src\Businesses\Profile\Infrastructure\ProfileEventsServiceProvider;
 use Src\Catalog\Perfumes\Infrastructure\PerfumesServiceProvider;
 
 /**
@@ -17,6 +18,7 @@ final class ServesCatalog
     public static function register(): void
     {
         app()->register(PerfumesServiceProvider::class);
+        app()->register(ProfileEventsServiceProvider::class);
 
         Route::middleware('api')
             ->prefix('api/v1')

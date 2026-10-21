@@ -16,6 +16,8 @@ use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeDetails;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeName;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\ValueObjects\BusinessId;
+use Tests\Support\Catalog\FixedBottleMargin;
+use Tests\Support\Catalog\FixedVariantCost;
 use Tests\Support\Catalog\InMemoryPerfumeRepository;
 use Tests\Support\Shared\RecordingTransactionRunner;
 
@@ -31,7 +33,7 @@ function variantsWiring(): array
     $perfumes->save($perfume);
     $transaction = new RecordingTransactionRunner;
 
-    return [new AddPerfumeVariant($perfumes, $transaction), new EditPerfumeVariant($perfumes, $transaction), new ListPerfumeVariants($perfumes), $perfume];
+    return [new AddPerfumeVariant($perfumes, new FixedVariantCost, new FixedBottleMargin, $transaction), new EditPerfumeVariant($perfumes, new FixedVariantCost, new FixedBottleMargin, $transaction), new ListPerfumeVariants($perfumes), $perfume];
 }
 
 it('adds an active presentation with or without a manual price', function () {
