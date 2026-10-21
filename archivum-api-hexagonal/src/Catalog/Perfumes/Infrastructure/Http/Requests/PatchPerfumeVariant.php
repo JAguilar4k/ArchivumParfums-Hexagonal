@@ -7,6 +7,7 @@ namespace Src\Catalog\Perfumes\Infrastructure\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use Src\Catalog\Perfumes\Application\DTOs\EditPerfumeVariantCommand;
 use Src\Catalog\Perfumes\Domain\ValueObjects\SizeMl;
+use Src\Shared\Domain\ValueObjects\Colones;
 use Stringable;
 
 final class PatchPerfumeVariant extends FormRequest
@@ -20,7 +21,7 @@ final class PatchPerfumeVariant extends FormRequest
     {
         return [
             'ml' => ['sometimes', 'required', 'integer', 'min:1', 'max:'.SizeMl::MAX],
-            'precio_manual' => ['sometimes', 'nullable', 'integer', 'min:0'],
+            'precio_manual' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:'.Colones::MAX],
             'activa' => ['sometimes', 'boolean'],
         ];
     }

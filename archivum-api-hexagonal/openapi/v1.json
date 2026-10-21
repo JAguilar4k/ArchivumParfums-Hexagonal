@@ -2209,7 +2209,8 @@
                             "integer",
                             "null"
                         ],
-                        "minimum": 0
+                        "minimum": 0,
+                        "maximum": 2147483647
                     },
                     "activa": {
                         "type": "boolean"
@@ -2708,7 +2709,8 @@
                             "integer",
                             "null"
                         ],
-                        "minimum": 0
+                        "minimum": 0,
+                        "maximum": 2147483647
                     }
                 },
                 "required": [

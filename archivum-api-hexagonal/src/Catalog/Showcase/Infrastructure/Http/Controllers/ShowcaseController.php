@@ -32,7 +32,7 @@ final readonly class ShowcaseController
             $page->total,
             $page->perPage,
             $page->page,
-            ['path' => $request->url(), 'query' => $request->query()],
+            ['path' => $request->url(), 'query' => $request->query(), 'pageName' => 'pagina'],
         ));
     }
 }
