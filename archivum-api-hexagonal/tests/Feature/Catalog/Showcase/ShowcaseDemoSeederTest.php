@@ -2,9 +2,6 @@
 
 declare(strict_types=1);
 
-use Database\Seeders\BusinessesSeeder;
-use Database\Seeders\CatalogDemoSeeder;
-use Tests\Support\Catalog\ServesCatalog;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 use function Pest\Laravel\getJson;
@@ -13,9 +10,9 @@ use function Pest\Laravel\seed;
 pest()->use(RefreshDatabaseAsOwner::class);
 
 beforeEach(function () {
-    seed(BusinessesSeeder::class);
-    seed(CatalogDemoSeeder::class);
-    ServesCatalog::register();
+    // What db:seed runs: the default seeder, which also creates the businesses the sample catalog belongs to.
+    config(['archivum.demo_password' => 'clave-de-demostracion']);
+    seed();
 });
 
 it('shows in the showcase of each demo store its own sample perfumes and none of the other', function () {

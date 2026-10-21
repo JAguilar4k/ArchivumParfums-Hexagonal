@@ -105,11 +105,17 @@ final readonly class PostgresShowcaseReader implements ShowcaseReader
 
     private function toItem(ShowcasePerfumeModel $model): ShowcaseItem
     {
-        $tags = ['time_of_day' => [], 'climate' => [], 'occasion' => []];
+        $timeOfDay = [];
+        $climate = [];
+        $occasion = [];
 
         foreach ($model->tags as $tag) {
             /** @var ShowcaseTagModel $tag */
-            $tags[$tag->kind][] = $tag->value;
+            match ($tag->kind) {
+                'time_of_day' => $timeOfDay[] = $tag->value,
+                'climate' => $climate[] = $tag->value,
+                default => $occasion[] = $tag->value,
+            };
         }
 
         return new ShowcaseItem(
@@ -120,7 +126,7 @@ final readonly class PostgresShowcaseReader implements ShowcaseReader
             $model->family,
             $model->image_path,
             null,
-            $tags,
+            ['time_of_day' => $timeOfDay, 'climate' => $climate, 'occasion' => $occasion],
             array_values($model->sellableVariants->map(
                 fn (ShowcaseVariantModel $variant): ShowcaseVariant => new ShowcaseVariant($variant->size_ml, (int) $variant->sale_price),
             )->all()),

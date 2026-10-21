@@ -11,6 +11,7 @@ use Src\Businesses\Profile\Infrastructure\ProfileEventsServiceProvider;
 use Src\Businesses\Profile\Infrastructure\ProfileServiceProvider;
 use Src\Businesses\PublicProfile\Infrastructure\PublicProfileServiceProvider;
 use Src\Catalog\Perfumes\Infrastructure\PerfumesServiceProvider;
+use Src\Catalog\Showcase\Infrastructure\ShowcaseServiceProvider;
 use Src\Shared\Infrastructure\SharedServiceProvider;
 
 return [
@@ -22,6 +23,7 @@ return [
     LogoServiceProvider::class,
     PublicProfileServiceProvider::class,
     PerfumesServiceProvider::class,
+    ShowcaseServiceProvider::class,
     SessionsServiceProvider::class,
     UsersServiceProvider::class,
 ];
