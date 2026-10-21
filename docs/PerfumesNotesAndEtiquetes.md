@@ -4,6 +4,19 @@ Este documento explica lo que se creó para el issue #39 y por qué. La persiste
 
 Sobre esa persistencia, `POST /api/v1/panel/perfumes` registra un perfume con sus notas y etiquetas en la tienda de la sesión. Las presentaciones se agregan después (#42).
 
+## Estado de la integración
+
+El endpoint funciona en la aplicación normal, sin que ninguna prueba lo instale:
+
+| Pieza | Dónde queda |
+| --- | --- |
+| Rutas | `routes/api.php` carga `src/Catalog/Perfumes/Infrastructure/Http/routes.php` |
+| Provider | `bootstrap/providers.php` registra `PerfumesServiceProvider` (viene de la corrección de #38) |
+| Contrato | `openapi/v1.json` incluye `POST /panel/perfumes`, con el esquema de seguridad de Sanctum y las respuestas 201, 401, 403 y 422 |
+| Aislamiento del personal | La matriz de `StaffIsolationTest` tiene el caso «create a perfume»: el dueño de cada tienda crea con un cuerpo que nombra a la otra y el perfume queda en la suya |
+
+Las pruebas de aceptación usan ese arranque. Antes usaban un ayudante que instalaba rutas y provider por su cuenta (`ServesCatalog`), lo que ocultaba que el endpoint no existía; se eliminó.
+
 ## Flujo de una petición
 
 ```mermaid
@@ -12,7 +25,7 @@ flowchart LR
     M --> F[StorePerfume]
     F -->|CreatePerfumeCommand| U[CreatePerfume]
     U -->|BusinessContext| R[EloquentPerfumeRepository]
-    R --> DB[(perfumes con índice único y RLS)]
+    R --> DB[(perfumes con RLS)]
     U --> C[PerfumeController]
     C --> S[PanelPerfume 201 y Location]
 ```
@@ -30,64 +43,53 @@ Rutas relativas a `archivum-api-hexagonal/`.
 | --- | --- |
 | `src/Catalog/Perfumes/Application/DTOs/CreatePerfumeCommand.php` | Datos primitivos del caso de uso, con el vocabulario del dominio. No lleva la tienda |
 | `src/Catalog/Perfumes/Application/UseCases/CreatePerfume.php` | Un caso de uso, un método. Crea el agregado en la tienda de `BusinessContext`, lo desactiva si `activo` es falso y lo guarda en una transacción |
-| `src/Catalog/Perfumes/Domain/Exceptions/DuplicatePerfumeException.php` | Perfume repetido en la tienda. Hereda de `InvalidValueException` |
 | `src/Catalog/Perfumes/Infrastructure/Http/PerfumeVocabulary.php` | Las palabras de la API (`dia`, `tarde`, `noche`, `calido`, `templado`, `frio`) emparejadas con lo que guarda la base (`day`, `afternoon`, `night`, `warm`, `temperate`, `cold`), en un solo lugar para la entrada y la salida |
 | `src/Catalog/Perfumes/Infrastructure/Http/Requests/StorePerfume.php` | Reglas, mensajes y nombres de campo en español; arma el comando. Solo `marca` y `nombre` son obligatorios |
 | `src/Catalog/Perfumes/Infrastructure/Http/Resources/PanelPerfume.php` | La respuesta como lista blanca |
-| `src/Catalog/Perfumes/Infrastructure/Http/Controllers/PerfumeController.php` | Llama al caso de uso, responde 201 con `Location` y traduce el perfume repetido a un error de validación sobre `nombre` |
+| `src/Catalog/Perfumes/Infrastructure/Http/Controllers/PerfumeController.php` | Llama al caso de uso y responde 201 con `Location` |
 | `src/Catalog/Perfumes/Infrastructure/Http/routes.php` | `POST panel/perfumes` con los mismos middlewares que `panel/tienda` |
-| `database/migrations/2026_10_20_000001_make_perfumes_unique_per_business.php` | Índice único `perfumes_business_brand_name_unique` sobre `(business_id, lower(brand), lower(name), lower(coalesce(concentration, '')))`. Reversible |
-| `tests/Support/Catalog/InMemoryPerfumeRepository.php` | Repositorio en memoria que repite la regla del repetido, para probar el caso de uso sin base de datos |
-| `tests/Support/Catalog/ServesCatalog.php` | Registra el provider y carga las rutas con el prefijo `api/v1` y el grupo `api`, como lo haría el framework una vez registrados a mano |
+| `tests/Support/Catalog/InMemoryPerfumeRepository.php` | Repositorio en memoria para probar el caso de uso sin base de datos |
 | `tests/Unit/Catalog/Perfumes/Application/CreatePerfumeTest.php` | El caso de uso sin framework |
-| `tests/Feature/Catalog/Perfumes/CreatePerfumeTest.php` | El endpoint contra PostgreSQL con dos tiendas |
+| `tests/Feature/Catalog/Perfumes/CreatePerfumeTest.php` | El endpoint contra PostgreSQL con dos tiendas, sobre el arranque normal |
 
-## Archivos de la 38 que #39 modificó
+Archivos existentes que #39 modificó, con el motivo de la revisión del PR: `routes/api.php` (carga las rutas), `openapi/v1.json` (regenerado con `composer openapi`) y `tests/Feature/Tenancy/StaffIsolationTest.php` (el caso de creación en la matriz compartida; agrega la función `panelCreations()`).
 
-Son archivos creados para #38 (todavía sin fusionar), no archivos preexistentes del proyecto:
+## Perfume repetido: pendiente de decisión
 
-| Archivo | Cambio |
+El issue pide que un perfume repetido en la misma tienda responda 422 señalando el campo, pero deja **pendiente de definir qué hace repetido a un perfume** (la llave única de #37). Una primera versión de este PR imponía una definición propia con un índice único; la revisión señaló que eso convierte una propuesta sin confirmar en una restricción ejecutable que puede impedir migrar datos válidos. **Se retiró** la migración, la excepción, la detección y su 422.
+
+| Aspecto | Estado |
 | --- | --- |
-| `EloquentPerfumeRepository.php` | Al violarse una llave única, distingue por el nombre del índice si es el del perfume repetido (`DuplicatePerfumeException`) o el de los ml de una presentación (`DuplicateVariantSizeException`). Antes toda violación se tomaba por la segunda |
-| `PerfumeRepository.php` | Documenta la nueva excepción en `save()` |
-| `lang/es/catalog.php` | Mensaje `perfume_already_exists` |
+| Definición de «repetido» (¿marca y nombre? ¿con concentración? ¿cómo se comparan?) | **Pendiente.** No hay una decisión aprobada que enlazar |
+| Criterio de aceptación «un perfume repetido responde 422 señalando el campo» | **Bloqueado** por esa decisión; no se cumple en este PR |
+| Qué falta cuando se decida | Una migración con la llave acordada y su enlace a la decisión, `docs/data-model.md` con esa llave, y la detección con su 422 sobre el campo que se acuerde |
+
+Mientras tanto la API acepta dos perfumes con la misma marca y nombre en una tienda.
 
 ## Decisiones
 
 | Tema | Decisión | Estado |
 | --- | --- | --- |
-| Qué hace repetido a un perfume | Misma marca, mismo nombre y misma concentración en la tienda, sin distinguir mayúsculas; sin concentración cuenta como vacía. Así el EDP y el EDT del mismo nombre son perfumes distintos | **Propuesta sin confirmar**; la llave única de #37 sigue abierta |
-| Repetido: 422 y no 409 | 422 `datos-invalidos` con `errores.nombre`, como el nombre de plato repetido del repo guía | Decisión del issue; el equipo puede cambiarla |
+| Repetido: 422 y no 409 | 422 `datos-invalidos` con el campo señalado, como el nombre de plato repetido del repo guía | Decisión del issue; se aplicará cuando se decida qué es un repetido |
 | Campos obligatorios | Solo `marca` y `nombre` | **Propuesta sin confirmar** |
 | Palabras de la API para momento y clima | `dia`, `tarde`, `noche`; `calido`, `templado`, `frio`. Se guardan en inglés | **Propuesta**: la especificación no fija las palabras de la API |
-| Dónde se detecta el repetido | En la base, con el índice único. La fila no se busca antes de insertar: así dos peticiones simultáneas tampoco crean dos perfumes | Decisión técnica |
 
 ## Qué verifican las pruebas
 
 | Criterio de #39 | Prueba |
 | --- | --- |
-| 201 con el perfume y `Location` | «creates the perfume and answers 201…» |
+| 201 con el perfume y `Location`, en la aplicación normal | «creates the perfume and answers 201…» |
 | Solo los campos del Resource | La misma prueba compara las llaves exactas de `data` |
 | 422 con `errores` por campo en español | «answers 422… brand and the name are missing» |
 | Momento o clima fuera de R5 | «answers 422 on the moment and the climate…» |
-| Perfume repetido señala el campo | «answers 422 pointing at the name…», que además comprueba que la transacción sigue sirviendo |
-| Tienda de la sesión aunque el cuerpo envíe otra | «assigns the perfume to the business of the session…» |
+| Tienda de la sesión aunque el cuerpo envíe otra | «assigns the perfume to the business of the session…» y el caso de la matriz de aislamiento |
 | 403 al colaborador y al cliente; 401 sin token, en RFC 9457 | «answers 403…» y «answers 401…» |
-| Aislamiento con dos tiendas | «lets two businesses register the same perfume…» |
+| Aislamiento con dos tiendas | «lets two businesses register the same perfume…» y la matriz |
+| El contrato publicado incluye el endpoint | `OpenApiContractTest` |
 
-## Pendiente de hacer a mano (se suma a lo de #38)
+## Pendiente de hacer a mano
 
-1. **Cargar las rutas.** `routes/api.php` es un archivo existente y no se modificó. Hay que añadir una línea junto a las demás:
-
-   ```php
-   require base_path('src/Catalog/Perfumes/Infrastructure/Http/routes.php');
-   ```
-
-   Sin ella, el endpoint no existe en la aplicación; las pruebas lo cargan con `ServesCatalog`.
-2. **Registrar el provider** en `bootstrap/providers.php` (ya anotado en #38). El endpoint lo necesita para resolver `PerfumeRepository`.
-3. **Regenerar el contrato.** Al registrar las rutas, `OpenApiContractTest` fallará hasta correr `composer openapi` y versionar `openapi/v1.json`. No se hizo aquí porque las rutas aún no están cargadas en la aplicación.
-4. **Aplicar la migración** con el rol dueño: `php artisan migrate --database=pgsql_admin`.
-5. No se nombró R5 ni R54 en las pruebas, por la misma razón que en #38: `pending-rules.php` no se tocó.
+Nada de la integración: rutas, provider y contrato están en el PR. Siguen pendientes, como en #38, nombrar R5 y R54 en una prueba (`pending-rules.php` no se tocó) y la decisión de «perfume repetido».
 
 ## Verificación de #39
 
@@ -95,4 +97,4 @@ Son archivos creados para #38 (todavía sin fusionar), no archivos preexistentes
 | --- | --- |
 | Pint | Sin diferencias |
 | Larastan, nivel 8 | Sin errores |
-| Pest, suite completa | 685 pruebas en verde, con `php -d memory_limit=1G vendor/bin/pest` |
+| Pest, suite completa | 688 pruebas en verde, con `php -d memory_limit=1G vendor/bin/pest` |

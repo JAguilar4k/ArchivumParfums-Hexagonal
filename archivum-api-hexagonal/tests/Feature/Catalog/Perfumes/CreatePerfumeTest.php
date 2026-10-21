@@ -7,7 +7,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Testing\TestResponse;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Models\PerfumeModel;
 use Tests\Support\Businesses\TwoBusinesses;
-use Tests\Support\Catalog\ServesCatalog;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Shared\ScopesQueriesToBusiness;
 
@@ -58,7 +57,6 @@ function perfumeErrorsOf(TestResponse $response): array
 
 beforeEach(function () {
     TwoBusinesses::create();
-    ServesCatalog::register();
     TwoBusinesses::actAsOwnerOf(TwoBusinesses::FIRST);
 });
 
@@ -124,21 +122,6 @@ it('answers 422 on a text that is too long and on a repeated note', function () 
     ])));
 
     expect(array_keys($errors))->toContain('marca', 'notas.fondo.0', 'notas.fondo.1');
-});
-
-it('answers 422 pointing at the name when the perfume is repeated in the same business', function () {
-    postJson(PERFUMES_ENDPOINT, perfumePayload())->assertCreated();
-
-    $errors = perfumeErrorsOf(postJson(PERFUMES_ENDPOINT, perfumePayload(['marca' => 'TOM FORD', 'nombre' => 'oud wood'])));
-
-    expect(array_keys($errors))->toBe(['nombre'])
-        ->and($errors['nombre'])->toBe(['Ya existe un perfume con esa marca, nombre y concentración en la tienda.']);
-
-    // A second request still works: the failed one did not leave the transaction broken.
-    postJson(PERFUMES_ENDPOINT, perfumePayload(['concentracion' => 'EDT']))->assertCreated();
-
-    $this->scopeQueriesTo(TwoBusinesses::idOf(TwoBusinesses::FIRST));
-    expect(PerfumeModel::query()->count())->toBe(2);
 });
 
 it('assigns the perfume to the business of the session even when the body names another one', function () {

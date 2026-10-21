@@ -8,6 +8,12 @@ use Src\Shared\Domain\Exceptions\InvalidValueException;
 
 final class InvalidPerfumeException extends InvalidValueException
 {
+    /** Build the exception for a presentation whose identity the perfume already has. */
+    public static function duplicateVariant(): self
+    {
+        return new self('catalog.duplicate_variant_id');
+    }
+
     /** Build the exception for a note that the perfume already has. */
     public static function duplicateNote(): self
     {
