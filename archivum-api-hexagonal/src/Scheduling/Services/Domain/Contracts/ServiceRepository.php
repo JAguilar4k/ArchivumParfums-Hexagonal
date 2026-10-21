@@ -9,5 +9,4 @@ use Src\Scheduling\Services\Domain\Service;
 interface ServiceRepository
 {
     public function save(Service $service): void;
-    
 }

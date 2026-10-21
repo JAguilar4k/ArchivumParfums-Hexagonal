@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Src\Scheduling\Shared\Domain\ValueObjects;
 
-use Exception; 
+use Exception;
 
 final class TimeRange
 {

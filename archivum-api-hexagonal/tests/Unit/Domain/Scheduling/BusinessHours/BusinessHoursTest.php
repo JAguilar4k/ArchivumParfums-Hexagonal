@@ -23,13 +23,13 @@ test('rechaza agregar tramos que se traslapan en el mismo día', function () {
     $horario->addSlot($lunes, TimeRange::create('08:00', '13:00'));
 
     // Intenta agregar un tramo que choca con el anterior
-    expect(fn() => $horario->addSlot($lunes, TimeRange::create('12:00', '15:00')))
+    expect(fn () => $horario->addSlot($lunes, TimeRange::create('12:00', '15:00')))
         ->toThrow(Exception::class, 'scheduling.business_hours.overlapping_slots');
 });
 
 test('permite agregar tramos en el mismo horario pero en días distintos', function () {
     $horario = BusinessHours::create('tienda-1');
-    
+
     $horario->addSlot(Weekday::MONDAY, TimeRange::create('08:00', '12:00'));
     $horario->addSlot(Weekday::TUESDAY, TimeRange::create('08:00', '12:00'));
 
