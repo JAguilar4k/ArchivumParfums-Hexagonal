@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support\Catalog;
 
 use Src\Catalog\Showcase\Application\Contracts\ShowcaseReader;
+use Src\Catalog\Showcase\Application\DTOs\ShowcaseDetail;
 use Src\Catalog\Showcase\Application\DTOs\ShowcaseFilters;
 use Src\Catalog\Showcase\Application\DTOs\ShowcaseItem;
 use Src\Catalog\Showcase\Application\DTOs\ShowcasePage;
@@ -24,5 +25,10 @@ final class RecordingShowcaseReader implements ShowcaseReader
             new ShowcaseItem('0192f0c4-0000-7000-9000-000000000001', 'Tom Ford', 'Oud Wood', 'EDP', 'Amaderada', 'perfumes/oud.png', null, $tags, [new ShowcaseVariant(50, 185000)]),
             new ShowcaseItem('0192f0c4-0000-7000-9000-000000000002', 'Casa Aurora', 'Alba de Azahar', null, null, null, null, $tags, [new ShowcaseVariant(50, 98000)]),
         ], 2, 1, 20);
+    }
+
+    public function find(string $perfumeId): ?ShowcaseDetail
+    {
+        return null;
     }
 }

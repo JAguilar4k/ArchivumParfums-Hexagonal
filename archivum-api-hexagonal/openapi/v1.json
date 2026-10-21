@@ -1712,6 +1712,73 @@
                     }
                 }
             }
+        },
+        "/tiendas/{tienda}/perfumes/{perfume}": {
+            "get": {
+                "operationId": "catalog.showcase.show",
+                "summary": "Show a perfume of the showcase of the store of the address with its notes, tags and the presentations that can be sold",
+                "tags": [
+                    "Showcase"
+                ],
+                "parameters": [
+                    {
+                        "name": "tienda",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "perfume",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`ShowcasePerfumeDetail`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/ShowcasePerfumeDetail"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -2350,6 +2417,120 @@
                     "presentaciones"
                 ],
                 "title": "ShowcasePerfume"
+            },
+            "ShowcasePerfumeDetail": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "marca": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "concentracion": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "genero": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "familia": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "descripcion": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "foto_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "notas": {
+                        "type": "object",
+                        "properties": {
+                            "salida": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "corazon": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "fondo": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": [
+                            "salida",
+                            "corazon",
+                            "fondo"
+                        ]
+                    },
+                    "etiquetas": {
+                        "type": "object",
+                        "properties": {
+                            "momento": {
+                                "type": "array",
+                                "items": {}
+                            },
+                            "clima": {
+                                "type": "array",
+                                "items": {}
+                            },
+                            "ocasion": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        },
+                        "required": [
+                            "momento",
+                            "clima",
+                            "ocasion"
+                        ]
+                    },
+                    "presentaciones": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "required": [
+                    "id",
+                    "marca",
+                    "nombre",
+                    "concentracion",
+                    "genero",
+                    "familia",
+                    "descripcion",
+                    "foto_url",
+                    "notas",
+                    "etiquetas",
+                    "presentaciones"
+                ],
+                "title": "ShowcasePerfumeDetail"
             },
             "StoreBusinessLogo": {
                 "type": "object",

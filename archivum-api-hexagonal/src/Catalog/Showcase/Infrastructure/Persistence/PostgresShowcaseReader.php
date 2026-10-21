@@ -58,11 +58,17 @@ final readonly class PostgresShowcaseReader implements ShowcaseReader
             return null;
         }
 
-        $notes = ['top' => [], 'heart' => [], 'base' => []];
+        $top = [];
+        $heart = [];
+        $base = [];
 
         foreach ($model->notes->sortBy('note') as $note) {
             /** @var ShowcaseNoteModel $note */
-            $notes[$note->layer][] = $note->note;
+            match ($note->layer) {
+                'top' => $top[] = $note->note,
+                'heart' => $heart[] = $note->note,
+                default => $base[] = $note->note,
+            };
         }
 
         $item = $this->toItem($model);
@@ -77,7 +83,7 @@ final readonly class PostgresShowcaseReader implements ShowcaseReader
             $model->description,
             $item->photoPath,
             null,
-            $notes,
+            ['top' => $top, 'heart' => $heart, 'base' => $base],
             $item->tags,
             $item->variants,
         );
