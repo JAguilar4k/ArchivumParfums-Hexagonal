@@ -28,7 +28,7 @@ final readonly class PerfumeController
             $page->total,
             $page->perPage,
             $page->page,
-            ['path' => $request->url(), 'query' => $request->query()],
+            ['path' => $request->url(), 'query' => $request->query(), 'pageName' => 'pagina'],
         ));
     }
 
