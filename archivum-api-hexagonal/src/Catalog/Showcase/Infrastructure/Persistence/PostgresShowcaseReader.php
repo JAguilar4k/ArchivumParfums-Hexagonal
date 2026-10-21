@@ -7,10 +7,12 @@ namespace Src\Catalog\Showcase\Infrastructure\Persistence;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Src\Catalog\Showcase\Application\Contracts\ShowcaseReader;
+use Src\Catalog\Showcase\Application\DTOs\ShowcaseDetail;
 use Src\Catalog\Showcase\Application\DTOs\ShowcaseFilters;
 use Src\Catalog\Showcase\Application\DTOs\ShowcaseItem;
 use Src\Catalog\Showcase\Application\DTOs\ShowcasePage;
 use Src\Catalog\Showcase\Application\DTOs\ShowcaseVariant;
+use Src\Catalog\Showcase\Infrastructure\Persistence\Models\ShowcaseNoteModel;
 use Src\Catalog\Showcase\Infrastructure\Persistence\Models\ShowcasePerfumeModel;
 use Src\Catalog\Showcase\Infrastructure\Persistence\Models\ShowcaseTagModel;
 use Src\Catalog\Showcase\Infrastructure\Persistence\Models\ShowcaseVariantModel;
@@ -41,6 +43,49 @@ final readonly class PostgresShowcaseReader implements ShowcaseReader
             $total,
             $filters->page,
             $filters->perPage,
+        );
+    }
+
+    public function find(string $perfumeId): ?ShowcaseDetail
+    {
+        $model = ShowcasePerfumeModel::query()
+            ->visible()
+            ->where('business_id', $this->context->current()->value)
+            ->with(['sellableVariants', 'tags', 'notes'])
+            ->find($perfumeId);
+
+        if ($model === null) {
+            return null;
+        }
+
+        $top = [];
+        $heart = [];
+        $base = [];
+
+        foreach ($model->notes->sortBy('note') as $note) {
+            /** @var ShowcaseNoteModel $note */
+            match ($note->layer) {
+                'top' => $top[] = $note->note,
+                'heart' => $heart[] = $note->note,
+                default => $base[] = $note->note,
+            };
+        }
+
+        $item = $this->toItem($model);
+
+        return new ShowcaseDetail(
+            $item->id,
+            $item->brand,
+            $item->name,
+            $item->concentration,
+            $model->gender,
+            $item->family,
+            $model->description,
+            $item->photoPath,
+            null,
+            ['top' => $top, 'heart' => $heart, 'base' => $base],
+            $item->tags,
+            $item->variants,
         );
     }
 
