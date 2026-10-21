@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Src\Catalog\Perfumes\Application\UseCases;
 
+use Src\Catalog\Perfumes\Application\Contracts\BottleMargin;
 use Src\Catalog\Perfumes\Application\DTOs\AddPerfumeVariantCommand;
 use Src\Catalog\Perfumes\Domain\Contracts\PerfumeRepository;
+use Src\Catalog\Perfumes\Domain\Contracts\VariantCost;
 use Src\Catalog\Perfumes\Domain\Entities\PerfumeVariant;
 use Src\Catalog\Perfumes\Domain\Exceptions\DuplicateVariantSizeException;
 use Src\Catalog\Perfumes\Domain\Exceptions\PerfumeNotFoundException;
@@ -17,9 +19,11 @@ use Src\Shared\Domain\ValueObjects\Colones;
 
 final readonly class AddPerfumeVariant
 {
-    /** Receive the repository, which only reaches the business of the session, and the transaction ports. */
+    /** Receive the repository, which only reaches the business of the session, the costs, the margin and the transaction ports. */
     public function __construct(
         private PerfumeRepository $perfumes,
+        private VariantCost $costs,
+        private BottleMargin $margin,
         private TransactionRunner $transaction,
     ) {}
 
@@ -42,6 +46,7 @@ final readonly class AddPerfumeVariant
                 null,
                 $command->manualPrice === null ? null : new Colones($command->manualPrice),
             );
+            $perfume->priceVariant($id, $this->costs->costOf($id), $this->margin->current());
 
             $this->perfumes->save($perfume);
 

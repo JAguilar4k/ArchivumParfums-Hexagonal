@@ -6,12 +6,15 @@ namespace Database\Seeders;
 
 use Database\Seeders\Concerns\SeededBusinessContext;
 use Illuminate\Database\Seeder;
+use Src\Businesses\Profile\Domain\Contracts\BusinessRepository;
 use Src\Catalog\Perfumes\Application\DTOs\AddPerfumeVariantCommand;
 use Src\Catalog\Perfumes\Application\DTOs\CreatePerfumeCommand;
 use Src\Catalog\Perfumes\Application\UseCases\AddPerfumeVariant;
 use Src\Catalog\Perfumes\Application\UseCases\CreatePerfume;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Models\PerfumeModel;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Repositories\EloquentPerfumeRepository;
+use Src\Catalog\Perfumes\Infrastructure\Pricing\BusinessSettingsBottleMargin;
+use Src\Catalog\Perfumes\Infrastructure\Pricing\NoSupplierCost;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Infrastructure\Persistence\DatabaseTransactionRunner;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
@@ -87,7 +90,12 @@ final class CatalogDemoSeeder extends Seeder
                 $repository = new EloquentPerfumeRepository($context);
                 $transaction = new DatabaseTransactionRunner;
                 $createPerfume = new CreatePerfume($repository, $context, $transaction);
-                $addVariant = new AddPerfumeVariant($repository, $transaction);
+                $addVariant = new AddPerfumeVariant(
+                    $repository,
+                    new NoSupplierCost,
+                    new BusinessSettingsBottleMargin($context, app(BusinessRepository::class)),
+                    $transaction,
+                );
 
                 foreach ($perfumes as [$brand, $name, $concentration, $gender, $family, $notes, $tags, $variants]) {
                     if (PerfumeModel::query()->where('brand', $brand)->where('name', $name)->where('concentration', $concentration)->exists()) {
