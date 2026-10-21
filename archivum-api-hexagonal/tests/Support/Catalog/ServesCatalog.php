@@ -7,6 +7,7 @@ namespace Tests\Support\Catalog;
 use Illuminate\Support\Facades\Route;
 use Src\Businesses\Logo\Infrastructure\LogoServiceProvider;
 use Src\Businesses\Profile\Infrastructure\ProfileEventsServiceProvider;
+use Src\Businesses\PublicProfile\Infrastructure\PublicProfileServiceProvider;
 use Src\Catalog\Perfumes\Infrastructure\PerfumesServiceProvider;
 
 /**
@@ -19,6 +20,7 @@ final class ServesCatalog
     private const array ROUTES = [
         'src/Catalog/Perfumes/Infrastructure/Http/routes.php',
         'src/Businesses/Logo/Infrastructure/Http/routes.php',
+        'src/Businesses/PublicProfile/Infrastructure/Http/routes.php',
     ];
 
     /** Register the providers of the modules and load their routes under /api/v1. */
@@ -27,6 +29,7 @@ final class ServesCatalog
         app()->register(PerfumesServiceProvider::class);
         app()->register(ProfileEventsServiceProvider::class);
         app()->register(LogoServiceProvider::class);
+        app()->register(PublicProfileServiceProvider::class);
 
         foreach (self::ROUTES as $routes) {
             Route::middleware('api')
