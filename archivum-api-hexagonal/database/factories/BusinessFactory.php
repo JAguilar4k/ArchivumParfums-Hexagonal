@@ -25,6 +25,7 @@ final class BusinessFactory extends Factory
         $name = 'Perfumería '.fake()->unique()->lastName();
 
         return [
+            'id' => (string) Str::uuid(),
             'name' => $name,
             'slug' => Str::slug($name),
             'timezone' => 'America/Costa_Rica',
