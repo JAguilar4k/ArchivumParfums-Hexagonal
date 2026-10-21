@@ -67,7 +67,7 @@ cd ArchivumParfums-Hexagonal/archivum-api-hexagonal
 composer install
 ```
 
-El instalador prepara `.env`, clave, roles, bases, migraciones y datos ficticios. Si solicita completar la contraseña de PostgreSQL en una terminal interactiva, ejecuta `php artisan archivum:install`. Si ya existen los roles, configura sus contraseñas actuales en `.env`. Revisa `DB_HOST`, `DB_PORT` y `APP_URL=http://127.0.0.1:8000` antes de iniciar el servidor.
+El instalador prepara `.env`, clave, roles, bases, migraciones y datos ficticios. Si solicita completar la contraseña de PostgreSQL en una terminal interactiva, ejecuta `php artisan archivum:install`. Si ya existen los roles, configura sus contraseñas actuales en `.env`. Revisa `DB_HOST`, `DB_PORT` y configura `APP_URL` con la dirección real de la API antes de iniciar el servidor; `http://localhost:8000` es solo un ejemplo local.
 
 ```bash
 php artisan config:clear
@@ -75,7 +75,9 @@ php artisan storage:link
 composer run dev
 ```
 
-Deja esa terminal abierta. En Postman, envía `GET http://127.0.0.1:8000/api/v1`; debe responder 200 con el nombre de la API. La documentación está en `http://127.0.0.1:8000/docs/api` y su JSON en `/docs/api.json` durante desarrollo local. La API se prueba mediante solicitudes HTTP; el cliente Vue todavía está pendiente.
+Deja esa terminal abierta. En Postman, envía `GET /api/v1` sobre la dirección del servidor; debe responder 200 con el nombre de la API. La documentación está en `/docs/api` y su JSON en `/docs/api.json` durante desarrollo local. La API se prueba mediante solicitudes HTTP; el cliente Vue todavía está pendiente.
+
+La [colección y el entorno de Postman](archivum-api-hexagonal/tests/Postman/README.md) están incluidos en el repositorio como material de pruebas HTTP. Importa ambos JSON y ajusta `base_url` a la dirección real de la API. Puedes elegir otro host o puerto mediante `php artisan serve --host=localhost --port=8080 --no-reload`; configura también `APP_URL` y `base_url` con ese mismo origen, como explica el README de la API.
 
 Abre otra terminal en la carpeta de la API para verificar el proyecto:
 
@@ -119,7 +121,7 @@ El enunciado permite usar asistentes de IA con una condición: cada integrante d
 
 | Parte | Asistente | Qué generó la IA | Qué verificó el equipo |
 | --- | --- | --- | --- |
-| Instrucciones de ejecución y verificación (#252) | Codex | Actualización de ambos README con comandos, rutas integradas, recorrido de Postman y alcance actual de la API. | Instalación aislada, Pint, Larastan, Pest, auditoría y comparación del contrato ejecutados automáticamente; recorrido representativo enviado desde la interfaz de Postman. Revisión humana del equipo pendiente en el PR de #252. |
+| Ejecución y pruebas HTTP (#252) | Codex | Actualización de ambos README con comandos, rutas integradas, configuración portable y alcance actual; colección y entorno ficticio de Postman en `tests/Postman`; arranque sin recargador y documentación sin sesiones web, con regresión. | Instalación aislada, Pint, Larastan, Pest, auditoría y comparación del contrato ejecutados automáticamente; recorrido representativo enviado desde la interfaz de Postman. Comprobación de la colección, imágenes y portabilidad registrada en el PR de #252. Julián autorizó la excepción a la revisión previa para integrar esta preparación. |
 | README, `.gitignore` y plantillas de `.github/` (commit inicial) | Claude Code | Redacción adaptada del proyecto guía. | Los revisó el PM, Julián Aguilar Salas. |
 | Etiquetas, milestones e issues | Claude Code | Redacción de los 29 milestones y los 196 issues a partir de la especificación, el plan y el enunciado, con el estilo descriptivo del proyecto guía, y su creación con `gh`. El tablero KanbanBoard lo creó Julián. | El PM, Julián Aguilar Salas, revisó la redacción de los issues, los milestones y sus formatos para que sigan estándares y buenas prácticas, y aprobó su creación el 10/10/2026. |
 | `docs/especificacion.md`, `docs/plan.md` y `CLAUDE.md` | Claude Code | La redacción de la especificación, el plan y las instrucciones del proyecto (commit inicial), bajo la supervisión del PM, a partir del enunciado, de los requisitos de usuario recogidos en la entrevista con el cliente y de los requerimientos que especificó el PM; y la regla de `CLAUDE.md` de seguir el proyecto guía en cada parte ([#199](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/pull/199)). | El PM, Julián Aguilar Salas, revisó y aprobó todo el contenido, y revisó y fusionó #199. |

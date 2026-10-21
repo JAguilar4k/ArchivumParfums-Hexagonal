@@ -34,11 +34,11 @@ Los comandos de Composer y Artisan sirven en PowerShell, en Git Bash y en una te
    php -r "file_exists('.env') || copy('.env.example', '.env');"
    ```
 
-   Edita `.env` antes de instalar si PostgreSQL usa otro host o puerto. Para el servidor local de esta guía, configura `APP_URL=http://127.0.0.1:8000`. Las conexiones de la aplicación y del dueño del esquema comparten host, puerto y base:
+   Edita `.env` antes de instalar si PostgreSQL usa otro host o puerto. `APP_URL` debe contener la dirección real por la que se accederá a la API; `http://localhost:8000` es solo un ejemplo local, no una dirección obligatoria. Las conexiones de la aplicación y del dueño del esquema comparten host, puerto y base:
 
    ```dotenv
    APP_ENV=local
-   APP_URL=http://127.0.0.1:8000
+   APP_URL=http://localhost:8000
    DB_HOST=127.0.0.1
    DB_PORT=5432
    DB_DATABASE=archivum_hexagonal
@@ -74,14 +74,14 @@ Los comandos de Composer y Artisan sirven en PowerShell, en Git Bash y en una te
    composer run dev
    ```
 
-   `composer run dev` inicia `php artisan serve` y funciona en Windows, Linux y macOS sin Node.js ni la extensión PCNTL. Deja abierta esta terminal; **Ctrl+C** detiene el servidor. El enlace `storage:link` publica los logos y las fotos; si ya existe, no hay que recrearlo. Después de cambiar `.env`, limpia la configuración y reinicia el servidor para que las peticiones HTTP usen el mismo host, puerto y credenciales que la consola. Los registros están en `storage/logs/laravel.log`.
+   `composer run dev` inicia `php artisan serve --no-reload` y funciona en Windows, Linux y macOS sin Node.js ni la extensión PCNTL. La opción conserva el entorno del proceso, incluidas las carpetas temporales que PHP necesita para subir archivos en Windows. Deja abierta esta terminal; **Ctrl+C** detiene el servidor. El enlace `storage:link` publica los logos y las fotos; si ya existe, no hay que recrearlo. Después de cambiar `.env`, limpia la configuración y reinicia el servidor para que las peticiones HTTP usen el mismo host, puerto y credenciales que la consola. Los registros están en `storage/logs/laravel.log`.
 
-6. En Postman, crea una petición **GET** a `http://127.0.0.1:8000/api/v1`, sin autorización, y pulsa **Send**. Debe responder **200** con `{"nombre":"ArchivumParfums","version":"v1"}`. Consulta también `/up`, `/docs/api`, `/docs/api.json` y `/api/v1/tiendas/archivumparfums/perfumes`. Los dos endpoints de documentación están disponibles fuera de producción.
+6. En Postman, crea una petición **GET** a `/api/v1` sobre la dirección real del servidor, sin autorización, y pulsa **Send**. Con la configuración local de ejemplo sería `http://localhost:8000/api/v1`. Debe responder **200** con `{"nombre":"ArchivumParfums","version":"v1"}`. Consulta también `/up`, `/docs/api`, `/docs/api.json` y `/api/v1/tiendas/archivumparfums/perfumes`. Los dos endpoints de documentación están disponibles fuera de producción.
 
    Para usar la terminal, abre **otra terminal en esta misma carpeta** y ejecuta:
 
    ```bash
-   curl http://127.0.0.1:8000/api/v1
+   curl http://localhost:8000/api/v1
    composer validate --strict
    composer lint
    composer analyse
@@ -90,6 +90,20 @@ Los comandos de Composer y Artisan sirven en PowerShell, en Git Bash y en una te
    ```
 
    En Windows PowerShell, usa `curl.exe` si `curl` es un alias de `Invoke-WebRequest`. La suite comprueba la implementación integrada; la finalización de horarios, disponibilidad, reservas y otros módulos se sigue en sus issues.
+
+### Cambiar dirección o puerto
+
+Las peticiones de la [colección de Postman](tests/Postman/README.md) usan `{{base_url}}`; cambia esa variable una sola vez para apuntar a otra instalación. Las direcciones de los ejemplos cURL también deben sustituirse si tu servidor tiene otra dirección.
+
+El host y el puerto del servidor de desarrollo se eligen al iniciarlo. Por ejemplo:
+
+```bash
+php artisan serve --host=localhost --port=8080 --no-reload
+```
+
+En ese caso configura `APP_URL=http://localhost:8080` en `.env` y `base_url=http://localhost:8080` en Postman. `APP_URL` no cambia por sí solo el puerto donde escucha Artisan; se utiliza, entre otras cosas, para generar las URL de los archivos públicos. Si Postman corre en otra computadora, su `base_url` debe ser la dirección accesible del servidor, no `localhost` del cliente. En un alojamiento con dominio usa su URL pública; el servidor debe estar configurado para recibir esas peticiones.
+
+`DB_HOST` y `DB_PORT` son la conexión privada a PostgreSQL y no tienen por qué coincidir con la dirección HTTP. No hay IP del equipo de un integrante requerida en el código del producto. Las rutas del contrato OpenAPI son relativas y la paginación genera enlaces para la petición recibida.
 
 La aplicación se conecta con `archivum_app`, que no puede cambiar el esquema; las migraciones corren con `archivum_owner` a través de la conexión `pgsql_admin`. Por eso `php artisan migrate` sin `--database=pgsql_admin` falla con `Insufficient privilege` en cuanto hay una tabla que crear o cambiar. El motivo está en [docs/database.md](../docs/database.md).
 
@@ -222,6 +236,8 @@ Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista p
 
 ## Recorrido básico en Postman
 
+La colección y el entorno se incluyen en [`tests/Postman/`](tests/Postman/README.md), con 35 peticiones ordenadas, datos ficticios y captura de variables desde las respuestas. Al clonar el repositorio, importa ambos JSON y ajusta `base_url` a la dirección real de tu API. La carpeta contiene las instrucciones y el alcance; las pruebas HTTP no añaden dependencias a las capas del producto.
+
 Realiza este recorrido con las cuentas ficticias de una instalación local. Configura **Accept: application/json**. En los POST y PATCH con JSON, usa **Body → raw → JSON**; en archivos, usa **Body → form-data** y deja que Postman genere `Content-Type` con su boundary.
 
 1. Envía `GET /api/v1/tiendas/archivumparfums/perfumes` sin autorización. Debe responder 200.
@@ -255,7 +271,7 @@ Realiza este recorrido con las cuentas ficticias de una instalación local. Conf
 
 Las validaciones fallidas deben responder 422 con `errores`, y los errores usan `application/problem+json`, `type`, `title`, `status`, `detail` e `instance`, correlacionado con `X-Request-Id`. La tienda del panel se toma de la sesión, por lo que cambiar `business_id` en un cuerpo no cambia su alcance. Verifica los dos dueños y las operaciones prohibidas cuando pruebes aislamiento privado; el recorrido público anterior no sustituye esa comprobación.
 
-Para probar fotos, añade `foto` como archivo en el POST de foto; para el logo, el campo es `logo`. Envía una imagen ficticia del tipo y tamaño admitidos por el contrato y abre la URL devuelta. Ese segundo paso comprueba el enlace público y `APP_URL`, además de la respuesta de subida.
+Para probar fotos, añade `foto` como archivo en el POST de foto; para el logo, el campo es `logo`. Envía una imagen ficticia del tipo y tamaño admitidos por el contrato y abre la URL devuelta. Ese segundo paso comprueba el enlace público y `APP_URL`, además de la respuesta de subida. PHP necesita una carpeta temporal existente y escribible; si informa `unable to create a temporary file`, revisa `upload_tmp_dir` en el PHP que atiende HTTP y utiliza el comando de arranque documentado con `--no-reload`.
 
 Los ejemplos cURL de la sección siguiente usan sintaxis Bash para continuar líneas; en PowerShell puedes crear las mismas solicitudes en Postman o escribir el comando `curl.exe` en una sola línea.
 
