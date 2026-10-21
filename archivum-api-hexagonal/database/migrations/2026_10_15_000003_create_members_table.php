@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('members', function (Blueprint $table): void {
-            $table->uuid('id')->primary()->default(DB::raw('uuidv7()'));
+            $table->uuid('id')->primary();
             $table->foreignUuid('business_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('user_id')->unique()->constrained()->cascadeOnDelete();
             $table->string('role', 20);

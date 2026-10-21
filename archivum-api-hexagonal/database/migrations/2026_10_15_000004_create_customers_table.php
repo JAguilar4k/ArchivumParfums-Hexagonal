@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('customers', function (Blueprint $table): void {
-            $table->uuid('id')->primary()->default(DB::raw('uuidv7()'));
+            $table->uuid('id')->primary();
             $table->foreignUuid('business_id')->constrained()->cascadeOnDelete();
             $table->foreignUuid('user_id')->constrained()->cascadeOnDelete();
             // Text, because the phone is stored encrypted (#110).

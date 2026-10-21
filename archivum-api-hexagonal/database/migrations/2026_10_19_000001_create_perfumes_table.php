@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('perfumes', function (Blueprint $table): void {
-            $table->uuid('id')->primary()->default(DB::raw('uuidv7()'));
+            $table->uuid('id')->primary();
             $table->foreignUuid('business_id')->constrained()->cascadeOnDelete();
             $table->string('brand', 120);
             $table->string('name', 120);

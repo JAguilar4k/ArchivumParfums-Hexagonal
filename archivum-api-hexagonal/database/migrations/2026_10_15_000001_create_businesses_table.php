@@ -13,7 +13,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('businesses', function (Blueprint $table): void {
-            $table->uuid('id')->primary()->default(DB::raw('uuidv7()'));
+            $table->uuid('id')->primary();
             $table->string('name', 100);
             $table->string('slug', 100)->unique();
             $table->string('logo_path', 255)->nullable();
