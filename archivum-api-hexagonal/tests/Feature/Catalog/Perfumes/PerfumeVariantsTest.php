@@ -89,7 +89,31 @@ it('answers 422 with the errors by field when the data is invalid', function (ar
     'fraction' => [['ml' => 7.5], ['ml']],
     'negative price' => [['ml' => 30, 'precio_manual' => -1], ['precio_manual']],
     'price with a fraction' => [['ml' => 30, 'precio_manual' => 100.5], ['precio_manual']],
+    'price over the integer column' => [['ml' => 30, 'precio_manual' => 2147483648], ['precio_manual']],
 ]);
+
+it('answers 422 instead of 500 to a manual price over the integer column, when creating and when editing, and changes nothing', function () {
+    ['first' => $first, 'perfume' => $perfume, 'url' => $url] = variantsScenario();
+    $variant = $perfume->variants[0];
+
+    foreach ([
+        postJson($url, ['ml' => 30, 'precio_manual' => 2147483648]),
+        patchJson("{$url}/{$variant->id->value}", ['precio_manual' => 2147483648]),
+    ] as $response) {
+        $response->assertUnprocessable()
+            ->assertHeader('Content-Type', 'application/problem+json')
+            ->assertJsonPath('type', rtrim((string) config('app.url'), '/').'/problemas/datos-invalidos');
+
+        expect(array_keys($response->json('errores')))->toBe(['precio_manual']);
+    }
+
+    // The largest amount the column holds is still accepted.
+    postJson($url, ['ml' => 30, 'precio_manual' => 2147483647])->assertCreated()->assertJsonPath('data.precio_manual', 2147483647);
+
+    $this->scopeQueriesTo($first);
+    assertDatabaseHas('perfume_variants', ['id' => $variant->id->value, 'size_ml' => 5, 'sale_price_override' => 9000]);
+    assertDatabaseCount('perfume_variants', 4);
+});
 
 it('edits the milliliters, sets and removes the manual price and deactivates and reactivates a presentation', function () {
     ['first' => $first, 'perfume' => $perfume, 'url' => $baseUrl] = variantsScenario();

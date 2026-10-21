@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel;
 use Src\Catalog\Perfumes\Domain\Contracts\PerfumeRepository;
@@ -21,6 +20,7 @@ use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeTag;
 use Src\Catalog\Perfumes\Domain\ValueObjects\SizeMl;
 use Src\Catalog\Perfumes\Domain\ValueObjects\TimeOfDay;
 use Src\Catalog\Perfumes\Infrastructure\PerfumesServiceProvider;
+use Src\Catalog\Perfumes\Infrastructure\Persistence\Models\PerfumeVariantModel;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Repositories\EloquentPerfumeRepository;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\Colones;
@@ -158,10 +158,16 @@ it('keeps every write or none when the transaction fails halfway', function (): 
         [...$perfume->notes, new PerfumeNote(NoteLayer::Heart, 'Rosa')],
         $perfume->tags,
     );
-    // Larger than the integer column: the presentations fail after the perfume and its notes were written.
-    $perfume->repriceVariant($perfume->variants[0]->id, new Colones(3_000_000_000), null);
+    $perfume->repriceVariant($perfume->variants[0]->id, new Colones(1000), null);
 
-    expect(fn () => $repository->save($perfume))->toThrow(QueryException::class);
+    // The presentations fail after the perfume and its notes were written.
+    PerfumeVariantModel::saving(fn () => throw new RuntimeException('The presentations could not be written.'));
+
+    try {
+        expect(fn () => $repository->save($perfume))->toThrow(RuntimeException::class);
+    } finally {
+        PerfumeVariantModel::flushEventListeners();
+    }
 
     assertDatabaseHas('perfumes', ['id' => $perfume->id->value, 'name' => 'Oud Wood']);
     assertDatabaseMissing('perfumes', ['name' => 'Nombre nuevo']);
