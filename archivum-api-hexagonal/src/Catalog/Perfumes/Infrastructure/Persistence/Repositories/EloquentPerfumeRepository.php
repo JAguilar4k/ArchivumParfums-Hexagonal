@@ -13,8 +13,8 @@ use Src\Catalog\Perfumes\Application\DTOs\PerfumePage;
 use Src\Catalog\Perfumes\Domain\Contracts\PerfumeRepository;
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
 use Src\Catalog\Perfumes\Domain\Entities\PerfumeVariant;
-use Src\Catalog\Perfumes\Domain\Exceptions\DuplicatePerfumeException;
 use Src\Catalog\Perfumes\Domain\Exceptions\DuplicateVariantSizeException;
+use Src\Catalog\Perfumes\Domain\Exceptions\PerfumeNotFoundException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\Brand;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeDetails;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeId;
@@ -48,13 +48,25 @@ final readonly class EloquentPerfumeRepository implements PerfumeRepository, Per
         return new PerfumeVariantId((string) Str::uuid7());
     }
 
-    /** Write the perfume, its notes, its tags and its presentations in one transaction. */
+    /**
+     * Write the perfume, its notes, its tags and its presentations in one transaction, all of them in the business of the context.
+     * A perfume that belongs to another business is refused before anything is written: this check is the first barrier, and
+     * the row-level policy of PostgreSQL the second, so neither depends on the other.
+     *
+     * @throws PerfumeNotFoundException
+     */
     public function save(Perfume $perfume): void
     {
+        $business = $this->context->current();
+
+        if (! $perfume->businessId->equals($business)) {
+            throw PerfumeNotFoundException::create();
+        }
+
         try {
-            DB::transaction(function () use ($perfume): void {
+            DB::transaction(function () use ($perfume, $business): void {
                 PerfumeModel::query()->updateOrCreate(
-                    ['id' => $perfume->id->value, 'business_id' => $perfume->businessId->value],
+                    ['id' => $perfume->id->value, 'business_id' => $business->value],
                     [
                         'brand' => $perfume->brand->value,
                         'name' => $perfume->name->value,
@@ -66,14 +78,12 @@ final readonly class EloquentPerfumeRepository implements PerfumeRepository, Per
                     ],
                 );
 
-                $this->writeNotes($perfume);
-                $this->writeTags($perfume);
-                $this->writeVariants($perfume);
+                $this->writeNotes($perfume, $business);
+                $this->writeTags($perfume, $business);
+                $this->writeVariants($perfume, $business);
             });
-        } catch (UniqueConstraintViolationException $exception) {
-            throw str_contains($exception->getMessage(), 'perfumes_business_brand_name_unique')
-                ? DuplicatePerfumeException::create()
-                : DuplicateVariantSizeException::create();
+        } catch (UniqueConstraintViolationException) {
+            throw DuplicateVariantSizeException::create();
         }
     }
 
@@ -128,10 +138,10 @@ final readonly class EloquentPerfumeRepository implements PerfumeRepository, Per
     }
 
     /** Insert the notes the perfume gained and delete the ones it lost. */
-    private function writeNotes(Perfume $perfume): void
+    private function writeNotes(Perfume $perfume, BusinessId $business): void
     {
         $stored = PerfumeNoteModel::query()
-            ->where('business_id', $perfume->businessId->value)
+            ->where('business_id', $business->value)
             ->where('perfume_id', $perfume->id->value)
             ->get()
             ->keyBy(fn (PerfumeNoteModel $row): string => $row->layer.'|'.$row->note);
@@ -144,7 +154,7 @@ final readonly class EloquentPerfumeRepository implements PerfumeRepository, Per
 
             if (! $stored->has($key)) {
                 PerfumeNoteModel::query()->create([
-                    'business_id' => $perfume->businessId->value,
+                    'business_id' => $business->value,
                     'perfume_id' => $perfume->id->value,
                     'layer' => $note->layer->value,
                     'note' => $note->note,
@@ -157,10 +167,10 @@ final readonly class EloquentPerfumeRepository implements PerfumeRepository, Per
     }
 
     /** Insert the tags the perfume gained and delete the ones it lost. */
-    private function writeTags(Perfume $perfume): void
+    private function writeTags(Perfume $perfume, BusinessId $business): void
     {
         $stored = PerfumeTagModel::query()
-            ->where('business_id', $perfume->businessId->value)
+            ->where('business_id', $business->value)
             ->where('perfume_id', $perfume->id->value)
             ->get()
             ->keyBy(fn (PerfumeTagModel $row): string => $row->kind.'|'.$row->value);
@@ -173,7 +183,7 @@ final readonly class EloquentPerfumeRepository implements PerfumeRepository, Per
 
             if (! $stored->has($key)) {
                 PerfumeTagModel::query()->create([
-                    'business_id' => $perfume->businessId->value,
+                    'business_id' => $business->value,
                     'perfume_id' => $perfume->id->value,
                     'kind' => $tag->kind->value,
                     'value' => $tag->value,
@@ -186,13 +196,13 @@ final readonly class EloquentPerfumeRepository implements PerfumeRepository, Per
     }
 
     /** Update each presentation by its id, never deleting or recreating it, because bottles and order lines reference it. */
-    private function writeVariants(Perfume $perfume): void
+    private function writeVariants(Perfume $perfume, BusinessId $business): void
     {
         foreach ($perfume->variants as $variant) {
             PerfumeVariantModel::query()->updateOrCreate(
                 [
                     'id' => $variant->id->value,
-                    'business_id' => $perfume->businessId->value,
+                    'business_id' => $business->value,
                     'perfume_id' => $perfume->id->value,
                 ],
                 [

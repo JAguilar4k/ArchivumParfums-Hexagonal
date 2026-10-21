@@ -4,7 +4,7 @@ Este documento explica qué archivos se crearon para guardar y rearmar el agrega
 
 ## Alcance y reglas de la entrega
 
-- **Solo se crearon archivos.** No se modificó ningún archivo existente del repositorio.
+- **Se crearon archivos y se modificó uno existente:** `bootstrap/providers.php`, donde se registra `PerfumesServiceProvider`, como pidió la revisión del PR. Ningún otro archivo existente del proyecto cambió.
 - #36 quedó como documento (`catalog-domain.md`), y el repositorio no puede existir sin el agregado y el puerto que implementa. Por eso esta entrega incluye el **dominio mínimo** que #38 necesita. Es la parte de #36 que el repositorio exige, no su cierre: faltan, por ejemplo, la prueba de cada objeto de valor y las decisiones de negocio pendientes.
 - Los límites de negocio sin decidir (rango de precio, tope de ml, si vale ₡0) **no se imponen**. El dominio solo rechaza lo que ya respalda la especificación o la base: ml positivos que caben en el `smallint`, y precios enteros no negativos.
 
@@ -39,7 +39,8 @@ Todas las rutas son relativas a `archivum-api-hexagonal/`.
 | `ValueObjects/SizeMl.php` | Mililitros enteros, de 1 al tope del `smallint` (32 767). El tope de negocio sigue pendiente |
 | `ValueObjects/NoteLayer.php`, `PerfumeNote.php` | Capa de la nota (`top`, `heart`, `base`) y la nota |
 | `ValueObjects/TimeOfDay.php`, `Climate.php`, `TagKind.php`, `PerfumeTag.php` | Etiquetas de momento del día, clima y ocasión, con los mismos valores que el `CHECK` de `perfume_tags` |
-| `Exceptions/InvalidPerfumeException.php`, `DuplicateVariantSizeException.php` | Violaciones del agregado, con clave de traducción |
+| `Exceptions/InvalidPerfumeException.php`, `DuplicateVariantSizeException.php` | Violaciones del agregado, con clave de traducción: notas, etiquetas y presentaciones repetidas (por id y por ml) |
+| `Exceptions/PerfumeNotFoundException.php` | 404 `no-encontrado`: el repositorio rechaza con ella guardar un perfume de otra tienda |
 | `Contracts/PerfumeRepository.php` | El puerto: `nextId`, `nextVariantId`, `save`, `find`, `findForUpdate` |
 
 ### Compartido (`src/Shared`)
@@ -77,11 +78,13 @@ Todas las rutas son relativas a `archivum-api-hexagonal/`.
 
 **`save()`** corre en **una transacción** (un savepoint si ya hay una abierta): escribe el perfume, y luego sus notas, etiquetas y presentaciones. Si algo falla, no queda nada a medias.
 
+**Primera barrera en las escrituras.** Antes de escribir nada, `save()` comprueba que el perfume pertenece a la tienda de `BusinessContext`; si es de otra, lanza `PerfumeNotFoundException` (404 `no-encontrado`), igual que para un perfume inexistente. Todas las consultas y filas del perfume y de sus notas, etiquetas y presentaciones usan el identificador **del contexto**, no el del agregado. No depende de que la conexión esté bien fijada: la política de fila de PostgreSQL es la segunda barrera, independiente de esta. Una prueba lo demuestra con una conexión fijada a la tienda de la víctima y un repositorio con el contexto de otra: el guardado se rechaza y la víctima queda intacta.
+
 | Dato | Estrategia | Por qué |
 | --- | --- | --- |
-| Perfume | `updateOrCreate` por `id` y `business_id` | El agregado trae su identidad desde que nace |
+| Perfume | `updateOrCreate` por `id` y por el `business_id` del contexto | El agregado trae su identidad desde que nace |
 | Notas y etiquetas | Se comparan con lo guardado: se insertan las nuevas y se **borran las que el agregado quitó** | Son valores sin identidad propia; la llave única de la tabla evita repetidos |
-| Presentaciones | `updateOrCreate` **por su id**; nunca se borran ni se recrean | Las botellas (#71) y las líneas de pedido (#78) las referencian. El agregado tampoco puede quitarlas: solo desactivarlas |
+| Presentaciones | `updateOrCreate` **por su id**; nunca se borran ni se recrean | Las botellas (#71) y las líneas de pedido (#78) las referencian. El agregado tampoco puede quitarlas: solo desactivarlas. Como la llave es el id, el agregado **no admite dos presentaciones con el mismo id** (`InvalidPerfumeException`, clave `catalog.duplicate_variant_id`): de lo contrario los dos `updateOrCreate` caerían en la misma fila y el segundo estado pisaría al primero |
 
 Una llave única violada al guardar (dos presentaciones con los mismos ml) se traduce a `DuplicateVariantSizeException`.
 
@@ -95,27 +98,19 @@ Una llave única violada al guardar (dos presentaciones con los mismos ml) se tr
 | Una nota o etiqueta quitada se borra | «deletes the note and the tag that the aggregate dropped…» |
 | Las presentaciones se actualizan por su id | «updates a presentation by its id…» (la fila conserva `id` y `created_at`) |
 | Otra tienda devuelve vacío | «finds nothing of another business…» (con la base fijada a la otra tienda, para probar que el filtro es del repositorio y no solo de la política) |
+| No se escribe en la tienda de otro | «refuses to write a perfume of another business and leaves it intact…» (contextos discordantes, con la base fijada a la víctima y también a la tienda del contexto; la víctima queda intacta) |
+| Dos presentaciones con el mismo id | «refuses a presentation with an identity the perfume already has…» (dominio) y «keeps the presentations and rebuilds an equal perfume after refusing a repeated identity» (guardar y volver a leer); los ml repetidos siguen cubiertos aparte |
 | Una sola transacción | «keeps every write or none…» (un precio fuera del `integer` hace fallar las presentaciones después de escribir el perfume y sus notas) |
 | Sin consultas N+1 | «loads the notes, tags and presentations up front…» |
-| Puerto enlazado en el service provider | «binds the port to the Eloquent adapter…» |
+| Puerto enlazado en el arranque real | «resolves the port to the Eloquent adapter from the normal boot of the application…» (la prueba no registra nada: depende de `bootstrap/providers.php`) |
 
 Las pruebas de feature usan `RefreshDatabaseAsOwner`: migran con el rol dueño y corren con el rol de la aplicación, sin `BYPASSRLS`.
 
 ## Pendiente de hacer a mano
 
-1. **Registrar el service provider.** `bootstrap/providers.php` es un archivo existente y esta entrega no lo modifica. Hay que añadir una línea, junto a los demás:
-
-   ```php
-   use Src\Catalog\Perfumes\Infrastructure\PerfumesServiceProvider;
-
-   // dentro del arreglo devuelto:
-   PerfumesServiceProvider::class,
-   ```
-
-   Hasta entonces el puerto no se resuelve en la aplicación; las pruebas registran el provider por su cuenta.
-2. **Mover las tablas del catálogo** a `protectedTables()` y `protectedModels()` de `RowLevelSecurityTest` y quitar su excepción, ahora que existen los modelos (lo anotó #37). Es una modificación de un archivo existente, por eso no se hizo aquí.
-3. **No se nombró R5 en ninguna prueba.** `BusinessRulesTest` falla si una regla nombrada sigue en `pending-rules.php`, y ese archivo no se tocó. Cuando se cierre #36 se nombra la regla y se quita de la lista.
-4. **Las decisiones de negocio** de [catalog-domain.md](catalog-domain.md) (rango de precio, tope de ml, obligatorios del panel) siguen pendientes.
+1. **Mover las tablas del catálogo** a `protectedTables()` y `protectedModels()` de `RowLevelSecurityTest` y quitar su excepción, ahora que existen los modelos (lo anotó #37). Es una modificación de un archivo existente, por eso no se hizo aquí.
+2. **No se nombró R5 en ninguna prueba.** `BusinessRulesTest` falla si una regla nombrada sigue en `pending-rules.php`, y ese archivo no se tocó. Cuando se cierre #36 se nombra la regla y se quita de la lista.
+3. **Las decisiones de negocio** de [catalog-domain.md](catalog-domain.md) (rango de precio, tope de ml, obligatorios del panel) siguen pendientes.
 
 ## Verificación
 
@@ -123,4 +118,4 @@ Las pruebas de feature usan `RefreshDatabaseAsOwner`: migran con el rol dueño y
 | --- | --- |
 | Pint | Sin diferencias |
 | Larastan, nivel 8 | Sin errores |
-| Pest, suite completa | 661 pruebas en verde. Hay que correrlo con más memoria (`php -d memory_limit=1G vendor/bin/pest`); con el límite por defecto de PHP la suite se agota |
+| Pest, suite completa | 665 pruebas en verde. Hay que correrlo con más memoria (`php -d memory_limit=1G vendor/bin/pest`); con el límite por defecto de PHP la suite se agota |

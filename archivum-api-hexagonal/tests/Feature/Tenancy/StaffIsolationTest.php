@@ -9,6 +9,7 @@ use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\Exceptions\NotFoundException;
 use Tests\Support\Businesses\TwoBusinesses;
+use Tests\Support\Catalog\StoredPerfumes;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Shared\ScopesQueriesToBusiness;
 
@@ -43,6 +44,7 @@ function panelResourcesById(): array
 {
     return [
         'example: show a customer (test route)' => ['GET', '/api/v1/pruebas/panel/clientes', [], 'customers', exampleCustomer(...)],
+        'edit a perfume' => ['PATCH', '/api/v1/panel/perfumes', ['nombre' => 'Nombre nuevo', 'activo' => false], 'perfumes', examplePerfume(...)],
     ];
 }
 
@@ -58,6 +60,25 @@ function panelBusinessEndpoints(): array
         'read the profile of the business' => ['GET', '/api/v1/panel/tienda', []],
         'change the profile of the business' => ['PATCH', '/api/v1/panel/tienda', ['nombre' => 'Nombre nuevo', 'ajustes' => ['pasarela_por_defecto' => 'paypal']]],
     ];
+}
+
+/**
+ * Panel endpoints that create a resource in the business of the session: path, payload and the table of the resource.
+ * Every issue that adds one adds its row.
+ *
+ * @return array<string, array{string, array<string, mixed>, string}>
+ */
+function panelCreations(): array
+{
+    return [
+        'create a perfume' => ['/api/v1/panel/perfumes', ['marca' => 'Tom Ford', 'nombre' => 'Oud Wood', 'concentracion' => 'EDP'], 'perfumes'],
+    ];
+}
+
+/** Create a perfume in a business, which pins that business, and return its identifier. */
+function examplePerfume(string $businessId): string
+{
+    return StoredPerfumes::create($businessId)->id->value;
 }
 
 /** Create a customer with its own account in a business and return the customer identifier. */
@@ -123,6 +144,26 @@ it('acts on the business of the session and leaves the other as it was, for the 
         expect(DB::table('businesses')->where('id', TwoBusinesses::idOf($other))->first())->toEqual($before);
     }
 })->with(panelBusinessEndpoints());
+
+it('creates the resource in the business of the session, whatever the body says, and leaves the other as it was, for the owner of each one', function (string $path, array $payload, string $table) {
+    foreach ([TwoBusinesses::FIRST => TwoBusinesses::SECOND, TwoBusinesses::SECOND => TwoBusinesses::FIRST] as $own => $other) {
+        $this->scopeQueriesTo(TwoBusinesses::idOf($other));
+        $before = DB::table($table)->count();
+        TwoBusinesses::actAsOwnerOf($own);
+
+        $created = json('POST', $path, [
+            ...$payload,
+            'business_id' => TwoBusinesses::idOf($other),
+            'tienda_id' => TwoBusinesses::idOf($other),
+        ])->assertCreated()->json('data.id');
+
+        $this->scopeQueriesTo(TwoBusinesses::idOf($own));
+        expect(DB::table($table)->where('id', $created)->value('business_id'))->toBe(TwoBusinesses::idOf($own));
+
+        $this->scopeQueriesTo(TwoBusinesses::idOf($other));
+        expect(DB::table($table)->count())->toBe($before);
+    }
+})->with(panelCreations());
 
 it('lets each person of the two businesses act with their own role and business', function (string $email, string $role, ?string $slug) {
     TwoBusinesses::actAs($email);

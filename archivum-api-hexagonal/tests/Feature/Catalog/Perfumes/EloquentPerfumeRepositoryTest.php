@@ -9,6 +9,8 @@ use Src\Catalog\Perfumes\Domain\Contracts\PerfumeRepository;
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
 use Src\Catalog\Perfumes\Domain\Entities\PerfumeVariant;
 use Src\Catalog\Perfumes\Domain\Exceptions\DuplicateVariantSizeException;
+use Src\Catalog\Perfumes\Domain\Exceptions\InvalidPerfumeException;
+use Src\Catalog\Perfumes\Domain\Exceptions\PerfumeNotFoundException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\Brand;
 use Src\Catalog\Perfumes\Domain\ValueObjects\Climate;
 use Src\Catalog\Perfumes\Domain\ValueObjects\NoteLayer;
@@ -20,7 +22,6 @@ use Src\Catalog\Perfumes\Domain\ValueObjects\SizeMl;
 use Src\Catalog\Perfumes\Domain\ValueObjects\TimeOfDay;
 use Src\Catalog\Perfumes\Infrastructure\PerfumesServiceProvider;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Repositories\EloquentPerfumeRepository;
-use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\Colones;
 use Tests\Support\Catalog\FixedBusinessContext;
@@ -215,10 +216,57 @@ it('locks the perfume it returns for update', function (): void {
     expect($repository->findForUpdate($perfume->id))->toEqual($perfume);
 });
 
-it('binds the port to the Eloquent adapter in the service provider of the module', function (): void {
-    $business = BusinessModel::factory()->create();
-    app()->instance(BusinessContext::class, new FixedBusinessContext(new BusinessId($business->id)));
-    app()->register(PerfumesServiceProvider::class);
+it('resolves the port to the Eloquent adapter from the normal boot of the application, with nothing registered by the test', function (): void {
+    expect(app()->providerIsLoaded(PerfumesServiceProvider::class))->toBeTrue()
+        ->and(app()->make(PerfumeRepository::class))->toBeInstanceOf(EloquentPerfumeRepository::class);
+});
 
-    expect(app()->make(PerfumeRepository::class))->toBeInstanceOf(EloquentPerfumeRepository::class);
+it('refuses to write a perfume of another business and leaves it intact, whatever the database is scoped to', function (): void {
+    $a = BusinessModel::factory()->create();
+    $b = BusinessModel::factory()->create();
+    $this->scopeQueriesTo($b->id);
+    $repositoryOfB = perfumeRepositoryOf($b->id);
+    $perfumeOfB = perfumeToStore($repositoryOfB, $b->id);
+    $repositoryOfB->save($perfumeOfB);
+
+    $perfumeOfB->revise($perfumeOfB->brand, new PerfumeName('Changed from A'), $perfumeOfB->details, [], []);
+    $perfumeOfB->addVariant($repositoryOfB->nextVariantId(), new SizeMl(30), null, null);
+    $repositoryOfA = perfumeRepositoryOf($a->id);
+
+    // The database is still scoped to B, so only the own check of the repository keeps the write away.
+    expect(fn () => $repositoryOfA->save($perfumeOfB))->toThrow(PerfumeNotFoundException::class, 'catalog.perfume_not_found');
+
+    $stored = $repositoryOfB->find($perfumeOfB->id);
+    expect($stored?->name->value)->toBe('Oud Wood')
+        ->and($stored?->notes)->toHaveCount(2)
+        ->and($stored?->tags)->toHaveCount(3)
+        ->and($stored?->variants)->toHaveCount(2);
+
+    // Scoped to A, as a request of A would be, it is refused the same way.
+    $this->scopeQueriesTo($a->id);
+
+    expect(fn () => $repositoryOfA->save($perfumeOfB))->toThrow(PerfumeNotFoundException::class);
+
+    $this->scopeQueriesTo($b->id);
+    expect($repositoryOfB->find($perfumeOfB->id)?->name->value)->toBe('Oud Wood');
+});
+
+it('keeps the presentations and rebuilds an equal perfume after refusing a repeated identity', function (): void {
+    $business = BusinessModel::factory()->create();
+    $this->scopeQueriesTo($business->id);
+    $repository = perfumeRepositoryOf($business->id);
+    $perfume = perfumeToStore($repository, $business->id);
+    $repeated = $perfume->variants[0]->id;
+
+    expect(fn () => $perfume->addVariant($repeated, new SizeMl(50), null, null))->toThrow(InvalidPerfumeException::class, 'catalog.duplicate_variant_id');
+
+    $perfume->deactivateVariant($repeated);
+    $repository->save($perfume);
+
+    $found = $repository->find($perfume->id);
+    expect($found)->toEqual($perfume)
+        ->and($found?->variants)->toHaveCount(2)
+        ->and($found?->variants[0]->isActive)->toBeFalse()
+        ->and($found?->variants[1]->isActive)->toBeTrue();
+    assertDatabaseCount('perfume_variants', 2);
 });
