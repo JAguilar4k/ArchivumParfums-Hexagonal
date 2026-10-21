@@ -9,6 +9,7 @@ use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\Exceptions\NotFoundException;
 use Tests\Support\Businesses\TwoBusinesses;
+use Tests\Support\Catalog\StoredPerfumes;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Shared\ScopesQueriesToBusiness;
 
@@ -43,6 +44,7 @@ function panelResourcesById(): array
 {
     return [
         'example: show a customer (test route)' => ['GET', '/api/v1/pruebas/panel/clientes', [], 'customers', exampleCustomer(...)],
+        'edit a perfume' => ['PATCH', '/api/v1/panel/perfumes', ['nombre' => 'Nombre nuevo', 'activo' => false], 'perfumes', examplePerfume(...)],
     ];
 }
 
@@ -71,6 +73,12 @@ function panelCreations(): array
     return [
         'create a perfume' => ['/api/v1/panel/perfumes', ['marca' => 'Tom Ford', 'nombre' => 'Oud Wood', 'concentracion' => 'EDP'], 'perfumes'],
     ];
+}
+
+/** Create a perfume in a business, which pins that business, and return its identifier. */
+function examplePerfume(string $businessId): string
+{
+    return StoredPerfumes::create($businessId)->id->value;
 }
 
 /** Create a customer with its own account in a business and return the customer identifier. */

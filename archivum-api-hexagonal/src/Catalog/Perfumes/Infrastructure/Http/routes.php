@@ -11,4 +11,5 @@ Route::prefix('panel/perfumes')
     ->controller(PerfumeController::class)
     ->group(function (): void {
         Route::post('/', 'store')->name('store');
+        Route::patch('/{perfume}', 'update')->whereUuid('perfume')->name('update');
     });
