@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Src\Catalog\Perfumes\Application\Contracts\PerfumeSearch;
+use Src\Catalog\Perfumes\Application\DTOs\PerfumePage;
 use Src\Catalog\Perfumes\Domain\Contracts\PerfumeRepository;
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
 use Src\Catalog\Perfumes\Domain\Entities\PerfumeVariant;
@@ -29,7 +31,7 @@ use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\Colones;
 
-final readonly class EloquentPerfumeRepository implements PerfumeRepository
+final readonly class EloquentPerfumeRepository implements PerfumeRepository, PerfumeSearch
 {
     /** Take the business that every query of the repository filters by. */
     public function __construct(private BusinessContext $context) {}
@@ -99,6 +101,32 @@ final readonly class EloquentPerfumeRepository implements PerfumeRepository
         $model = $this->ofCurrentBusiness()->lockForUpdate()->find($id->value);
 
         return $model === null ? null : $this->toDomain($model);
+    }
+
+    /** Look for the text in the brand and the name, order by brand and name and page the result, all in PostgreSQL. */
+    public function search(?string $text, int $page, int $perPage): PerfumePage
+    {
+        $query = PerfumeModel::query()->where('business_id', $this->context->current()->value);
+
+        if ($text !== null && $text !== '') {
+            // The backslash escapes the wildcards of LIKE, so the text is searched as it was typed.
+            $pattern = '%'.addcslashes($text, '\\%_').'%';
+            $query->where(fn (Builder $match): Builder => $match->whereRaw('brand ILIKE ?', [$pattern])->orWhereRaw('name ILIKE ?', [$pattern]));
+        }
+
+        $total = $query->count();
+        $models = $query->with(['notes', 'tags', 'variants'])
+            ->orderByRaw('lower(brand), lower(name), id')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
+
+        return new PerfumePage(
+            array_values($models->map(fn (PerfumeModel $model): Perfume => $this->toDomain($model))->all()),
+            $total,
+            $page,
+            $perPage,
+        );
     }
 
     /** @return Builder<PerfumeModel> */

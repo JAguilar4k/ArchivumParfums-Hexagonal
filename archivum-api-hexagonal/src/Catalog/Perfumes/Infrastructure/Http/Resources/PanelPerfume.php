@@ -7,6 +7,7 @@ namespace Src\Catalog\Perfumes\Infrastructure\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
+use Src\Catalog\Perfumes\Domain\Entities\PerfumeVariant;
 use Src\Catalog\Perfumes\Domain\ValueObjects\NoteLayer;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeNote;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeTag;
@@ -18,8 +19,8 @@ use Src\Catalog\Perfumes\Infrastructure\Http\PerfumeVocabulary;
  */
 final class PanelPerfume extends JsonResource
 {
-    /** Wrap a perfume aggregate. */
-    public function __construct(private readonly Perfume $perfume)
+    /** Wrap a perfume aggregate; the detail also lists its presentations, the other answers do not. */
+    public function __construct(private readonly Perfume $perfume, private readonly bool $withVariants = false)
     {
         parent::__construct($perfume);
     }
@@ -31,7 +32,7 @@ final class PanelPerfume extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return [
+        $perfume = [
             'id' => $this->perfume->id->value,
             'marca' => $this->perfume->brand->value,
             'nombre' => $this->perfume->name->value,
@@ -51,6 +52,18 @@ final class PanelPerfume extends JsonResource
             ],
             'activo' => $this->perfume->isActive,
         ];
+
+        if ($this->withVariants) {
+            $perfume['presentaciones'] = array_map(fn (PerfumeVariant $variant): array => [
+                'id' => $variant->id->value,
+                'ml' => $variant->size->value,
+                'precio_venta' => ($variant->manualPrice ?? $variant->salePrice)?->amount,
+                'precio_manual' => $variant->manualPrice?->amount,
+                'activa' => $variant->isActive,
+            ], $this->perfume->variants);
+        }
+
+        return $perfume;
     }
 
     /**
