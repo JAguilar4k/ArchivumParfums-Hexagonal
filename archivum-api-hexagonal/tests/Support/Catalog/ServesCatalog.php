@@ -9,6 +9,7 @@ use Src\Businesses\Logo\Infrastructure\LogoServiceProvider;
 use Src\Businesses\Profile\Infrastructure\ProfileEventsServiceProvider;
 use Src\Businesses\PublicProfile\Infrastructure\PublicProfileServiceProvider;
 use Src\Catalog\Perfumes\Infrastructure\PerfumesServiceProvider;
+use Src\Catalog\Showcase\Infrastructure\ShowcaseServiceProvider;
 
 /**
  * Put the catalog in the application the way the framework would once its providers and its routes are registered
@@ -21,6 +22,7 @@ final class ServesCatalog
         'src/Catalog/Perfumes/Infrastructure/Http/routes.php',
         'src/Businesses/Logo/Infrastructure/Http/routes.php',
         'src/Businesses/PublicProfile/Infrastructure/Http/routes.php',
+        'src/Catalog/Showcase/Infrastructure/Http/routes.php',
     ];
 
     /** Register the providers of the modules and load their routes under /api/v1. */
@@ -30,6 +32,7 @@ final class ServesCatalog
         app()->register(ProfileEventsServiceProvider::class);
         app()->register(LogoServiceProvider::class);
         app()->register(PublicProfileServiceProvider::class);
+        app()->register(ShowcaseServiceProvider::class);
 
         foreach (self::ROUTES as $routes) {
             Route::middleware('api')

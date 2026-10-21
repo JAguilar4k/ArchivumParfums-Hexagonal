@@ -14,6 +14,7 @@ use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeNote;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeTag;
 use Src\Catalog\Perfumes\Domain\ValueObjects\SizeMl;
 use Src\Catalog\Perfumes\Domain\ValueObjects\TimeOfDay;
+use Src\Catalog\Perfumes\Infrastructure\Persistence\Models\PerfumeModel;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Repositories\EloquentPerfumeRepository;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\Colones;
@@ -26,6 +27,9 @@ final class StoredPerfumes
      * Save a fictitious perfume in a business, scoping the open transaction to it first, and return the aggregate.
      *
      * @param  list<array{int, int|null, int|null}>  $variants  Milliliters, sale price and manual price of each presentation.
+     * @param  list<PerfumeNote>|null  $notes  The notes; by default one of the top and one of the base.
+     * @param  list<PerfumeTag>|null  $tags  The tags; by default night, cold and the occasion Cena.
+     * @param  list<int>  $inactiveSizes  Milliliters of the presentations to leave inactive.
      */
     public static function create(
         string $businessId,
@@ -35,6 +39,10 @@ final class StoredPerfumes
         bool $active = true,
         array $variants = [],
         ?string $family = 'Amaderada',
+        ?array $notes = null,
+        ?array $tags = null,
+        array $inactiveSizes = [],
+        ?string $photoPath = null,
     ): Perfume {
         app(BusinessTransaction::class)->scope($businessId);
         $repository = new EloquentPerfumeRepository(new FixedBusinessContext(new BusinessId($businessId)));
@@ -45,8 +53,8 @@ final class StoredPerfumes
             new Brand($brand),
             new PerfumeName($name),
             new PerfumeDetails($concentration, 'unisex', $family, 'Madera de oud con especias.'),
-            [new PerfumeNote(NoteLayer::Top, 'Cardamomo'), new PerfumeNote(NoteLayer::Base, 'Oud')],
-            [PerfumeTag::timeOfDay(TimeOfDay::Night), PerfumeTag::climate(Climate::Cold), PerfumeTag::occasion('Cena')],
+            $notes ?? [new PerfumeNote(NoteLayer::Top, 'Cardamomo'), new PerfumeNote(NoteLayer::Base, 'Oud')],
+            $tags ?? [PerfumeTag::timeOfDay(TimeOfDay::Night), PerfumeTag::climate(Climate::Cold), PerfumeTag::occasion('Cena')],
         );
 
         foreach ($variants as [$ml, $salePrice, $manualPrice]) {
@@ -58,11 +66,21 @@ final class StoredPerfumes
             );
         }
 
+        foreach ($perfume->variants as $variant) {
+            if (in_array($variant->size->value, $inactiveSizes, true)) {
+                $perfume->deactivateVariant($variant->id);
+            }
+        }
+
         if (! $active) {
             $perfume->deactivate();
         }
 
         $repository->save($perfume);
+
+        if ($photoPath !== null) {
+            PerfumeModel::query()->whereKey($perfume->id->value)->update(['image_path' => $photoPath]);
+        }
 
         return $perfume;
     }
