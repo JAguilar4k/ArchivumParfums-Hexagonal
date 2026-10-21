@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Src\Catalog\Perfumes\Infrastructure\Http\Controllers\PerfumeController;
+use Src\Catalog\Perfumes\Infrastructure\Http\Controllers\PerfumePhotoController;
 use Src\Catalog\Perfumes\Infrastructure\Http\Controllers\PerfumeVariantController;
 
 Route::prefix('panel/perfumes')
@@ -16,6 +17,8 @@ Route::prefix('panel/perfumes')
             Route::get('/{perfume}', 'show')->whereUuid('perfume')->name('show');
             Route::patch('/{perfume}', 'update')->whereUuid('perfume')->name('update');
         });
+
+        Route::post('/{perfume}/foto', [PerfumePhotoController::class, 'store'])->whereUuid('perfume')->name('photo.store');
 
         Route::controller(PerfumeVariantController::class)
             ->prefix('{perfume}/presentaciones')
