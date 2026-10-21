@@ -114,9 +114,21 @@ final class Perfume
         $this->isActive = true;
     }
 
-    /** Add an active presentation; the perfume refuses a second one with the same milliliters. */
+    /**
+     * Add an active presentation; the perfume refuses a second one with the same identity or with the same milliliters, and
+     * keeps its state when it does.
+     *
+     * @throws InvalidPerfumeException
+     * @throws DuplicateVariantSizeException
+     */
     public function addVariant(PerfumeVariantId $id, SizeMl $size, ?Colones $salePrice, ?Colones $manualPrice): void
     {
+        foreach ($this->variants as $variant) {
+            if ($variant->id->equals($id)) {
+                throw InvalidPerfumeException::duplicateVariant();
+            }
+        }
+
         foreach ($this->variants as $variant) {
             if ($variant->size->equals($size)) {
                 throw DuplicateVariantSizeException::create();

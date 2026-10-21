@@ -8,7 +8,6 @@ use Src\Catalog\Perfumes\Application\Contracts\PerfumeSearch;
 use Src\Catalog\Perfumes\Application\DTOs\PerfumePage;
 use Src\Catalog\Perfumes\Domain\Contracts\PerfumeRepository;
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
-use Src\Catalog\Perfumes\Domain\Exceptions\DuplicatePerfumeException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeId;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeVariantId;
 
@@ -31,15 +30,9 @@ final class InMemoryPerfumeRepository implements PerfumeRepository, PerfumeSearc
         return new PerfumeVariantId(sprintf('0192f0c4-0001-7000-9000-%012d', ++$this->sequence));
     }
 
-    /** Store the perfume refusing a second one with the same brand, name and concentration in the business. */
+    /** Store the perfume. */
     public function save(Perfume $perfume): void
     {
-        foreach ($this->perfumes as $stored) {
-            if (! $stored->id->equals($perfume->id) && $this->key($stored) === $this->key($perfume)) {
-                throw DuplicatePerfumeException::create();
-            }
-        }
-
         $this->perfumes[$perfume->id->value] = $perfume;
     }
 
@@ -73,15 +66,5 @@ final class InMemoryPerfumeRepository implements PerfumeRepository, PerfumeSearc
     public function count(): int
     {
         return count($this->perfumes);
-    }
-
-    private function key(Perfume $perfume): string
-    {
-        return implode('|', [
-            $perfume->businessId->value,
-            mb_strtolower($perfume->brand->value),
-            mb_strtolower($perfume->name->value),
-            mb_strtolower($perfume->details->concentration ?? ''),
-        ]);
     }
 }

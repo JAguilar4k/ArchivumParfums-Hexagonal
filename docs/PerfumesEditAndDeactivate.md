@@ -47,7 +47,7 @@ Rutas relativas a `archivum-api-hexagonal/`.
 | `tests/Unit/Catalog/Perfumes/Application/EditPerfumeTest.php` | El caso de uso sin framework |
 | `tests/Feature/Catalog/Perfumes/EditPerfumeTest.php` | El endpoint contra PostgreSQL con dos tiendas |
 
-Archivos propios de #39 que se modificaron: `StorePerfume.php` (ahora toma sus reglas de `PerfumeFields`), `PerfumeController.php` (método `update`), `routes.php` (la ruta `PATCH`) y `lang/es/catalog.php` (`perfume_not_found`).
+Archivos propios de #39 que se modificaron: `StorePerfume.php` (ahora toma sus reglas de `PerfumeFields`), `PerfumeController.php` (método `update`), `routes.php` (la ruta `PATCH`) y `lang/es/catalog.php` (`perfume_not_found`). El contrato `openapi/v1.json` se regeneró con la ruta nueva.
 
 ## Decisiones
 
@@ -56,7 +56,7 @@ Archivos propios de #39 que se modificaron: `StorePerfume.php` (ahora toma sus r
 | Borrar un perfume creado por error | No se implementa: solo se desactiva | **Pendiente de definir** (la sección 8 dice CRUD; el alcance acordado solo desactiva) |
 | Efecto de desactivar sobre los decants de botellas abiertas | Ninguno por ahora | **Pendiente**, se decide con #75 |
 | Notas y etiquetas | Se reemplazan por capa o tipo, no se mezclan | Decisión del issue |
-| Perfume repetido al editar | 422 sobre `nombre`, como al crear | Hereda la propuesta de #39 |
+| Perfume repetido al editar | No se detecta: igual que al crear, qué hace repetido a un perfume está **pendiente de decisión** (ver [PerfumesNotesAndEtiquetes.md](PerfumesNotesAndEtiquetes.md)) | Bloqueado por esa decisión; el criterio de #40 sobre el repetido no se cumple todavía |
 
 ## Qué verifican las pruebas
 
@@ -66,10 +66,18 @@ Archivos propios de #39 que se modificaron: `StorePerfume.php` (ahora toma sus r
 | Reemplazo de notas por capa y etiquetas por tipo | «replaces the notes of a layer and the tags of a kind…» |
 | `null` borra un texto opcional | «clears a text that may be missing…» |
 | Desactivar sin borrar y reactivar | «deactivates the perfume without deleting it and reactivates it» (cuenta notas, etiquetas y presentaciones) |
-| 422 con las reglas de la creación y el repetido | «answers 422 with the same rules…», «…pointing at the name…» |
+| 422 con las reglas de la creación | «answers 422 with the same rules…» (el repetido está pendiente de decisión) |
 | 404 del ajeno igual que el inexistente | «answers 404 for a perfume of another business…» y «does not touch the perfume of the other business» |
 | 403 y 401 | «answers 403…» y «answers 401…» |
 
-## Pendiente de hacer a mano
+## Integración y verificación
 
-Lo mismo que en #39: registrar `PerfumesServiceProvider` en `bootstrap/providers.php`, cargar `src/Catalog/Perfumes/Infrastructure/Http/routes.php` desde `routes/api.php` y regenerar el contrato con `composer openapi`.
+No queda nada manual de integración: las rutas del catálogo, el provider y el contrato ya están en el arranque real (vienen de #38 y #39, y el contrato se regeneró aquí). Las pruebas no instalan nada por su cuenta.
+
+Las pruebas de la edición no guardan datos en propiedades dinámicas de Pest (`$this->perfume`), que Larastan no entiende; cada prueba arma su escenario con una función (`editScenario()`) y lo recibe tipado.
+
+| Comprobación | Resultado |
+| --- | --- |
+| Pint | Sin diferencias |
+| Larastan, nivel 8 | Sin errores (`[OK] No errors`) |
+| Pest, suite completa | 709 pruebas en verde, con `php -d memory_limit=1G vendor/bin/pest` |
