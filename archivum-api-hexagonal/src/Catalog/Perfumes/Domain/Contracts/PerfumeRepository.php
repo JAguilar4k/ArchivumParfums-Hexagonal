@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Src\Catalog\Perfumes\Domain\Contracts;
 
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
-use Src\Catalog\Perfumes\Domain\Exceptions\DuplicatePerfumeException;
 use Src\Catalog\Perfumes\Domain\Exceptions\DuplicateVariantSizeException;
 use Src\Catalog\Perfumes\Domain\Exceptions\PerfumeNotFoundException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeId;
@@ -24,7 +23,6 @@ interface PerfumeRepository
      * business is refused, as one that does not exist.
      *
      * @throws PerfumeNotFoundException
-     * @throws DuplicatePerfumeException
      * @throws DuplicateVariantSizeException
      */
     public function save(Perfume $perfume): void;

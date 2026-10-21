@@ -258,7 +258,7 @@
         "/panel/perfumes": {
             "post": {
                 "operationId": "catalog.perfumes.store",
-                "summary": "Register a perfume in the business of the session; a repeated one is reported on the field that names it",
+                "summary": "Register a perfume in the business of the session",
                 "tags": [
                     "Perfume"
                 ],

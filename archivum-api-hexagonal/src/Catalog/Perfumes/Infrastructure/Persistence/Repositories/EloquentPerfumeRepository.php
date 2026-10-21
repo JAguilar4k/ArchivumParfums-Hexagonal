@@ -11,7 +11,6 @@ use Illuminate\Support\Str;
 use Src\Catalog\Perfumes\Domain\Contracts\PerfumeRepository;
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
 use Src\Catalog\Perfumes\Domain\Entities\PerfumeVariant;
-use Src\Catalog\Perfumes\Domain\Exceptions\DuplicatePerfumeException;
 use Src\Catalog\Perfumes\Domain\Exceptions\DuplicateVariantSizeException;
 use Src\Catalog\Perfumes\Domain\Exceptions\PerfumeNotFoundException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\Brand;
@@ -81,10 +80,8 @@ final readonly class EloquentPerfumeRepository implements PerfumeRepository
                 $this->writeTags($perfume, $business);
                 $this->writeVariants($perfume, $business);
             });
-        } catch (UniqueConstraintViolationException $exception) {
-            throw str_contains($exception->getMessage(), 'perfumes_business_brand_name_unique')
-                ? DuplicatePerfumeException::create()
-                : DuplicateVariantSizeException::create();
+        } catch (UniqueConstraintViolationException) {
+            throw DuplicateVariantSizeException::create();
         }
     }
 
