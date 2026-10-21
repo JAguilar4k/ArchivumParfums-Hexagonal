@@ -60,9 +60,8 @@ final class BusinessHours
     }
 
     /**
-     * @return array<int, array<int, \Src\Scheduling\Shared\Domain\ValueObjects\TimeRange>>
+     * @return array<int, array<int, TimeRange>>
      */
-
     public function getSlots(): array
     {
         return $this->slots;
