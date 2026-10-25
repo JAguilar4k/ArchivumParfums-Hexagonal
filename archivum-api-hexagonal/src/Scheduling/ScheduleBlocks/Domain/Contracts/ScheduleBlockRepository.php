@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Src\Scheduling\ScheduleBlocks\Domain\Contracts;
 
-use Src\Scheduling\ScheduleBlocks\Domain\ScheduleBlock;
+use Src\Scheduling\ScheduleBlocks\Domain\Entities\ScheduleBlock;
 
 interface ScheduleBlockRepository
 {

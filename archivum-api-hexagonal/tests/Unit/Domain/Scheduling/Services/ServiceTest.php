@@ -8,6 +8,9 @@ use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\Colones;
 
+/**
+ * @return array<int, mixed>
+ */
 function validServiceArgs(): array
 {
     return [

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Src\Scheduling\Services\Domain\Contracts;
 
-use Src\Scheduling\Services\Domain\Service;
+use Src\Scheduling\Services\Domain\Entities\Service;
 
 interface ServiceRepository
 {

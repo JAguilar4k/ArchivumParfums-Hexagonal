@@ -9,6 +9,9 @@ use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\MemberId;
 
+/**
+ * @return array<int, mixed>
+ */
 function createBlockScenario(): array
 {
     return [

@@ -8,7 +8,6 @@ use Src\Scheduling\Services\Domain\ValueObjects\ServiceId;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\Colones;
-use Src\Shared\Domain\ValueObjects\Identifier;
 
 final class Service
 {
@@ -26,7 +25,7 @@ final class Service
     }
 
     public static function create(
-        Identifier $id,
+        ServiceId $id,
         BusinessId $businessId,
         string $name,
         int $durationMinutes,
