@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Src\Scheduling\Shared\Domain\ValueObjects;
 
 use Src\Shared\Domain\Exceptions\InvalidValueException;
@@ -10,7 +12,7 @@ final readonly class TimeRange
         public TimeOfDay $start,
         public TimeOfDay $end
     ) {
-        if (!$end->isAfter($start)) {
+        if (! $end->isAfter($start)) {
             throw new InvalidValueException('scheduling.time_range_invalid_order');
         }
     }
@@ -29,7 +31,7 @@ final readonly class TimeRange
      */
     public function overlaps(TimeRange $other): bool
     {
-        return $this->start->minutes < $other->end->minutes 
+        return $this->start->minutes < $other->end->minutes
             && $this->end->minutes > $other->start->minutes;
     }
 }

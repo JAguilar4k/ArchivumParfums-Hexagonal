@@ -15,7 +15,6 @@ test('rechaza un tramo con el fin anterior al inicio', function () {
         ->toThrow(InvalidValueException::class, 'scheduling.time_range_invalid_order');
 });
 
-
 test('acepta dos tramos contiguos sin considerarlos traslape', function () {
     $tramo1 = TimeRange::create('17:00', '18:00');
     $tramo2 = TimeRange::create('18:00', '19:00');

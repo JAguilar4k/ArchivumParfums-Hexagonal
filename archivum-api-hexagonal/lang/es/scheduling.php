@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
     'service.name_required' => 'El nombre del servicio es obligatorio.',
     'service.invalid_duration' => 'La duración del servicio debe ser mayor a cero.',

@@ -6,6 +6,4 @@ namespace Src\Scheduling\Services\Domain\ValueObjects;
 
 use Src\Shared\Domain\ValueObjects\Identifier;
 
-final readonly class ServiceId extends Identifier
-{
-}
+final readonly class ServiceId extends Identifier {}

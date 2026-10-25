@@ -3,15 +3,15 @@
 declare(strict_types=1);
 
 use Src\Scheduling\Services\Domain\Entities\Service;
+use Src\Scheduling\Services\Domain\ValueObjects\ServiceId;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\Colones;
-use Src\Scheduling\Services\Domain\ValueObjects\ServiceId;
 
 function validServiceArgs(): array
 {
     return [
-       
+
         new ServiceId('019a1f2e-7c3b-7d4e-9a10-2b3c4d5e6f70'),
         new BusinessId('019a1f2e-7c3b-7d4e-9a11-2b3c4d5e6f71'),
         'Cata VIP',

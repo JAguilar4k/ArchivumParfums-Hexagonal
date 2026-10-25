@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Src\Scheduling\Services\Domain\Entities;
 
+use Src\Scheduling\Services\Domain\ValueObjects\ServiceId;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\Colones;
 use Src\Shared\Domain\ValueObjects\Identifier;
-use Src\Scheduling\Services\Domain\ValueObjects\ServiceId;
 
 final class Service
 {

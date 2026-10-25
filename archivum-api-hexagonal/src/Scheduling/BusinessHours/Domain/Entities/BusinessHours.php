@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Src\Scheduling\BusinessHours\Domain\Entities;
 
+use Src\Scheduling\BusinessHours\Domain\ValueObjects\BusinessHoursId;
 use Src\Scheduling\Shared\Domain\Exceptions\TimeSlotOverlapsException;
 use Src\Scheduling\Shared\Domain\ValueObjects\TimeRange;
 use Src\Scheduling\Shared\Domain\ValueObjects\Weekday;
-use Src\Scheduling\BusinessHours\Domain\ValueObjects\BusinessHoursId;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 
 final class BusinessHours
