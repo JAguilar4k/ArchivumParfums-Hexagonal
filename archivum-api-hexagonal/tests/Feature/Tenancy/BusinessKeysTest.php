@@ -18,9 +18,11 @@ const KEYS_WITHOUT_BUSINESS = [
     'members_user_id_foreign',
     // A person of the staff belongs to one business only.
     'members_user_id_unique',
+    // The immutable movement keeps the account that performed it; accounts are global.
+    'decant_movements_user_id_foreign',
 ];
 
-it('includes business_id in every unique, exclusion and foreign key of a table of a business, save the listed exceptions', function () {
+it('R56: includes business_id in every unique, exclusion and foreign key of a table of a business, save the listed exceptions', function () {
     $keys = array_column(DB::select(
         "with business_tables as (
              select a.attrelid as table_oid, a.attnum as business_column

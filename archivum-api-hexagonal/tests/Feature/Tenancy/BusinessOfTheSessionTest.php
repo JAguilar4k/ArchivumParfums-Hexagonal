@@ -29,6 +29,23 @@ function routesUnder(string $prefix): array
     ));
 }
 
+/** Payment operations own their scoped transactions so an attempt commits before an external POST. */
+function usesBusinessContext(RouteDefinition $route, string $source): bool
+{
+    $middleware = $route->gatherMiddleware();
+    if (in_array("business:{$source}", $middleware, true)) {
+        return true;
+    }
+
+    $paymentRoutes = match ($source) {
+        'staff' => ['api/v1/panel/pedidos/{pedido}/reembolsos'],
+        'account' => ['api/v1/cuenta/pedidos/{pedido}/pagos', 'api/v1/cuenta/pagos/{pago}'],
+        default => [],
+    };
+
+    return in_array($route->uri(), $paymentRoutes, true) && in_array("business:{$source},context", $middleware, true);
+}
+
 /** Whether the closure of the test panel route ran, which stands for reaching a use case. */
 function reachedUseCase(?bool $reached = null): bool
 {
@@ -66,7 +83,7 @@ beforeEach(function () {
     });
 });
 
-it('resolves the business of every panel route from the session and never from the URL', function () {
+it('R54: resolves the business of every panel route from the session and never from the URL', function () {
     $violations = [];
 
     // An empty list would let the scan pass without checking any route.
@@ -75,7 +92,7 @@ it('resolves the business of every panel route from the session and never from t
     foreach (routesUnder('api/v1/panel') as $route) {
         $middleware = $route->gatherMiddleware();
 
-        if (! in_array('auth:sanctum', $middleware, true) || ! in_array('business:staff', $middleware, true)) {
+        if (! in_array('auth:sanctum', $middleware, true) || ! usesBusinessContext($route, 'staff')) {
             $violations[] = "{$route->uri()} lacks auth:sanctum and business:staff";
         }
 
@@ -105,7 +122,7 @@ it('resolves the business of every route of the account from a resource of the c
     foreach (routesUnder('api/v1/cuenta') as $route) {
         $namesAResource = array_intersect($route->parameterNames(), array_keys(CustomerBusinessContext::RESOURCES)) !== [];
 
-        if ($namesAResource && ! in_array('business:account', $route->gatherMiddleware(), true)) {
+        if ($namesAResource && ! usesBusinessContext($route, 'account')) {
             $violations[] = "{$route->uri()} lacks business:account";
         }
 

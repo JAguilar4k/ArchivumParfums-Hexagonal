@@ -6,6 +6,8 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
+use Src\Decants\Bottles\Infrastructure\Persistence\Models\DecantBottleModel;
+use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\Exceptions\NotFoundException;
 use Tests\Support\Businesses\TwoBusinesses;
@@ -31,6 +33,8 @@ function panelListings(): array
     return [
         'example: customers (test route)' => ['/api/v1/pruebas/panel/clientes', exampleCustomer(...)],
         'list the perfumes' => ['/api/v1/panel/perfumes', examplePerfume(...)],
+        'list the bottles' => ['/api/v1/panel/botellas', exampleBottle(...)],
+        'list the orders' => ['/api/v1/panel/pedidos', exampleOrder(...)],
     ];
 }
 
@@ -47,6 +51,16 @@ function panelResourcesById(): array
         'example: show a customer (test route)' => ['GET', '/api/v1/pruebas/panel/clientes', [], 'customers', exampleCustomer(...)],
         'show a perfume' => ['GET', '/api/v1/panel/perfumes', [], 'perfumes', examplePerfume(...)],
         'edit a perfume' => ['PATCH', '/api/v1/panel/perfumes', ['nombre' => 'Nombre nuevo', 'activo' => false], 'perfumes', examplePerfume(...)],
+        'show a bottle' => ['GET', '/api/v1/panel/botellas', [], 'decant_bottles', exampleBottle(...)],
+        'edit bottle notes' => ['PATCH', '/api/v1/panel/botellas', ['notas' => 'Revisión'], 'decant_bottles', exampleBottle(...)],
+        'read bottle history' => ['GET', '/api/v1/panel/botellas/{id}/movimientos', [], 'decant_bottles', exampleBottle(...)],
+        'adjust a bottle' => ['POST', '/api/v1/panel/botellas/{id}/ajustes', ['ml' => -1, 'motivo' => 'Conteo'], 'decant_bottles', exampleBottle(...)],
+        'show an order' => ['GET', '/api/v1/panel/pedidos', [], 'orders', exampleOrder(...)],
+        'prepare order decants' => ['POST', '/api/v1/panel/pedidos/{id}/preparacion', [], 'orders', exampleOrder(...)],
+        'mark an order ready' => ['POST', '/api/v1/panel/pedidos/{id}/listo', [], 'orders', exampleOrder(...)],
+        'deliver an order' => ['POST', '/api/v1/panel/pedidos/{id}/entrega', [], 'orders', exampleOrder(...)],
+        'process order refunds' => ['POST', '/api/v1/panel/pedidos/{id}/reembolsos', [], 'orders', exampleOrder(...)],
+        'mark a line unavailable' => ['POST', '/api/v1/panel/pedidos/{id}/lineas/'.MISSING_RESOURCE.'/no-disponible', [], 'orders', exampleOrder(...)],
     ];
 }
 
@@ -68,12 +82,17 @@ function panelBusinessEndpoints(): array
  * Panel endpoints that create a resource in the business of the session: path, payload and the table of the resource.
  * Every issue that adds one adds its row.
  *
- * @return array<string, array{string, array<string, mixed>, string}>
+ * @return array<string, array{string, array<string, mixed>|(Closure(string): array<string, mixed>), string}>
  */
 function panelCreations(): array
 {
     return [
         'create a perfume' => ['/api/v1/panel/perfumes', ['marca' => 'Tom Ford', 'nombre' => 'Oud Wood', 'concentracion' => 'EDP'], 'perfumes'],
+        'create a bottle' => ['/api/v1/panel/botellas', static function (string $businessId): array {
+            $perfume = StoredPerfumes::create($businessId, variants: [[100, 15000, 15000]]);
+
+            return ['presentacion_id' => $perfume->variants[0]->id->value, 'ml_restantes' => 100, 'abierta_en' => '2026-10-25T10:00:00-06:00'];
+        }, 'decant_bottles'],
     ];
 }
 
@@ -87,6 +106,21 @@ function examplePerfume(string $businessId): string
 function exampleCustomer(string $businessId): string
 {
     return CustomerModel::factory()->create(['business_id' => $businessId])->id;
+}
+
+function exampleBottle(string $businessId): string
+{
+    return DecantBottleModel::factory()->create(['business_id' => $businessId])->id;
+}
+
+function exampleOrder(string $businessId): string
+{
+    return OrderModel::factory()->create(['business_id' => $businessId])->id;
+}
+
+function panelResourcePath(string $path, string $id): string
+{
+    return str_contains($path, '{id}') ? str_replace('{id}', $id, $path) : "{$path}/{$id}";
 }
 
 beforeEach(function () {
@@ -125,8 +159,8 @@ it('answers a resource of the other business exactly like one that does not exis
         $before = DB::table($table)->where('id', $foreign)->first();
         TwoBusinesses::actAsOwnerOf($own);
 
-        $foreignResponse = json($method, "{$path}/{$foreign}", $payload)->assertNotFound();
-        $missingResponse = json($method, "{$path}/".MISSING_RESOURCE, $payload)->assertNotFound();
+        $foreignResponse = json($method, panelResourcePath($path, $foreign), $payload)->assertNotFound();
+        $missingResponse = json($method, panelResourcePath($path, MISSING_RESOURCE), $payload)->assertNotFound();
         $this->scopeQueriesTo(TwoBusinesses::idOf($other));
 
         expect(Arr::except($foreignResponse->json(), 'instance'))->toBe(Arr::except($missingResponse->json(), 'instance'))
@@ -147,14 +181,15 @@ it('acts on the business of the session and leaves the other as it was, for the 
     }
 })->with(panelBusinessEndpoints());
 
-it('creates the resource in the business of the session, whatever the body says, and leaves the other as it was, for the owner of each one', function (string $path, array $payload, string $table) {
+it('creates the resource in the business of the session, whatever the body says, and leaves the other as it was, for the owner of each one', function (string $path, array|Closure $payload, string $table) {
     foreach ([TwoBusinesses::FIRST => TwoBusinesses::SECOND, TwoBusinesses::SECOND => TwoBusinesses::FIRST] as $own => $other) {
         $this->scopeQueriesTo(TwoBusinesses::idOf($other));
         $before = DB::table($table)->count();
         TwoBusinesses::actAsOwnerOf($own);
+        $body = $payload instanceof Closure ? $payload(TwoBusinesses::idOf($own)) : $payload;
 
         $created = json('POST', $path, [
-            ...$payload,
+            ...$body,
             'business_id' => TwoBusinesses::idOf($other),
             'tienda_id' => TwoBusinesses::idOf($other),
         ])->assertCreated()->json('data.id');

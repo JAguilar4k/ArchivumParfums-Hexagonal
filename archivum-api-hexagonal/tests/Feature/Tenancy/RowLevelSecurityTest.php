@@ -86,7 +86,7 @@ it('runs these tests with the application role, the one of every request', funct
     expect(DB::scalar('select current_user'))->toBe(config('database.connections.pgsql.username'));
 });
 
-it('forces row-level security with its isolation policy on every table with business_id', function () {
+it('R55: forces row-level security with its isolation policy on every table with business_id', function () {
     $tables = array_column(DB::select(
         "select table_name from information_schema.columns
           where table_schema = 'public' and column_name = 'business_id'
@@ -96,8 +96,8 @@ it('forces row-level security with its isolation policy on every table with busi
     sort($protected);
     $modelled = array_keys(protectedModels());
     sort($modelled);
-    // The catalog tables (#37) have no Eloquent model or seeded rows yet (#38, #39); CatalogSchemaTest exercises them.
-    $catalog = ['perfume_notes', 'perfume_tags', 'perfume_variants', 'perfumes'];
+    // Their module schema tests exercise the catalog, stock, orders and payments with the application role.
+    $catalog = ['perfume_notes', 'perfume_tags', 'perfume_variants', 'perfumes', 'decant_bottles', 'decant_movements', 'orders', 'order_lines', 'payments', 'refunds'];
     $withPolicy = [...$protected, ...$catalog];
     sort($withPolicy);
 
@@ -116,13 +116,18 @@ it('forces row-level security with its isolation policy on every table with busi
         );
 
         expect($security->relrowsecurity)->toBeTrue("Row-level security is not enabled on {$table}.")
-            ->and($security->relforcerowsecurity)->toBeTrue("Row-level security is not forced on {$table}.")
-            ->and($isolation)->toEqual((object) [
-                'cmd' => 'ALL',
-                'roles' => '{public}',
-                'qual' => POLICY_EXPRESSION,
-                'with_check' => POLICY_EXPRESSION,
-            ], "The isolation policy of {$table} is missing or different.");
+            ->and($security->relforcerowsecurity)->toBeTrue("Row-level security is not forced on {$table}.");
+        if ($table === 'decant_movements') {
+            expect($isolation)->toBeNull();
+
+            continue;
+        }
+        expect($isolation)->toEqual((object) [
+            'cmd' => 'ALL',
+            'roles' => '{public}',
+            'qual' => POLICY_EXPRESSION,
+            'with_check' => POLICY_EXPRESSION,
+        ], "The isolation policy of {$table} is missing or different.");
     }
 });
 
@@ -131,12 +136,16 @@ it('adds no policy but the isolation one and the read of the definer functions',
     $others = DB::select(
         "select tablename, policyname, cmd, roles::text as roles, qual, with_check from pg_policies
           where schemaname = 'public' and policyname <> tablename || '_business_isolation'
-          order by tablename",
+          order by tablename, policyname",
     );
 
     expect($others)->toEqual([
         (object) ['tablename' => 'customers', 'policyname' => 'customers_definer_read', 'cmd' => 'SELECT', 'roles' => "{{$owner}}", 'qual' => 'true', 'with_check' => null],
+        (object) ['tablename' => 'decant_movements', 'policyname' => 'decant_movements_business_insert', 'cmd' => 'INSERT', 'roles' => '{public}', 'qual' => null, 'with_check' => POLICY_EXPRESSION],
+        (object) ['tablename' => 'decant_movements', 'policyname' => 'decant_movements_business_read', 'cmd' => 'SELECT', 'roles' => '{public}', 'qual' => POLICY_EXPRESSION, 'with_check' => null],
         (object) ['tablename' => 'members', 'policyname' => 'members_definer_read', 'cmd' => 'SELECT', 'roles' => "{{$owner}}", 'qual' => 'true', 'with_check' => null],
+        (object) ['tablename' => 'orders', 'policyname' => 'orders_definer_read', 'cmd' => 'SELECT', 'roles' => "{{$owner}}", 'qual' => 'true', 'with_check' => null],
+        (object) ['tablename' => 'payments', 'policyname' => 'payments_definer_read', 'cmd' => 'SELECT', 'roles' => "{{$owner}}", 'qual' => 'true', 'with_check' => null],
     ]);
 });
 
