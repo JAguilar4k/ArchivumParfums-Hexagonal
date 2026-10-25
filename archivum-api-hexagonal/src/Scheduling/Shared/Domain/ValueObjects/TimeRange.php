@@ -1,34 +1,35 @@
 <?php
 
-declare(strict_types=1);
-
 namespace Src\Scheduling\Shared\Domain\ValueObjects;
 
-use Exception;
+use Src\Shared\Domain\Exceptions\InvalidValueException;
 
-final class TimeRange
+final readonly class TimeRange
 {
     private function __construct(
-        public readonly string $start,
-        public readonly string $end
+        public TimeOfDay $start,
+        public TimeOfDay $end
     ) {
-        // Validación de la invariante: rechaza fin igual o anterior al inicio
-        if ($this->end <= $this->start) {
-            throw new Exception('scheduling.time_range.invalid_order');
+        if (!$end->isAfter($start)) {
+            throw new InvalidValueException('scheduling.time_range_invalid_order');
         }
     }
 
     public static function create(string $start, string $end): self
     {
-        return new self($start, $end);
+        return new self(
+            TimeOfDay::fromString($start),
+            TimeOfDay::fromString($end)
+        );
     }
 
     /**
-     * Comprueba si este tramo se traslapa con otro.
-     * Evalúa como intervalo semiabierto [inicio, fin).
+     * Checks if this range overlaps with another.
+     * Evaluates as a semi-open interval [start, end).
      */
     public function overlaps(TimeRange $other): bool
     {
-        return $this->start < $other->end && $this->end > $other->start;
+        return $this->start->minutes < $other->end->minutes 
+            && $this->end->minutes > $other->start->minutes;
     }
 }

@@ -3,16 +3,18 @@
 declare(strict_types=1);
 
 use Src\Scheduling\Shared\Domain\ValueObjects\TimeRange;
+use Src\Shared\Domain\Exceptions\InvalidValueException;
 
 test('rechaza un tramo con el fin igual al inicio', function () {
     expect(fn () => TimeRange::create('10:00', '10:00'))
-        ->toThrow(Exception::class, 'scheduling.time_range.invalid_order');
+        ->toThrow(InvalidValueException::class, 'scheduling.time_range_invalid_order');
 });
 
 test('rechaza un tramo con el fin anterior al inicio', function () {
     expect(fn () => TimeRange::create('10:00', '09:00'))
-        ->toThrow(Exception::class, 'scheduling.time_range.invalid_order');
+        ->toThrow(InvalidValueException::class, 'scheduling.time_range_invalid_order');
 });
+
 
 test('acepta dos tramos contiguos sin considerarlos traslape', function () {
     $tramo1 = TimeRange::create('17:00', '18:00');
