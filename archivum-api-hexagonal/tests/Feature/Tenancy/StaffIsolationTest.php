@@ -82,13 +82,13 @@ function panelBusinessEndpoints(): array
  * Panel endpoints that create a resource in the business of the session: path, payload and the table of the resource.
  * Every issue that adds one adds its row.
  *
- * @return array<string, array{string, array<string, mixed>|(Closure(string): array<string, mixed>), string}>
+ * @return array<string, array{string, Closure(string): array<string, mixed>, string}>
  */
 function panelCreations(): array
 {
     return [
-        'create a perfume' => ['/api/v1/panel/perfumes', ['marca' => 'Tom Ford', 'nombre' => 'Oud Wood', 'concentracion' => 'EDP'], 'perfumes'],
-        'create a bottle' => ['/api/v1/panel/botellas', static function (string $businessId): array {
+        'create a perfume' => ['/api/v1/panel/perfumes', fn (string $businessId): array => ['marca' => 'Tom Ford', 'nombre' => 'Oud Wood', 'concentracion' => 'EDP'], 'perfumes'],
+        'create a bottle' => ['/api/v1/panel/botellas', function (string $businessId): array {
             $perfume = StoredPerfumes::create($businessId, variants: [[100, 15000, 15000]]);
 
             return ['presentacion_id' => $perfume->variants[0]->id->value, 'ml_restantes' => 100, 'abierta_en' => '2026-10-25T10:00:00-06:00'];
@@ -181,12 +181,12 @@ it('acts on the business of the session and leaves the other as it was, for the 
     }
 })->with(panelBusinessEndpoints());
 
-it('creates the resource in the business of the session, whatever the body says, and leaves the other as it was, for the owner of each one', function (string $path, array|Closure $payload, string $table) {
+it('creates the resource in the business of the session, whatever the body says, and leaves the other as it was, for the owner of each one', function (string $path, Closure $payload, string $table) {
     foreach ([TwoBusinesses::FIRST => TwoBusinesses::SECOND, TwoBusinesses::SECOND => TwoBusinesses::FIRST] as $own => $other) {
         $this->scopeQueriesTo(TwoBusinesses::idOf($other));
         $before = DB::table($table)->count();
         TwoBusinesses::actAsOwnerOf($own);
-        $body = $payload instanceof Closure ? $payload(TwoBusinesses::idOf($own)) : $payload;
+        $body = $payload(TwoBusinesses::idOf($own));
 
         $created = json('POST', $path, [
             ...$body,
