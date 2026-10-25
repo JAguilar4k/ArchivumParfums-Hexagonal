@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Src\Scheduling\StaffSchedules\Domain;
+namespace Src\Scheduling\StaffSchedules\Domain\Entities;
 
-use Exception;
+use Src\Scheduling\Shared\Domain\Exceptions\TimeSlotOverlapsException;
 use Src\Scheduling\Shared\Domain\ValueObjects\TimeRange;
 use Src\Scheduling\Shared\Domain\ValueObjects\Weekday;
+use Src\Scheduling\StaffSchedules\Domain\ValueObjects\StaffScheduleId;
+use Src\Shared\Domain\ValueObjects\BusinessId;
+use Src\Shared\Domain\ValueObjects\MemberId;
 
 final class StaffSchedule
 {
@@ -14,20 +17,29 @@ final class StaffSchedule
     private array $slots = [];
 
     private function __construct(
-        private readonly string $memberId
+        public readonly StaffScheduleId $id,
+        public readonly BusinessId $businessId,
+        public readonly MemberId $memberId
     ) {}
 
-    public static function create(string $memberId): self
-    {
-        return new self($memberId);
+    public static function create(
+        StaffScheduleId $id,
+        BusinessId $businessId,
+        MemberId $memberId
+    ): self {
+        return new self($id, $businessId, $memberId);
     }
 
     /**
      * @param  array<int, array<int, TimeRange>>  $slots
      */
-    public static function reconstitute(string $memberId, array $slots): self
-    {
-        $schedule = new self($memberId);
+    public static function reconstitute(
+        StaffScheduleId $id,
+        BusinessId $businessId,
+        MemberId $memberId,
+        array $slots
+    ): self {
+        $schedule = new self($id, $businessId, $memberId);
         $schedule->slots = $slots;
 
         return $schedule;
@@ -43,16 +55,11 @@ final class StaffSchedule
 
         foreach ($this->slots[$dayValue] as $existingRange) {
             if ($existingRange->overlaps($newRange)) {
-                throw new Exception('scheduling.staff_schedule.overlapping_slots');
+                throw new TimeSlotOverlapsException('scheduling.time_slot_overlaps');
             }
         }
 
         $this->slots[$dayValue][] = $newRange;
-    }
-
-    public function getMemberId(): string
-    {
-        return $this->memberId;
     }
 
     /**

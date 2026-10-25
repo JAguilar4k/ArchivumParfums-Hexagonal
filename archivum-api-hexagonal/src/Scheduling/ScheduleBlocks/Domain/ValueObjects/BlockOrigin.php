@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Scheduling\ScheduleBlocks\Domain\Enums;
+namespace Src\Scheduling\ScheduleBlocks\Domain\ValueObjects;
 
 enum BlockOrigin: string
 {
