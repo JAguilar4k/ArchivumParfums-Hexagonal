@@ -66,7 +66,7 @@ it('shows, without authentication, the detail of a perfume with its notes by lay
     $response = getJson(showcaseDetailUrl(TwoBusinesses::FIRST, $visible->id->value))->assertOk();
 
     expect(array_keys($response->json('data')))->toBe([
-        'id', 'marca', 'nombre', 'concentracion', 'genero', 'familia', 'descripcion', 'foto_url', 'notas', 'etiquetas', 'presentaciones',
+        'id', 'marca', 'nombre', 'concentracion', 'genero', 'familia', 'descripcion', 'foto_url', 'notas', 'etiquetas', 'presentaciones', 'decants',
     ]);
 
     $response->assertJsonPath('data.id', $visible->id->value)
@@ -76,6 +76,7 @@ it('shows, without authentication, the detail of a perfume with its notes by lay
         ->assertJsonPath('data.genero', 'unisex')
         ->assertJsonPath('data.familia', 'Amaderada')
         ->assertJsonPath('data.descripcion', 'Madera de oud con especias.')
+        ->assertJsonPath('data.decants', [])
         ->assertJsonPath('data.foto_url', Storage::disk('public')->url('perfumes/oud.png'))
         ->assertJsonPath('data.notas', ['salida' => ['Cardamomo'], 'corazon' => ['Rosa'], 'fondo' => ['Oud', 'Ámbar']])
         ->assertJsonPath('data.etiquetas', ['momento' => ['noche'], 'clima' => ['frio'], 'ocasion' => ['Cena']]);

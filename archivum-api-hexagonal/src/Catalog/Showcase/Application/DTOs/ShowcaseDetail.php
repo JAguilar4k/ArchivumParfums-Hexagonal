@@ -13,6 +13,7 @@ final readonly class ShowcaseDetail
      * @param  array{top: list<string>, heart: list<string>, base: list<string>}  $notes  The notes by layer.
      * @param  array{time_of_day: list<string>, climate: list<string>, occasion: list<string>}  $tags  The tags by kind, with the values the database stores.
      * @param  list<ShowcaseVariant>  $variants  Only the presentations that can be sold.
+     * @param  list<ShowcaseDecant>  $decants  Only the sizes currently available from an open bottle.
      */
     public function __construct(
         public string $id,
@@ -27,6 +28,7 @@ final readonly class ShowcaseDetail
         public array $notes,
         public array $tags,
         public array $variants,
+        public array $decants = [],
     ) {}
 
     /** The same perfume with the address of its photo. */
@@ -34,7 +36,7 @@ final readonly class ShowcaseDetail
     {
         return new self(
             $this->id, $this->brand, $this->name, $this->concentration, $this->gender, $this->family, $this->description,
-            $this->photoPath, $photoUrl, $this->notes, $this->tags, $this->variants,
+            $this->photoPath, $photoUrl, $this->notes, $this->tags, $this->variants, $this->decants,
         );
     }
 }

@@ -7,6 +7,7 @@ namespace Src\Catalog\Showcase\Infrastructure\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Src\Catalog\Perfumes\Infrastructure\Http\PerfumeVocabulary;
+use Src\Catalog\Showcase\Application\DTOs\ShowcaseDecant;
 use Src\Catalog\Showcase\Application\DTOs\ShowcaseDetail;
 use Src\Catalog\Showcase\Application\DTOs\ShowcaseVariant;
 
@@ -51,6 +52,11 @@ final class ShowcasePerfumeDetail extends JsonResource
                 'ml' => $variant->ml,
                 'precio_venta' => $variant->price,
             ], $this->perfume->variants),
+            'decants' => array_map(fn (ShowcaseDecant $decant): array => [
+                'botella_id' => $decant->bottleId,
+                'ml' => $decant->ml,
+                'precio' => $decant->price,
+            ], $this->perfume->decants),
         ];
     }
 }
