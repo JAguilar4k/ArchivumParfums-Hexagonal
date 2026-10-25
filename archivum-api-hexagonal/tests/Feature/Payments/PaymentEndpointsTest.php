@@ -56,6 +56,38 @@ it('charges a decant-only order as a full payment', function (): void {
     Http::assertSentCount(1);
 });
 
+it('creates and confirms a SINPE Mobile payment through the API with a checkout that omits mode', function (): void {
+    $business = actingAsCustomer();
+    $order = StoredOrders::create($business)['order'];
+    Http::fake([
+        'api.onvopay.com/v1/checkout/sessions/one-time-link' => Http::response(['id' => 'session-sinpe', 'url' => 'https://checkout.onvopay.com/pay/session-sinpe'], 201),
+        'api.onvopay.com/v1/checkout/sessions/session-sinpe' => Http::response(['id' => 'session-sinpe', 'paymentIntentId' => 'intent-sinpe']),
+        'api.onvopay.com/v1/payment-intents/intent-sinpe' => Http::response([
+            'id' => 'intent-sinpe', 'mode' => 'test', 'amount' => 750_000, 'currency' => 'CRC', 'status' => 'succeeded',
+            'paymentMethod' => ['id' => 'method-sinpe', 'mode' => 'test', 'type' => 'mobile_number'],
+        ]),
+    ]);
+
+    $response = postJson('/api/v1/cuenta/pedidos/'.$order->id.'/pagos', ['medio' => 'sinpe_movil']);
+
+    $response->assertCreated()->assertJsonPath('data.medio', 'sinpe_movil')->assertJsonPath('data.estado', 'pendiente')
+        ->assertJsonPath('data.pasarela', 'onvo')->assertJsonPath('data.moneda_cobrada', 'CRC')->assertJsonPath('data.monto_cobrado', 7500);
+    $paymentId = (string) $response->json('data.id');
+    getJson('/api/v1/cuenta/pagos/'.$paymentId)->assertOk()->assertJsonPath('data.medio', 'sinpe_movil')
+        ->assertJsonPath('data.estado', 'confirmado')->assertJsonPath('data.consulta_pendiente', false);
+    getJson('/api/v1/cuenta/pagos/'.$paymentId)->assertOk()->assertJsonPath('data.estado', 'confirmado');
+
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('payments', ['id' => $paymentId, 'order_id' => $order->id, 'method' => 'sinpe_mobile', 'status' => 'succeeded', 'capture_reference' => 'intent-sinpe']);
+    assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'confirmed', 'paid' => 7500, 'balance' => 7500]);
+    assertDatabaseCount('payments', 1);
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+        && $request->url() === 'https://api.onvopay.com/v1/checkout/sessions/one-time-link'
+        && $request['paymentMethodTypes'] === ['mobile_number']
+        && $request['lineItems'][0]['unitAmount'] === 750_000);
+    Http::assertSentCount(3);
+});
+
 it('confirms the queried payment and its order exactly once in the same transaction', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business)['order'];

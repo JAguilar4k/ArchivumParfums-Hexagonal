@@ -37,6 +37,43 @@ it('creates a hosted checkout in CRC cents with the requested supported method',
         && $request->hasHeader('Authorization', 'Bearer onvo_test_fake'));
 })->with([[PaymentMethod::Card, 'card'], [PaymentMethod::SinpeMobile, 'mobile_number']]);
 
+it('rejects an explicitly invalid checkout mode even though the field is optional', function (mixed $mode): void {
+    Http::fake(['api.onvopay.com/v1/checkout/sessions/one-time-link' => Http::response([
+        'id' => 'session-1', 'url' => 'https://checkout.onvopay.com/pay/session-1', 'mode' => $mode,
+    ], 201)]);
+
+    expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->create(new ChargeRequest('payment-1', 'business-1', 5_000)))->toThrow(GatewayUnavailableException::class);
+
+    Http::assertSentCount(1);
+})->with([['live'], [null], ['unknown'], [false], [['test']]]);
+
+it('rejects an explicitly invalid queried checkout mode before reading the intent', function (mixed $mode): void {
+    Http::fake(['api.onvopay.com/v1/checkout/sessions/session-1' => Http::response([
+        'id' => 'session-1', 'mode' => $mode, 'paymentIntentId' => 'intent-1',
+    ])]);
+
+    expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->status(new ChargeReference('payment-1', 'session-1', 'CRC', 5_000)))->toThrow(GatewayUnavailableException::class);
+
+    Http::assertSentCount(1);
+})->with(['live', null]);
+
+it('requires an explicit test mode on the intent when checkout omits mode', function (array $modeFields): void {
+    Http::fake([
+        'api.onvopay.com/v1/checkout/sessions/session-1' => Http::response(['id' => 'session-1', 'paymentIntentId' => 'intent-1']),
+        'api.onvopay.com/v1/payment-intents/intent-1' => Http::response(['id' => 'intent-1', 'amount' => 500_000, 'currency' => 'CRC', 'status' => 'succeeded', ...$modeFields]),
+    ]);
+
+    expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->status(new ChargeReference('payment-1', 'session-1', 'CRC', 5_000)))->toThrow(GatewayUnavailableException::class);
+
+    Http::assertSentCount(2);
+})->with([[
+    [],
+], [
+    ['mode' => 'live'],
+], [
+    ['mode' => null],
+]]);
+
 it('reports an explicit declined checkout as failed', function (): void {
     Http::fake(['api.onvopay.com/v1/checkout/sessions/one-time-link' => Http::response(['code' => 'declined'], 402)]);
 
@@ -121,6 +158,21 @@ it('keeps an uncertain remote closure pending even after successful cancellation
     ['requires_payment_method', 'expired', 'processing'],
     ['canceled', 'open', 'canceled'],
 ]);
+
+it('closes a declined checkout whose session responses omit mode', function (): void {
+    Http::fakeSequence()
+        ->push(['id' => 'session-1', 'status' => 'open', 'paymentIntentId' => 'intent-1'])
+        ->push(['id' => 'intent-1', 'mode' => 'test', 'amount' => 500_000, 'currency' => 'CRC', 'status' => 'requires_payment_method', 'confirmationAttempts' => 1])
+        ->push([], 201)
+        ->push([], 201)
+        ->push(['id' => 'session-1', 'status' => 'expired', 'paymentIntentId' => 'intent-1'])
+        ->push(['id' => 'intent-1', 'mode' => 'test', 'amount' => 500_000, 'currency' => 'CRC', 'status' => 'canceled']);
+
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->status(new ChargeReference('payment-1', 'session-1', 'CRC', 5_000));
+
+    expect($result->status)->toBe(PaymentStatus::Failed);
+    Http::assertSentCount(6);
+});
 
 it('accepts a successful charge that wins the race against closing a declined checkout', function (): void {
     Http::fakeSequence()
@@ -238,6 +290,36 @@ it('queries an existing pending refund without sending a second refund request',
     Http::assertSent(fn (Request $request): bool => $request->method() === 'GET');
     Http::assertSentCount(1);
 });
+
+it('resolves the refund intent from a checkout that omits mode', function (): void {
+    Http::fake([
+        'api.onvopay.com/v1/checkout/sessions/session-1' => Http::response(['id' => 'session-1', 'paymentIntentId' => 'intent-1']),
+        'api.onvopay.com/v1/refunds' => Http::response(['id' => 'refund-1'], 201),
+        'api.onvopay.com/v1/refunds/refund-1' => Http::response(['id' => 'refund-1', 'mode' => 'test', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => 'succeeded']),
+    ]);
+
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500));
+
+    expect($result->status)->toBe('succeeded');
+    Http::assertSent(fn (Request $request): bool => $request->method() === 'POST' && $request['paymentIntentId'] === 'intent-1' && $request['amount'] === 250_000);
+    Http::assertSentCount(3);
+});
+
+it('requires an explicit test mode on a refund before accepting its outcome', function (array $modeFields): void {
+    Http::fake(['api.onvopay.com/v1/refunds/refund-1' => Http::response([
+        'id' => 'refund-1', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => 'succeeded', ...$modeFields,
+    ])]);
+
+    expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500, 'intent-1', providerRefundReference: 'refund-1')))->toThrow(GatewayUnavailableException::class);
+
+    Http::assertSentCount(1);
+})->with([[
+    [],
+], [
+    ['mode' => 'live'],
+], [
+    ['mode' => null],
+]]);
 
 it('preserves the refund reference when its subsequent query cannot communicate', function (): void {
     Http::fake([

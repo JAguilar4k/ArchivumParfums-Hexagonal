@@ -61,7 +61,7 @@ final readonly class OnvoGateway implements PaymentGateway
         $reference = $this->string($response->json('id'));
         $url = $this->string($response->json('url'));
 
-        $this->requireTestMode($response);
+        $this->requireTestMode($response, required: false);
         $this->validateOptionalAmount($response, $amount, 'amountTotal');
 
         if (parse_url($url, PHP_URL_SCHEME) !== 'https' || ! str_ends_with((string) parse_url($url, PHP_URL_HOST), '.onvopay.com')) {
@@ -90,7 +90,7 @@ final readonly class OnvoGateway implements PaymentGateway
 
         $sessionId = $reference->checkoutReference ?? $reference->providerReference;
         $session = $this->send(fn (PendingRequest $http): Response => $http->get('/checkout/sessions/'.rawurlencode($sessionId)));
-        $this->requireTestMode($session);
+        $this->requireTestMode($session, required: false);
 
         if ($session->json('id') !== $sessionId) {
             throw new GatewayUnavailableException('payments.unavailable');
@@ -139,7 +139,7 @@ final readonly class OnvoGateway implements PaymentGateway
         }
 
         $session = $this->send(fn (PendingRequest $http): Response => $http->get('/checkout/sessions/'.rawurlencode($sessionId)));
-        $this->requireTestMode($session);
+        $this->requireTestMode($session, required: false);
 
         if ($session->json('id') !== $sessionId || $session->json('paymentIntentId') !== $intentId) {
             throw new GatewayUnavailableException('payments.unavailable');
@@ -171,7 +171,7 @@ final readonly class OnvoGateway implements PaymentGateway
 
         if ($intentId === null) {
             $session = $this->send(fn (PendingRequest $http): Response => $http->get('/checkout/sessions/'.rawurlencode($request->providerReference)));
-            $this->requireTestMode($session);
+            $this->requireTestMode($session, required: false);
             $intentId = $this->string($session->json('paymentIntentId'));
         }
 
@@ -242,8 +242,15 @@ final readonly class OnvoGateway implements PaymentGateway
         return $value;
     }
 
-    private function requireTestMode(Response $response): void
+    /** Checkout can omit mode; monetary resources must explicitly identify test data. */
+    private function requireTestMode(Response $response, bool $required = true): void
     {
+        $body = $response->json();
+
+        if (! $required && is_array($body) && ! array_key_exists('mode', $body)) {
+            return;
+        }
+
         if ($response->json('mode') !== 'test') {
             throw new GatewayUnavailableException('payments.unavailable');
         }

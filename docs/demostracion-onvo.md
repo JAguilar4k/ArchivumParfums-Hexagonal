@@ -4,6 +4,8 @@ ArchivumParfums · Investigación 1 · Revisión de código y fuentes: **25/10/2
 
 Esta guía permite preparar ONVO sin depender de la guía de PayPal. Recorre un pedido ficticio de una botella de ₡15.000, su depósito de ₡7.500, tarjeta aprobada y rechazada, SINPE Móvil y devolución. **La ejecución contra ONVO sigue pendiente:** todavía no se ha creado la cuenta sandbox del equipo. Los ejemplos de respuesta describen el contrato esperado; no son comprobantes de cobros ejecutados.
 
+**Dónde se elige SINPE en este corte:** en el cuerpo de la petición de pago de Postman/API, mediante `medio: "sinpe_movil"` (paso 10). ONVO presenta después su checkout hospedado. Todavía no existe un selector de medios en una pantalla propia de Archivum; esa interfaz pertenece al cliente web pendiente.
+
 ## 1. Preparar la API y los datos ficticios
 
 1. Abre la carpeta `archivum-api-hexagonal/` de la copia o worktree que contiene `feature/pagos`. Todos los comandos de esta guía se ejecutan allí. Puedes comprobar la rama con `git branch --show-current`; no confundas esa copia con otra rama del repositorio.
@@ -60,6 +62,8 @@ ONVO_WEBHOOK_SECRET=
 - Deja `ONVO_WEBHOOK_SECRET` vacío para Investigación 1: este corte confirma por consulta del servidor. No necesitas un túnel para recibir webhooks ni registrar una URL de webhook de Archivum.
 - Las URLs de retorno y cancelación son navegación del comprador. Volver a `/api/v1` muestra la raíz de la API; **no** confirma el pago. Si ONVO no acepta el retorno local en tu cuenta, configura una URL HTTPS que controles y que pueda abrir el navegador; no inventes una ruta que marque el pago como confirmado.
 - No existe una variable `PAYMENT_GATEWAY=onvo` que sustituya el ajuste de la tienda: ese cambio se realiza en el paso 5.
+
+El [esquema oficial](https://docs.onvopay.com/openapi.yaml) describe `CheckoutSession.mode`, pero no lo marca requerido. El adaptador permite que la sesión omita ese campo; si lo trae, debe valer `test`. La intención que confirma el dinero y el reembolso conservan la comprobación estricta de modo de prueba por decisión de Archivum. Si falta en esos recursos financieros, el resultado permanece pendiente de conciliación. La compatibilidad efectiva de esas respuestas todavía debe verificarse con la cuenta sandbox.
 
 Después de guardar:
 
@@ -259,6 +263,8 @@ El número `4000000000000119` simula error del procesador según el mismo manual
 4. No abras una aplicación bancaria ni transfieras dinero. El modo de prueba simula el ingreso.
 5. Consulta el pago y luego el pedido desde Archivum, igual que en el paso 8.
 
+La cadena del código es `PaymentController::store()` → `PaymentMethod::SinpeMobile` → `OnvoGateway::create()`. En esa última petición se envía `paymentMethodTypes: ["mobile_number"]`; para tarjeta se envía `["card"]`. El [OpenAPI de ONVO](https://docs.onvopay.com/openapi.yaml) los define como métodos permitidos de la sesión. Antes de presentar la demo, comprueba visualmente que el checkout solo ofrezca SINPE y registra el resultado. El campo `medio` de la respuesta local refleja lo solicitado; por sí solo no demuestra qué instrumento terminó usando ONVO.
+
 Otros escenarios oficiales son `+50688884444` —simulación exitosa tras unos seis minutos— y `+50688889521` —no llega transferencia, el estado no avanza—. El segundo demuestra una espera, **no** un rechazo bancario inmediato. Estos escenarios y el comportamiento efectivo del checkout todavía deben comprobarse con la cuenta del equipo. [Pruebas ONVO](https://docs.onvopay.com/payments/testing), consulta 25/10/2026.
 
 En el flujo real ONVO asocia una intención por identificación y monto exactos, y solo soporta CRC; por eso el pago se confirma desde el servidor. La [guía de SINPE Móvil](https://docs.onvopay.com/payments/sinpe-mobile), consultada el 25/10/2026, describe producción y recomienda webhooks. Para este corte el enunciado exige la consulta de estado ya implementada. No conviertas requisitos de producción en instrucciones para usar datos personales o fondos reales durante la demo.
@@ -321,6 +327,7 @@ Las líneas son referencias orientativas del código revisado el 25/10/2026; si 
 | Aplicar confirmación y pedido | [`ObservePayment.php`](../archivum-api-hexagonal/src/Payments/Payments/Application/UseCases/ObservePayment.php#L22) | `execute()`, 22–57 | Consulta autorizada y cambios financieros transaccionales. |
 | Procesar devoluciones ya calculadas | [`ProcessOrderRefunds.php`](../archivum-api-hexagonal/src/Payments/Payments/Application/UseCases/ProcessOrderRefunds.php#L23) | `execute()`, 23–95 aproximadamente | Registra el intento de devolución antes de llamar al proveedor. |
 | Cuerpo permitido al iniciar pago | [`StorePayment.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Http/Requests/StorePayment.php#L18) | `rules()`, 18–21 | Solo `medio`: `tarjeta` o `sinpe_movil`. |
+| Elección de SINPE desde la aplicación | [`PaymentController.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Http/Controllers/PaymentController.php#L24) | `store()` | Convierte `sinpe_movil` en el valor del dominio; `OnvoGateway::create()` lo convierte a `mobile_number`. |
 | Nombres y estados JSON | [`PaymentResource.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Http/Resources/PaymentResource.php#L17) | `toArray()`, 17–33 | Traducción a `monto`, `url_pago`, `estado`, `consulta_pendiente`, etc. |
 | Rutas de pago y permisos | [`routes.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Http/routes.php#L8) | 8–14 | Rutas de cliente y de dueña. La tienda del panel sale de la sesión. |
 | Mensajes en español | [`lang/es/payments.php`](../archivum-api-hexagonal/lang/es/payments.php#L5) | 5–19 | Editar traducciones; no mensajes incrustados en el dominio. |

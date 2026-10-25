@@ -165,6 +165,18 @@ La API base es `https://api.onvopay.com/v1`; las llaves de prueba se reconocen p
 
 SINPE utiliza `mobile_number`; no debe mandarse ese medio a una pasarela sin la capacidad. La validación real de identificación y monto exacto de [O5] no debe reemplazarse con una suposición basada en el simulador parcial de [O6].
 
+#### Aclaraciones de la revisión: `mode` y SINPE Móvil
+
+El [OpenAPI oficial](https://docs.onvopay.com/openapi.yaml), vuelto a consultar el 25/10/2026, vincula tanto el POST de `checkout/sessions/one-time-link` como el GET de `checkout/sessions/{id}` con `CheckoutSession`. Ese esquema **sí describe `mode` en la raíz**, con valores `test` y `live`; no tiene una lista `required`. La referencia HTML resumida omite detalles que aparecen en el YAML. Esto no demuestra que una respuesta real omita el campo, pero tampoco garantiza formalmente su presencia.
+
+La política del adaptador distingue la navegación del efecto financiero: el checkout puede omitir `mode`, mientras que un valor presente distinto de `test`, incluido `null`, se rechaza. Las claves continúan limitadas al prefijo de prueba, con HTTPS y host fijos. Para la intención que acredita dinero y el reembolso que lo descuenta se mantiene la exigencia conservadora de `mode: "test"`, además de ID, relación, moneda, importe y estado coincidentes. Esa exigencia financiera es una decisión de Archivum; los esquemas `PaymentIntent` y `Refund` tampoco marcan sus propiedades como requeridas. Si esas respuestas reales omiten el modo, el sistema conserva la operación pendiente para conciliación, hasta verificar el contrato con ONVO. No se afirma haber completado esa validación externa.
+
+La prueba de regresión reproduce el caso de checkout sin `mode`: antes devolvía 202 al crear; ahora entrega el checkout y puede confirmar al consultar una intención de prueba válida. También prueba el cierre de un checkout rechazado y la recuperación de su intención para un reembolso cuando las sesiones omiten el campo.
+
+En la API, el cliente elige `{"medio":"sinpe_movil"}` al iniciar el pago. `PaymentController::store()` lo convierte en `PaymentMethod::SinpeMobile`; `OnvoGateway::supportedMethods()` declara la capacidad y `create()` envía **solo** `paymentMethodTypes: ["mobile_number"]`. Tarjeta envía **solo** `["card"]`. El esquema `CreateOneTimeLink` define ese parámetro como la lista de métodos permitidos. No se envía una lista con ambos para que el comprador cambie el medio elegido. PayPal rechaza SINPE antes del POST externo.
+
+La aplicación de este corte ofrece ese recorrido por API/Postman y el checkout hospedado de ONVO; el selector de una interfaz propia sigue dentro del cliente web pendiente. La respuesta local `medio` representa la elección guardada, no una inspección independiente del instrumento final: la intención documenta `paymentMethod.type`, pero su presencia tampoco es obligatoria y el adaptador actual no la usa para verificar el instrumento. La prueba HTTP completa acredita la cadena de selección, persistencia, restricción enviada y confirmación sin duplicación; comprobar que el checkout real ofrece únicamente SINPE y devuelve ese instrumento sigue pendiente de la cuenta sandbox.
+
 No se encontró en el contexto completo consultado una garantía de `Idempotency-Key` de ONVO. La idempotencia local debe reservar el intento antes de llamar y conservar su referencia. Si hay timeout al crear y no llega referencia, se requiere conciliación; repetir `POST` a ciegas no queda justificado. No se copia el header de Stripe del repo guía.
 
 ### PayPal
