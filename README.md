@@ -23,6 +23,8 @@ La estructura, la arquitectura y la forma de trabajo siguen el proyecto guía de
 | [`docs/patterns.md`](docs/patterns.md) | Patrones de diseño usados, previstos y descartados. |
 | [`docs/investigacion-1.md`](docs/investigacion-1.md) | Informe comparativo de ONVO, PayPal, Tilopay y GreenPay, con fuentes y costos. |
 | [`docs/payment-gateways.md`](docs/payment-gateways.md) | Investigación técnica, cálculos y evidencia del módulo de pagos. |
+| [`docs/demostracion-onvo.md`](docs/demostracion-onvo.md) | Demostración paso a paso de ONVO: tarjeta, SINPE Móvil, consulta y reembolso. |
+| [`docs/demostracion-paypal.md`](docs/demostracion-paypal.md) | Demostración paso a paso de PayPal: cuentas sandbox, conversión y captura. |
 | [`docs/adr/`](docs/adr/) | Registro de las decisiones de arquitectura. |
 
 ## Arquitectura
@@ -103,6 +105,8 @@ Los comandos, la configuración en PowerShell, la separación de roles, las migr
 ## Investigación 1: ejecutar los cobros
 
 El [informe comparativo](docs/investigacion-1.md) y la [investigación técnica](docs/payment-gateways.md) se entregan por separado. La rama del corte es `feature/pagos`, según su enunciado. Para esta entrega el servidor confirma consultando al proveedor; los webhooks se incorporan en Avance 2. Las citas de prueba siguen siendo gratis: se cobran los pedidos del negocio.
+
+Los recorridos completos se encuentran en la [demostración de ONVO](docs/demostracion-onvo.md) y la [demostración de PayPal](docs/demostracion-paypal.md). Cada guía permite empezar desde la instalación local, obtener tokens, crear un producto ficticio con precio conocido y seguir las peticiones hasta comprobar el pedido; también identifica los archivos y métodos donde se configura o modifica el comportamiento. La ejecución externa de ambos recorridos sigue pendiente de las cuentas sandbox.
 
 Primero completa la puesta en marcha de la API y ejecuta las migraciones como `archivum_owner` y `php artisan db:seed`. Los sembradores agregan botellas ficticias en ambas tiendas y conservan sus ml al repetirse. El [README de la API](archivum-api-hexagonal/README.md) explica cómo obtener tokens de las cuentas ficticias; se usarán el dueño `duena@archivumparfums.test` y la cliente `mariana@clientes.test`, con la contraseña local `ARCHIVUM_DEMO_PASSWORD`.
 
@@ -188,7 +192,7 @@ El enunciado permite usar asistentes de IA con una condición: cada integrante d
 
 | Parte | Asistente | Qué generó la IA | Qué verificó el equipo |
 | --- | --- | --- | --- |
-| Investigación 1: botellas, pedidos, pagos e informe (#68–#93, excepto #76) | Codex | Dominio, adaptadores HTTP directos de ONVO y PayPal, persistencia con RLS y restricciones, endpoints, pruebas de concurrencia, contrato OpenAPI y documentos separados de investigación y comparación. Se usaron las reglas confirmadas por Julián en esta conversación. | Verificación automática con PostgreSQL 18 y `archivum_app`, HTTP simulado, Pint, Larastan y auditoría; los resultados finales se registran en el PR. Revisión humana y demostración externa pendientes: todavía no están disponibles ambas cuentas sandbox. El #76 queda al equipo de citas. |
+| Investigación 1: botellas, pedidos, pagos e informe (#68–#93, excepto #76) | Codex | Dominio, adaptadores HTTP directos de ONVO y PayPal, persistencia con RLS y restricciones, endpoints, pruebas de concurrencia, contrato OpenAPI y documentos separados de investigación y comparación. Guías independientes de demostración de ONVO y PayPal con peticiones, configuración y mapa de archivos. Se usaron las reglas confirmadas por Julián en esta conversación. | Verificación automática con PostgreSQL 18 y `archivum_app`, HTTP simulado, Pint, Larastan y auditoría; los resultados finales se registran en el PR. Revisión humana y demostración externa pendientes: todavía no están disponibles ambas cuentas sandbox. El #76 queda al equipo de citas. |
 | Ejecución y pruebas HTTP (#252) | Codex | Actualización de ambos README con comandos, rutas integradas, configuración portable y alcance actual; colección y entorno ficticio de Postman en `tests/Postman`; arranque sin recargador y documentación sin sesiones web, con regresión. | Instalación aislada, Pint, Larastan, Pest, auditoría y comparación del contrato ejecutados automáticamente; recorrido representativo enviado desde la interfaz de Postman. Comprobación de la colección, imágenes y portabilidad registrada en el PR de #252. Julián autorizó la excepción a la revisión previa para integrar esta preparación. |
 | README, `.gitignore` y plantillas de `.github/` (commit inicial) | Claude Code | Redacción adaptada del proyecto guía. | Los revisó el PM, Julián Aguilar Salas. |
 | Etiquetas, milestones e issues | Claude Code | Redacción de los 29 milestones y los 196 issues a partir de la especificación, el plan y el enunciado, con el estilo descriptivo del proyecto guía, y su creación con `gh`. El tablero KanbanBoard lo creó Julián. | El PM, Julián Aguilar Salas, revisó la redacción de los issues, los milestones y sus formatos para que sigan estándares y buenas prácticas, y aprobó su creación el 10/10/2026. |
