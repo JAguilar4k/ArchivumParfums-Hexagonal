@@ -96,10 +96,10 @@ Cada regla debería tener al menos una prueba que la nombre, y cada issue cita e
 
 ### Botellas para decants
 
-- **R7.** Una botella guarda ml totales, ml restantes y ml reservados. Disponibles = restantes − reservados.
+- **R7.** Una botella guarda ml totales, ml restantes y ml reservados, todos enteros. Disponibles = restantes − reservados. La capacidad se toma de su presentación; al registrarla se permite indicar los ml restantes iniciales, entre 0 y esa capacidad.
 - **R8.** Todo movimiento queda en el historial con fecha, ml, motivo y quién lo hizo: reserva, liberación, consumo por decant vendido o canjeado, y ajuste manual con motivo obligatorio.
 - **R9.** Nunca se reservan ni descuentan más ml de los disponibles, aunque lleguen dos pedidos a la vez: `UPDATE` condicional en la base y `CHECK` que impide restantes o reservados negativos, y reservados mayores que restantes.
-- **R10.** Al llegar a 0 ml, la botella pasa a vacía y sus decants dejan de ofrecerse.
+- **R10.** Al llegar a 0 ml, la botella pasa a vacía y sus decants dejan de ofrecerse. Una botella vacía no admite ajustes; tampoco se ofrecen decants de un perfume o una presentación inactivos.
 
 ### Citas de prueba
 
@@ -122,14 +122,14 @@ Cada regla debería tener al menos una prueba que la nombre, y cada issue cita e
 ### Pedidos
 
 - **R23.** Un pedido puede llevar botellas (bajo pedido) y decants.
-- **R24.** Al crear el pedido se cobra el 50 % de las botellas más el 100 % de los decants que no se paguen con paquete; el resto de las botellas se paga al entregar. Si lo que toca cobrar es ₡0, el pedido se confirma sin pasar por la pasarela.
+- **R24.** Al crear el pedido se cobra el 50 % de las botellas más el 100 % de los decants que no se paguen con paquete; el resto de las botellas se paga al entregar. El porcentaje configurado se aplica una sola vez sobre el total de las botellas y se redondea al colón superior; el pedido conserva ese porcentaje aunque cambie después la configuración. Si lo que toca cobrar es ₡0, el pedido se confirma sin pasar por la pasarela.
 - **R25.** Al crear el pedido se reservan los ml de sus decants. Si no se paga en 30 min (**supuesto**), el pedido vence y los ml se liberan.
 - **R26.** Con el pago confirmado, el pedido pasa a `confirmed`: los ml reservados se consumen al preparar los decants y las botellas esperan su orden de compra.
 - **R27.** Cuando la orden de compra se recibe, sus pedidos ligados pasan a `ready` y se avisa al cliente.
 - **R28.** La entrega es en persona o por retiro y se coordina fuera del sistema (WhatsApp, o el extra de WhatsApp). El dueño marca `delivered` cuando no queda saldo.
-- **R29.** El saldo se paga en línea, o el dueño lo registra como pagado en la entrega (SINPE o efectivo, con referencia). Solo un dueño puede hacer ese registro, y queda auditado.
-- **R30.** Cancelación por el cliente: sin costo antes de pagar; con reembolso del depósito antes de que la botella se pida al proveedor; sin reembolso después (**supuesto**, basado en que hoy el dueño se queda con el perfume).
-- **R31.** Si el proveedor no tiene un perfume, el dueño marca esa línea como no disponible y se reembolsa lo pagado por ella.
+- **R29.** El saldo se paga en línea cuando el pedido está `ready`, o el dueño lo registra como pagado en la entrega (SINPE o efectivo, con referencia). El saldo no tiene un vencimiento automático nuevo. Solo un dueño puede hacer el registro manual, y queda auditado. Una devolución pendiente debe resolverse antes de cobrar el saldo o entregar, para no usar como crédito dinero que se está devolviendo.
+- **R30.** El cliente puede cancelar un pedido `pending_payment` o `confirmed` antes de encargar las botellas o preparar cualquier decant. Se libera lo reservado y se solicita devolver todo lo pagado. Con decants preparados o botellas encargadas se rechaza la cancelación con 409; no se borra el historial del pedido.
+- **R31.** Si el proveedor no tiene un perfume, el dueño marca su línea de botella `ordered` como no disponible y se solicita reembolsar lo pagado por ella. Si no queda ninguna línea disponible, el pedido pasa a `cancelled` y se solicita todo el importe confirmado que todavía no esté asignado a otro reembolso.
 
 ### Paquetes de decants (bonos)
 
@@ -141,10 +141,16 @@ Cada regla debería tener al menos una prueba que la nombre, y cada issue cita e
 ### Pagos
 
 - **R36.** Dos pasarelas intercambiables por configuración, detrás de un mismo puerto: ONVO Pay (tarjeta y SINPE Móvil) y PayPal (tarjeta).
-- **R37.** Los precios están en colones. La API estándar de PayPal no acepta colones (CRC no está en su lista de monedas), así que con PayPal se cobra en USD con un tipo de cambio configurable y se guardan ambos montos.
+- **R37.** Los precios están en colones. La API estándar de PayPal no acepta colones (CRC no está en su lista de monedas), así que con PayPal se cobra en USD con un tipo de cambio configurable y se guardan ambos montos. Se redondea al centavo más cercano, con medio centavo hacia arriba; la conversión vive en el adaptador.
 - **R38.** Un pago cambia de estado solo con un webhook cuyo origen se verificó (ONVO: encabezado `X-Webhook-Secret`; PayPal: verificación de firma) y que se procesa una sola vez (id de evento único por pasarela). Al volver del pago, el navegador solo muestra "procesando".
 - **R39.** Una tarea periódica concilia los pagos pendientes con la API de la pasarela, para que el estado del pedido siempre coincida con el del proveedor.
 - **R40.** Los reembolsos se registran ligados al pago original, se piden por la API de la pasarela en sandbox y se confirman por webhook o conciliación.
+
+Para **Investigación 1**, el enunciado específico exige confirmación por consulta autenticada a la API del proveedor y excluye webhooks. Es la excepción de este corte a R38; #94 y #95 mantienen la confirmación por webhook verificado e idempotente de Avance 2. La creación del cobro y la URL de regreso nunca confirman el pedido. Los reembolsos parciales confirmados se acumulan: al completar el importe original, `partially_refunded` pasa a `refunded`.
+
+Si se confirma un cobro después de cancelar o vencer el pedido, se registra el importe y se solicita su reembolso completo, sin cambiar el estado del pedido ni volver a reservar ml. Una orden PayPal solamente aprobada todavía no se captura cuando el pedido local ya está cancelado o vencido. Este tratamiento de la carrera de pago fue confirmado el 25/10/2026.
+
+Estas precisiones de R7, R10, R24, R29–R31 y R37 y de los reembolsos fueron confirmadas por la persona responsable en esta conversación, el 24 y el 25/10/2026. No autorizan dinero real ni la integración de extras.
 
 ### Proveedores
 
@@ -209,6 +215,7 @@ stateDiagram-v2
     confirmed --> ready: solo decants, ya preparados
     confirmed --> cancelled: antes de pedirse al proveedor, con reembolso
     ordered --> ready: orden de compra recibida
+    ordered --> cancelled: ninguna línea disponible, con reembolso
     ready --> delivered: saldo pagado y entregado
 ```
 
@@ -218,7 +225,7 @@ Líneas: botella `pending` → `ordered` → `received` o `unavailable`; decant 
 
 | Entidad | Estados |
 |---|---|
-| Pago | `pending` → `succeeded`, `failed` o `expired`; `succeeded` → `refunded` o `partially_refunded` |
+| Pago | `pending` → `succeeded`, `failed` o `expired`; `succeeded` → `refunded` o `partially_refunded`; `partially_refunded` → `refunded` al completar el total |
 | Paquete de decants | `pending_payment` → `active` → `exhausted` o `expired` |
 | Orden de compra | `draft` → `sent` → `paid` → `received`; `draft` o `sent` → `cancelled` |
 | Entrada de lista de espera | `waiting` → `offered` → `accepted` o `expired`; `waiting` → `cancelled` |

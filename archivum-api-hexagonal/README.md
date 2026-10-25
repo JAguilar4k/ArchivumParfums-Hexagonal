@@ -333,6 +333,10 @@ Las tiendas tienen identificadores fijos: `0192f0c4-0000-7000-8000-000000000001`
 
 ## Variables de entorno
 
+Para Investigación 1, el [recorrido de pagos del README raíz](../README.md#investigación-1-ejecutar-los-cobros) detalla alta sandbox, credenciales, selección de pasarela por tienda, pedidos, tarjetas/SINPE ficticios, consulta de estado y reembolsos. El [informe comparativo](../docs/investigacion-1.md) y el [expediente técnico](../docs/payment-gateways.md) se mantienen separados.
+
+`config/payments.php` lee `ONVO_SECRET_KEY`, `ONVO_PUBLISHABLE_KEY`, `ONVO_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYMENTS_RETURN_URL` y `PAYMENTS_CANCEL_URL`. `.env.example` las declara; todas las credenciales quedan vacías. El flujo actual usa checkout hospedado y consultas desde el servidor, sin webhook habilitado. PayPal solo admite el host sandbox fijado en configuración. La pasarela y el tipo CRC/USD se eligen en los ajustes existentes de la tienda.
+
 `.env.example` lista todas las variables que lee la aplicación. Las propias del producto:
 
 | Variable | Uso |

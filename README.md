@@ -21,6 +21,8 @@ La estructura, la arquitectura y la forma de trabajo siguen el proyecto guía de
 | [`docs/data-model.md`](docs/data-model.md) | Modelo de datos en tercera forma normal. |
 | [`docs/ubiquitous-language.md`](docs/ubiquitous-language.md) | Glosario del negocio, estados y convenciones de nombres. |
 | [`docs/patterns.md`](docs/patterns.md) | Patrones de diseño usados, previstos y descartados. |
+| [`docs/investigacion-1.md`](docs/investigacion-1.md) | Informe comparativo de ONVO, PayPal, Tilopay y GreenPay, con fuentes y costos. |
+| [`docs/payment-gateways.md`](docs/payment-gateways.md) | Investigación técnica, cálculos y evidencia del módulo de pagos. |
 | [`docs/adr/`](docs/adr/) | Registro de las decisiones de arquitectura. |
 
 ## Arquitectura
@@ -44,7 +46,7 @@ Avance 1 está en curso. `main` integra la base de Laravel y PostgreSQL, las pru
 | Corte | Fecha | Qué se entrega | Estado |
 | --- | --- | --- | --- |
 | Avance 1 | 21/10/2026 | Issues `avance-1`: proyecto base, arquitectura, calidad, despliegue, multi-inquilino, catálogo, vitrina, horarios y citas (M01 a M09). | En curso |
-| Investigación 1 | 28/10/2026 | Issues `investigacion-1`: botellas, pedidos y cobro con ONVO y PayPal, más el informe de pasarelas (M10 a M12). | Pendiente |
+| Investigación 1 | 28/10/2026 | Issues `investigacion-1`: botellas, pedidos y cobro con ONVO y PayPal, más el informe de pasarelas (M10 a M12). | Implementación en revisión en `feature/pagos`; faltan el #76 y la demostración con cuentas sandbox. |
 | Avance 2 | 18/11/2026 | Issues `avance-2`: pagos por webhook, cuentas y roles, seguridad, IA, cliente web y agenda del personal (M12 a M17). | Pendiente |
 | Investigación 2 | 25/11/2026 | Issues `investigacion-2`: auditoría cruzada (M14). | Pendiente |
 | Entrega final | 07/12/2026 | Issues `entrega-final`: paquetes, lista de espera, colas, avisos, agenda en vivo, proveedores y observabilidad, y los hallazgos de la auditoría corregidos. | Pendiente |
@@ -98,6 +100,71 @@ git diff -- openapi/v1.json
 
 Los comandos, la configuración en PowerShell, la separación de roles, las migraciones, el recorrido de Postman y la resolución de problemas se detallan en [el README de la API](archivum-api-hexagonal/README.md).
 
+## Investigación 1: ejecutar los cobros
+
+El [informe comparativo](docs/investigacion-1.md) y la [investigación técnica](docs/payment-gateways.md) se entregan por separado. La rama del corte es `feature/pagos`, según su enunciado. Para esta entrega el servidor confirma consultando al proveedor; los webhooks se incorporan en Avance 2. Las citas de prueba siguen siendo gratis: se cobran los pedidos del negocio.
+
+Primero completa la puesta en marcha de la API y ejecuta las migraciones como `archivum_owner` y `php artisan db:seed`. Los sembradores agregan botellas ficticias en ambas tiendas y conservan sus ml al repetirse. El [README de la API](archivum-api-hexagonal/README.md) explica cómo obtener tokens de las cuentas ficticias; se usarán el dueño `duena@archivumparfums.test` y la cliente `mariana@clientes.test`, con la contraseña local `ARCHIVUM_DEMO_PASSWORD`.
+
+### Cuentas y entorno de prueba
+
+Crea una cuenta de prueba de [ONVO](https://docs.onvopay.com/authentication) y una aplicación de [PayPal Developer sandbox](https://developer.paypal.com/sandbox-testing/overview), con comprador y vendedor ficticios. Copia sus credenciales únicamente a `archivum-api-hexagonal/.env`. El archivo [`.env.example`](archivum-api-hexagonal/.env.example) declara todas las variables vacías para secretos; `.env` permanece fuera de Git.
+
+| Variable | Uso |
+| --- | --- |
+| `ONVO_SECRET_KEY` | Llave secreta de prueba, con prefijo `onvo_test_`; obligatoria al usar ONVO. |
+| `ONVO_PUBLISHABLE_KEY` | Reservada para una integración del navegador; el checkout hospedado actual no la necesita. |
+| `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Credenciales de la aplicación **sandbox** vendedora. El host REST queda fijado al sandbox en `config/payments.php`. |
+| `PAYMENTS_RETURN_URL`, `PAYMENTS_CANCEL_URL` | URLs propias de regreso, por ejemplo la dirección local de `/api/v1`. Solo sirven para navegación; no cambian el estado del pago. |
+| `ONVO_WEBHOOK_SECRET`, `PAYPAL_WEBHOOK_ID` | Preparación del puerto de verificación de Avance 2. Para este corte pueden quedar vacíos; no hay endpoint de webhook habilitado. |
+
+Después de editar `.env`, ejecuta `php artisan config:clear`. No copies tokens OAuth, contraseñas de cuentas ni secretos a capturas, al informe o a GitHub. Los adaptadores rechazan una configuración fuera de los ambientes de prueba admitidos.
+
+### Cambiar de pasarela y repetir el flujo
+
+En Postman define `base_url`, `owner_token`, `customer_token`, `order_id` y `payment_id`. Usa `Authorization: Bearer ...` y `Content-Type: application/json`. Los UUID de productos se obtienen de la vitrina, no se inventan.
+
+1. Como dueño, envía `PATCH /api/v1/panel/tienda` con `{"ajustes":{"pasarela_por_defecto":"onvo"}}`. Para PayPal usa `{"ajustes":{"pasarela_por_defecto":"paypal","tipo_cambio_usd":500}}`; 500 es solo un tipo ilustrativo que debe sustituirse por el elegido para la demostración. Cambia únicamente configuración de la tienda, sin editar controladores.
+2. Consulta `GET /api/v1/tiendas/archivumparfums/perfumes`, abre el detalle de un perfume y toma una presentación activa con precio. El detalle también expone `decants` cuando existe una botella abierta con ml disponibles.
+3. Como cliente, crea el pedido con `POST /api/v1/tiendas/archivumparfums/pedidos`, por ejemplo `{"lineas":[{"presentacion_id":"UUID_DE_LA_PRESENTACION","cantidad":1}]}`. Para un decant usa `{"lineas":[{"botella_id":"UUID_DE_LA_BOTELLA","ml":5}]}`. Conserva `data.id` como `order_id`.
+4. Envía `POST /api/v1/cuenta/pedidos/{{order_id}}/pagos` con `{"medio":"tarjeta"}`. En ONVO también se admite `{"medio":"sinpe_movil"}`. El servidor calcula depósito o total desde el pedido; ignora montos, propósito y estados enviados por el navegador. Guarda `data.id` como `payment_id` y abre `data.url_pago`.
+5. Completa el checkout externo de prueba. ONVO recibe el monto CRC multiplicado por 100; PayPal recibe USD como texto decimal de dos cifras. En PayPal debe obtenerse la aprobación del comprador y después la captura; `APPROVED` por sí solo sigue pendiente. La opción de tarjeta/checkout como invitado debe estar habilitada en la cuenta sandbox y verificarse antes de la presentación.
+6. Consulta `GET /api/v1/cuenta/pagos/{{payment_id}}`. La API pregunta al proveedor y, con los datos coincidentes, registra el resultado y actualiza el pedido en la misma transacción. Consulta también `GET /api/v1/cuenta/pedidos/{{order_id}}`: una aprobación acredita el monto; un rechazo conserva el pedido sin confirmar.
+7. Repite desde un **pedido nuevo** al cambiar de proveedor: un pago ya iniciado conserva la pasarela que lo creó. El saldo solo puede iniciarse cuando el pedido esté listo. La recepción de botellas del módulo de compras sigue correspondiendo a #177.
+
+Un doble clic devuelve el intento pendiente existente. Ante un resultado de red incierto se responde **202**, `consulta_pendiente: true` y `Retry-After: 30`; se conserva el intento y no se vuelve a enviar el POST de cobro. Si no llegó ninguna referencia remota, hace falta conciliar ese intento con el proveedor antes de permitir otro: el sistema mantiene el bloqueo y no supone que fue rechazado.
+
+Si un cobro se confirma después de cancelar o vencer el pedido, se conserva ese estado, se registra el dinero recibido y se genera su devolución completa; los ml liberados no se reservan otra vez. ONVO solo habilita otro intento tras verificar que el checkout rechazado quedó cerrado, para que una pestaña anterior no pueda cobrar además de la nueva.
+
+### Datos ficticios y reembolsos
+
+En [ONVO Testing](https://docs.onvopay.com/payments/testing), la tarjeta `4242424242424242` aprueba, `4000000000000002` se rechaza y `4000000000000119` simula error del procesador. Usa fecha futura y CVC ficticio en el checkout de prueba. SINPE Móvil aprobado usa el número de prueba `+50688888888`; `+50688889521` simula una transferencia que nunca llega. No transfieras dinero desde una cuenta bancaria real. Las identificaciones y los datos del comprador deben ser ficticios. Consulta la guía oficial por si cambia un dato de simulación.
+
+En PayPal usa la cuenta personal sandbox compradora y la aplicación vendedora; las tarjetas de prueba se generan en su [herramienta oficial](https://developer.paypal.com/tools/sandbox/card-testing/). No uses las credenciales del vendedor para aprobar su propia compra. La demostración con tarjeta queda pendiente hasta comprobar la configuración efectiva del sandbox; una prueba con `Http::fake()` no acredita ese paso.
+
+Para devolver un pedido pagado que todavía admite cancelación, como cliente envía `POST /api/v1/cuenta/pedidos/{{order_id}}/cancelacion`. El sistema registra los reembolsos pendientes y libera sus ml reservados. Como dueño, envía `POST /api/v1/panel/pedidos/{{order_id}}/reembolsos` sin monto: procesa lo calculado en el servidor. ONVO envía y consulta la devolución; repetir la operación consulta una referencia existente y no devuelve dos veces el importe. El monto solo se descuenta de `pagado` al confirmarse. PayPal conserva el registro pendiente: el enunciado permite documentar su devolución en este corte, cuyo flujo REST está en el expediente técnico.
+
+### Flujo y comprobación
+
+```mermaid
+flowchart TD
+    A[Pedido con precios calculados por el servidor] --> B[Guardar y confirmar el intento local]
+    B --> C{Configuración de la tienda}
+    C -->|ONVO| D[Checkout tarjeta o SINPE Móvil en CRC]
+    C -->|PayPal| E[Orden en USD y aprobación del comprador]
+    D --> F[Consulta del servidor a ONVO]
+    E --> G[Consulta del servidor y captura PayPal]
+    F --> H{Resultado verificado}
+    G --> H
+    H -->|Aprobado| I[Transacción local: pago y monto del pedido]
+    H -->|Rechazado| J[Pago fallido y pedido sin confirmar]
+    H -->|Comunicación incierta| K[Conservar pendiente y referencia; consultar sin duplicar]
+```
+
+En la carpeta de la API, ejecuta `composer lint`, `composer analyse`, `composer test`, `composer openapi` y `composer audit --locked`. Todas las pruebas usan HTTP simulado y la suite bloquea peticiones no simuladas. Las pruebas de últimos ml y doble cobro ejecutan dos procesos contra PostgreSQL, fuera de la transacción del test.
+
+La presentación dura cinco minutos: ONVO aprobado y rechazado, SINPE Móvil, PayPal aprobado, cambio de configuración, pruebas verdes y una decisión del informe. Al 25/10/2026 faltan ambas cuentas de prueba y la evidencia externa. El #76 depende de #62 y #67, junto con horarios/citas #51–#61, que se dejaron al equipo. No se declara ese issue terminado, ni se crea `v-investigacion1` sobre una entrega incompleta.
+
 ## Forma de trabajo
 
 - **Planificación:** cada requisito es un issue dentro de un milestone, uno por módulo, con seguimiento en el [tablero del proyecto](https://github.com/users/JAguilar4k/projects/4).
@@ -121,6 +188,7 @@ El enunciado permite usar asistentes de IA con una condición: cada integrante d
 
 | Parte | Asistente | Qué generó la IA | Qué verificó el equipo |
 | --- | --- | --- | --- |
+| Investigación 1: botellas, pedidos, pagos e informe (#68–#93, excepto #76) | Codex | Dominio, adaptadores HTTP directos de ONVO y PayPal, persistencia con RLS y restricciones, endpoints, pruebas de concurrencia, contrato OpenAPI y documentos separados de investigación y comparación. Se usaron las reglas confirmadas por Julián en esta conversación. | Verificación automática con PostgreSQL 18 y `archivum_app`, HTTP simulado, Pint, Larastan y auditoría; los resultados finales se registran en el PR. Revisión humana y demostración externa pendientes: todavía no están disponibles ambas cuentas sandbox. El #76 queda al equipo de citas. |
 | Ejecución y pruebas HTTP (#252) | Codex | Actualización de ambos README con comandos, rutas integradas, configuración portable y alcance actual; colección y entorno ficticio de Postman en `tests/Postman`; arranque sin recargador y documentación sin sesiones web, con regresión. | Instalación aislada, Pint, Larastan, Pest, auditoría y comparación del contrato ejecutados automáticamente; recorrido representativo enviado desde la interfaz de Postman. Comprobación de la colección, imágenes y portabilidad registrada en el PR de #252. Julián autorizó la excepción a la revisión previa para integrar esta preparación. |
 | README, `.gitignore` y plantillas de `.github/` (commit inicial) | Claude Code | Redacción adaptada del proyecto guía. | Los revisó el PM, Julián Aguilar Salas. |
 | Etiquetas, milestones e issues | Claude Code | Redacción de los 29 milestones y los 196 issues a partir de la especificación, el plan y el enunciado, con el estilo descriptivo del proyecto guía, y su creación con `gh`. El tablero KanbanBoard lo creó Julián. | El PM, Julián Aguilar Salas, revisó la redacción de los issues, los milestones y sus formatos para que sigan estándares y buenas prácticas, y aprobó su creación el 10/10/2026. |
