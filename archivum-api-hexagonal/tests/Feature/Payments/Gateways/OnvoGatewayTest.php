@@ -144,7 +144,7 @@ it('closes the declined checkout and intent before reporting a terminal failure'
     'documented last payment error without an attempt counter' => [['lastPaymentError' => ['code' => 'declined']]],
 ]);
 
-it('keeps an uncertain remote closure pending even after successful cancellation responses', function (string $initialStatus, string $sessionStatus, string $intentStatus): void {
+it('keeps the payment pending until remote closure is verified', function (string $initialStatus, string $sessionStatus, string $intentStatus): void {
     Http::fakeSequence()
         ->push(['id' => 'session-1', 'mode' => 'test', 'status' => 'open', 'paymentIntentId' => 'intent-1'])
         ->push(['id' => 'intent-1', 'mode' => 'test', 'amount' => 500_000, 'currency' => 'CRC', 'status' => $initialStatus, 'confirmationAttempts' => 1])
@@ -166,7 +166,7 @@ it('keeps an uncertain remote closure pending even after successful cancellation
     ['failed', 'expired', 'requires_payment_method'],
 ]);
 
-it('closes a definitively failed checkout without requiring the intent to become canceled', function (string $finalStatus): void {
+it('closes a failed checkout without requiring a canceled intent', function (string $finalStatus): void {
     Http::fakeSequence()
         ->push(['id' => 'session-1', 'status' => 'open', 'paymentIntentId' => 'intent-1'])
         ->push(['id' => 'intent-1', 'mode' => 'test', 'amount' => 500_000, 'currency' => 'CRC', 'status' => 'failed'])
@@ -197,7 +197,7 @@ it('closes a declined checkout whose session responses omit mode', function (): 
     Http::assertSentCount(6);
 });
 
-it('accepts a successful charge that wins the race against closing a declined checkout', function (string $initialStatus): void {
+it('confirms a charge that succeeds during checkout closure', function (string $initialStatus): void {
     Http::fakeSequence()
         ->push(['id' => 'session-1', 'mode' => 'test', 'status' => 'open', 'paymentIntentId' => 'intent-1'])
         ->push(['id' => 'intent-1', 'mode' => 'test', 'amount' => 500_000, 'currency' => 'CRC', 'status' => $initialStatus, 'lastPaymentError' => ['code' => 'declined']])
@@ -228,7 +228,7 @@ it('verifies closed remote state after losing both cancellation responses', func
     Http::assertSentCount(6);
 });
 
-it('does not treat a changed session intent or a mismatched final amount as safely closed', function (string $sessionIntent, int $amount, string $exception): void {
+it('rejects closure with a changed intent or amount', function (string $sessionIntent, int $amount, string $exception): void {
     Http::fakeSequence()
         ->push(['id' => 'session-1', 'mode' => 'test', 'status' => 'open', 'paymentIntentId' => 'intent-1'])
         ->push(['id' => 'intent-1', 'mode' => 'test', 'amount' => 500_000, 'currency' => 'CRC', 'status' => 'requires_payment_method', 'confirmationAttempts' => 1])

@@ -30,7 +30,7 @@ beforeEach(function (): void {
     Http::preventStrayRequests();
 });
 
-it('creates the server-calculated charge and ignores browser amounts states and tenant', function (): void {
+it('creates a charge from server values and ignores browser overrides', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business, withDecant: true)['order'];
     Http::fake(['api.onvopay.com/v1/checkout/sessions/one-time-link' => Http::response(['id' => 'session-1', 'mode' => 'test', 'url' => 'https://checkout.onvopay.com/pay/session-1', 'paymentIntentId' => 'intent-1'], 201)]);
@@ -56,7 +56,7 @@ it('charges a decant-only order as a full payment', function (): void {
     Http::assertSentCount(1);
 });
 
-it('creates and confirms a SINPE Mobile payment through the API with a checkout that omits mode', function (): void {
+it('confirms SINPE when checkout omits mode', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business)['order'];
     Http::fake([
@@ -119,7 +119,7 @@ it('records an explicit refusal while leaving the order unpaid', function (): vo
     Http::assertSentCount(1);
 });
 
-it('records a definitively failed intent with an expired checkout and permits one new payment attempt', function (): void {
+it('allows one retry after a failed intent and an expired checkout', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business)['order'];
     $payment = StoredPayments::create($business, $order);
@@ -179,7 +179,7 @@ it('records a late approval and one full refund without reactivating a closed or
     Http::assertSentCount(2);
 })->with(['cancelled', 'expired']);
 
-it('does not capture a merely approved PayPal order after the local order was cancelled', function (): void {
+it('does not capture PayPal approval for a cancelled order', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business)['order'];
     $payment = StoredPayments::create($business, $order, gateway: 'paypal');
@@ -197,7 +197,7 @@ it('does not capture a merely approved PayPal order after the local order was ca
     Http::assertSentCount(2);
 });
 
-it('queries an already created payment after the initiation deadline instead of trusting the local clock', function (): void {
+it('queries an existing payment after the order deadline', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business)['order'];
     $payment = StoredPayments::create($business, $order);
@@ -212,7 +212,7 @@ it('queries an already created payment after the initiation deadline instead of 
     Http::assertSentCount(2);
 });
 
-it('reuses the pending payment when a declined hosted checkout cannot yet be closed safely', function (): void {
+it('reuses the payment while checkout closure is uncertain', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business)['order'];
     $payment = StoredPayments::create($business, $order);
@@ -328,7 +328,7 @@ it('returns 422 for SINPE on PayPal or an unset conversion rate', function (bool
     Http::assertNothingSent();
 })->with([true, false]);
 
-it('rejects unrepresentable dollar amounts before committing an attempt or making an HTTP request', function (int $amount, int $rate): void {
+it('returns 422 for unrepresentable USD amounts before creating a payment', function (int $amount, int $rate): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business)['order'];
     app(BusinessTransaction::class)->scope($business->business->id);
@@ -449,7 +449,7 @@ it('retains the committed attempt if saving its external reference fails', funct
     Http::assertSentCount(1);
 });
 
-it('refunds the server allocation from a paid cancellation once and ignores a browser amount', function (): void {
+it('refunds a cancelled order once using the server amount', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business, 'confirmed')['order'];
     $payment = StoredPayments::create($business, $order, 'succeeded');
@@ -471,7 +471,7 @@ it('refunds the server allocation from a paid cancellation once and ignores a br
     Http::assertSentCount(2);
 });
 
-it('preserves paid money for pending and failed refunds and queries only pending outcomes again', function (string $status, string $state): void {
+it('preserves paid money until a refund succeeds', function (string $status, string $state): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business, 'confirmed')['order'];
     $payment = StoredPayments::create($business, $order, 'succeeded');
@@ -499,7 +499,7 @@ it('preserves paid money for pending and failed refunds and queries only pending
     Http::assertSentCount($status === 'pending' ? 3 : 2);
 })->with([['pending', 'pendiente'], ['failed', 'fallido']]);
 
-it('does not resend an uncertain refund POST and preserves the money as not yet returned', function (): void {
+it('does not resend an uncertain refund or record it as returned', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business, 'confirmed')['order'];
     $payment = StoredPayments::create($business, $order, 'succeeded');
@@ -517,7 +517,7 @@ it('does not resend an uncertain refund POST and preserves the money as not yet 
     Http::assertSentCount(1);
 });
 
-it('preserves a refund reference across financial rollback and retries only the safe query', function (): void {
+it('preserves the refund reference after rollback and retries its query', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business, 'confirmed')['order'];
     $payment = StoredPayments::create($business, $order, 'succeeded');

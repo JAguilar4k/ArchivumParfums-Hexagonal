@@ -18,7 +18,7 @@ beforeEach(function (): void {
     Http::preventStrayRequests();
 });
 
-it('R37: creates an approval order with an exact USD decimal and stable idempotency key', function (int $colones, string $rate, int $cents, string $decimal): void {
+it('R37: creates a USD order with a stable idempotency key', function (int $colones, string $rate, int $cents, string $decimal): void {
     Http::fake([
         'api-m.sandbox.paypal.com/v1/oauth2/token' => Http::response(['access_token' => 'fake-token']),
         'api-m.sandbox.paypal.com/v2/checkout/orders' => Http::response(['id' => 'order-1', 'status' => 'CREATED', 'links' => [['rel' => 'payer-action', 'href' => 'https://www.sandbox.paypal.com/checkoutnow?token=order-1']]], 201),
@@ -94,7 +94,7 @@ it('does not contact PayPal with an unsupported method or exchange rate', functi
     Http::assertNothingSent();
 })->with([[null, PaymentMethod::Card], ['0', PaymentMethod::Card], ['-1', PaymentMethod::Card], ['1.1234567', PaymentMethod::Card], ['500', PaymentMethod::SinpeMobile]]);
 
-it('captures only after a server query confirms approval and requires a completed capture', function (string $captureStatus, PaymentStatus $expected): void {
+it('credits an approved order only after capture completes', function (string $captureStatus, PaymentStatus $expected): void {
     Http::fake([
         'api-m.sandbox.paypal.com/v1/oauth2/token' => Http::response(['access_token' => 'fake-token']),
         'api-m.sandbox.paypal.com/v2/checkout/orders/order-1' => Http::response(['id' => 'order-1', 'status' => 'APPROVED', 'purchase_units' => [['amount' => ['currency_code' => 'USD', 'value' => '30.00']]]]),
