@@ -4,7 +4,7 @@ API REST de ArchivumParfums. Laravel 13, PHP 8.4 y PostgreSQL 18.
 
 ## Alcance integrado
 
-La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Los servicios y horarios, la disponibilidad, las citas, los webhooks de pagos y el cliente Vue siguen pendientes de integración. La demostración externa de pagos espera las cuentas sandbox; el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
+La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Los servicios y horarios, la disponibilidad, las citas, los webhooks de pagos y el cliente Vue siguen pendientes de integración. Los escenarios externos ONVO y PayPal ya tienen [evidencia sandbox](../docs/evidencia-investigacion-1/README.md); el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
 
 ## Requisitos
 
@@ -256,6 +256,8 @@ Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista p
 ## Recorrido básico en Postman
 
 La colección y el entorno se incluyen en [`tests/Postman/`](tests/Postman/README.md), con 35 peticiones ordenadas, datos ficticios y captura de variables desde las respuestas. Al clonar el repositorio, importa ambos JSON y ajusta `base_url` a la dirección real de tu API. La carpeta contiene las instrucciones y el alcance; las pruebas HTTP no añaden dependencias a las capas del producto.
+
+Para los pagos de Investigación 1 hay [dos colecciones adicionales y sus entornos](tests/Postman/README.md#investigación-1-archivos-y-nombres-del-recorrido): ONVO con 24 peticiones y PayPal con 21. Con sesión preparan el recorrido, capturan referencias y comprueban el resultado después del checkout manual del navegador. Sin cuenta, el mismo README explica cómo enviar las peticiones y copiar las referencias a mano, como en Avance 1.
 
 Realiza este recorrido con las cuentas ficticias de una instalación local. Configura **Accept: application/json**. En los POST y PATCH con JSON, usa **Body → raw → JSON**; en archivos, usa **Body → form-data** y deja que Postman genere `Content-Type` con su boundary.
 

@@ -2,7 +2,7 @@
 
 Issue [#93](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/93) · Investigación aplicada 1 · **Fuentes consultadas el 24/10/2026**, zona America/Costa_Rica.
 
-El [informe comparativo](investigacion-1.md) es el documento de entrega de 1.000 a 1.800 palabras. Este expediente conserva el análisis técnico y las limitaciones que no caben en él. La documentación leída acredita contratos publicados; no acredita afiliaciones comerciales, cobros externos, retiros ni tiempos de trabajo del equipo.
+El [informe comparativo](investigacion-1.md) es el documento de entrega de 1.000 a 1.800 palabras. Este expediente conserva el análisis técnico y las limitaciones que no caben en él. La documentación leída acredita contratos publicados; las ejecuciones sandbox de ONVO del **25/10/2026** y PayPal del **26/10/2026** se registran por separado en la sección 9. No acreditan afiliaciones comerciales, dinero real, retiros bancarios ni tiempos de trabajo medidos del equipo.
 
 ## 1. Alcance, fuentes locales y precedencia
 
@@ -81,7 +81,7 @@ ONVO comercial devolvió 403 en la apertura directa; el buscador devolvió el co
 | SINPE Móvil en el flujo publicado | Sí [O5] | No en el producto estudiado | Sí [T3] | No confirmado; [G4] describe IBAN |
 | Devolución documentada | API de reembolso [O7] | API sobre captura [P6] | `processModification` [T5] | Trámite de devolución descrito por soporte [G3] |
 
-No se confunden plazos de afiliación comercial, transferencia bancaria o devolución con tiempo de obtener credenciales sandbox. Para las cuatro, el equipo todavía debe registrar el trámite real que le corresponda. No se contactó a los proveedores como parte de esta investigación.
+No se confunden plazos de afiliación comercial, transferencia bancaria o devolución con tiempo de obtener credenciales sandbox. El 25/10/2026 se dispuso de credenciales ONVO y PayPal y se autenticaron correctamente; no se midió cuánto tardó obtenerlas ni se deduce un SLA de ese hecho. Los trámites de Tilopay y GreenPay no se ejecutaron. No se solicitaron cotizaciones ni se contactó soporte como parte de esta investigación.
 
 ## 4. Cálculo de costos y límites
 
@@ -180,7 +180,7 @@ Los estados pertenecen al recurso consultado; no se intercambia el enum de `Refu
 
 El cierre es una política de seguridad de Archivum, **no una exigencia expresa del PDF**: impide abrir otro intento mientras el checkout anterior siga siendo pagable. `closeCheckout()` expira la sesión, solicita cancelar la intención cuando corresponde y vuelve a consultar ambas. El cierre se acepta con sesión `expired` e intención terminal `failed` o `canceled`; no se exige convertir un fallo definitivo en una cancelación que ONVO no promete. Si la reconsulta informa `succeeded`, se conserva ese éxito; si no permite comprobar un cierre seguro, el pago sigue pendiente de conciliación. No se presupone que expirar la sesión cancele automáticamente su intención. Los endpoints de [expiración](https://docs.onvopay.com/api/expirar-una-sesion-de-checkout) y [cancelación](https://docs.onvopay.com/api/cancelar-una-intencion-de-pago) fueron reconsultados el 25/10/2026.
 
-Los estados no reconocidos conservan la incertidumbre y se registran sin secretos; `failed`, al estar documentado y tener traducción explícita, no se clasifica como desconocido. Esta revisión del contrato y del mapeo no acredita que estos desenlaces se hayan ejecutado en sandbox.
+Los estados no reconocidos conservan la incertidumbre y se registran sin secretos; `failed`, al estar documentado y tener traducción explícita, no se clasifica como desconocido. El recorrido externo de la sección 9 acredita un pago local `fallido` tras rechazo de tarjeta; no demuestra que se hayan forzado todas las variantes remotas de esta tabla ni identifica por sí solo cuál fue el estado intermedio de la intención.
 
 SINPE utiliza `mobile_number`; no debe mandarse ese medio a una pasarela sin la capacidad. La validación real de identificación y monto exacto de [O5] no debe reemplazarse con una suposición basada en el simulador parcial de [O6].
 
@@ -188,13 +188,13 @@ SINPE utiliza `mobile_number`; no debe mandarse ese medio a una pasarela sin la 
 
 El [OpenAPI oficial](https://docs.onvopay.com/openapi.yaml), vuelto a consultar el 25/10/2026, vincula tanto el POST de `checkout/sessions/one-time-link` como el GET de `checkout/sessions/{id}` con `CheckoutSession`. Ese esquema **sí describe `mode` en la raíz**, con valores `test` y `live`; no tiene una lista `required`. La referencia HTML resumida omite detalles que aparecen en el YAML. Esto no demuestra que una respuesta real omita el campo, pero tampoco garantiza formalmente su presencia.
 
-La política del adaptador distingue la navegación del efecto financiero: el checkout puede omitir `mode`, mientras que un valor presente distinto de `test`, incluido `null`, se rechaza. Las claves continúan limitadas al prefijo de prueba, con HTTPS y host fijos. Para la intención que acredita dinero y el reembolso que lo descuenta se mantiene la exigencia conservadora de `mode: "test"`, además de ID, relación, moneda, importe y estado coincidentes. Esa exigencia financiera es una decisión de Archivum; los esquemas `PaymentIntent` y `Refund` tampoco marcan sus propiedades como requeridas. Si esas respuestas reales omiten el modo, el sistema conserva la operación pendiente para conciliación, hasta verificar el contrato con ONVO. No se afirma haber completado esa validación externa.
+La política del adaptador distingue la navegación del efecto financiero: el checkout puede omitir `mode`, mientras que un valor presente distinto de `test`, incluido `null`, se rechaza. Las claves continúan limitadas al prefijo de prueba, con HTTPS y host fijos. Para la intención que acredita dinero y el reembolso que lo descuenta se mantiene la exigencia conservadora de `mode: "test"`, además de ID, relación, moneda, importe y estado coincidentes. Esa exigencia financiera es una decisión de Archivum; los esquemas `PaymentIntent` y `Refund` tampoco marcan sus propiedades como requeridas. Si esas respuestas reales omiten el modo, el sistema conserva la operación pendiente para conciliación. El 25/10/2026 funcionaron creación, consulta y reembolso con la cuenta sandbox configurada; ello confirma compatibilidad en esos escenarios, no todas las variantes posibles del contrato.
 
 La prueba de regresión reproduce el caso de checkout sin `mode`: antes devolvía 202 al crear; ahora entrega el checkout y puede confirmar al consultar una intención de prueba válida. También prueba el cierre de un checkout rechazado y la recuperación de su intención para un reembolso cuando las sesiones omiten el campo.
 
 En la API, el cliente elige `{"medio":"sinpe_movil"}` al iniciar el pago. `PaymentController::store()` lo convierte en `PaymentMethod::SinpeMobile`; `OnvoGateway::supportedMethods()` declara la capacidad y `create()` envía **solo** `paymentMethodTypes: ["mobile_number"]`. Tarjeta envía **solo** `["card"]`. El esquema `CreateOneTimeLink` define ese parámetro como la lista de métodos permitidos. No se envía una lista con ambos para que el comprador cambie el medio elegido. PayPal rechaza SINPE antes del POST externo.
 
-La aplicación de este corte ofrece ese recorrido por API/Postman y el checkout hospedado de ONVO; el selector de una interfaz propia sigue dentro del cliente web pendiente. La respuesta local `medio` representa la elección guardada, no una inspección independiente del instrumento final: la intención documenta `paymentMethod.type`, pero su presencia tampoco es obligatoria y el adaptador actual no la usa para verificar el instrumento. La prueba HTTP completa acredita la cadena de selección, persistencia, restricción enviada y confirmación sin duplicación; comprobar que el checkout real ofrece únicamente SINPE y devuelve ese instrumento sigue pendiente de la cuenta sandbox.
+La aplicación de este corte ofrece ese recorrido por API y el checkout hospedado de ONVO; el selector de una interfaz propia sigue dentro del cliente web pendiente. La respuesta local `medio` representa la elección guardada, no una inspección independiente del instrumento final: la intención documenta `paymentMethod.type`, pero su presencia tampoco es obligatoria y el adaptador actual no la usa para verificar el instrumento. El 25/10/2026 se observó el [checkout con SINPE como único medio](evidencia-investigacion-1/onvo-sinpe-unico-medio.png), se completó el simulador y la consulta autenticada de Archivum confirmó ₡7.500 con `medio = "sinpe_movil"`. Ese recorrido combina evidencia visual y HTTP; no se atribuye a la respuesta local una verificación adicional de `paymentMethod.type`. Para repetirlo se eligieron peticiones manuales en Postman Lightweight; la colección y el entorno JSON están preparados, pero no se importaron ni se ejecutaron en Postman nativo.
 
 No se encontró en el contexto completo consultado una garantía de `Idempotency-Key` de ONVO. La idempotencia local debe reservar el intento antes de llamar y conservar su referencia. Si hay timeout al crear y no llega referencia, se requiere conciliación; repetir `POST` a ciegas no queda justificado. No se copia el header de Stripe del repo guía.
 
@@ -241,17 +241,41 @@ No se crearon issues nuevos para resolver diferencias del encargo. La extensión
 
 ## 9. Evidencia empírica y defensa
 
-Estado al redactar el documento: **no se registraron aquí cobros reales de sandbox, retiros ni mediciones de tiempo**. Los identificadores, capturas y resultados deben provenir de ejecuciones efectivas; no se sustituyen por ejemplos de documentación ni por una respuesta de `Http::fake()`.
+Actualización del **25/10/2026**: se ejecutaron los escenarios ONVO de tarjeta aprobada, tarjeta rechazada, SINPE Móvil y reembolso mediante la API local y el checkout en navegador, con credenciales sandbox. No hubo dinero real ni transferencia bancaria SINPE. La evidencia de ejecución se distingue de los ejemplos de documentación y de `Http::fake()`. Los JSON de colección y entorno quedaron listos como apoyo, pero no fueron importados ni ejecutados en Postman nativo; el guion manual se ofrece para Lightweight sin exigir importación ni cuenta Postman. No se hicieron retiros ni se midieron tiempos de integración.
 
 | Verificación | Estado de evidencia en este expediente |
 | --- | --- |
-| ONVO tarjeta aprobada y rechazada | Pendiente de demostración externa. |
-| ONVO SINPE Móvil | Pendiente de demostración externa. |
-| PayPal tarjeta, aprobación y captura | Pendiente de demostración externa. |
+| ONVO tarjeta aprobada y rechazada | Ejecutadas el 25/10/2026: confirmación de ₡7.500 y repetición sin duplicación; rechazo con pedido sin importe pagado. |
+| ONVO SINPE Móvil | Ejecutado el 25/10/2026: único medio en checkout, simulación y confirmación de ₡7.500 desde servidor. |
+| ONVO reembolso del depósito | Ejecutado el 25/10/2026: devolución confirmada por ₡7.500; pago reembolsado y pedido cancelado con pagado cero. |
+| PayPal tarjeta, aprobación y captura | Ejecutadas el 26/10/2026: dos consultas confirmadas por ₡7.500, cobro de USD 15,00 y exactamente una captura `COMPLETED` comprobada directamente con el proveedor. |
 | Cambio de pasarela solo por configuración | Debe enlazarse a prueba y demostración del código integrado. |
 | Pruebas locales de adaptadores | 47 casos, 135 aserciones aprobados el 24/10/2026; comando indicado abajo. |
 | CI verde | Debe enlazarse a ejecución identificada de CI; no se infiere del resultado local. |
 | Pasarela que llevó más tiempo | No medido; se necesita bitácora real de ambos adaptadores. |
+
+### Resultados externos ONVO del 25/10/2026
+
+La autenticación ONVO se comprobó con HTTP 200 antes del recorrido. Después, la API de Archivum creó los checkouts con HTTP 201 y el navegador permitió completar los escenarios ficticios. Los registros sanitizados revisados fueron `onvo-card-result.json`, `onvo-declined-result.json`, `onvo-sinpe-result.json` y `onvo-refund-result.json`; no se consultaron ni incorporaron archivos privados de credenciales.
+
+| Escenario | Resultado del servidor de Archivum | Evidencia visual |
+| --- | --- | --- |
+| Visa `4242424242424242` | Dos GET del mismo pago devolvieron HTTP 200, `confirmado`, CRC 7.500 y `consulta_pendiente = false`. El pedido quedó confirmado con `pagado = 7500` y `saldo = 7500`, sin duplicar el importe. | [Checkout aprobado](evidencia-investigacion-1/onvo-tarjeta-aprobada.png) |
+| Tarjeta `4000000000000002` | Tras el rechazo en navegador, GET del pago devolvió HTTP 200, `fallido` y consulta resuelta; GET del pedido devolvió `pendiente_de_pago` y `pagado = 0`. | [Checkout rechazado](evidencia-investigacion-1/onvo-tarjeta-rechazada.png) |
+| SINPE `+50688888888` | Se usó identificación ficticia `1-1111-1111` en el simulador, sin transferencia real. GET del pago devolvió HTTP 200, `confirmado`, `medio = "sinpe_movil"` y ₡7.500; GET del pedido mostró confirmado, pagado ₡7.500 y saldo ₡7.500. | [SINPE como único medio](evidencia-investigacion-1/onvo-sinpe-unico-medio.png) · [Confirmación](evidencia-investigacion-1/onvo-sinpe-confirmado.png) |
+| Cancelación y reembolso del primer aprobado | Cancelación del cliente HTTP 200, procesamiento de la dueña HTTP 200 con devolución `confirmado` por ₡7.500; GET posteriores: pago `reembolsado`, pedido `cancelado` y `pagado = 0`. | Sin captura específica; resultado HTTP sanitizado. |
+
+Las imágenes muestran el checkout, mientras que los resultados HTTP demuestran qué confirmó y registró Archivum. No se extrapola esta ejecución a retiros, operación en producción, todos los estados remotos posibles o los simuladores SINPE adicionales. El [paso a paso ONVO](demostracion-onvo.md#16-evidencia-de-la-ejecución-sandbox-del-25102026) conserva el recorrido reproducible y sus límites.
+
+### Resultados externos PayPal del 26/10/2026
+
+Se completó la aprobación del comprador en sandbox con una Visa ficticia terminada en `5083`, seleccionada por USD 15,00. La [captura del checkout](evidencia-investigacion-1/paypal-tarjeta-seleccionada.png) documenta esa selección; el éxito financiero se acredita con las consultas posteriores, no solo con esa pantalla.
+
+Los registros sanitizados `paypal-confirmation-result.json` y `paypal-provider-confirmation.json` corresponden al pedido local `01a17883-ec63-7394-8ecc-db7db1c1ca09` y al pago `01a17883-f52c-73ec-9249-a832506e6396`. Dos GET del mismo pago devolvieron HTTP 200, `estado = "confirmado"`, `monto = 7500`, `moneda_cobrada = "USD"`, `monto_cobrado = 1500` y `consulta_pendiente = false`. En este recurso, `monto` conserva colones y `monto_cobrado` son centavos USD: `1500` representa USD 15,00. El pedido devolvió HTTP 200, `confirmado`, `pagado = 7500` y `saldo = 7500`.
+
+Una consulta autenticada directa a PayPal devolvió HTTP 200 y orden `COMPLETED`, con **exactamente una captura** `COMPLETED` por `USD 15.00` y `final_capture = true`. Así se comprobó la captura y que la consulta repetida no añadió una segunda. El recorrido fue API local más navegador; las colecciones JSON no se importaron ni se ejecutaron en Postman nativo.
+
+Durante el recorrido, una referencia anterior devolvió `404 INVALID_RESOURCE_ID`; el pago local se mantuvo pendiente y se canceló su pedido local sin importe pagado antes de crear el nuevo. Ese incidente no demuestra que cualquier timeout permita repetir un POST sin riesgo: la falta de certeza conserva la necesidad de conciliación y de las protecciones de idempotencia.
 
 Para la bitácora, cada sesión registra fecha, adaptador, tarea, minutos, error encontrado, solución y evidencia sin secretos. Separar tiempo de leer documentos, desarrollo, espera de cuenta y ejecución evita atribuir al proveedor problemas del entorno local. La complejidad documental de PayPal (OAuth y captura) y ONVO (SINPE asíncrono) sirve como hipótesis, no como medición.
 
@@ -269,10 +293,10 @@ Para la bitácora, cada sesión registra fecha, adaptador, tarea, minutos, error
 
 Comando ejecutado desde `archivum-api-hexagonal/`: `php vendor/bin/pest tests/Feature/Payments/Gateways --compact`. Resultado local: **47 pruebas, 135 aserciones**, sin acceso a proveedores reales. Pint se ejecutó sobre los adaptadores y sus pruebas. No se cronometrajeó el trabajo; los problemas y el número de peticiones son observables en código y pruebas, no evidencia de latencia o demora del proveedor.
 
-Antes de la presentación de cinco minutos, el equipo debe registrar el resultado observado de las tres demostraciones, el cambio de configuración, el enlace al CI y una decisión del informe. Las capturas excluyen llaves, tokens, datos personales y credenciales de comprador ficticio. Los números de tarjeta del manual pueden usarse en sandbox, sin transcribir secretos de cuentas.
+Antes de la presentación de cinco minutos, falta enlazar la demostración del cambio de configuración, el CI y una decisión del informe; los escenarios ONVO y la aprobación/captura PayPal ya tienen los resultados anteriores. Las capturas excluyen llaves, tokens, datos personales y credenciales de comprador ficticio. Los números de tarjeta del manual pueden usarse en sandbox, sin transcribir secretos de cuentas.
 
 ## 10. Uso de inteligencia artificial y verificación pendiente
 
 La IA ayudó a localizar y contrastar fuentes oficiales, estructurar ambos documentos y calcular escenarios con supuestos explícitos. Se revisaron documentalmente tarifas publicadas, contratos de API, diferencias entre callback y webhook, y la correspondencia con los issues. No se atribuye a integrantes humanos una revisión que no está registrada.
 
-El equipo debe verificar manualmente las cifras contra las condiciones efectivas de su cuenta, ejecutar el sandbox de ONVO y PayPal, revisar el código y explicar la conversión monetaria, idempotencia y transacción. Esas verificaciones se añaden con autor y fecha al completar la integración. Hasta entonces, las conclusiones comerciales son condicionales y la sección empírica continúa pendiente.
+El equipo debe verificar manualmente las cifras contra las condiciones efectivas de su cuenta y revisar y explicar la conversión monetaria, idempotencia y transacción. Las ejecuciones ONVO del 25/10/2026 y PayPal del 26/10/2026 ya quedaron registradas en la sección empírica; las demás verificaciones se añaden con autor y fecha cuando se completen. Las conclusiones comerciales siguen condicionadas a los contratos efectivos, no a que un simulador acepte el cobro.

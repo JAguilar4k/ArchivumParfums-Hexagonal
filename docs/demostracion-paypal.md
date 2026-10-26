@@ -1,8 +1,10 @@
 # Demostración de PayPal sandbox · Investigación 1
 
-Esta guía prepara y demuestra un depósito de un pedido de ArchivumParfums mediante PayPal. Se usa Postman para la API y el navegador para el checkout hospedado. Los pasos están contrastados con el código del corte y con documentación oficial consultada el **25/10/2026**.
+Esta guía prepara y demuestra un depósito de un pedido de ArchivumParfums mediante PayPal. Se usa Postman **sin cuenta, con pestañas manuales en Lightweight**, y el navegador para el checkout hospedado. Los pasos están contrastados con el código del corte y con documentación oficial consultada el **25/10/2026**; la aceptación sandbox se completó el **26/10/2026**.
 
-**Estado de la evidencia:** todavía faltan las cuentas sandbox del equipo y la ejecución contra PayPal. Las pruebas automatizadas usan respuestas simuladas; no prueban que las credenciales, la cuenta vendedora o el checkout externo del equipo ya funcionen. Al terminar el recorrido, registrar la evidencia indicada en el paso 10.
+**Estado de la evidencia:** se seleccionó la Visa ficticia terminada en **5083**, se aprobó y capturó el depósito de **USD 15,00** y se verificaron pago y pedido mediante HTTP real. Dos consultas del mismo pago conservaron `confirmado`; el proveedor devolvió una sola captura `COMPLETED`. Los resultados están en el paso 10. **Las colecciones nativas de Postman no se han ejecutado**: la evidencia proviene de solicitudes HTTP y del navegador; el recorrido manual de Lightweight se prepara por separado.
+
+La [colección PayPal](../archivum-api-hexagonal/tests/Postman/ArchivumParfums-PayPal.postman_collection.json) y su [entorno local](../archivum-api-hexagonal/tests/Postman/ArchivumParfums-PayPal-local.postman_environment.json) están preparados como archivos; no están importados en la aplicación. Puedes copiar sus peticiones a pestañas manuales siguiendo el [README de Postman](../archivum-api-hexagonal/tests/Postman/README.md#sin-cuenta-pestañas-manuales-en-lightweight). Allí también aparecen los [nombres breves y el orden del recorrido](../archivum-api-hexagonal/tests/Postman/README.md#investigación-1-archivos-y-nombres-del-recorrido). La importación de colección y entorno es opcional para quien inicie sesión en Postman.
 
 ## 1. Preparar las cuentas y la aplicación sandbox
 
@@ -64,53 +66,56 @@ Resultado esperado: **200**, con `{"nombre":"ArchivumParfums","version":"v1"}`. 
 
 ## 4. Obtener los tokens de Archivum
 
-Crear un entorno **local y privado** de Postman con estas variables:
+Continúa sin iniciar sesión en Postman, en **Lightweight API Client**. Abre una pestaña **New → HTTP** por petición. Este recorrido utiliza direcciones completas con `http://localhost:8000`; cámbialas si tu API escucha en otro puerto. No hace falta crear un entorno ni importar archivos.
 
-| Variable | Valor inicial o procedencia |
+Conserva estos datos de las respuestas para copiarlos en las pestañas siguientes:
+
+| Dato | Procedencia y uso manual |
 |---|---|
-| `base_url` | `http://localhost:8000`, sin `/api/v1` final |
-| `demo_password` | El valor local de `ARCHIVUM_DEMO_PASSWORD` usado al sembrar |
-| `owner_token` | `data.token` del login de la dueña |
-| `customer_token` | `data.token` del login de Mariana |
-| `perfume_id`, `variant_id` | Identificadores devueltos en el paso 6 |
-| `order_id`, `payment_id` | Identificadores devueltos en los pasos 7 y 8 |
+| Contraseña de demo | Valor de `ARCHIVUM_DEMO_PASSWORD` usado al sembrar; los cuerpos muestran el ejemplo `demo-archivum` |
+| Token de la dueña | `data.token` de su login; pegar en **Authorization → Bearer Token** de las peticiones del panel |
+| Token de Mariana | `data.token` de su login; pegar en las peticiones de pedidos y pagos de la cliente |
+| `PEGA_PERFUME_ID`, `PEGA_PRESENTACION_ID` | Sustituir por los UUID devueltos en el paso 6 |
+| `PEGA_PEDIDO_ID`, `PEGA_PAGO_ID` | Sustituir por los UUID devueltos en los pasos 7 y 8 |
 
-Para las peticiones con cuerpo usar **Body → raw → JSON**, `Accept: application/json` y `Content-Type: application/json`.
+**Antes de pulsar Send, reemplaza cada texto `PEGA_…` por el UUID real correspondiente.** No envíes esos marcadores ni textos con llaves dobles: en el modo manual no hay un entorno que los sustituya. Los cuerpos del login muestran una contraseña literal de ejemplo que debes ajustar a tu siembra. Para los cuerpos usa **Body → raw → JSON**, `Accept: application/json` y `Content-Type: application/json`.
 
 Primero iniciar sesión como dueña, sin Bearer Token:
 
 ```http
-POST {{base_url}}/api/v1/sesiones
+POST http://localhost:8000/api/v1/sesiones
 ```
 
 ```json
 {
   "correo": "duena@archivumparfums.test",
-  "contrasena": "{{demo_password}}",
+  "contrasena": "demo-archivum",
   "dispositivo": "Postman PayPal dueña"
 }
 ```
 
-La respuesta **201** contiene `data.token`. Copiar el valor completo a `owner_token`. Crear otra petición de login con el mismo endpoint:
+La respuesta **201** contiene `data.token`. Conserva el valor completo de la dueña, sin comillas; no lo pegues en la URL ni lo confundas con un UUID. Crea otra pestaña **POST** con el mismo endpoint y **Authorization → No Auth**:
 
 ```json
 {
   "correo": "mariana@clientes.test",
-  "contrasena": "{{demo_password}}",
+  "contrasena": "demo-archivum",
   "dispositivo": "Postman PayPal cliente"
 }
 ```
 
-Guardar su `data.token` como `customer_token`. Comprobar cada uno con `GET {{base_url}}/api/v1/cuenta`, seleccionando **Authorization → Bearer Token** y el token correspondiente. La dueña debe tener rol `dueno`; Mariana, `cliente`.
+Conserva aparte el `data.token` de Mariana. Comprueba cada uno con **GET** `http://localhost:8000/api/v1/cuenta`, seleccionando **Authorization → Bearer Token** y pegando solo el token de esa persona. Postman añade la palabra `Bearer`; no la dupliques. La dueña debe tener rol `dueno`; Mariana, `cliente`.
 
 Estos son tokens **Sanctum de Archivum**. El adaptador obtiene por su cuenta el token OAuth de PayPal mediante `/v1/oauth2/token`; no hay que pegar ese token OAuth en Postman ni poner allí la contraseña del comprador sandbox.
 
+Si prefieres importar, sigue la [opción con sesión del README](../archivum-api-hexagonal/tests/Postman/README.md#opcional-importar-con-una-sesión-de-postman). La colección utiliza `token_owner`, `token_customer` y los identificadores con prefijo `paypal_`; sus scripts los capturan automáticamente. Esa opción no es necesaria para las pestañas manuales de esta guía.
+
 ## 5. Seleccionar PayPal en la tienda
 
-Con **Bearer `{{owner_token}}`**:
+Con **Bearer de la dueña**:
 
 ```http
-PATCH {{base_url}}/api/v1/panel/tienda
+PATCH http://localhost:8000/api/v1/panel/tienda
 ```
 
 ```json
@@ -122,7 +127,7 @@ PATCH {{base_url}}/api/v1/panel/tienda
 }
 ```
 
-Esperar **200** y comprobar los ajustes con `GET {{base_url}}/api/v1/panel/tienda`, usando el mismo token. La tienda se resuelve desde la sesión. No enviar `business_id` ni editar una tabla para seleccionarla.
+Esperar **200** y comprobar los ajustes con `GET http://localhost:8000/api/v1/panel/tienda`, usando el mismo token. La tienda se resuelve desde la sesión. No enviar `business_id` ni editar una tabla para seleccionarla.
 
 Crear un **pedido nuevo** para esta demostración. Un intento pendiente anterior conserva su pasarela e identidad aunque se cambien los ajustes; cambiar de ONVO a PayPal no convierte ese intento existente.
 
@@ -130,10 +135,10 @@ Crear un **pedido nuevo** para esta demostración. Un intento pendiente anterior
 
 ## 6. Crear el producto ficticio de ₡15 000
 
-Con **Bearer `{{owner_token}}`**, crear un perfume activo:
+Con **Bearer de la dueña**, crear un perfume activo:
 
 ```http
-POST {{base_url}}/api/v1/panel/perfumes
+POST http://localhost:8000/api/v1/panel/perfumes
 ```
 
 ```json
@@ -145,10 +150,10 @@ POST {{base_url}}/api/v1/panel/perfumes
 }
 ```
 
-Guardar `data.id` de la respuesta **201** en `perfume_id`. Crear su presentación:
+Conservar el UUID `data.id` de la respuesta **201** y sustituir `PEGA_PERFUME_ID` por ese valor al crear su presentación:
 
 ```http
-POST {{base_url}}/api/v1/panel/perfumes/{{perfume_id}}/presentaciones
+POST http://localhost:8000/api/v1/panel/perfumes/PEGA_PERFUME_ID/presentaciones
 ```
 
 ```json
@@ -158,36 +163,36 @@ POST {{base_url}}/api/v1/panel/perfumes/{{perfume_id}}/presentaciones
 }
 ```
 
-Guardar `data.id` de la respuesta **201** en `variant_id`; comprobar `data.precio_venta = 15000` y `data.activa = true`. Así el resultado no depende del cálculo del catálogo del proveedor.
+Conservar el UUID `data.id` de la respuesta **201** para sustituir `PEGA_PRESENTACION_ID`; comprobar `data.precio_venta = 15000` y `data.activa = true`. Así el resultado no depende del cálculo del catálogo del proveedor.
 
 Opcionalmente consultar la vitrina sin autorización:
 
 ```http
-GET {{base_url}}/api/v1/tiendas/archivumparfums/perfumes/{{perfume_id}}
+GET http://localhost:8000/api/v1/tiendas/archivumparfums/perfumes/PEGA_PERFUME_ID
 ```
 
 Para esta demostración se encarga una presentación completa. No crear una botella de decants: una línea de decant se cobra completa y cambiaría el cálculo mostrado.
 
 ## 7. Crear el pedido como Mariana
 
-Cambiar a **Bearer `{{customer_token}}`**:
+Cambiar a **Bearer de Mariana**:
 
 ```http
-POST {{base_url}}/api/v1/tiendas/archivumparfums/pedidos
+POST http://localhost:8000/api/v1/tiendas/archivumparfums/pedidos
 ```
 
 ```json
 {
   "lineas": [
     {
-      "presentacion_id": "{{variant_id}}",
+      "presentacion_id": "PEGA_PRESENTACION_ID",
       "cantidad": 1
     }
   ]
 }
 ```
 
-Guardar `data.id` de la respuesta **201** como `order_id`. Con los ajustes de demo, el depósito por defecto es **50 %**, congelado al crear el pedido. Antes de continuar, verificar:
+Conservar el UUID `data.id` de la respuesta **201** para sustituir `PEGA_PEDIDO_ID`. Con los ajustes de demo, el depósito por defecto es **50 %**, congelado al crear el pedido. Antes de continuar, verificar:
 
 | Campo del pedido | Valor esperado |
 |---|---:|
@@ -201,10 +206,10 @@ Revisar `vence_en` y completar el pago dentro del plazo. Si las cifras son disti
 
 ## 8. Iniciar el intento y abrir PayPal
 
-Con **Bearer `{{customer_token}}`**:
+Con **Bearer de Mariana**:
 
 ```http
-POST {{base_url}}/api/v1/cuenta/pedidos/{{order_id}}/pagos
+POST http://localhost:8000/api/v1/cuenta/pedidos/PEGA_PEDIDO_ID/pagos
 ```
 
 ```json
@@ -213,7 +218,7 @@ POST {{base_url}}/api/v1/cuenta/pedidos/{{order_id}}/pagos
 }
 ```
 
-Esperar **201**, guardar `data.id` como `payment_id` y verificar:
+Esperar **201**, conservar el UUID `data.id` para sustituir `PEGA_PAGO_ID` y verificar:
 
 ```json
 {
@@ -246,20 +251,20 @@ Si el checkout solo ofrece saldo o impide usar la tarjeta ficticia, registrar es
 
 ## 9. Consultar, capturar y confirmar desde el servidor
 
-Después de aprobar y regresar a la URL local, volver a Postman con **Bearer `{{customer_token}}`**:
+Después de aprobar y regresar a la URL local, volver a Postman con **Bearer de Mariana**:
 
 ```http
-GET {{base_url}}/api/v1/cuenta/pagos/{{payment_id}}
+GET http://localhost:8000/api/v1/cuenta/pagos/PEGA_PAGO_ID
 ```
 
-No enviar `estado`, `monto` ni el `token` que aparece en la URL de retorno. `payment_id` es el UUID de Archivum obtenido del POST, no el identificador de la orden PayPal.
+No enviar `estado`, `monto` ni el `token` que aparece en la URL de retorno. El valor de `PEGA_PAGO_ID` es el UUID de Archivum obtenido del POST, no el identificador de la orden PayPal.
 
 En esta petición el servidor consulta la orden PayPal; si está `APPROVED` y el pedido admite el cobro, ejecuta la captura desde el servidor. **La aprobación sola no acredita el pedido:** exige una captura `COMPLETED` con identificadores, moneda e importe coincidentes. La API actualiza pago y pedido en una misma transacción. [Crear y capturar desde el backend](https://developer.paypal.com/studio/checkout/standard/integrate).
 
 Si la captura terminó, la respuesta es **200**, con `data.estado = "confirmado"` y `data.consulta_pendiente = false`. Consultar el pedido:
 
 ```http
-GET {{base_url}}/api/v1/cuenta/pedidos/{{order_id}}
+GET http://localhost:8000/api/v1/cuenta/pedidos/PEGA_PEDIDO_ID
 ```
 
 Comprobar `estado = "confirmado"`, `pagado = 7500`, `por_cobrar_ahora = 0`, `subtotal = 15000` y `saldo = 7500`. Se confirmó el depósito, no el pago total de la presentación.
@@ -277,13 +282,24 @@ Repetir el **GET del pago dos veces** y volver a consultar el pedido: `pagado` d
 
 Para comprobar deliberadamente el `422` de SINPE, usar **otro pedido nuevo sin intento pendiente**, con la tienda configurada en PayPal y el tipo de cambio establecido. Enviar `{"medio":"sinpe_movil"}` debe fallar sin crear un cargo. Un intento pendiente ya existente se reutiliza antes de evaluar un medio nuevo.
 
-## 10. Reunir la evidencia externa pendiente
+## 10. Evidencia sandbox completada el 26/10/2026
 
-En la cuenta **Business sandbox**, revisar la actividad para comprobar el importe recibido y su referencia; en la cuenta Personal, revisar el movimiento del comprador. Es el control externo además del resultado local. [Ver movimientos entre cuentas de prueba](https://developer.paypal.com/api/rest/).
+La aceptación se completó con una **Visa ficticia terminada en 5083 seleccionada en el checkout**, por **USD 15,00**. Se aprobó en el navegador y se capturó mediante la consulta del servidor. La [captura de la tarjeta seleccionada](evidencia-investigacion-1/paypal-tarjeta-seleccionada.png) documenta la fuente elegida; el [registro HTTP sanitizado](evidencia-investigacion-1/resultados-sandbox-2026-10-25.json) conserva las observaciones del proveedor y de la API. El nombre del registro mantiene la fecha de inicio del ensayo, que terminó el día 26.
 
-Guardar evidencia anonimizada de: país y tipo de las cuentas sandbox; creación del pedido con depósito `7500`; POST de pago con `monto_cobrado: 1500`; pantalla del checkout por USD 15,00 y su fuente de fondos, especialmente la tarjeta ficticia si está disponible; captura completada en sandbox; GET confirmado; y dos consultas repetidas que mantienen `pagado: 7500`. Ocultar contraseñas, Client Secret, tokens Bearer y OAuth. Registrar fecha, resultado real, fuente efectivamente usada y errores observados en el expediente de [pasarelas](payment-gateways.md).
+| Recurso o comprobación | Resultado observado |
+|---|---|
+| Pedido local nuevo | `01a17883-ec63-7394-8ecc-db7db1c1ca09` |
+| Pago local nuevo | `01a17883-f52c-73ec-9249-a832506e6396` |
+| Dos GET de ese mismo pago | Ambos **200**, `estado: "confirmado"`, `monto: 7500` CRC, `moneda_cobrada: "USD"`, `monto_cobrado: 1500` centavos y `consulta_pendiente: false` |
+| GET del pedido | **200**, `estado: "confirmado"`, `pagado: 7500` y `saldo: 7500` |
+| Consulta directa al proveedor | **200**, orden `COMPLETED` y **una sola captura** `COMPLETED` por `15.00 USD` |
+| SINPE no admitido en PayPal | **422**, en otro pedido que conservó `pagado: 0` |
 
-Hasta completar estos pasos, el resultado es **implementación y pruebas simuladas verificadas; demostración externa pendiente**.
+Así se verificaron la selección de tarjeta ficticia, la captura del depósito y la repetición de consultas sin doble crédito. La aprobación del checkout y la captura son momentos distintos; la comprobación directa del proveedor confirma que hubo una sola captura completada.
+
+El intento anterior devolvió **404 `INVALID_RESOURCE_ID`** al consultar el recurso externo. Su pago local quedó `pendiente` y su pedido se canceló sin importe pagado. La aceptación posterior utilizó el pedido y pago nuevos de la tabla, conservando el historial del anterior. **La evidencia no permite atribuir el 404 a un timeout ni establecer su causa concreta.**
+
+Estos resultados corresponden a **HTTP real y navegador sandbox**, no a una ejecución nativa completa de las colecciones de Postman. La comprobación manual en Lightweight se prepara por separado. Al repetir el ensayo, conserva nuevas referencias y evidencia sin contraseñas, Client Secret, tokens Bearer ni OAuth. El reembolso PayPal mantiene el límite documentado en el paso 12.
 
 ## 11. Mostrar aceptación, rechazo y error sin cuentas externas
 
@@ -297,7 +313,7 @@ El archivo usa `Http::fake()` y bloquea solicitudes no simuladas. No necesita Cl
 
 | Caso | Prueba existente y resultado esperado |
 |---|---|
-| Aceptación | `captures only after a server query confirms approval and requires a completed capture`: `COMPLETED` produce `Succeeded`; `PENDING` conserva pendiente. |
+| Aceptación | `credits an approved order only after capture completes`: `COMPLETED` produce `Succeeded`; `PENDING` conserva pendiente. |
 | Rechazo | `reports an explicit PayPal instrument decline as failed` y `distinguishes an explicit capture refusal from a network timeout`: rechazo reconocido produce `Failed`. |
 | Error de red | `reports a network error without losing the distinction from a decline`: produce `GatewayUnavailableException`, sin convertir la caída en rechazo. |
 | Repetición | `does not capture again when an order already contains its completed capture`: lee la captura existente sin otro POST de captura. |
