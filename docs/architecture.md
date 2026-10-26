@@ -33,7 +33,7 @@ Las carpetas `app/`, `bootstrap/`, `config/`, `database/`, `lang/` y `routes/` c
 
 ## Contextos
 
-Hoy existe `src/Shared`. Cada contexto se crea con el primer issue de uno de sus módulos, con estos nombres. Los módulos marcados como extra solo se construyen si el núcleo del corte está completo:
+La base compartida y los contextos de cuentas, tiendas y catálogo ya están implementados. Investigación 1 agrega `Decants/Bottles`, `Sales/Orders` y `Payments/Payments`; `Decants/Packs` sigue previsto. Cada contexto restante se crea con el primer issue de uno de sus módulos, con estos nombres. Los módulos marcados como extra solo se construyen si el núcleo del corte está completo:
 
 | Contexto | Módulos | Qué agrupa |
 |---|---|---|
@@ -83,7 +83,7 @@ Un agregado se crea con `create()` y se rearma desde la base con `reconstitute()
 ## Flujo de una petición
 
 1. La ruta del módulo (`Infrastructure/Http/routes.php`) entrega la petición a un controlador.
-2. En las rutas del panel, `auth:sanctum` identifica a la persona del personal y `BusinessContext` entrega su tienda. En las rutas públicas, la tienda sale de la URL, y en `/api/v1/cuenta`, del recurso propio del cliente (#32). La transacción de la petición fija esa tienda en PostgreSQL.
+2. En las rutas del panel, `auth:sanctum` identifica a la persona del personal y `BusinessContext` entrega su tienda. En las rutas públicas, la tienda sale de la URL, y en `/api/v1/cuenta`, del recurso propio del cliente (#32). La transacción de la petición fija esa tienda en PostgreSQL; los cobros usan la variante de contexto descrita en [Pagos y límites de transacción](#pagos-y-límites-de-transacción), para confirmar el intento antes del HTTP externo.
 3. Un Form Request valida la forma de los datos antes de llegar al controlador.
 4. El controlador invoca un caso de uso con un DTO de datos primitivos.
 5. El caso de uso trabaja con el dominio y con los puertos.
@@ -96,12 +96,44 @@ Un puerto es una interfaz definida en `Domain/Contracts`. Su adaptador vive en `
 
 ### Colaboración entre contextos
 
-Cuando dos contextos necesitan colaborar lo hacen por un puerto o por un evento de dominio, nunca importando el dominio del otro. Dos ejemplos:
+Cuando dos contextos necesitan colaborar lo hacen por un puerto o por un evento de dominio. Sus dominios no importan el dominio del otro: la colaboración concreta queda en los adaptadores. Ejemplos:
 
 - Una cita solo puede incluir perfumes de botellas con ml disponibles, pero las botellas son de `Decants`. `Scheduling/Appointments` declara el puerto de lectura `TestablePerfumes` y su adaptador consulta `decant_bottles` (#76).
-- Un webhook confirma el pago, pero el pedido es de `Sales`. `Payments` referencia lo pagado con el objeto de valor `Payable` y confirma el pedido por un puerto que implementa `Sales`, en la misma transacción que el pago (#88, #94).
+- `Sales/Orders` necesita reservar ml. Declara `DecantStock` en `Application/Contracts`; `BottleDecantStock` llama a `MlReservation` de `Decants/Bottles`. Los dominios de pedidos y botellas siguen separados y una operación fallida revierte el pedido y sus reservas.
+- `Payments/Payments` referencia lo cobrado con `Payable` y colabora con pedidos por `PayableReader`, implementado por `SalesPayableReader`. La persistencia actual usa una llave foránea `payments.order_id` con `business_id`; los paquetes amplían esa relación en #143. En Investigación 1 confirma una consulta al proveedor; el procesador de webhooks llega con #94 y #95.
+- `Sales/Orders` solicita devoluciones por `RefundRequests`. `PaymentRefundRequests` registra asignaciones pendientes de `refunds` en la transacción del cambio del pedido; procesarlas por HTTP es otra operación. Cancelar o marcar una línea como no disponible no declara que el dinero ya se devolvió.
 
 Si mañana uno de los dos contextos cambiara, solo cambiaría el adaptador.
+
+### Botellas, movimientos y precios de decants
+
+`Decants/Bottles` tiene a `DecantBottle` como agregado. El dominio trabaja con enteros y separa capacidad, ml restantes y ml reservados; calcula los disponibles como restantes menos reservados. Cada reserva, liberación, consumo o ajuste produce un `DecantMovement`. Las excepciones llevan claves de `lang/es/bottles.php`.
+
+`EloquentDecantBottleRepository` agrega y reconstituye botellas filtradas por `BusinessContext`; la modificación ordinaria cambia únicamente las notas y nunca reescribe los saldos. `PostgresMlReservation` implementa las operaciones de ml con un `UPDATE` condicional y la inserción del movimiento en una sola transacción. La decisión de si alcanza el saldo la toma PostgreSQL; el `CHECK` impide cantidades imposibles y el estado pasa a `empty` dentro del mismo `UPDATE` al llegar a 0. El rol de la aplicación solo puede leer e insertar movimientos: no puede modificarlos, borrarlos ni vaciar la tabla.
+
+`DecantPrice`, del núcleo compartido `Decants/Shared`, calcula el precio proporcional y lo redondea hacia arriba con enteros. La vitrina consulta las botellas elegibles en conjunto, con sus presentaciones y los ajustes de la tienda, sin una consulta por botella. Solo ofrece tamaños que caben en los ml disponibles; las presentaciones inactivas o sin precio y las botellas vacías quedan fuera. El registro toma la capacidad de la presentación y admite un saldo inicial menor; una botella vacía no se reabre por ajuste.
+
+### Pedidos y precios congelados
+
+`Sales/Orders` reúne `Order` y sus `OrderLine`. `CreateOrder` obtiene precios y condiciones desde los puertos de catálogo y ajustes; el navegador solo identifica los productos y las cantidades. `OrderAmounts` calcula subtotal, cobro inicial, pagado y saldo. `order_lines.unit_price` y `orders.deposit_percent` conservan lo aceptado al crear el pedido: cambiar después el catálogo o el porcentaje de la tienda no cambia esa venta.
+
+El pedido y todas sus reservas se escriben en la misma transacción. El adaptador reserva varias botellas en orden por identificador para evitar interbloqueos. Cancelar libera las reservas; preparar los decants consume a la vez ml restantes y reservados y registra el movimiento ligado a la línea. La entrega exige el pago completo. Los endpoints del cliente comprueban la propiedad del pedido y los del panel usan la tienda de la sesión.
+
+### Pagos y límites de transacción
+
+`PaymentGateway` es el contrato único: declara medios admitidos y operaciones de crear cobro, consultar estado y reembolsar; también conserva la operación de verificación para la futura recepción de webhooks. `OnvoGateway` admite tarjeta y SINPE Móvil; `PayPalGateway`, tarjeta. `ConfiguredPaymentGateways`, resuelto por el contenedor, selecciona el adaptador con la configuración de la tienda y vuelve a usar el proveedor guardado en cada intento existente. Los controladores solo conocen casos de uso.
+
+Los dos adaptadores usan el cliente HTTP de Laravel, con límites explícitos de conexión y respuesta y credenciales de pruebas. La conversión vive en ellos: ONVO recibe la unidad mínima de CRC; PayPal usa Orders v2, aprobación y captura con un importe decimal en USD. El principal del negocio continúa en colones enteros; `charged_amount` conserva colones enteros para CRC y centavos para USD, junto con el tipo de cambio congelado en el intento.
+
+Las rutas de cobro llevan `business:account,context`, además de autenticación y rol de cliente. El middleware resuelve la tienda del recurso propio y enlaza `BusinessContext`, pero deja los límites de transacción al caso de uso. `PaymentsServiceProvider` inyecta `PaymentTransactionRunner` como implementación contextual de `TransactionRunner` en `StartPayment`, `ObservePayment` y `ProcessOrderRefunds`. Cada llamada de ese puerto abre una transacción con la tienda fijada mediante `BusinessTransaction`; no se mantiene una transacción exterior que pueda revertir un cobro ya enviado.
+
+`StartPayment` bloquea el pedido, calcula el importe en el servidor y guarda una intención `pending` antes de enviar el HTTP de creación. El índice parcial por tienda, pedido y propósito impide dos intentos pendientes iguales. Si ya existe un intento, se devuelve ese intento. Tras la llamada externa se guardan las referencias del proveedor en otra transacción; la creación por sí sola no confirma el pedido. Un timeout conserva la intención pendiente y evita repetir un POST cuyo resultado se desconoce.
+
+`ObservePayment` valida primero la propiedad, bloquea en el orden pedido y pago, consulta al proveedor y verifica identidad, moneda e importe en el adaptador. En PayPal, la consulta puede completar la captura de una orden aprobada. Solo el resultado autenticado permite guardar el pago confirmado y su efecto sobre el pedido en una sola transacción. Un pago ya resuelto se devuelve sin aplicar otra vez su importe. Si el proveedor no responde, el resultado conserva el estado pendiente y señala `consulta_pendiente`; el navegador nunca aporta el estado financiero.
+
+`ProcessOrderRefunds` confirma `refunds.attempted_at` antes del POST de devolución de ONVO. Una vez recibida, conserva la referencia externa en una transacción propia antes de aplicar el resultado al reembolso, al pago y al pedido en otra transacción atómica. Si se pierde la respuesta sin referencia, queda pendiente para conciliación; otro intento no envía a ciegas la misma devolución. Las rutas del dueño para procesarla usan `business:staff,context`. El reembolso de PayPal se documenta en este corte; el adaptador no declara una devolución ejecutada.
+
+`webhook_events` prepara el almacenamiento e idempotencia de eventos, pero Investigación 1 no registra rutas receptoras de webhooks. La transición del cobro a webhooks verificados e idempotentes corresponde a Avance 2 (#94 y #95). Las fuentes y decisiones técnicas están en [payment-gateways.md](payment-gateways.md); la comparación de proveedores queda en [investigacion-1.md](investigacion-1.md) y la puesta en marcha se documenta en el [README de la API](../archivum-api-hexagonal/README.md).
 
 ### Alta de una tienda con su dueño
 
@@ -128,8 +160,10 @@ Las operaciones de una tienda preguntan su tienda al puerto `BusinessContext` de
 | `business:staff` | `/api/v1/panel/...`, después de `auth:sanctum` | `StaffBusinessContext`, de `Businesses/Members` | De la persona autenticada, con el caso de uso `FindMemberByAccount`. Un cliente, que no está en el personal de ninguna tienda, recibe 403 `prohibido` |
 | `business:route` | `/api/v1/tiendas/{tienda}/...` | `RouteBusinessContext`, de `Businesses/Profile` | Del slug `{tienda}` de la URL, con el caso de uso `FindBusinessBySlug`. Un slug que no existe responde 404 `no-encontrado` |
 | `business:account` | `/api/v1/cuenta/...` que nombran un recurso del cliente, como `{cliente}`, después de `auth:sanctum` | `CustomerBusinessContext`, de `Accounts/Users` | Del recurso de la URL, con el caso de uso `FindCustomerResourceBusiness`. Un recurso de otro cliente responde 404 `no-encontrado`, igual que uno que no existe |
+| `business:account,context` | Crear o consultar un pago de un pedido propio | El mismo `CustomerBusinessContext` | Del pedido o pago propio; el caso de uso abre sus transacciones con `PaymentTransactionRunner` |
+| `business:staff,context` | Procesar reembolsos del panel, con rol de dueño | `StaffBusinessContext` | Del personal autenticado; el caso de uso confirma el intento antes del HTTP |
 
-El middleware resuelve la tienda antes de llegar a cualquier caso de uso y corre la petición en una sola transacción, que fija esa tienda con `BusinessTransaction`. El dueño y el colaborador trabajan siempre sobre su propia tienda: ninguna ruta del panel toma la tienda de la URL, de los parámetros ni del cuerpo. Los listados de `/api/v1/cuenta` no nombran un recurso y no llevan `business:account`: `CustomerBusinessContext::eachBusiness()` corre la operación una vez por cada tienda donde la cuenta es cliente, cada vez en su propia transacción con esa tienda fijada. La tienda de una persona del personal, las tiendas de un cliente y la de uno de sus recursos se buscan antes de fijar una tienda, así que las responden funciones `SECURITY DEFINER` de PostgreSQL ([ADR 0011](adr/0011-customer-routes-resolve-the-business-through-definer-functions.md)). `tests/Feature/Tenancy/BusinessOfTheSessionTest.php` y `tests/Feature/Tenancy/CustomerIsolationTest.php` comprueban estas reglas, y `tests/Feature/Shared/ScopeRequestToBusinessTest.php` comprueba el middleware.
+El middleware resuelve la tienda antes de llegar a cualquier caso de uso y, por defecto, corre la petición en una sola transacción que la fija con `BusinessTransaction`. La variante `context` deja esa responsabilidad al puerto transaccional de pagos, como se describe arriba. El dueño y el colaborador trabajan siempre sobre su propia tienda: ninguna ruta del panel toma la tienda de la URL, de los parámetros ni del cuerpo. Los listados de `/api/v1/cuenta` no nombran un recurso y no llevan `business:account`: `CustomerBusinessContext::eachBusiness()` corre la operación una vez por cada tienda donde la cuenta es cliente, cada vez en su propia transacción con esa tienda fijada. La tienda de una persona del personal, las tiendas de un cliente y la de uno de sus recursos se buscan antes de fijar una tienda, así que las responden funciones `SECURITY DEFINER` de PostgreSQL ([ADR 0011](adr/0011-customer-routes-resolve-the-business-through-definer-functions.md)). La función de recursos del cliente incorpora `order` y `payment` mediante sus uniones con `customers` y el usuario autenticado. `tests/Feature/Tenancy/BusinessOfTheSessionTest.php` y `tests/Feature/Tenancy/CustomerIsolationTest.php` comprueban estas reglas, y `tests/Feature/Shared/ScopeRequestToBusinessTest.php` comprueba el middleware.
 
 ## Aislamiento entre tiendas
 
@@ -176,11 +210,13 @@ Scramble genera el contrato OpenAPI 3.1 desde el código, y el contrato se versi
 
 | Grupo | Rutas | Quién |
 |---|---|---|
-| Público | `/api/v1/tiendas/{tienda}/...` y los webhooks de pago | Cualquiera; la tienda sale de la URL |
+| Público | `/api/v1/tiendas/{tienda}/...` | Cualquiera; la tienda sale de la URL |
 | Cuenta y sesión | `/api/v1/cuentas`, `/api/v1/sesiones` y `/api/v1/cuenta/...` | El cliente, solo sobre sus propios recursos |
 | Panel | `/api/v1/panel/...` | El dueño y el colaborador, con `auth:sanctum`; la tienda sale de la sesión |
 
 La lista inicial de endpoints está en la sección 8 de la [especificación](especificacion.md#8-api-inicial).
+
+Los webhooks de pago todavía no son rutas públicas de este corte. Avance 2 incorpora su recepción con verificación del proveedor; el esquema preparado no cuenta como un endpoint implementado.
 
 ## Pruebas
 
@@ -193,6 +229,8 @@ Las pruebas se escriben con Pest ([ADR 0009](adr/0009-pest-instead-of-phpunit.md
 | `tests/Architecture` | Regla de dependencias entre capas y entre módulos, y la forma de los casos de uso. |
 
 Los caminos críticos tienen prueba propia: la doble reserva de una cita, los últimos ml de una botella, el canje simultáneo de un paquete, el webhook repetido y el webhook con firma inválida ([ADR 0010](adr/0010-concurrency-guaranteed-in-postgresql.md)).
+
+En M10, `ConcurrentMlReservationTest` usa dos procesos y conexiones reales con datos confirmados fuera de la transacción de prueba. `BottleSchemaTest` comprueba restricciones, RLS e historial inmutable con el rol de la aplicación. Las pruebas de pedidos también ejercitan la reserva por HTTP. Los adaptadores de pagos usan `Http::fake`; se impiden las solicitudes externas sin fake. Las pruebas de concurrencia y durabilidad del pago verifican que una respuesta perdida no permita repetir el cobro ni aplicar dos veces el resultado.
 
 ## Base de datos y decisiones
 

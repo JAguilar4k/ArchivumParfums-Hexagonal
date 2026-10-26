@@ -8,6 +8,10 @@ Al 7 de octubre de 2026 no hay código ni despliegue. El enunciado pide reposito
 
 Orden de prioridad: núcleo del corte vigente → resto del núcleo → módulo propio (botellas, pedidos y proveedores) → extras. Si al 30 de noviembre el núcleo no está completo y en verde, se congelan los extras.
 
+Actualización de Investigación 1 (25/10/2026): los 26 issues `investigacion-1` (#68–#93) están asignados a `JAguilar4k`. La implementación del corte y el informe se preparan en `feature/pagos`, según el enunciado específico. El #76 requiere #62 y #67 y la cadena de horarios/citas #51–#61; por acuerdo con la persona responsable, esas dependencias se mantienen con el equipo de citas. La evidencia externa de ONVO y PayPal espera ambas cuentas sandbox. No se crean issues nuevos ni se marca completa la entrega mientras falten esa evidencia y la revisión humana.
+
+El enunciado específico agrega la etiqueta `v-investigacion1`, el informe `docs/investigacion-1.md`, confirmación por consulta del servidor sin webhooks y reembolso ONVO para este corte. El expediente técnico permanece separado en `docs/payment-gateways.md`. #94–#97 conservan las mejoras y obligaciones posteriores de Avance 2. La etiqueta se crea sobre la entrega integrada, no sobre trabajo en revisión.
+
 ## Módulos
 
 Formato del repo guía: `MNN · Título` y una descripción de una oración con el objetivo de negocio, sin fecha límite. La columna "Etiquetas de corte" indica cuáles llevarán sus issues.

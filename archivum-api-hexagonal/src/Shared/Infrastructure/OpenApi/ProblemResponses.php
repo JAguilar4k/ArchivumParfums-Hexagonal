@@ -78,6 +78,12 @@ final class ProblemResponses implements DocumentTransformer
             $types[] = ProblemType::Forbidden;
         }
 
+        if ($this->isOrderOrPaymentRoute($path)) {
+            $types[] = ProblemType::Forbidden;
+            $types[] = ProblemType::Conflict;
+            $types[] = ProblemType::InvalidData;
+        }
+
         if ($this->rejectsCredentials($path, $operation)) {
             $types[] = ProblemType::InvalidCredentials;
         }
@@ -130,6 +136,16 @@ final class ProblemResponses implements DocumentTransformer
     private function isPanelRoute(string $path): bool
     {
         return str_starts_with(ltrim($path, '/'), 'panel');
+    }
+
+    /** These operations also check the role, ownership and the current business state. */
+    private function isOrderOrPaymentRoute(string $path): bool
+    {
+        $path = ltrim($path, '/');
+
+        return str_starts_with($path, 'cuenta/pedidos') || str_starts_with($path, 'cuenta/pagos')
+            || str_starts_with($path, 'panel/pedidos') || str_starts_with($path, 'panel/botellas')
+            || $path === 'tiendas/{tienda}/pedidos';
     }
 
     /** HTTP status of a response, resolving the references to the components. */

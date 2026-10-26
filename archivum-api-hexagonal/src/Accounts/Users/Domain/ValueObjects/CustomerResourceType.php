@@ -11,4 +11,6 @@ namespace Src\Accounts\Users\Domain\ValueObjects;
 enum CustomerResourceType: string
 {
     case Customer = 'customer';
+    case Order = 'order';
+    case Payment = 'payment';
 }

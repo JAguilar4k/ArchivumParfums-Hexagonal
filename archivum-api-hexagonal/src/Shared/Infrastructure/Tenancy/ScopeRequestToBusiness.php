@@ -34,13 +34,18 @@ final readonly class ScopeRequestToBusiness
      * Resolve the business with the adapter of the route group, before any use case runs,
      * and run the request in one transaction pinned to that business.
      */
-    public function handle(Request $request, Closure $next, string $source): Response
+    public function handle(Request $request, Closure $next, string $source, string $transactionMode = 'atomic'): Response
     {
         $context = $this->container->make(self::contextFor($source));
         assert($context instanceof BusinessContext);
 
         $this->container->instance(BusinessContext::class, $context);
         $businessId = $context->current();
+
+        if ($transactionMode === 'context') {
+            // Payment use cases commit their intent before making a non-idempotent external request.
+            return $next($request);
+        }
 
         return $this->transaction->run($businessId->value, fn (): Response => $next($request));
     }

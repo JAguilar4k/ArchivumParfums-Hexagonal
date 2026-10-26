@@ -23,7 +23,7 @@ final class CustomerBusinessContext implements BusinessContext
      * Route parameters that name a resource of the customer, with the type fn_customer_resource_business knows it by.
      * Each issue that adds a resource of the customer adds its parameter: {cita} with #59, {pedido} with #78.
      */
-    public const array RESOURCES = ['cliente' => CustomerResourceType::Customer];
+    public const array RESOURCES = ['cliente' => CustomerResourceType::Customer, 'pedido' => CustomerResourceType::Order, 'pago' => CustomerResourceType::Payment];
 
     private ?BusinessId $business = null;
 

@@ -4,7 +4,7 @@ API REST de ArchivumParfums. Laravel 13, PHP 8.4 y PostgreSQL 18.
 
 ## Alcance integrado
 
-La API incluye sesiones del personal, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Los servicios y horarios, la disponibilidad, las citas, los pedidos, los pagos y el cliente Vue siguen pendientes de integración. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
+La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Los servicios y horarios, la disponibilidad, las citas, los webhooks de pagos y el cliente Vue siguen pendientes de integración. La demostración externa de pagos espera las cuentas sandbox; el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
 
 ## Requisitos
 
@@ -146,7 +146,7 @@ git diff -- openapi/v1.json
 
 Para comprobar que el contrato versionado ya coincide con el generador, usa `git diff --exit-code -- openapi/v1.json` después de exportarlo. Un diff requiere revisar y actualizar el contrato; no significa que se haya ejecutado el comportamiento HTTP.
 
-Cuando se implemente trabajo en cola, el worker local se ejecuta en otra terminal con `php artisan queue:work --tries=1`; el scheduler usa `php artisan schedule:work`. Son procesos separados de `composer run dev`, y se inician cuando el módulo que se prueba los necesita. Este arranque no incorpora pagos, recordatorios o websockets que todavía estén pendientes.
+Cuando se implemente trabajo en cola, el worker local se ejecuta en otra terminal con `php artisan queue:work --tries=1`; el scheduler usa `php artisan schedule:work`. Son procesos separados de `composer run dev`, y se inician cuando el módulo que se prueba los necesita. Los pagos de Investigación 1 usan peticiones HTTP y consultas explícitas desde la API; no requieren un worker ni un webhook. Los recordatorios y websockets siguen pendientes.
 
 ## Pruebas
 
@@ -227,12 +227,31 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/api/v1/tiendas/{tienda}` | Cualquiera | Perfil público de la tienda identificada por su slug. |
 | GET | `/api/v1/tiendas/{tienda}/perfumes` | Cualquiera | Vitrina pública de perfumes activos, con búsqueda, filtros y paginación. |
 | GET | `/api/v1/tiendas/{tienda}/perfumes/{perfume}` | Cualquiera | Detalle público del perfume activo con sus presentaciones activas. |
+| GET | `/api/v1/panel/botellas` | Dueño | Lista botellas de decants de su tienda. |
+| POST | `/api/v1/panel/botellas` | Dueño | Registra una botella abierta de una presentación. |
+| GET | `/api/v1/panel/botellas/{botella}` | Dueño | Consulta los ml y el estado de una botella. |
+| PATCH | `/api/v1/panel/botellas/{botella}` | Dueño | Edita los datos permitidos de una botella. |
+| GET | `/api/v1/panel/botellas/{botella}/movimientos` | Dueño | Historial inmutable de reservas, consumo, liberación y ajustes. |
+| POST | `/api/v1/panel/botellas/{botella}/ajustes` | Dueño | Ajusta ml con motivo, respetando lo reservado y el bloqueo de botellas vacías. |
+| POST | `/api/v1/tiendas/{tienda}/pedidos` | Cliente | Crea un pedido con precios y depósito calculados por el servidor. |
+| GET | `/api/v1/cuenta/pedidos` | Cliente | Lista sus pedidos, también si pertenece a varias tiendas. |
+| GET | `/api/v1/cuenta/pedidos/{pedido}` | Cliente propietario | Consulta el pedido y sus importes. |
+| POST | `/api/v1/cuenta/pedidos/{pedido}/cancelacion` | Cliente propietario | Cancela cuando las reglas lo permiten y registra los reembolsos pendientes. |
+| GET | `/api/v1/panel/pedidos` | Dueño | Lista pedidos de su tienda. |
+| GET | `/api/v1/panel/pedidos/{pedido}` | Dueño | Consulta un pedido de su tienda. |
+| POST | `/api/v1/panel/pedidos/{pedido}/preparacion` | Dueño | Consume los ml reservados al preparar los decants. |
+| POST | `/api/v1/panel/pedidos/{pedido}/listo` | Dueño | Marca listo un pedido con todas las líneas disponibles preparadas o recibidas. |
+| POST | `/api/v1/panel/pedidos/{pedido}/entrega` | Dueño | Entrega un pedido listo y pagado, sin reembolsos sin resolver. |
+| POST | `/api/v1/panel/pedidos/{pedido}/lineas/{linea}/no-disponible` | Dueño | Marca una botella encargada como no disponible y calcula la devolución correspondiente. |
+| POST | `/api/v1/cuenta/pedidos/{pedido}/pagos` | Cliente propietario | Inicia el cobro calculado o devuelve su intento pendiente existente. |
+| GET | `/api/v1/cuenta/pagos/{pago}` | Cliente propietario | Consulta el proveedor y confirma el resultado; en PayPal captura tras la aprobación. |
+| POST | `/api/v1/panel/pedidos/{pedido}/reembolsos` | Dueño | Procesa los importes de devolución ya registrados; ONVO ejecuta y consulta el reembolso. |
 | GET | `/docs/api` | Desarrollo local | Documentación interactiva de Scramble; el gate la deniega en producción. |
 | GET | `/docs/api.json` | Desarrollo local | Contrato OpenAPI generado de las rutas. |
 
 Las rutas sin versión, como `/api`, responden 404: toda ruta de la API lleva el prefijo `/api/v1`.
 
-Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial). Las rutas de servicios, horarios, disponibilidad, reservas y pagos de esa lista siguen pendientes de integración y no forman parte de esta tabla de rutas disponibles.
+Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial). Las rutas de servicios, horarios, disponibilidad, reservas de citas y webhooks de pagos siguen pendientes de integración y no forman parte de esta tabla de rutas disponibles.
 
 ## Recorrido básico en Postman
 
@@ -332,6 +351,12 @@ La actualización lee y bloquea la fila de la tienda dentro de una transacción 
 Las tiendas tienen identificadores fijos: `0192f0c4-0000-7000-8000-000000000001` es ArchivumParfums y `0192f0c4-0000-7000-8000-000000000002` es Esencias del Norte. La segunda tienda sirve para demostrar el aislamiento entre tiendas: el dueño de cada una pide en el panel un recurso de la otra y recibe 404 `no-encontrado`, la misma respuesta que con un recurso que no existe. Las pruebas de `tests/Feature/Tenancy` comprueban lo mismo en cada endpoint del panel con dos tiendas propias, creadas con las fábricas, así que no dependen de estos datos. Los nombres son inventados, los correos usan el dominio reservado `.test` y los teléfonos son de prueba. Como las contraseñas de los sembradores son conocidas, `db:seed` nunca se ejecuta en producción.
 
 ## Variables de entorno
+
+Para Investigación 1, el [recorrido de pagos del README raíz](../README.md#investigación-1-ejecutar-los-cobros) detalla alta sandbox, credenciales, selección de pasarela por tienda, pedidos, tarjetas/SINPE ficticios, consulta de estado y reembolsos. El [informe comparativo](../docs/investigacion-1.md) y el [expediente técnico](../docs/payment-gateways.md) se mantienen separados.
+
+Las guías independientes [Demostración de ONVO](../docs/demostracion-onvo.md) y [Demostración de PayPal](../docs/demostracion-paypal.md) incluyen el recorrido completo en Postman, los resultados esperados y los archivos que se modifican para configurar o ampliar cada pasarela. La colección de Postman existente cubre el recorrido básico; las peticiones adicionales de pagos se crean siguiendo esas guías.
+
+`config/payments.php` lee `ONVO_SECRET_KEY`, `ONVO_PUBLISHABLE_KEY`, `ONVO_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYMENTS_RETURN_URL` y `PAYMENTS_CANCEL_URL`. `.env.example` las declara; todas las credenciales quedan vacías. El flujo actual usa checkout hospedado y consultas desde el servidor, sin webhook habilitado. PayPal solo admite el host sandbox fijado en configuración. La pasarela y el tipo CRC/USD se eligen en los ajustes existentes de la tienda.
 
 `.env.example` lista todas las variables que lee la aplicación. Las propias del producto:
 

@@ -6,7 +6,10 @@ namespace Src\Catalog\Showcase\Infrastructure\Persistence;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
+use Src\Businesses\Profile\Domain\ValueObjects\BusinessSettings;
 use Src\Catalog\Showcase\Application\Contracts\ShowcaseReader;
+use Src\Catalog\Showcase\Application\DTOs\ShowcaseDecant;
 use Src\Catalog\Showcase\Application\DTOs\ShowcaseDetail;
 use Src\Catalog\Showcase\Application\DTOs\ShowcaseFilters;
 use Src\Catalog\Showcase\Application\DTOs\ShowcaseItem;
@@ -16,6 +19,7 @@ use Src\Catalog\Showcase\Infrastructure\Persistence\Models\ShowcaseNoteModel;
 use Src\Catalog\Showcase\Infrastructure\Persistence\Models\ShowcasePerfumeModel;
 use Src\Catalog\Showcase\Infrastructure\Persistence\Models\ShowcaseTagModel;
 use Src\Catalog\Showcase\Infrastructure\Persistence\Models\ShowcaseVariantModel;
+use Src\Decants\Shared\Domain\ValueObjects\DecantPrice;
 use Src\Shared\Domain\Contracts\BusinessContext;
 
 final readonly class PostgresShowcaseReader implements ShowcaseReader
@@ -86,7 +90,42 @@ final readonly class PostgresShowcaseReader implements ShowcaseReader
             ['top' => $top, 'heart' => $heart, 'base' => $base],
             $item->tags,
             $item->variants,
+            $this->decantsOf($perfumeId),
         );
+    }
+
+    /**
+     * Fetch every eligible bottle and the business settings together, never one query per bottle.
+     *
+     * @return list<ShowcaseDecant>
+     */
+    private function decantsOf(string $perfumeId): array
+    {
+        $rows = DB::table('decant_bottles as b')
+            ->join('perfume_variants as v', fn ($join) => $join->on('v.id', '=', 'b.perfume_variant_id')->on('v.business_id', '=', 'b.business_id'))
+            ->join('businesses as business', 'business.id', '=', 'b.business_id')
+            ->where('b.business_id', $this->context->current()->value)
+            ->where('v.perfume_id', $perfumeId)->where('v.is_active', true)->whereNotNull('v.sale_price')
+            ->where('b.status', 'open')->whereRaw('b.remaining_ml > b.reserved_ml')
+            ->orderBy('b.id')->get(['b.id', 'b.remaining_ml', 'b.reserved_ml', 'v.size_ml', 'v.sale_price', 'business.settings']);
+        $offers = [];
+
+        foreach ($rows as $row) {
+            /** @var array{decant_sizes_ml?: list<int>, decant_rounding_colones?: int} $settings */
+            $settings = json_decode((string) $row->settings, true, flags: JSON_THROW_ON_ERROR);
+            $sizes = $settings['decant_sizes_ml'] ?? BusinessSettings::DEFAULT_DECANT_SIZES_ML;
+            sort($sizes);
+
+            foreach ($sizes as $ml) {
+                if ($ml <= (int) $row->remaining_ml - (int) $row->reserved_ml) {
+                    $offers[] = new ShowcaseDecant((string) $row->id, $ml,
+                        DecantPrice::calculate((int) $row->sale_price, (int) $row->size_ml, $ml,
+                            $settings['decant_rounding_colones'] ?? BusinessSettings::DEFAULT_DECANT_ROUNDING_COLONES));
+                }
+            }
+        }
+
+        return $offers;
     }
 
     /**
