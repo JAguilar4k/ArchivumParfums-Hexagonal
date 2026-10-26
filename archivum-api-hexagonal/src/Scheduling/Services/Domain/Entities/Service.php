@@ -38,6 +38,31 @@ final class Service
         );
     }
 
+    /**
+     * Reconstructs a Service from existing data without resetting its state.
+     */
+    public static function reconstitute(
+        ServiceId $id,
+        BusinessId $businessId,
+        string $name,
+        int $durationMinutes,
+        Colones $price,
+        int $bufferMinutes,
+        int $maxPerfumes,
+        bool $isActive
+    ): self {
+        return new self(
+            $id,
+            $businessId,
+            $name,
+            $durationMinutes,
+            $price,
+            $bufferMinutes,
+            $maxPerfumes,
+            $isActive
+        );
+    }
+
     public function deactivate(): void
     {
         $this->isActive = false;

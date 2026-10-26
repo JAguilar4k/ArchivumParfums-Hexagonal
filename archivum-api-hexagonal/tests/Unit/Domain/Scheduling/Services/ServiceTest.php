@@ -71,3 +71,12 @@ test('puede desactivar y reactivar un servicio', function () {
     $service->activate();
     expect($service->isActive())->toBeTrue();
 });
+
+test('reconstruye un servicio manteniendo su estado inactivo', function () {
+    $args = validServiceArgs();
+    $args[] = false; // Agregamos el isActive = false
+
+    $service = Service::reconstitute(...$args);
+
+    expect($service->isActive())->toBeFalse();
+});
