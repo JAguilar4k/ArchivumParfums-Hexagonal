@@ -43,4 +43,17 @@ final class ScheduleBlock
     ): self {
         return new self($id, $businessId, $memberId, $startsAt, $endsAt, $reason, $origin);
     }
+
+    /** Restore the persisted values while keeping the constructor invariants. */
+    public static function reconstitute(
+        ScheduleBlockId $id,
+        BusinessId $businessId,
+        ?MemberId $memberId,
+        DateTimeImmutable $startsAt,
+        DateTimeImmutable $endsAt,
+        string $reason,
+        BlockOrigin $origin
+    ): self {
+        return new self($id, $businessId, $memberId, $startsAt, $endsAt, $reason, $origin);
+    }
 }
