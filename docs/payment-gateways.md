@@ -20,6 +20,7 @@ Se consultó en modo de solo lectura el equivalente del repositorio guía, `docs
 | PDF: `feature/pagos` y `v-investigacion1`; plan: ramas por issue y otras etiquetas | La entrega específica prevalece para esa rama y etiqueta. No se crea etiqueta sobre trabajo sin integrar ni se omite revisión de otra persona. |
 | PDF: cobrar una reserva; proyecto: las citas no tienen precio y los cobros recaen en pedidos | Se mantiene el recurso pagable del negocio, sin inventar una tarifa de cita. Debe señalarse al docente al presentar la adaptación. |
 | #89 contiene estructura de eventos de webhook | Crear estructura no habilita procesamiento de webhooks ni acredita #94/#95. |
+| El PDF exige aprobado, rechazado y error de comunicación; no prescribe cerrar sesiones ONVO | Expirar el checkout y verificar la intención antes de habilitar otro intento es una decisión de seguridad de Archivum, para evitar que el checkout anterior todavía pueda cobrar. |
 
 Las decisiones de redondeo USD, momento de pago del saldo y transiciones tras reembolso parcial siguen lo que se acuerde y documente en el issue correspondiente. Este expediente no resuelve reglas de negocio pendientes por su cuenta.
 
@@ -29,7 +30,7 @@ En la revisión de código del 25/10 se agregaron dos defensas: `validateCharge(
 
 ## 2. Registro de fuentes
 
-Todas las consultas siguientes tienen fecha **24/10/2026**. Las páginas comerciales y técnicas pueden cambiar; prevalece el contrato de la cuenta para costos finales.
+Las consultas iniciales tienen fecha **24/10/2026**; las reconsultas del **25/10/2026** se indican en el texto. Las páginas comerciales y técnicas pueden cambiar; prevalece el contrato de la cuenta para costos finales.
 
 | ID | Fuente oficial | Evidencia utilizada |
 | --- | --- | --- |
@@ -43,6 +44,7 @@ Todas las consultas siguientes tienen fecha **24/10/2026**. Las páginas comerci
 | O8 | [Webhooks ONVO](https://docs.onvopay.com/webhooks) | Secreto de origen y eventos. |
 | O9 | [Marketplaces ONVO](https://docs.onvopay.com/payments/marketplaces) | Cuentas conectadas y enrutamiento al vendedor. |
 | O10 | [ONVO para servicios](https://www.onvopay.com/business-industry-services) | Liquidación bancaria local. |
+| O11 | [OpenAPI ONVO](https://docs.onvopay.com/openapi.yaml) | Esquemas separados de intención, sesión y reembolso; reconsultado el 25/10/2026. |
 | P1 | [Sandbox PayPal](https://developer.paypal.com/sandbox-testing/overview) | Cuentas ficticias y alta del desarrollador. |
 | P2 | [Orders v2](https://developer.paypal.com/api/orders/v2) | Crear, consultar y capturar órdenes. |
 | P3 | [Monedas PayPal](https://developer.paypal.com/api/codes/currency) | USD admitido; CRC ausente. |
@@ -161,7 +163,24 @@ La API base es `https://api.onvopay.com/v1`; las llaves de prueba se reconocen p
 | Reembolsar | `POST /refunds` | Referencia al pago original y monto en unidad menor [O7]. |
 | Consultar reembolso | `GET /refunds/{id}` | Conservar el resultado para conciliación [O7]. |
 
-`requires_payment_method` puede significar inicio o regreso después de rechazo: el adaptador necesita examinar el resultado, no declarar fallido todo recurso en ese estado. `requires_action` y `processing` son pendientes. `succeeded` es éxito; `canceled` no acredita cobro. Un valor desconocido conserva incertidumbre y se registra sin secretos. [O3]
+#### Estados de intención, sesión y reembolso
+
+Los estados pertenecen al recurso consultado; no se intercambia el enum de `Refund` con el de `PaymentIntent`. El OpenAPI reconsultado el 25/10/2026 incluye `failed` en **ambos**, con significados diferentes. La tabla de estados comunes de la guía de intenciones es un resumen, no el enum completo. [O3, O7, O11]
+
+| Recurso y estado remoto | Interpretación y tratamiento |
+| --- | --- |
+| `PaymentIntent.status = succeeded` | Cobro exitoso, después de validar identidad, moneda e importe. Si aparece durante el cierre, prevalece sobre el rechazo observado antes. |
+| `PaymentIntent.status = failed` | Fallo definitivo documentado. Tiene tratamiento explícito de pago fallido; no debe caer en `unknownStatus()` como si fuera un valor no reconocido. Antes de habilitar otro intento se verifica también el cierre del checkout. |
+| `PaymentIntent.status = requires_payment_method` | Puede ser inicial o volver aquí tras un rechazo recuperable. Sin evidencia de rechazo permanece pendiente; con error se cierra el checkout y se cancela la intención reutilizable antes de dar por terminado el pago local. |
+| `PaymentIntent.status = requires_action` o `processing` | Sigue pendiente; no acredita cobro ni autoriza otro intento a ciegas. |
+| `CheckoutSession.status = expired` | Sesión cerrada. Por sí sola no prueba que la intención no se haya cobrado; se consulta también la intención. |
+| `Refund.status = pending`, `succeeded` o `failed` | Resultado de la devolución, no del cobro original. Un reembolso fallido no demuestra que el pago original fallara ni que se haya devuelto dinero. |
+
+`lastPaymentError` está descrito en el esquema de intención. `confirmationAttempts` aparece en esquemas y ejemplos de webhooks, pero no en el esquema de la respuesta GET de intención: es un indicio opcional, no un campo cuya presencia se deba exigir para detectar rechazo. Tampoco el nombre del evento `payment-intent.failed` equivale a `PaymentIntent.status = failed`; el ejemplo oficial del evento usa `requires_payment_method`. [O8, O11]
+
+El cierre es una política de seguridad de Archivum, **no una exigencia expresa del PDF**: impide abrir otro intento mientras el checkout anterior siga siendo pagable. `closeCheckout()` expira la sesión, solicita cancelar la intención cuando corresponde y vuelve a consultar ambas. El cierre se acepta con sesión `expired` e intención terminal `failed` o `canceled`; no se exige convertir un fallo definitivo en una cancelación que ONVO no promete. Si la reconsulta informa `succeeded`, se conserva ese éxito; si no permite comprobar un cierre seguro, el pago sigue pendiente de conciliación. No se presupone que expirar la sesión cancele automáticamente su intención. Los endpoints de [expiración](https://docs.onvopay.com/api/expirar-una-sesion-de-checkout) y [cancelación](https://docs.onvopay.com/api/cancelar-una-intencion-de-pago) fueron reconsultados el 25/10/2026.
+
+Los estados no reconocidos conservan la incertidumbre y se registran sin secretos; `failed`, al estar documentado y tener traducción explícita, no se clasifica como desconocido. Esta revisión del contrato y del mapeo no acredita que estos desenlaces se hayan ejecutado en sandbox.
 
 SINPE utiliza `mobile_number`; no debe mandarse ese medio a una pasarela sin la capacidad. La validación real de identificación y monto exacto de [O5] no debe reemplazarse con una suposición basada en el simulador parcial de [O6].
 

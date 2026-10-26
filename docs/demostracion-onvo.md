@@ -242,9 +242,20 @@ Después de la confirmación, debe mostrar `estado = "confirmado"`, `pagado = 75
 1. Crea **otro pedido** repitiendo el paso 7 y conserva por separado sus identificadores; no reutilices el pedido ya aprobado.
 2. Inicia su pago con `medio = "tarjeta"` y abre su nueva `url_pago`.
 3. Usa la tarjeta oficial de rechazo `4000000000000002`, fecha futura y datos ficticios.
-4. Consulta el nuevo `pago_id` desde Archivum. Un rechazo de tarjeta puede dejar la intención remota reutilizable: el adaptador cierra el checkout y la intención y verifica ambos antes de declarar un pago terminal `fallido`.
+4. Consulta el nuevo `pago_id` desde Archivum. Un rechazo de tarjeta puede dejar la intención en `requires_payment_method`, todavía reutilizable. El adaptador cierra el checkout, solicita cancelar la intención y verifica ambas antes de declarar el pago local `fallido`. Si ONVO informa directamente `PaymentIntent.status = failed`, se trata como fallo definitivo conocido y también se comprueba el cierre del checkout.
 5. Si esa verificación no puede completarse, verás pendiente/202; no lo presentes como rechazo terminal confirmado y no intentes otro cobro todavía.
 6. Verifica que el pedido siga sin pago confirmado. Solo un intento cerrado permite iniciar otro checkout con seguridad.
+
+El [OpenAPI oficial](https://docs.onvopay.com/openapi.yaml), reconsultado el 25/10/2026, distingue estos resultados:
+
+| Estado consultado | Qué debes explicar |
+| --- | --- |
+| Intención `failed` | Fallo definitivo del cobro, con traducción explícita a pago fallido después del cierre seguro. No se trata como estado desconocido. |
+| Intención `requires_payment_method` con error | Rechazo recuperable: la intención admite otro método mientras no se cancele. No equivale por sí solo a un fallo terminal local. |
+| Reembolso `failed` | Falló la devolución del paso 11. El cobro original no se vuelve fallido ni se considera devuelto por ese resultado. |
+| Estado no reconocido o comunicación incierta | Se conserva el pago pendiente y la información de diagnóstico sin secretos; no se presenta como rechazo definitivo. |
+
+El PDF exige manejar rechazo y error de comunicación por separado, pero **no exige expirar el checkout ni cancelar la intención**. Ese cierre es la defensa de Archivum para no habilitar un segundo cobro mientras el primero siga siendo posible. Se reconsultan sesión e intención: sesión `expired` con intención `failed` o `canceled` permite terminar el intento; si ganó un cobro y aparece `succeeded`, prevalece el éxito comprobado. No supongas que cerrar la sesión cancela automáticamente la intención. `lastPaymentError` está documentado en la intención; `confirmationAttempts` es una pista opcional publicada en webhooks, cuya presencia no debe darse por garantizada en GET.
 
 El número `4000000000000119` simula error del procesador según el mismo manual. No es una demostración de desconexión de red: para esa falla usa las pruebas simuladas del paso 12.
 
@@ -321,8 +332,9 @@ Las líneas son referencias orientativas del código revisado el 25/10/2026; si 
 | Construcción del adaptador | [`PaymentsServiceProvider.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/PaymentsServiceProvider.php#L35) | `register()`, 35–52 aproximadamente | Inyecta configuración. No pegar llaves en esta clase. |
 | Payload de checkout y tarjeta/SINPE | [`OnvoGateway.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Gateways/Onvo/OnvoGateway.php#L45) | `create()`, 45–74 | `lineItems`, `paymentMethodTypes`, referencias y URLs. Cambiar solo al adaptar un contrato de ONVO verificado. |
 | Conversión a céntimos | [`GatewayMoney.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Gateways/GatewayMoney.php#L13) | `colonesToMinor()`, 13–20 | CRC enteros × 100; nunca cambiar unidades en el controlador. |
-| Consulta y cierre tras rechazo | [`OnvoGateway.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Gateways/Onvo/OnvoGateway.php#L85) | `status()` y `closeCheckout()`, 85–165 | Traduce estados y verifica cierre remoto antes de permitir otro intento. |
-| Devolución a ONVO | [`OnvoGateway.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Gateways/Onvo/OnvoGateway.php#L167) | `refund()`, 167–208 | Pide o reconsulta la devolución por referencia, con monto calculado en el servidor. |
+| Consulta y cierre tras rechazo | [`OnvoGateway.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Gateways/Onvo/OnvoGateway.php#L85) | `status()` y `closeCheckout()`, desde 85 aproximadamente | Distingue intención `failed` definitiva de `requires_payment_method` recuperable; verifica sesión expirada e intención terminal antes de otro intento. Un éxito concurrente prevalece. |
+| Estado remoto no reconocido | [`OnvoGateway.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Gateways/Onvo/OnvoGateway.php#L271) | `unknownStatus()`, cerca de 275 | Conserva pendiente y registra diagnóstico. El `failed` documentado de intención tiene su propia rama y no debe entrar aquí. |
+| Devolución a ONVO | [`OnvoGateway.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Gateways/Onvo/OnvoGateway.php#L167) | `refund()`, desde 170 aproximadamente | Pide o reconsulta la devolución por referencia. Su `failed` describe la devolución, sin convertir en fallido el cobro original. |
 | Persistencia del intento y doble clic | [`StartPayment.php`](../archivum-api-hexagonal/src/Payments/Payments/Application/UseCases/StartPayment.php#L28) | `execute()`, 28–91 | Guarda el intento antes del POST. No eliminar esa protección para “reintentar” una falla. |
 | Aplicar confirmación y pedido | [`ObservePayment.php`](../archivum-api-hexagonal/src/Payments/Payments/Application/UseCases/ObservePayment.php#L22) | `execute()`, 22–57 | Consulta autorizada y cambios financieros transaccionales. |
 | Procesar devoluciones ya calculadas | [`ProcessOrderRefunds.php`](../archivum-api-hexagonal/src/Payments/Payments/Application/UseCases/ProcessOrderRefunds.php#L23) | `execute()`, 23–95 aproximadamente | Registra el intento de devolución antes de llamar al proveedor. |
@@ -341,6 +353,8 @@ Las líneas son referencias orientativas del código revisado el 25/10/2026; si 
 | 404 en pedido o pago | Revisa ID y propiedad; otro cliente o tienda recibe la misma respuesta. |
 | 409 al iniciar pago | Revisa que el pedido sea pagable, no haya vencido y no existan devoluciones por resolver. |
 | 422 de configuración | Revisa llave de prueba local y configuración limpia. No escribas la llave en el cuerpo de la petición. |
+| Pago `fallido` tras rechazo | Distingue intención `failed` definitiva de rechazo recuperable `requires_payment_method` ya cerrado por el adaptador; comprueba que el pedido no recibió el importe. |
+| Reembolso `fallido` | La devolución no quedó confirmada; revisa su referencia y resultado. No lo interpretes como un rechazo del cobro original. |
 | 202 con intento incierto | Conserva `pago_id`; consulta el mismo recurso. Si se perdió la referencia remota, revisa el Dashboard con los identificadores internos y concilia antes de intentar otro cobro. |
 | Regreso al navegador sin pedido confirmado | Ejecuta `GET /cuenta/pagos/{pago}` con token de cliente; el retorno por sí solo no paga. |
 | SINPE sigue pendiente | Revisa número simulado y el tiempo de ese escenario. No hagas una transferencia real. |

@@ -112,15 +112,16 @@ it('requires the authoritative intent outcome even when checkout reports paid', 
     Http::assertSentCount(2);
 })->with([
     ['succeeded', 1, PaymentStatus::Succeeded],
+    ['failed', 1, PaymentStatus::Failed],
     ['requires_payment_method', 0, PaymentStatus::Pending],
     ['processing', 1, PaymentStatus::Pending],
     ['canceled', 1, PaymentStatus::Expired],
 ]);
 
-it('closes the declined checkout and intent before reporting a terminal failure', function (): void {
+it('closes the declined checkout and intent before reporting a terminal failure', function (array $rejection): void {
     Http::fakeSequence()
         ->push(['id' => 'session-1', 'mode' => 'test', 'status' => 'open', 'paymentIntentId' => 'intent-1'])
-        ->push(['id' => 'intent-1', 'mode' => 'test', 'amount' => 500_000, 'currency' => 'CRC', 'status' => 'requires_payment_method', 'confirmationAttempts' => 1])
+        ->push(['id' => 'intent-1', 'mode' => 'test', 'amount' => 500_000, 'currency' => 'CRC', 'status' => 'requires_payment_method', ...$rejection])
         ->push([], 201)
         ->push([], 201)
         ->push(['id' => 'session-1', 'mode' => 'test', 'status' => 'expired', 'paymentIntentId' => 'intent-1'])
@@ -138,7 +139,10 @@ it('closes the declined checkout and intent before reporting a terminal failure'
         'GET https://api.onvopay.com/v1/checkout/sessions/session-1',
         'GET https://api.onvopay.com/v1/payment-intents/intent-1',
     ]));
-});
+})->with([
+    'confirmation attempt' => [['confirmationAttempts' => 1]],
+    'documented last payment error without an attempt counter' => [['lastPaymentError' => ['code' => 'declined']]],
+]);
 
 it('keeps an uncertain remote closure pending even after successful cancellation responses', function (string $initialStatus, string $sessionStatus, string $intentStatus): void {
     Http::fakeSequence()
@@ -157,7 +161,26 @@ it('keeps an uncertain remote closure pending even after successful cancellation
     ['requires_payment_method', 'expired', 'requires_payment_method'],
     ['requires_payment_method', 'expired', 'processing'],
     ['canceled', 'open', 'canceled'],
+    ['failed', 'open', 'failed'],
+    ['failed', 'expired', 'processing'],
+    ['failed', 'expired', 'requires_payment_method'],
 ]);
+
+it('closes a definitively failed checkout without requiring the intent to become canceled', function (string $finalStatus): void {
+    Http::fakeSequence()
+        ->push(['id' => 'session-1', 'status' => 'open', 'paymentIntentId' => 'intent-1'])
+        ->push(['id' => 'intent-1', 'mode' => 'test', 'amount' => 500_000, 'currency' => 'CRC', 'status' => 'failed'])
+        ->push([], 201)
+        ->push([], 400)
+        ->push(['id' => 'session-1', 'status' => 'expired', 'paymentIntentId' => 'intent-1'])
+        ->push(['id' => 'intent-1', 'mode' => 'test', 'amount' => 500_000, 'currency' => 'CRC', 'status' => $finalStatus]);
+
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->status(new ChargeReference('payment-1', 'session-1', 'CRC', 5_000));
+
+    expect($result->status)->toBe(PaymentStatus::Failed);
+    expect($result->captureReference)->toBe('intent-1');
+    Http::assertSentCount(6);
+})->with(['failed', 'canceled']);
 
 it('closes a declined checkout whose session responses omit mode', function (): void {
     Http::fakeSequence()
@@ -174,10 +197,10 @@ it('closes a declined checkout whose session responses omit mode', function (): 
     Http::assertSentCount(6);
 });
 
-it('accepts a successful charge that wins the race against closing a declined checkout', function (): void {
+it('accepts a successful charge that wins the race against closing a declined checkout', function (string $initialStatus): void {
     Http::fakeSequence()
         ->push(['id' => 'session-1', 'mode' => 'test', 'status' => 'open', 'paymentIntentId' => 'intent-1'])
-        ->push(['id' => 'intent-1', 'mode' => 'test', 'amount' => 500_000, 'currency' => 'CRC', 'status' => 'requires_payment_method', 'lastPaymentError' => ['code' => 'declined']])
+        ->push(['id' => 'intent-1', 'mode' => 'test', 'amount' => 500_000, 'currency' => 'CRC', 'status' => $initialStatus, 'lastPaymentError' => ['code' => 'declined']])
         ->push([], 400)
         ->push([], 400)
         ->push(['id' => 'session-1', 'mode' => 'test', 'status' => 'complete', 'paymentIntentId' => 'intent-1'])
@@ -188,7 +211,7 @@ it('accepts a successful charge that wins the race against closing a declined ch
     expect($result->status)->toBe(PaymentStatus::Succeeded);
     expect($result->captureReference)->toBe('intent-1');
     Http::assertSentCount(6);
-});
+})->with(['requires_payment_method', 'failed']);
 
 it('verifies closed remote state after losing both cancellation responses', function (): void {
     Http::fakeSequence()
@@ -267,19 +290,19 @@ it('refuses a checkout URL outside the provider domain', function (): void {
     Http::assertSentCount(1);
 });
 
-it('requests and queries a refund in cents against its original intent', function (): void {
+it('requests and queries a refund in cents against its original intent', function (string $status): void {
     Http::fake([
         'api.onvopay.com/v1/refunds' => Http::response(['id' => 'refund-1'], 201),
-        'api.onvopay.com/v1/refunds/refund-1' => Http::response(['id' => 'refund-1', 'mode' => 'test', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => 'succeeded']),
+        'api.onvopay.com/v1/refunds/refund-1' => Http::response(['id' => 'refund-1', 'mode' => 'test', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => $status]),
     ]);
 
     $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500, 'intent-1'));
 
-    expect($result->status)->toBe('succeeded');
+    expect($result->status)->toBe($status);
     expect($result->providerReference)->toBe('refund-1');
     Http::assertSent(fn (Request $request): bool => $request->method() === 'POST' && $request['paymentIntentId'] === 'intent-1' && $request['amount'] === 250_000);
     Http::assertSentCount(2);
-});
+})->with(['pending', 'succeeded', 'failed']);
 
 it('queries an existing pending refund without sending a second refund request', function (): void {
     Http::fake(['api.onvopay.com/v1/refunds/refund-1' => Http::response(['id' => 'refund-1', 'mode' => 'test', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => 'succeeded'])]);
