@@ -114,6 +114,7 @@ final readonly class OnvoGateway implements PaymentGateway
 
         $status = match ($intent->json('status')) {
             'succeeded' => PaymentStatus::Succeeded,
+            'failed' => $session->json('status') === 'expired' ? PaymentStatus::Failed : $this->closeCheckout($reference, $sessionId, $intentId, PaymentStatus::Failed),
             'canceled' => $session->json('status') === 'expired' ? PaymentStatus::Expired : $this->closeCheckout($reference, $sessionId, $intentId, PaymentStatus::Expired),
             'requires_payment_method' => ($intent->json('confirmationAttempts', 0) > 0 || $intent->json('lastPaymentError') !== null) ? $this->closeCheckout($reference, $sessionId, $intentId, PaymentStatus::Failed) : PaymentStatus::Pending,
             'requires_action', 'processing' => PaymentStatus::Pending,
@@ -123,7 +124,7 @@ final readonly class OnvoGateway implements PaymentGateway
         return new ChargeResult($reference->providerReference, $status, 'CRC', $reference->chargedAmount, checkoutReference: $sessionId, captureReference: $intentId);
     }
 
-    /** A declined method leaves an intent payable; close both remote resources before enabling another checkout. */
+    /** Close the checkout and verify a terminal intent before enabling another payment attempt. */
     private function closeCheckout(ChargeReference $reference, string $sessionId, string $intentId, PaymentStatus $closedStatus): PaymentStatus
     {
         try {
@@ -157,11 +158,11 @@ final readonly class OnvoGateway implements PaymentGateway
             return PaymentStatus::Succeeded;
         }
 
-        if ($session->json('status') !== 'expired' || $intent->json('status') !== 'canceled') {
+        if ($session->json('status') !== 'expired' || ! in_array($intent->json('status'), ['canceled', 'failed'], true)) {
             throw new GatewayUnavailableException('payments.unavailable');
         }
 
-        return $closedStatus;
+        return $intent->json('status') === 'failed' ? PaymentStatus::Failed : $closedStatus;
     }
 
     public function refund(RefundRequest $request): RefundResult

@@ -1,0 +1,288 @@
+{
+  "version_esquema": 1,
+  "investigacion": 1,
+  "fecha": "2026-10-25",
+  "zona_horaria": "America/Costa_Rica",
+  "ejecutor": {
+    "nombre": "Codex",
+    "tipo": "agente",
+    "metodos": [
+      "navegador real",
+      "HTTP real"
+    ],
+    "revision_humana_registrada": false
+  },
+  "entorno": {
+    "proveedores": "sandbox",
+    "datos": "ficticios",
+    "fondos_reales_utilizados": false
+  },
+  "alcance": {
+    "ejecucion_nativa_completa_postman": false,
+    "validacion_colecciones": "Sintaxis y scripts en VM; solicitudes HTTP reales fuera de la ejecución nativa completa de Postman.",
+    "respuestas": "Extractos sanitizados; no incluyen cuerpos de autenticación, cookies, tokens ni URLs de checkout."
+  },
+  "onvo": {
+    "estado": "verificado_en_sandbox",
+    "escenarios": [
+      {
+        "id": "tarjeta_aprobada",
+        "medio": "tarjeta",
+        "resultado": "confirmado",
+        "monto_crc": 7500,
+        "verificacion": "Dos consultas del mismo pago conservaron la confirmación; el pedido registró pagado=7500 y saldo=7500.",
+        "capturas": [
+          "onvo-tarjeta-aprobada.png"
+        ],
+        "fuente_sanitizada": "onvo-card-result.json",
+        "respuestas": [
+          {
+            "path": "/api/v1/cuenta/pagos/01a17646-dc12-7270-a38d-26d4424892b5",
+            "http": 200,
+            "estado": "confirmado",
+            "monto": 7500,
+            "moneda_cobrada": "CRC",
+            "monto_cobrado": 7500,
+            "consulta_pendiente": false
+          },
+          {
+            "path": "/api/v1/cuenta/pagos/01a17646-dc12-7270-a38d-26d4424892b5",
+            "http": 200,
+            "estado": "confirmado",
+            "monto": 7500,
+            "moneda_cobrada": "CRC",
+            "monto_cobrado": 7500,
+            "consulta_pendiente": false
+          },
+          {
+            "path": "/api/v1/cuenta/pedidos/01a17646-d392-734c-b38c-f47dcd3a11cc",
+            "http": 200,
+            "estado": "confirmado",
+            "pagado": 7500,
+            "saldo": 7500
+          }
+        ]
+      },
+      {
+        "id": "tarjeta_rechazada",
+        "medio": "tarjeta",
+        "dato_prueba": "Tarjeta ficticia oficial terminada en 0002",
+        "resultado": "fallido",
+        "verificacion": "El pago terminó fallido y el pedido permaneció pendiente_de_pago, con pagado=0.",
+        "capturas": [
+          "onvo-tarjeta-rechazada.png"
+        ],
+        "fuente_sanitizada": "onvo-declined-result.json",
+        "respuestas": [
+          {
+            "resource": "payment",
+            "http": 200,
+            "estado": "fallido",
+            "consulta_pendiente": false
+          },
+          {
+            "resource": "order",
+            "http": 200,
+            "estado": "pendiente_de_pago",
+            "pagado": 0,
+            "saldo": 7500
+          }
+        ]
+      },
+      {
+        "id": "sinpe_movil_aprobado",
+        "medio": "sinpe_movil",
+        "dato_prueba": "+50688888888",
+        "resultado": "confirmado",
+        "monto_crc": 7500,
+        "verificacion": "El checkout mostró SINPE Móvil como único medio. Se completó el simulador sin abrir una aplicación bancaria ni transferir fondos.",
+        "capturas": [
+          "onvo-sinpe-unico-medio.png",
+          "onvo-sinpe-confirmado.png"
+        ],
+        "fuente_sanitizada": "onvo-sinpe-result.json",
+        "respuestas": [
+          {
+            "resource": "pagos",
+            "http": 200,
+            "estado": "confirmado",
+            "medio": "sinpe_movil",
+            "monto": 7500,
+            "consulta_pendiente": false
+          },
+          {
+            "resource": "pedidos",
+            "http": 200,
+            "estado": "confirmado",
+            "pagado": 7500,
+            "saldo": 7500
+          }
+        ]
+      },
+      {
+        "id": "reembolso_tarjeta_aprobada",
+        "resultado": "confirmado",
+        "monto_crc": 7500,
+        "verificacion": "Se canceló el primer pedido aprobado, se confirmó el reembolso y el mismo pago quedó reembolsado. El pedido permaneció cancelado con pagado=0.",
+        "capturas": [],
+        "fuente_sanitizada": "onvo-refund-result.json",
+        "respuestas": [
+          {
+            "method": "POST",
+            "path": "/api/v1/cuenta/pedidos/01a17646-d392-734c-b38c-f47dcd3a11cc/cancelacion",
+            "http": 200,
+            "estado": "cancelado",
+            "pagado": 7500,
+            "saldo": 7500
+          },
+          {
+            "method": "POST",
+            "path": "/api/v1/panel/pedidos/01a17646-d392-734c-b38c-f47dcd3a11cc/reembolsos",
+            "http": 200,
+            "refunds": [
+              {
+                "estado": "confirmado",
+                "monto": 7500
+              }
+            ]
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/cuenta/pagos/01a17646-dc12-7270-a38d-26d4424892b5",
+            "http": 200,
+            "estado": "reembolsado",
+            "consulta_pendiente": false
+          },
+          {
+            "method": "GET",
+            "path": "/api/v1/cuenta/pedidos/01a17646-d392-734c-b38c-f47dcd3a11cc",
+            "http": 200,
+            "estado": "cancelado",
+            "pagado": 0,
+            "saldo": 7500
+          }
+        ]
+      }
+    ],
+    "fecha": "2026-10-25"
+  },
+  "paypal": {
+    "estado": "verificado_en_sandbox",
+    "oauth_http": 200,
+    "oauth_evidencia": "Resultado registrado por Codex; se omite la respuesta de autenticación.",
+    "recursos_reutilizados": {
+      "perfume": true,
+      "presentacion": true,
+      "nota": "La preparación reutilizó recursos existentes mediante HTTP200; no acredita ejecutar sus peticiones de creación con HTTP201."
+    },
+    "checkout": {
+      "http": 201,
+      "creado": true,
+      "estado": "pendiente",
+      "monto": 7500,
+      "moneda_cobrada": "USD",
+      "monto_cobrado": 1500,
+      "consulta_pendiente": false,
+      "tipo_cambio_crc_por_usd": 500,
+      "importe_usd": "15.00"
+    },
+    "aprobacion_comprador_completada": true,
+    "captura_confirmada": true,
+    "pendiente": [
+      "Ensayo y revision humana del equipo."
+    ],
+    "fecha": "2026-10-26",
+    "pedido_id": "01a17883-ec63-7394-8ecc-db7db1c1ca09",
+    "pago_id": "01a17883-f52c-73ec-9249-a832506e6396",
+    "fuente_fondos": {
+      "tipo": "tarjeta_ficticia",
+      "marca": "Visa",
+      "ultimos_cuatro": "5083",
+      "evidencia": "paypal-tarjeta-seleccionada.png"
+    },
+    "respuestas": [
+      {
+        "path": "/api/v1/cuenta/pagos/01a17883-f52c-73ec-9249-a832506e6396",
+        "http": 200,
+        "estado": "confirmado",
+        "monto": 7500,
+        "moneda_cobrada": "USD",
+        "monto_cobrado": 1500,
+        "consulta_pendiente": false
+      },
+      {
+        "path": "/api/v1/cuenta/pagos/01a17883-f52c-73ec-9249-a832506e6396",
+        "http": 200,
+        "estado": "confirmado",
+        "monto": 7500,
+        "moneda_cobrada": "USD",
+        "monto_cobrado": 1500,
+        "consulta_pendiente": false
+      },
+      {
+        "path": "/api/v1/cuenta/pedidos/01a17883-ec63-7394-8ecc-db7db1c1ca09",
+        "http": 200,
+        "estado": "confirmado",
+        "pagado": 7500,
+        "saldo": 7500
+      }
+    ],
+    "proveedor": {
+      "http": 200,
+      "status": "COMPLETED",
+      "capture_count": 1,
+      "captures": [
+        {
+          "status": "COMPLETED",
+          "amount": {
+            "currency_code": "USD",
+            "value": "15.00"
+          },
+          "final_capture": true
+        }
+      ]
+    },
+    "sinpe_no_admitido": [
+      {
+        "scenario": "SINPE no admitido en PayPal",
+        "http": 422,
+        "detail": "La pasarela configurada no admite ese medio de pago."
+      },
+      {
+        "scenario": "pedido no acreditado",
+        "http": 200,
+        "estado": "pendiente_de_pago",
+        "pagado": 0
+      }
+    ],
+    "intento_anterior": {
+      "order_id": "01a1764c-9839-7182-9a7f-a4a02149f891",
+      "payment_id": "01a1764c-a0bf-732c-b0bd-b98225c75eb6",
+      "provider_result": "404 INVALID_RESOURCE_ID; payment kept pending for reconciliation",
+      "cancel_http": 200,
+      "order_state": "cancelado"
+    },
+    "fuentes_sanitizadas": [
+      "paypal-precheckout-report.json",
+      "paypal-confirmation-result.json",
+      "paypal-provider-confirmation.json",
+      "paypal-unsupported-result.json",
+      "paypal-previous-attempt.json"
+    ]
+  },
+  "fecha_fin": "2026-10-26",
+  "postman_manual": {
+    "fecha": "2026-10-26",
+    "modo": "Lightweight sin cuenta",
+    "method": "GET",
+    "path": "/api/v1",
+    "http": 200,
+    "pruebas_aprobadas": [
+      "API disponible",
+      "Nombre de la aplicación",
+      "Versión de la API"
+    ],
+    "captura": "postman-sin-cuenta.png",
+    "recorrido_completo_pagos": false
+  }
+}

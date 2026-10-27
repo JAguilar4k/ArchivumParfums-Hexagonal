@@ -1,0 +1,1976 @@
+{
+  "info": {
+    "_postman_id": "6eb15d6e-4006-45ba-8e0b-b1bfb022a3f6",
+    "name": "ArchivumParfums · PayPal sandbox · Investigación 1",
+    "description": "Recorrido manual independiente de 21 peticiones para el adaptador HTTP de PayPal. Sin cuenta Postman, usar las peticiones como guion en Lightweight y sustituir sus marcadores a mano. Para el modo importado con sesión, importar también ArchivumParfums-PayPal-local.postman_environment.json. Configurar base_url local sin /api/v1 ni barra final y demo_password conforme a ARCHIVUM_DEMO_PASSWORD de la siembra. Las cuentas ficticias son duena@archivumparfums.test y mariana@clientes.test.\n\nLeer docs/demostracion-paypal.md. La API requiere PHP/PostgreSQL y demo sembrada, .env con credenciales sandbox del vendedor, config:clear y reinicio. Nunca pegar secretos de PayPal en este entorno. Cada recorrido modifica ajustes y crea perfume, presentación y dos pedidos ficticios; no borra filas ni exige dinero real.\n\nUsar Send en orden. En Runner, seleccionar la fase deseada: 12 detiene la ejecución para abrir manualmente paypal_card_checkout_url y aprobar como Personal sandbox. Después de aprobar, continuar manualmente 13–19. La petición 13 también permite consultar el mismo intento para conciliar un resultado incierto. La aprobación sola no es captura. 13 exige confirmado; pending/202 falla y no se presenta como éxito. Si se interrumpe antes de 20–21, cerrar después las sesiones locales. No publicar el entorno capturado.\n\nPara acreditar tarjeta, seleccionar una tarjeta ficticia como financiación dentro de PayPal o como invitado si es elegible y guardar evidencia anonimizada. Pagar solo con saldo demuestra Checkout, pero no el requisito de tarjeta. Esta integración usa payment_source.paypal, no Advanced Card Fields. El reembolso PayPal queda documentado para otro corte: esta colección no afirma implementarlo.\n\nLas identidades externas son: acceso al Developer Dashboard, vendedor Business sandbox y comprador Personal sandbox. La persona responsable debe registrar o usar su acceso y crear/verificar las cuentas ficticias desde el Dashboard; esta colección no crea cuentas externas. Fuentes oficiales: https://developer.paypal.com/sandbox-testing/accounts y https://developer.paypal.com/api/rest/.\n\nScripts con pm.test/pm.environment y guardas de pm.execution.skipRequest; sin solicitudes ocultas. Referencias oficiales consultadas 25/10/2026: https://learning.postman.com/docs/tests-and-scripts/write-scripts/postman-sandbox-reference/pm-execution/ y https://learning.postman.com/latest-v-12/docs/tests-and-scripts/write-scripts/postman-sandbox-reference/pm-test-expect.\n\nLas peticiones de creación se omiten si ya hay referencias del escenario: retomar sus consultas, no borrar el ID de un intento incierto. Para otro recorrido conservar el entorno anterior privado e importar otro entorno limpio. La respuesta 200/201/202 de 11 conserva un UUID local coherente aunque el test de aceptación 201 falle; esto identifica el intento, no demuestra un cobro. Un 202 puede tener monto_cobrado=0 y url_pago=null. No se usa una marca manual para decidir el estado ni bloquear la consulta de conciliación.\n\nEl 26/10/2026 se completaron aprobación con tarjeta ficticia y captura sandbox por USD 15,00 mediante la API local y el navegador. Dos consultas locales confirmaron el mismo depósito de ₡7.500 y la consulta directa al proveedor mostró exactamente una captura COMPLETED. La evidencia está en docs/evidencia-investigacion-1. Esta colección y su entorno quedaron preparados, pero no fueron importados ni ejecutados completos en Postman nativo.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const localBase = pm.environment.get(\"base_url\");",
+          "const localBasePattern = /^https?:\\/\\/(?:localhost|127\\.0\\.0\\.1|\\[::1\\])(?::([0-9]{1,5}))?$/i;",
+          "const localMatch = typeof localBase === \"string\" ? localBase.match(localBasePattern) : null;",
+          "if (!localMatch || (localMatch[1] && (Number(localMatch[1]) < 1 || Number(localMatch[1]) > 65535))) {",
+          "  pm.test(\"Dirección local válida\", function () {",
+          "    pm.expect(Boolean(localMatch), \"Solo localhost, 127.0.0.1 o [::1], con HTTP/HTTPS y puerto válido\").to.eql(true);",
+          "    if (localMatch && localMatch[1]) { pm.expect(Number(localMatch[1])).to.be.within(1, 65535); }",
+          "  });",
+          "  pm.execution.skipRequest();",
+          "}",
+          "pm.variables.set(\"base_url\", localBase);",
+          "const resolvedRequestUrl = pm.variables.replaceIn(pm.request.url.toString());",
+          "if (!resolvedRequestUrl.startsWith(localBase + \"/api/v1\")) {",
+          "  pm.test(\"Destino local\", function () {",
+          "    pm.expect(resolvedRequestUrl).to.match(new RegExp(\"^\" + localBase.replace(/[.*+?^$\\{\\}()|[\\]\\\\]/g, \"\\\\$&\") + \"/api/v1(?:/|$)\"));",
+          "  });",
+          "  pm.execution.skipRequest();",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "A · Preparación y sesiones",
+      "description": "Ejecutar 01–07 con Send. Para el modo importado con sesión, importar el entorno PayPal local; en Lightweight sustituir los marcadores manualmente; base_url queda vacía para que se configure a mano. La API debe estar sembrada con cuentas ficticias y el depósito por defecto del 50 %. Ninguna petición crea cuentas en PayPal.",
+      "item": [
+        {
+          "name": "01 · Comprobar la API",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1",
+            "description": "Comprueba la API local sin autenticación.\n\nEsperado: HTTP 200."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"API disponible\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.eql({ nombre: \"ArchivumParfums\", version: \"v1\" });",
+                  "",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "02 · Dueña: iniciar sesión",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/sesiones",
+            "description": "Usa la contraseña ficticia ARCHIVUM_DEMO_PASSWORD que se usó al sembrar. Captura el token Sanctum solo si la respuesta es válida; no es el token OAuth de PayPal.\n\nEsperado: HTTP 201.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"duena@archivumparfums.test\",\n  \"contrasena\": \"{{demo_password}}\",\n  \"dispositivo\": \"Postman PayPal dueña\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.unset(\"token_owner\");",
+                  "const requiredVariables = [\"demo_password\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Sesión de la dueña\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.token).to.be.a(\"string\").and.not.empty;",
+                  "  pm.environment.set(\"token_owner\", body.data.token);",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "03 · Cliente: iniciar sesión",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/sesiones",
+            "description": "Mariana es una cliente ficticia de Archivum. Sus credenciales no son las del comprador Personal sandbox de PayPal.\n\nEsperado: HTTP 201.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"mariana@clientes.test\",\n  \"contrasena\": \"{{demo_password}}\",\n  \"dispositivo\": \"Postman PayPal cliente\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.unset(\"token_customer\");",
+                  "const requiredVariables = [\"demo_password\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Sesión de la cliente\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.token).to.be.a(\"string\").and.not.empty;",
+                  "  pm.environment.set(\"token_customer\", body.data.token);",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "04 · Verificar la cuenta de la dueña",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_owner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta",
+            "description": "Comprueba que el token de la dueña pertenece a la tienda piloto.\n\nEsperado: HTTP 200."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_owner\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Dueña de la tienda\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.correo).to.eql(\"duena@archivumparfums.test\");",
+                  "  pm.expect(body.data.rol).to.eql(\"dueno\");",
+                  "  pm.expect(body.data.tienda.slug).to.eql(\"archivumparfums\");",
+                  "",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "05 · Verificar la cuenta de la cliente",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta",
+            "description": "Comprueba que el token separado corresponde a Mariana con rol cliente.\n\nEsperado: HTTP 200."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_customer\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Cuenta de la cliente\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.correo).to.eql(\"mariana@clientes.test\");",
+                  "  pm.expect(body.data.rol).to.eql(\"cliente\");",
+                  "",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "06 · Dueña: activar PayPal",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_owner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/panel/tienda",
+            "description": "Modifica los ajustes de la tienda del token. 500 CRC por USD es un escenario didáctico, no una cotización actual. No cambia la pasarela de un intento pendiente existente.\n\nEsperado: HTTP 200.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ajustes\": {\n    \"pasarela_por_defecto\": \"paypal\",\n    \"tipo_cambio_usd\": 500\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_owner\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"PayPal seleccionado\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.slug).to.eql(\"archivumparfums\");",
+                  "  pm.expect(body.data.ajustes.pasarela_por_defecto).to.eql(\"paypal\");",
+                  "  pm.expect(body.data.ajustes.tipo_cambio_usd).to.eql(500);",
+                  "",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "07 · Verificar los ajustes de PayPal",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_owner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/panel/tienda",
+            "description": "Confirma los ajustes antes de crear un pedido nuevo.\n\nEsperado: HTTP 200."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_owner\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Ajustes de PayPal\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.slug).to.eql(\"archivumparfums\");",
+                  "  pm.expect(body.data.ajustes.pasarela_por_defecto).to.eql(\"paypal\");",
+                  "  pm.expect(body.data.ajustes.tipo_cambio_usd).to.eql(500);",
+                  "",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "B · Crear el pago y abrir PayPal",
+      "description": "Ejecutar 08–12 una por una. Las creaciones se bloquean si ya existen referencias del escenario; retomar sus consultas. Para otro recorrido importar un entorno limpio y conservar el anterior privado. La petición 12 detiene el Runner. Abrir manualmente paypal_card_checkout_url en el navegador, aprobar como Personal sandbox y seleccionar una tarjeta ficticia como financiación si está disponible. Si solo se usa saldo, el requisito de tarjeta queda pendiente aunque Checkout funcione. Ver docs/demostracion-paypal.md.",
+      "item": [
+        {
+          "name": "08 · Dueña: crear un perfume de prueba",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_owner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/panel/perfumes",
+            "description": "Crea un producto nuevo. Si ya hay referencias PayPal del escenario, omite el envío para conservarlas. Retomar el recorrido original; para otro usar un entorno limpio y conservar el anterior privado. No borra filas ni pagos del servidor.\n\nEsperado: HTTP 201.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"marca\": \"Laboratorio ficticio\",\n  \"nombre\": \"Ensayo PayPal Postman Investigación 1\",\n  \"descripcion\": \"Producto ficticio para demostrar cobros sandbox\",\n  \"activo\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_owner\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});",
+                  "const existingResources = [\"paypal_perfume_id\",\"paypal_variant_id\",\"paypal_card_order_id\",\"paypal_card_payment_id\",\"paypal_card_checkout_url\",\"paypal_card_confirmed\",\"paypal_unsupported_order_id\"].filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value === \"string\" && value.trim() !== \"\";",
+                  "});",
+                  "if (existingResources.length > 0) {",
+                  "  pm.test(\"Referencias existentes: \" + existingResources.join(\", \"), function () {",
+                  "    pm.expect(existingResources, \"Retomar el escenario original; para otro recorrido usar un entorno nuevo sin borrar la referencia anterior\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Perfume creado\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "  pm.expect(body.data.nombre).to.eql(\"Ensayo PayPal Postman Investigación 1\");",
+                  "  pm.expect(body.data.activo).to.eql(true);",
+                  "  pm.environment.set(\"paypal_perfume_id\", body.data.id);",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "09 · Dueña: crear una presentación",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_owner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/panel/perfumes/{{paypal_perfume_id}}/presentaciones",
+            "description": "El precio manual evita depender de una importación del catálogo del proveedor.\n\nEsperado: HTTP 201.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ml\": 100,\n  \"precio_manual\": 15000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_owner\",\"paypal_perfume_id\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_perfume_id\"))) {",
+                  "  pm.test(\"Perfume identificado\", function () { pm.expect(pm.environment.get(\"paypal_perfume_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "const existingResources = [\"paypal_variant_id\",\"paypal_card_order_id\",\"paypal_card_payment_id\",\"paypal_card_checkout_url\",\"paypal_card_confirmed\",\"paypal_unsupported_order_id\"].filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value === \"string\" && value.trim() !== \"\";",
+                  "});",
+                  "if (existingResources.length > 0) {",
+                  "  pm.test(\"Referencias existentes: \" + existingResources.join(\", \"), function () {",
+                  "    pm.expect(existingResources, \"Retomar el escenario original; para otro recorrido usar un entorno nuevo sin borrar la referencia anterior\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Presentación creada\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "  pm.expect(body.data.ml).to.eql(100);",
+                  "  pm.expect(body.data.precio_manual).to.eql(15000);",
+                  "  pm.expect(body.data.precio_venta).to.eql(15000);",
+                  "  pm.expect(body.data.activa).to.eql(true);",
+                  "  pm.environment.set(\"paypal_variant_id\", body.data.id);",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "10 · Cliente: crear el pedido",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/tiendas/archivumparfums/pedidos",
+            "description": "Crea un pedido nuevo sin intento previo. El depósito de demo es 50 %: subtotal ₡15.000, por cobrar ahora ₡7.500. Guardar su UUID antes de seguir y respetar vence_en.\n\nEsperado: HTTP 201.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lineas\": [\n    {\n      \"presentacion_id\": \"{{paypal_variant_id}}\",\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_customer\",\"paypal_variant_id\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_variant_id\"))) {",
+                  "  pm.test(\"Presentación identificada\", function () { pm.expect(pm.environment.get(\"paypal_variant_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "const existingResources = [\"paypal_card_order_id\",\"paypal_card_payment_id\",\"paypal_card_checkout_url\",\"paypal_card_confirmed\"].filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value === \"string\" && value.trim() !== \"\";",
+                  "});",
+                  "if (existingResources.length > 0) {",
+                  "  pm.test(\"Referencias existentes: \" + existingResources.join(\", \"), function () {",
+                  "    pm.expect(existingResources, \"Retomar el escenario original; para otro recorrido usar un entorno nuevo sin borrar la referencia anterior\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Pedido con depósito\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data;",
+                  "  pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "  ",
+                  "  pm.expect(data.estado).to.eql(\"pendiente_de_pago\");",
+                  "  pm.expect(data.subtotal).to.eql(15000);",
+                  "  pm.expect(data.pagado).to.eql(0);",
+                  "  pm.expect(data.por_cobrar_ahora).to.eql(7500);",
+                  "  pm.expect(data.saldo).to.eql(7500);",
+                  "  pm.expect(data.lineas).to.have.lengthOf(1);",
+                  "  pm.expect(data.lineas[0].tipo).to.eql(\"botella\");",
+                  "  pm.expect(data.lineas[0].presentacion_id).to.eql(pm.environment.get(\"paypal_variant_id\"));",
+                  "  pm.expect(data.lineas[0].cantidad).to.eql(1);",
+                  "  pm.expect(data.lineas[0].precio_unitario).to.eql(15000);",
+                  "  ",
+                  "  pm.expect(body.data.vence_en).to.be.a(\"string\").and.not.empty;",
+                  "  pm.environment.set(\"paypal_card_order_id\", body.data.id);",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "11 · Cliente: iniciar el depósito en USD",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{paypal_card_order_id}}/pagos",
+            "description": "Requiere PAYPAL_CLIENT_ID y PAYPAL_CLIENT_SECRET sandbox configurados solo en el .env de la API; después config:clear y reinicio del servidor. Espera pending, no un pago confirmado. monto_cobrado=1500 son centavos USD, mientras PayPal recibe value='15.00'. Si faltan credenciales y responde 422, las pruebas deben fallar y el Runner se detiene. Un 202 con referencia incierta tampoco cuenta como aceptación. No borrar ni recrear ese intento para forzar otro cargo.\n\nEsperado: HTTP 201.\n\nSi la respuesta 200/201/202 contiene un UUID de intento local coherente, se conserva en paypal_card_payment_id antes de comprobar la aceptación estricta. Un 202 puede tener monto_cobrado=0 y URL nula: el test sigue fallando, el Runner se detiene y ese UUID sirve para consultar/conciliar con 13. Si ya hay ID, 11 no se envía: usar 12 para reutilizar o 13 para consultar, sin borrar la referencia.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medio\": \"tarjeta\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_customer\",\"paypal_card_order_id\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_card_order_id\"))) {",
+                  "  pm.test(\"Pedido identificado\", function () { pm.expect(pm.environment.get(\"paypal_card_order_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "const existingResources = [\"paypal_card_payment_id\",\"paypal_card_checkout_url\",\"paypal_card_confirmed\"].filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value === \"string\" && value.trim() !== \"\";",
+                  "});",
+                  "if (existingResources.length > 0) {",
+                  "  pm.test(\"Referencias existentes: \" + existingResources.join(\", \"), function () {",
+                  "    pm.expect(existingResources, \"Retomar el escenario original; para otro recorrido usar un entorno nuevo sin borrar la referencia anterior\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Preserve a coherent local attempt even when the provider outcome is uncertain.",
+                  "// Keeping its UUID does not mark the payment as accepted.",
+                  "if ([200, 201, 202].includes(pm.response.code)) {",
+                  "  let attempt;",
+                  "  try { attempt = pm.response.json().data; } catch (error) { attempt = null; }",
+                  "  if (attempt && typeof attempt.id === \"string\"",
+                  "      && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(attempt.id)",
+                  "      && attempt.pasarela === \"paypal\" && attempt.monto === 7500",
+                  "      && attempt.proposito === \"deposito\" && attempt.estado === \"pendiente\") {",
+                  "    pm.environment.set(\"paypal_card_payment_id\", attempt.id);",
+                  "    if (typeof attempt.url_pago === \"string\" && /^https:\\/\\/www\\.sandbox\\.paypal\\.com\\//.test(attempt.url_pago)) {",
+                  "      pm.environment.set(\"paypal_card_checkout_url\", attempt.url_pago);",
+                  "    }",
+                  "  }",
+                  "}",
+                  "let validResponse = false;",
+                  "pm.test(\"Depósito en USD\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data;",
+                  "  pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "  pm.expect(data.pasarela).to.eql(\"paypal\");",
+                  "  pm.expect(data.proposito).to.eql(\"deposito\");",
+                  "  pm.expect(data.medio).to.eql(\"tarjeta\");",
+                  "  pm.expect(data.monto).to.eql(7500);",
+                  "  pm.expect(data.moneda_cobrada).to.eql(\"USD\");",
+                  "  pm.expect(data.monto_cobrado).to.eql(1500);",
+                  "  pm.expect(data.estado).to.eql(\"pendiente\");",
+                  "  pm.expect(data.consulta_pendiente).to.eql(false);",
+                  "  ",
+                  "  pm.expect(data.url_pago).to.match(/^https:\\/\\/www\\.sandbox\\.paypal\\.com\\//);",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "12 · Repetir el inicio y pausar",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{paypal_card_order_id}}/pagos",
+            "description": "Enviar antes de aprobar el checkout. Debe reutilizar el mismo payment_id, URL e importe con HTTP 200, sin crear otro checkout. El Runner se detiene aquí. Abrir paypal_card_checkout_url y aprobar en el navegador; después continuar con 13. Guardar evidencia de la fuente ficticia seleccionada: el UUID local y el texto medio no acreditan por sí solos un pago financiado con tarjeta. No ejecutar toda la colección esperando una aprobación automática.\n\nEsperado: HTTP 200.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medio\": \"tarjeta\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_customer\",\"paypal_card_order_id\",\"paypal_card_payment_id\",\"paypal_card_checkout_url\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_card_order_id\"))) {",
+                  "  pm.test(\"Pedido identificado\", function () { pm.expect(pm.environment.get(\"paypal_card_order_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_card_payment_id\"))) {",
+                  "  pm.test(\"Pago identificado\", function () { pm.expect(pm.environment.get(\"paypal_card_payment_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Mismo pago pendiente\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data;",
+                  "  pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "  pm.expect(data.id).to.eql(pm.environment.get(\"paypal_card_payment_id\"));",
+                  "  pm.expect(data.pasarela).to.eql(\"paypal\");",
+                  "  pm.expect(data.proposito).to.eql(\"deposito\");",
+                  "  pm.expect(data.medio).to.eql(\"tarjeta\");",
+                  "  pm.expect(data.monto).to.eql(7500);",
+                  "  pm.expect(data.moneda_cobrada).to.eql(\"USD\");",
+                  "  pm.expect(data.monto_cobrado).to.eql(1500);",
+                  "  pm.expect(data.estado).to.eql(\"pendiente\");",
+                  "  pm.expect(data.consulta_pendiente).to.eql(false);",
+                  "  ",
+                  "  pm.expect(data.url_pago).to.eql(pm.environment.get(\"paypal_card_checkout_url\"));",
+                  "",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}",
+                  "",
+                  "pm.execution.setNextRequest(null);"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "C · Confirmar el depósito",
+      "description": "Continuar manualmente con Send después de la pausa de 12. El comprador usa su Personal sandbox, distinta del vendedor Business. La consulta también está disponible para conciliar el mismo intento si no se obtuvo una URL. Seleccionar tarjeta ficticia cuando PayPal lo permita y registrar evidencia; wallet/saldo solo no acredita el requisito de tarjeta. Un pendiente o 202 hace fallar la comprobación de aceptación: no se cambia a confirmado por scripts. PayPal Guest Checkout depende de elegibilidad y esta API no implementa Advanced Card Fields.",
+      "item": [
+        {
+          "name": "13 · Confirmar la captura en PayPal",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pagos/{{paypal_card_payment_id}}",
+            "description": "Esta petición puede capturar dinero ficticio: el servidor consulta PayPal y captura una orden APPROVED si el pedido sigue vigente y admite cobro. Solo COMPLETED acredita el pedido. La URL de retorno y sus parámetros no confirman el pago. Si PayPal sigue pendiente, esperar y volver a enviar esta petición; no pasar a 14 con un fallo.\n\nEsperado: HTTP 200.\n\nSe puede consultar el mismo UUID cuando el resultado de creación es incierto, incluso sin URL. Un 202 o un estado pendiente hace fallar la aceptación estricta y detiene el Runner; no borra la referencia ni habilita otro cobro."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_customer\",\"paypal_card_payment_id\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_card_payment_id\"))) {",
+                  "  pm.test(\"Pago identificado\", function () { pm.expect(pm.environment.get(\"paypal_card_payment_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Captura confirmada\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data;",
+                  "  pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "  pm.expect(data.id).to.eql(pm.environment.get(\"paypal_card_payment_id\"));",
+                  "  pm.expect(data.pasarela).to.eql(\"paypal\");",
+                  "  pm.expect(data.proposito).to.eql(\"deposito\");",
+                  "  pm.expect(data.medio).to.eql(\"tarjeta\");",
+                  "  pm.expect(data.monto).to.eql(7500);",
+                  "  pm.expect(data.moneda_cobrada).to.eql(\"USD\");",
+                  "  pm.expect(data.monto_cobrado).to.eql(1500);",
+                  "  pm.expect(data.estado).to.eql(\"confirmado\");",
+                  "  pm.expect(data.consulta_pendiente).to.eql(false);",
+                  "  pm.environment.set(\"paypal_card_confirmed\", \"si\");",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "14 · Verificar el depósito en el pedido",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{paypal_card_order_id}}",
+            "description": "Comprueba el efecto del depósito en el pedido: confirmado no equivale a que ya se pagaron los ₡15.000 completos.\n\nEsperado: HTTP 200."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_customer\",\"paypal_card_order_id\",\"paypal_variant_id\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_card_order_id\"))) {",
+                  "  pm.test(\"Pedido identificado\", function () { pm.expect(pm.environment.get(\"paypal_card_order_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_variant_id\"))) {",
+                  "  pm.test(\"Presentación identificada\", function () { pm.expect(pm.environment.get(\"paypal_variant_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (pm.environment.get(\"paypal_card_confirmed\") !== \"si\") {",
+                  "  pm.test(\"Pago confirmado previamente\", function () {",
+                  "    pm.expect(pm.environment.get(\"paypal_card_confirmed\")).to.eql(\"si\");",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Depósito acreditado\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data;",
+                  "  pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "  pm.expect(data.id).to.eql(pm.environment.get(\"paypal_card_order_id\"));",
+                  "  pm.expect(data.estado).to.eql(\"confirmado\");",
+                  "  pm.expect(data.subtotal).to.eql(15000);",
+                  "  pm.expect(data.pagado).to.eql(7500);",
+                  "  pm.expect(data.por_cobrar_ahora).to.eql(0);",
+                  "  pm.expect(data.saldo).to.eql(7500);",
+                  "  pm.expect(data.lineas).to.have.lengthOf(1);",
+                  "  pm.expect(data.lineas[0].tipo).to.eql(\"botella\");",
+                  "  pm.expect(data.lineas[0].presentacion_id).to.eql(pm.environment.get(\"paypal_variant_id\"));",
+                  "  pm.expect(data.lineas[0].cantidad).to.eql(1);",
+                  "  pm.expect(data.lineas[0].precio_unitario).to.eql(15000);",
+                  "",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "15 · Consultar el pago confirmado",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pagos/{{paypal_card_payment_id}}",
+            "description": "Debe conservar el mismo UUID, importe y estado confirmado. El código no captura de nuevo un pago ya confirmado localmente.\n\nEsperado: HTTP 200."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_customer\",\"paypal_card_payment_id\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_card_payment_id\"))) {",
+                  "  pm.test(\"Pago identificado\", function () { pm.expect(pm.environment.get(\"paypal_card_payment_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (pm.environment.get(\"paypal_card_confirmed\") !== \"si\") {",
+                  "  pm.test(\"Pago confirmado previamente\", function () {",
+                  "    pm.expect(pm.environment.get(\"paypal_card_confirmed\")).to.eql(\"si\");",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Pago confirmado sin cambios\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data;",
+                  "  pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "  pm.expect(data.id).to.eql(pm.environment.get(\"paypal_card_payment_id\"));",
+                  "  pm.expect(data.pasarela).to.eql(\"paypal\");",
+                  "  pm.expect(data.proposito).to.eql(\"deposito\");",
+                  "  pm.expect(data.medio).to.eql(\"tarjeta\");",
+                  "  pm.expect(data.monto).to.eql(7500);",
+                  "  pm.expect(data.moneda_cobrada).to.eql(\"USD\");",
+                  "  pm.expect(data.monto_cobrado).to.eql(1500);",
+                  "  pm.expect(data.estado).to.eql(\"confirmado\");",
+                  "  pm.expect(data.consulta_pendiente).to.eql(false);",
+                  "",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "16 · Verificar que no se acreditó dos veces",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{paypal_card_order_id}}",
+            "description": "Verifica que repetir la consulta del pago no acredita el depósito dos veces.\n\nEsperado: HTTP 200."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_customer\",\"paypal_card_order_id\",\"paypal_variant_id\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_card_order_id\"))) {",
+                  "  pm.test(\"Pedido identificado\", function () { pm.expect(pm.environment.get(\"paypal_card_order_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_variant_id\"))) {",
+                  "  pm.test(\"Presentación identificada\", function () { pm.expect(pm.environment.get(\"paypal_variant_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (pm.environment.get(\"paypal_card_confirmed\") !== \"si\") {",
+                  "  pm.test(\"Pago confirmado previamente\", function () {",
+                  "    pm.expect(pm.environment.get(\"paypal_card_confirmed\")).to.eql(\"si\");",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Pedido sin doble crédito\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data;",
+                  "  pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "  pm.expect(data.id).to.eql(pm.environment.get(\"paypal_card_order_id\"));",
+                  "  pm.expect(data.estado).to.eql(\"confirmado\");",
+                  "  pm.expect(data.subtotal).to.eql(15000);",
+                  "  pm.expect(data.pagado).to.eql(7500);",
+                  "  pm.expect(data.por_cobrar_ahora).to.eql(0);",
+                  "  pm.expect(data.saldo).to.eql(7500);",
+                  "  pm.expect(data.lineas).to.have.lengthOf(1);",
+                  "  pm.expect(data.lineas[0].tipo).to.eql(\"botella\");",
+                  "  pm.expect(data.lineas[0].presentacion_id).to.eql(pm.environment.get(\"paypal_variant_id\"));",
+                  "  pm.expect(data.lineas[0].cantidad).to.eql(1);",
+                  "  pm.expect(data.lineas[0].precio_unitario).to.eql(15000);",
+                  "",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "D · Verificar SINPE no admitido",
+      "description": "Este escenario tiene su propio UUID paypal_unsupported_order_id y no sobrescribe el pedido/pago demostrado. Crear otro pedido sin intento pendiente; StartPayment reutiliza un pendiente existente antes de evaluar otro medio. No requiere realizar una transferencia ni abrir PayPal.",
+      "item": [
+        {
+          "name": "17 · Cliente: crear otro pedido para SINPE",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/tiendas/archivumparfums/pedidos",
+            "description": "Pedido separado para que la prueba 422 no reutilice un intento de tarjeta pendiente.\n\nEsperado: HTTP 201.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lineas\": [\n    {\n      \"presentacion_id\": \"{{paypal_variant_id}}\",\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_customer\",\"paypal_variant_id\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_variant_id\"))) {",
+                  "  pm.test(\"Presentación identificada\", function () { pm.expect(pm.environment.get(\"paypal_variant_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "const existingResources = [\"paypal_unsupported_order_id\"].filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value === \"string\" && value.trim() !== \"\";",
+                  "});",
+                  "if (existingResources.length > 0) {",
+                  "  pm.test(\"Referencias existentes: \" + existingResources.join(\", \"), function () {",
+                  "    pm.expect(existingResources, \"Retomar el escenario original; para otro recorrido usar un entorno nuevo sin borrar la referencia anterior\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Pedido separado para SINPE\", function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data;",
+                  "  pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "  ",
+                  "  pm.expect(data.estado).to.eql(\"pendiente_de_pago\");",
+                  "  pm.expect(data.subtotal).to.eql(15000);",
+                  "  pm.expect(data.pagado).to.eql(0);",
+                  "  pm.expect(data.por_cobrar_ahora).to.eql(7500);",
+                  "  pm.expect(data.saldo).to.eql(7500);",
+                  "  pm.expect(data.lineas).to.have.lengthOf(1);",
+                  "  pm.expect(data.lineas[0].tipo).to.eql(\"botella\");",
+                  "  pm.expect(data.lineas[0].presentacion_id).to.eql(pm.environment.get(\"paypal_variant_id\"));",
+                  "  pm.expect(data.lineas[0].cantidad).to.eql(1);",
+                  "  pm.expect(data.lineas[0].precio_unitario).to.eql(15000);",
+                  "  pm.environment.set(\"paypal_unsupported_order_id\", body.data.id);",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "18 · Verificar que PayPal no admite SINPE",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{paypal_unsupported_order_id}}/pagos",
+            "description": "Con la tienda en PayPal y tipo 500, este medio no está admitido. Se prueba sobre el pedido nuevo 17 sin intentar antes un pago con tarjeta. No captura un payment_id ni envía fondos. El error esperado no demuestra un rechazo bancario.\n\nEsperado: HTTP 422.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medio\": \"sinpe_movil\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_customer\",\"paypal_unsupported_order_id\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_unsupported_order_id\"))) {",
+                  "  pm.test(\"Pedido de SINPE identificado\", function () { pm.expect(pm.environment.get(\"paypal_unsupported_order_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"SINPE no admitido\", function () {",
+                  "  pm.response.to.have.status(422);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  ",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/problem\\+json(?:;|$)/i);",
+                  "  const problem = pm.response.json();",
+                  "  pm.expect(problem.status).to.eql(422);",
+                  "  pm.expect(problem.detail).to.eql(\"La pasarela configurada no admite ese medio de pago.\");",
+                  "  pm.expect(problem.type).to.match(/datos-invalidos$/);",
+                  "  pm.expect(problem.title).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(problem.instance).to.include(pm.response.headers.get(\"X-Request-Id\"));",
+                  "",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "19 · Verificar que el pedido sigue sin pagar",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{paypal_unsupported_order_id}}",
+            "description": "Comprueba que el 422 no confirmó ni abonó el pedido.\n\nEsperado: HTTP 200."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_customer\",\"paypal_unsupported_order_id\",\"paypal_variant_id\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_unsupported_order_id\"))) {",
+                  "  pm.test(\"Pedido de SINPE identificado\", function () { pm.expect(pm.environment.get(\"paypal_unsupported_order_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "",
+                  "if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.environment.get(\"paypal_variant_id\"))) {",
+                  "  pm.test(\"Presentación identificada\", function () { pm.expect(pm.environment.get(\"paypal_variant_id\")).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i); });",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Pedido sin pagar\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.match(/^application\\/json(?:;|$)/i);",
+                  "  const body = pm.response.json();",
+                  "  const data = body.data;",
+                  "  pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "  pm.expect(data.id).to.eql(pm.environment.get(\"paypal_unsupported_order_id\"));",
+                  "  pm.expect(data.estado).to.eql(\"pendiente_de_pago\");",
+                  "  pm.expect(data.subtotal).to.eql(15000);",
+                  "  pm.expect(data.pagado).to.eql(0);",
+                  "  pm.expect(data.por_cobrar_ahora).to.eql(7500);",
+                  "  pm.expect(data.saldo).to.eql(7500);",
+                  "  pm.expect(data.lineas).to.have.lengthOf(1);",
+                  "  pm.expect(data.lineas[0].tipo).to.eql(\"botella\");",
+                  "  pm.expect(data.lineas[0].presentacion_id).to.eql(pm.environment.get(\"paypal_variant_id\"));",
+                  "  pm.expect(data.lineas[0].cantidad).to.eql(1);",
+                  "  pm.expect(data.lineas[0].precio_unitario).to.eql(15000);",
+                  "",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "E · Cerrar sesiones",
+      "description": "Revoca únicamente los tokens Sanctum creados por este recorrido. No borra pedidos, perfumes ni evidencia de PayPal. Si se necesita continuar antes de terminar, conservar el entorno privado y no exportar sus valores capturados.",
+      "item": [
+        {
+          "name": "20 · Cliente: cerrar sesión",
+          "request": {
+            "method": "DELETE",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/sesiones/actual",
+            "description": "Revoca el token de Mariana y lo limpia del entorno solo tras HTTP 204.\n\nEsperado: HTTP 204."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_customer\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Sesión de la cliente cerrada\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  ",
+                  "  pm.expect(pm.response.text()).to.eql(\"\");",
+                  "  pm.environment.unset(\"token_customer\");",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "21 · Dueña: cerrar sesión",
+          "request": {
+            "method": "DELETE",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_owner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/sesiones/actual",
+            "description": "Revoca el token de la dueña y lo limpia del entorno solo tras HTTP 204.\n\nEsperado: HTTP 204."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const requiredVariables = [\"token_owner\"];",
+                  "const missingVariables = requiredVariables.filter(function (key) {",
+                  "  const value = pm.environment.get(key);",
+                  "  return typeof value !== \"string\" || value.trim() === \"\" || value.includes(\"{{\");",
+                  "});",
+                  "if (missingVariables.length > 0) {",
+                  "  pm.test(\"Datos necesarios: \" + missingVariables.join(\", \"), function () {",
+                  "    pm.expect(missingVariables, \"Volver al paso que captura esas variables\").to.be.empty;",
+                  "  });",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "requiredVariables.forEach(function (key) {",
+                  "  pm.variables.set(key, pm.environment.get(key));",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let validResponse = false;",
+                  "pm.test(\"Sesión de la dueña cerrada\", function () {",
+                  "  pm.response.to.have.status(204);",
+                  "  pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  ",
+                  "  pm.expect(pm.response.text()).to.eql(\"\");",
+                  "  pm.environment.unset(\"token_owner\");",
+                  "  validResponse = true;",
+                  "});",
+                  "if (!validResponse) {",
+                  "  pm.execution.setNextRequest(null);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    }
+  ]
+}

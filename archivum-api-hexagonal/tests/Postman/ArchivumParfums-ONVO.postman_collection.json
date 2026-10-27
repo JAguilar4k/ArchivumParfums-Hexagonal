@@ -1,0 +1,2216 @@
+{
+  "info": {
+    "_postman_id": "f3df0812-9eb1-469f-b0d6-7e971b900efa",
+    "name": "ArchivumParfums · ONVO sandbox paso por paso",
+    "description": "Colección independiente de Investigación 1, con el estilo de Avance 1: pm.test, mensajes españoles y capturas de entorno. Sin cuenta Postman, usa las peticiones como guion en Lightweight y sustituye los marcadores a mano. Si eliges el modo importado con sesión, importa también ArchivumParfums-ONVO-local.postman_environment.json y selecciónalo. Completa base_url como origen local sin /api/v1 ni barra final, por ejemplo http://localhost:8000, y demo_password con ARCHIVUM_DEMO_PASSWORD de la siembra.\nLa API debe estar preparada con sus cuentas ficticias. Configura la clave secret de ONVO de prueba únicamente en el .env privado del servidor y ejecuta config:clear/reinicia el servidor. Esta colección no obtiene credenciales, no registra cuentas ONVO, no ejecuta migraciones y no cambia a producción. No contiene secretos del proveedor, no hace peticiones ocultas ni llama directamente su API.\nORDEN: preparación; tarjeta aprobada (incluido doble clic antes del navegador); tarjeta rechazada; SINPE; reembolso del primer aprobado. Todas las peticiones usan localhost, 127.0.0.1 o [::1]; los redirects están deshabilitados. Cada POST de checkout y el doble clic detienen Runner. Con Send debes detenerte manualmente, copiar la variable *_checkout_url al navegador y completar el escenario antes del GET final. setNextRequest(null) solo controla Runner, CLI o Newman, no Send. No ejecutes automáticamente toda la colección ni uses múltiples iteraciones: se necesitan pausas humanas y cada carpeta crea datos persistentes.\nLas pruebas finales exigen 200 y estados/montos exactos. Pendiente, 202 o devolución fallida nunca pasan como aprobación. No habilitan otro cobro ante incertidumbre; conserva los IDs y consulta el mismo intento. Los guardas omiten peticiones con variables faltantes mediante pm.execution.skipRequest(); revisa la consola y las solicitudes omitidas, no las cuentes como aprobadas. Las guardas evitan sobrescribir IDs ya capturados. Para repetir un recorrido, conserva evidencia y usa una copia limpia del entorno después de conciliar los pagos anteriores; no borres a ciegas un intento pendiente.\nTokens de Archivum y valores de ejecución se versionan vacíos. No publiques exportaciones posteriores con valores capturados. No ingreses tarjetas reales ni hagas transferencias SINPE. El 25/10/2026 se ejecutaron tarjeta aprobada, tarjeta rechazada, SINPE y reembolso en sandbox mediante la API local y el navegador; la evidencia está en docs/evidencia-investigacion-1. Esta colección y su entorno quedaron preparados, pero no se importaron ni se ejecutaron completos en Postman nativo. Guía complementaria: docs/demostracion-onvo.md en la raíz del repositorio.\nReferencias Postman consultadas 25/10/2026: https://learning.postman.com/docs/tests-and-scripts/write-scripts/postman-sandbox-reference/pm-execution y https://learning.postman.com/docs/tests-and-scripts/running-collections/building-workflows . Datos de prueba ONVO: https://docs.onvopay.com/payments/testing .",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "(function () {",
+          "  const base = pm.variables.replaceIn(\"{{base_url}}\").trim();",
+          "  const target = pm.variables.replaceIn(pm.request.url.toString());",
+          "  const origin = base.match(/^https?:\\/\\/(?:localhost|127\\.0\\.0\\.1|\\[::1\\])(?::([1-9]\\d{0,4}))?$/i);",
+          "  const local = origin !== null && (!origin[1] || Number(origin[1]) <= 65535);",
+          "  if (!local || !target.startsWith(base + \"/\")) {",
+          "    console.error(\"Petición omitida: selecciona el entorno ONVO y define base_url solo como http(s)://localhost, 127.0.0.1 o [::1], con puerto opcional y sin /api/v1 ni barra final. No se permite producción.\");",
+          "    pm.execution.skipRequest();",
+          "    return;",
+          "  }",
+          "})();"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "01 · Preparación",
+      "description": "Ejecuta estas seis peticiones en orden. Para importar con sesión, selecciona el entorno ONVO y completa base_url local y demo_password; en Lightweight sustituye esos valores manualmente. El servidor debe estar preparado con migraciones y seeders; la colección no los ejecuta. Puedes ejecutar solo esta carpeta con Runner. Repetir los logins invalida los valores anteriores de esta copia de entorno; no exportes tokens capturados. No repitas la creación de productos si ya guardaste sus IDs.",
+      "item": [
+        {
+          "name": "01 · Comprobar servidor",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/up",
+            "description": "Solo HTTP 200; la salud puede responder HTML. Configura base_url local antes de enviar."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  if (!(pm.response.code === 200)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "02 · Iniciar sesión como dueña",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/sesiones",
+            "description": "Usa la contraseña ARCHIVUM_DEMO_PASSWORD de la siembra local. El token se captura solo en el entorno; no se imprime. La cuenta ficticia de Archivum es distinta de la cuenta ONVO.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"duena@archivumparfums.test\",\n  \"contrasena\": \"{{demo_password}}\",\n  \"dispositivo\": \"postman-onvo-owner\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"demo_password\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  pm.environment.unset(\"token_owner\");",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Sesión con token Bearer\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.tipo).to.eql(\"Bearer\");",
+                  "    pm.expect(data.token).to.be.a(\"string\").and.not.empty;",
+                  "  });",
+                  "  const valid = pm.response.code === 201 && data && data.tipo === \"Bearer\" && typeof data.token === \"string\" && data.token.length > 0;",
+                  "  if (valid) { pm.environment.set(\"token_owner\", data.token); }",
+                  "  if (!(valid)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "03 · Iniciar sesión como cliente",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/sesiones",
+            "description": "Usa la contraseña ARCHIVUM_DEMO_PASSWORD de la siembra local. El token se captura solo en el entorno; no se imprime. La cuenta ficticia de Archivum es distinta de la cuenta ONVO.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"mariana@clientes.test\",\n  \"contrasena\": \"{{demo_password}}\",\n  \"dispositivo\": \"postman-onvo-customer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"demo_password\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  pm.environment.unset(\"token_customer\");",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Sesión con token Bearer\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.tipo).to.eql(\"Bearer\");",
+                  "    pm.expect(data.token).to.be.a(\"string\").and.not.empty;",
+                  "  });",
+                  "  const valid = pm.response.code === 201 && data && data.tipo === \"Bearer\" && typeof data.token === \"string\" && data.token.length > 0;",
+                  "  if (valid) { pm.environment.set(\"token_customer\", data.token); }",
+                  "  if (!(valid)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "04 · Elegir ONVO para la tienda",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_owner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/panel/tienda",
+            "description": "Cambia únicamente la pasarela de esta tienda. Las claves ONVO pertenecen al .env privado del servidor, nunca a este entorno Postman. Reinicia el servidor y ejecuta config:clear cuando cambies ese .env.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ajustes\": {\n    \"pasarela_por_defecto\": \"onvo\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_owner\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  pm.environment.unset(\"onvo_settings_ready\");",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"ONVO seleccionado en la tienda\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.slug).to.eql(\"archivumparfums\");",
+                  "    pm.expect(data.ajustes.pasarela_por_defecto).to.eql(\"onvo\");",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && data && data.slug === \"archivumparfums\" && data.ajustes && data.ajustes.pasarela_por_defecto === \"onvo\";",
+                  "  if (valid) { pm.environment.set(\"onvo_settings_ready\", \"true\"); }",
+                  "  if (!(valid)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "05 · Crear perfume de prueba",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_owner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/panel/perfumes",
+            "description": "Crea un perfume activo de demostración. No se borra automáticamente. Si el entorno ya conserva onvo_perfume_id, reutiliza el recurso o prepara otro entorno deliberadamente.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"marca\": \"Laboratorio ficticio de clase\",\n  \"nombre\": \"Aroma demo ONVO Postman\",\n  \"concentracion\": \"EDP\",\n  \"descripcion\": \"Producto ficticio para la investigación 1 con ONVO sandbox.\",\n  \"activo\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_owner\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const existing = [\"onvo_perfume_id\"].filter(key => Boolean(pm.variables.get(key)));",
+                  "  if (existing.length) {",
+                  "    console.error(\"Petición omitida: ya existe \" + existing.join(\", \") + \". Conserva esta evidencia y usa el recurso existente. Para otro recorrido, importa un entorno nuevo o limpia conscientemente sus variables después de conciliar; no sobrescribas el primer pedido.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Perfume activo con ID válido\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data.nombre).to.eql(\"Aroma demo ONVO Postman\");",
+                  "    pm.expect(data.activo).to.eql(true);",
+                  "  });",
+                  "  const valid = pm.response.code === 201 && data && validId(data.id) && data.nombre === \"Aroma demo ONVO Postman\" && data.activo === true;",
+                  "  if (valid) { pm.environment.set(\"onvo_perfume_id\", data.id); }",
+                  "  if (!(valid)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "06 · Crear presentación de ₡15.000",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_owner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/panel/perfumes/{{onvo_perfume_id}}/presentaciones",
+            "description": "Fija precio_manual=15000 y ml=100. La API propia maneja colones enteros; no envíes céntimos aquí.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ml\": 100,\n  \"precio_manual\": 15000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_owner\", \"onvo_perfume_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_perfume_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const existing = [\"onvo_variant_id\"].filter(key => Boolean(pm.variables.get(key)));",
+                  "  if (existing.length) {",
+                  "    console.error(\"Petición omitida: ya existe \" + existing.join(\", \") + \". Conserva esta evidencia y usa el recurso existente. Para otro recorrido, importa un entorno nuevo o limpia conscientemente sus variables después de conciliar; no sobrescribas el primer pedido.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Presentación de 100 ml por ₡15.000\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data).to.include({ml: 100, precio_manual: 15000, precio_venta: 15000, activa: true});",
+                  "  });",
+                  "  const valid = pm.response.code === 201 && data && validId(data.id) && data.ml === 100 && data.precio_manual === 15000 && data.precio_venta === 15000 && data.activa === true;",
+                  "  if (valid) { pm.environment.set(\"onvo_variant_id\", data.id); }",
+                  "  if (!(valid)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 · Tarjeta aprobada",
+      "description": "Petición 01 crea el pedido exclusivo de tarjeta aprobada; 02 inicia checkout y detiene Runner. Continúa con Send en 03 para probar el doble clic ANTES de aprobar. Después abre onvo_card_checkout_url en el navegador, usa 4242424242424242, fecha futura y CVC ficticio, y completa la aprobación. Continúa con los GET 04–06. Los IDs onvo_card_ se conservan para el reembolso final. No ejecutes toda la colección automáticamente: hay intervención humana. Fuente: https://docs.onvopay.com/payments/testing (consulta documental 25/10/2026). Este escenario se ejecutó en sandbox el 25/10/2026 con la API local y el navegador; su evidencia está en docs/evidencia-investigacion-1. La colección no se importó ni se ejecutó completa en Postman nativo.",
+      "item": [
+        {
+          "name": "01 · Crear pedido",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/tiendas/archivumparfums/pedidos",
+            "description": "Crea solo el pedido de onvo_card. Espera 201, subtotal=15000, depósito=7500 y pagado=0. No sobrescribe el pedido aprobado de la primera carpeta. Los pedidos vencen: completa cada escenario dentro del plazo de la tienda.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lineas\": [\n    {\n      \"presentacion_id\": \"{{onvo_variant_id}}\",\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_variant_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_variant_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_settings_ready\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const existing = [\"onvo_card_order_id\"].filter(key => Boolean(pm.variables.get(key)));",
+                  "  if (existing.length) {",
+                  "    console.error(\"Petición omitida: ya existe \" + existing.join(\", \") + \". Conserva esta evidencia y usa el recurso existente. Para otro recorrido, importa un entorno nuevo o limpia conscientemente sus variables después de conciliar; no sobrescribas el primer pedido.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Estado e importes del pedido\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data).to.include({estado: \"pendiente_de_pago\", subtotal: 15000, por_cobrar_ahora: 7500, pagado: 0, saldo: 7500});",
+                  "    pm.expect(data.lineas).to.be.an(\"array\").with.lengthOf(1);",
+                  "    pm.expect(data.lineas[0]).to.include({tipo: \"botella\", presentacion_id: pm.variables.get(\"onvo_variant_id\"), presentacion_ml: 100, cantidad: 1, precio_unitario: 15000});",
+                  "  });",
+                  "  const valid = pm.response.code === 201 && data && validId(data.id) && data.estado === \"pendiente_de_pago\" && data.subtotal === 15000 && data.por_cobrar_ahora === 7500 && data.pagado === 0 && data.saldo === 7500 && Array.isArray(data.lineas) && data.lineas.length === 1 && data.lineas[0].presentacion_id === pm.variables.get(\"onvo_variant_id\") && data.lineas[0].tipo === \"botella\" && data.lineas[0].presentacion_ml === 100 && data.lineas[0].cantidad === 1 && data.lineas[0].precio_unitario === 15000;",
+                  "  if (valid) { pm.environment.set(\"onvo_card_order_id\", data.id); }",
+                  "  if (!(valid)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "02 · Crear checkout (pausa)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{onvo_card_order_id}}/pagos",
+            "description": "Espera 201 con un pago pendiente y URL de checkout; crear no confirma el pago. Se guarda onvo_card_payment_id y onvo_card_checkout_url. El Runner se detiene aquí mediante setNextRequest(null). Con Send debes hacer tú la pausa; esa función no abre el navegador ni encadena otra petición. ANTES de abrir o completar el checkout, envía con Send la solicitud 03 de doble clic. Solo después abre la URL guardada y usa 4242424242424242, fecha futura y CVC ficticio válido. No uses tarjeta real. Consulta después el mismo pago desde Archivum. Si falla por credenciales 422, configura solo el .env servidor; no registres secretos ONVO en Postman. Si responde 202, conserva ID, respeta Retry-After y concilia; no crees otro pedido para eludir la incertidumbre.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medio\": \"tarjeta\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_card_order_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_card_order_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_settings_ready\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const existing = [\"onvo_card_payment_id\"].filter(key => Boolean(pm.variables.get(key)));",
+                  "  if (existing.length) {",
+                  "    console.error(\"Petición omitida: ya existe \" + existing.join(\", \") + \". Conserva esta evidencia y usa el recurso existente. Para otro recorrido, importa un entorno nuevo o limpia conscientemente sus variables después de conciliar; no sobrescribas el primer pedido.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  pm.environment.unset(\"onvo_card_checkout_url\");",
+                  "  pm.environment.unset(\"onvo_card_confirmed\");",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Monto, medio y estado del pago\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data).to.include({pasarela: \"onvo\", proposito: \"deposito\", monto: 7500, moneda_cobrada: \"CRC\", monto_cobrado: 7500, medio: \"tarjeta\", estado: \"pendiente\", consulta_pendiente: false});",
+                  "    pm.expect(data.url_pago).to.match(/^https:\\/\\/checkout\\.onvopay\\.com\\//);",
+                  "  });",
+                  "  const valid = pm.response.code === 201 && data && validId(data.id) && data.pasarela === \"onvo\" && data.proposito === \"deposito\" && data.monto === 7500 && data.moneda_cobrada === \"CRC\" && data.monto_cobrado === 7500 && data.medio === \"tarjeta\" && data.estado === \"pendiente\" && data.consulta_pendiente === false;",
+                  "  // Incluso un 202 debe conservar su ID para consultar el mismo intento, sin repetir un cobro incierto.",
+                  "  if ([200, 201, 202].includes(pm.response.code) && data && validId(data.id)) { pm.environment.set(\"onvo_card_payment_id\", data.id); }",
+                  "  if (valid && typeof data.url_pago === \"string\" && /^https:\\/\\/checkout\\.onvopay\\.com\\//.test(data.url_pago)) { pm.environment.set(\"onvo_card_checkout_url\", data.url_pago); }",
+                  "  console.info(\"PAUSA MANUAL: conserva onvo_card_payment_id. Abre onvo_card_checkout_url en el navegador solo si hay checkout válido. Completa el escenario sandbox antes del GET final. Un 202 o un 422 no son aprobación.\");",
+                  "  pm.execution.setNextRequest(null);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "03 · Repetir pago pendiente",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{onvo_card_order_id}}/pagos",
+            "description": "Envía antes de completar el checkout, mediante Send. Espera 200, el mismo pago y la misma URL; no otro cobro. El Runner vuelve a detenerse. Ahora abre onvo_card_checkout_url en el navegador, usa 4242424242424242 y completa la aprobación sandbox. Después envía el GET siguiente. setNextRequest(null) no tiene efecto sobre Send.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medio\": \"tarjeta\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_card_order_id\", \"onvo_card_payment_id\", \"onvo_card_checkout_url\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_card_order_id\", \"onvo_card_payment_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Mismo pago y checkout pendientes\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data.id).to.eql(pm.variables.get(\"onvo_card_payment_id\"));",
+                  "    pm.expect(data).to.include({pasarela: \"onvo\", proposito: \"deposito\", monto: 7500, moneda_cobrada: \"CRC\", monto_cobrado: 7500, medio: \"tarjeta\", estado: \"pendiente\", consulta_pendiente: false});",
+                  "    pm.expect(data.url_pago).to.match(/^https:\\/\\/checkout\\.onvopay\\.com\\//);",
+                  "    pm.expect(data.url_pago).to.eql(pm.variables.get(\"onvo_card_checkout_url\"));",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && data && validId(data.id) && data.pasarela === \"onvo\" && data.proposito === \"deposito\" && data.monto === 7500 && data.moneda_cobrada === \"CRC\" && data.monto_cobrado === 7500 && data.medio === \"tarjeta\" && data.estado === \"pendiente\" && data.consulta_pendiente === false;",
+                  "  const samePayment = valid && data.id === pm.variables.get(\"onvo_card_payment_id\");",
+                  "  pm.execution.setNextRequest(null);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "04 · Confirmar pago",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pagos/{{onvo_card_payment_id}}",
+            "description": "Envía solo después de completar manualmente el checkout: 4242424242424242, fecha futura y CVC ficticio válido. No uses tarjeta real. Exige HTTP 200 y estado=confirmado, consulta_pendiente=false, CRC y 7500 exactos. Pendiente o 202 hacen fallar esta comprobación; no se consideran desenlace final. Si el proveedor aún procesa, espera y repite únicamente este GET. Un rechazo recuperable ONVO se declara fallido solo tras cerrar y verificar el intento remoto. La pantalla o URL de retorno no confirma nada."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_card_payment_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_card_payment_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  pm.environment.unset(\"onvo_card_confirmed\");",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Monto, medio y estado del pago\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data.id).to.eql(pm.variables.get(\"onvo_card_payment_id\"));",
+                  "    pm.expect(data).to.include({pasarela: \"onvo\", proposito: \"deposito\", monto: 7500, moneda_cobrada: \"CRC\", monto_cobrado: 7500, medio: \"tarjeta\", estado: \"confirmado\", consulta_pendiente: false});",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && data && validId(data.id) && data.pasarela === \"onvo\" && data.proposito === \"deposito\" && data.monto === 7500 && data.moneda_cobrada === \"CRC\" && data.monto_cobrado === 7500 && data.medio === \"tarjeta\" && data.estado === \"confirmado\" && data.consulta_pendiente === false;",
+                  "  const samePayment = valid && data.id === pm.variables.get(\"onvo_card_payment_id\");",
+                  "  if (samePayment) { pm.environment.set(\"onvo_card_confirmed\", \"true\"); }",
+                  "  if (!(samePayment)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "05 · Ver depósito del pedido",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{onvo_card_order_id}}",
+            "description": "Comprueba pedido, línea, subtotal y monto pagado después del resultado final verificado. No basta con mirar el pago aisladamente. No encargues botellas ni prepares decants: el primer pedido aprobado se usará para la devolución."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_card_order_id\", \"onvo_variant_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_card_order_id\", \"onvo_variant_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_card_confirmed\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Estado e importes del pedido\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.eql(pm.variables.get(\"onvo_card_order_id\"));",
+                  "    pm.expect(data).to.include({estado: \"confirmado\", subtotal: 15000, por_cobrar_ahora: 0, pagado: 7500, saldo: 7500});",
+                  "    pm.expect(data.lineas).to.be.an(\"array\").with.lengthOf(1);",
+                  "    pm.expect(data.lineas[0]).to.include({tipo: \"botella\", presentacion_id: pm.variables.get(\"onvo_variant_id\"), presentacion_ml: 100, cantidad: 1, precio_unitario: 15000});",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && data && validId(data.id) && data.estado === \"confirmado\" && data.subtotal === 15000 && data.por_cobrar_ahora === 0 && data.pagado === 7500 && data.saldo === 7500 && Array.isArray(data.lineas) && data.lineas.length === 1 && data.lineas[0].presentacion_id === pm.variables.get(\"onvo_variant_id\") && data.lineas[0].tipo === \"botella\" && data.lineas[0].presentacion_ml === 100 && data.lineas[0].cantidad === 1 && data.lineas[0].precio_unitario === 15000;",
+                  "  const sameOrder = valid && data.id === pm.variables.get(\"onvo_card_order_id\");",
+                  "  if (!(sameOrder)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "06 · Repetir consulta del pago",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pagos/{{onvo_card_payment_id}}",
+            "description": "Exige el mismo ID y la confirmación previa de 7500. Después puedes reenviar la solicitud 05 de esta carpeta para comprobar que el pedido continúa con pagado=7500. Repetir GET no crea ni captura un cobro nuevo."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_card_payment_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_card_payment_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_card_confirmed\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Mismo pago confirmado\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data.id).to.eql(pm.variables.get(\"onvo_card_payment_id\"));",
+                  "    pm.expect(data).to.include({pasarela: \"onvo\", proposito: \"deposito\", monto: 7500, moneda_cobrada: \"CRC\", monto_cobrado: 7500, medio: \"tarjeta\", estado: \"confirmado\", consulta_pendiente: false});",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && data && validId(data.id) && data.pasarela === \"onvo\" && data.proposito === \"deposito\" && data.monto === 7500 && data.moneda_cobrada === \"CRC\" && data.monto_cobrado === 7500 && data.medio === \"tarjeta\" && data.estado === \"confirmado\" && data.consulta_pendiente === false;",
+                  "  const samePayment = valid && data.id === pm.variables.get(\"onvo_card_payment_id\");",
+                  "  if (!(samePayment)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 · Tarjeta rechazada",
+      "description": "Petición 01 crea un pedido exclusivo; 02 inicia el checkout y detiene Runner. Continúa con Send, completa el navegador y luego consulta el mismo pago. Datos oficiales del escenario: 4000000000000002, fecha futura y CVC ficticio válido. No es una falla de comunicación. Los IDs de esta carpeta usan onvo_declined_ y no reemplazan los de otra. No ejecutes toda la colección como si fuera una prueba automática de extremo a extremo: hay intervención humana. Fuente de datos: https://docs.onvopay.com/payments/testing (consulta documental 25/10/2026). Este escenario se ejecutó en sandbox el 25/10/2026 con la API local y el navegador; su evidencia está en docs/evidencia-investigacion-1. La colección no se importó ni se ejecutó completa en Postman nativo.",
+      "item": [
+        {
+          "name": "01 · Crear pedido",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/tiendas/archivumparfums/pedidos",
+            "description": "Crea solo el pedido de onvo_declined. Espera 201, subtotal=15000, depósito=7500 y pagado=0. No sobrescribe el pedido aprobado de la primera carpeta. Los pedidos vencen: completa cada escenario dentro del plazo de la tienda.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lineas\": [\n    {\n      \"presentacion_id\": \"{{onvo_variant_id}}\",\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_variant_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_variant_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_settings_ready\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const existing = [\"onvo_declined_order_id\"].filter(key => Boolean(pm.variables.get(key)));",
+                  "  if (existing.length) {",
+                  "    console.error(\"Petición omitida: ya existe \" + existing.join(\", \") + \". Conserva esta evidencia y usa el recurso existente. Para otro recorrido, importa un entorno nuevo o limpia conscientemente sus variables después de conciliar; no sobrescribas el primer pedido.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Estado e importes del pedido\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data).to.include({estado: \"pendiente_de_pago\", subtotal: 15000, por_cobrar_ahora: 7500, pagado: 0, saldo: 7500});",
+                  "    pm.expect(data.lineas).to.be.an(\"array\").with.lengthOf(1);",
+                  "    pm.expect(data.lineas[0]).to.include({tipo: \"botella\", presentacion_id: pm.variables.get(\"onvo_variant_id\"), presentacion_ml: 100, cantidad: 1, precio_unitario: 15000});",
+                  "  });",
+                  "  const valid = pm.response.code === 201 && data && validId(data.id) && data.estado === \"pendiente_de_pago\" && data.subtotal === 15000 && data.por_cobrar_ahora === 7500 && data.pagado === 0 && data.saldo === 7500 && Array.isArray(data.lineas) && data.lineas.length === 1 && data.lineas[0].presentacion_id === pm.variables.get(\"onvo_variant_id\") && data.lineas[0].tipo === \"botella\" && data.lineas[0].presentacion_ml === 100 && data.lineas[0].cantidad === 1 && data.lineas[0].precio_unitario === 15000;",
+                  "  if (valid) { pm.environment.set(\"onvo_declined_order_id\", data.id); }",
+                  "  if (!(valid)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "02 · Crear checkout (pausa)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{onvo_declined_order_id}}/pagos",
+            "description": "Espera 201 con un pago pendiente y URL de checkout; crear no confirma el pago. Se guarda onvo_declined_payment_id y onvo_declined_checkout_url. El Runner se detiene aquí mediante setNextRequest(null). Con Send debes hacer tú la pausa; esa función no abre el navegador ni encadena otra petición. Abre la URL guardada y usa 4000000000000002, fecha futura y CVC ficticio válido. No es una falla de comunicación. Consulta después el mismo pago desde Archivum. Si falla por credenciales 422, configura solo el .env servidor; no registres secretos ONVO en Postman. Si responde 202, conserva ID, respeta Retry-After y concilia; no crees otro pedido para eludir la incertidumbre.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medio\": \"tarjeta\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_declined_order_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_declined_order_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_settings_ready\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const existing = [\"onvo_declined_payment_id\"].filter(key => Boolean(pm.variables.get(key)));",
+                  "  if (existing.length) {",
+                  "    console.error(\"Petición omitida: ya existe \" + existing.join(\", \") + \". Conserva esta evidencia y usa el recurso existente. Para otro recorrido, importa un entorno nuevo o limpia conscientemente sus variables después de conciliar; no sobrescribas el primer pedido.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  pm.environment.unset(\"onvo_declined_checkout_url\");",
+                  "  pm.environment.unset(\"onvo_declined_verified\");",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Monto, medio y estado del pago\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data).to.include({pasarela: \"onvo\", proposito: \"deposito\", monto: 7500, moneda_cobrada: \"CRC\", monto_cobrado: 7500, medio: \"tarjeta\", estado: \"pendiente\", consulta_pendiente: false});",
+                  "    pm.expect(data.url_pago).to.match(/^https:\\/\\/checkout\\.onvopay\\.com\\//);",
+                  "  });",
+                  "  const valid = pm.response.code === 201 && data && validId(data.id) && data.pasarela === \"onvo\" && data.proposito === \"deposito\" && data.monto === 7500 && data.moneda_cobrada === \"CRC\" && data.monto_cobrado === 7500 && data.medio === \"tarjeta\" && data.estado === \"pendiente\" && data.consulta_pendiente === false;",
+                  "  // Incluso un 202 debe conservar su ID para consultar el mismo intento, sin repetir un cobro incierto.",
+                  "  if ([200, 201, 202].includes(pm.response.code) && data && validId(data.id)) { pm.environment.set(\"onvo_declined_payment_id\", data.id); }",
+                  "  if (valid && typeof data.url_pago === \"string\" && /^https:\\/\\/checkout\\.onvopay\\.com\\//.test(data.url_pago)) { pm.environment.set(\"onvo_declined_checkout_url\", data.url_pago); }",
+                  "  console.info(\"PAUSA MANUAL: conserva onvo_declined_payment_id. Abre onvo_declined_checkout_url en el navegador solo si hay checkout válido. Completa el escenario sandbox antes del GET final. Un 202 o un 422 no son aprobación.\");",
+                  "  pm.execution.setNextRequest(null);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "03 · Comprobar pago rechazado",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pagos/{{onvo_declined_payment_id}}",
+            "description": "Envía solo después de completar manualmente el checkout: 4000000000000002, fecha futura y CVC ficticio válido. No es una falla de comunicación. Exige HTTP 200 y estado=fallido, consulta_pendiente=false, CRC y 7500 exactos. Pendiente o 202 hacen fallar esta comprobación; no se consideran desenlace final. Si el proveedor aún procesa, espera y repite únicamente este GET. Un rechazo recuperable ONVO se declara fallido solo tras cerrar y verificar el intento remoto. La pantalla o URL de retorno no confirma nada."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_declined_payment_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_declined_payment_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  pm.environment.unset(\"onvo_declined_verified\");",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Monto, medio y estado del pago\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data.id).to.eql(pm.variables.get(\"onvo_declined_payment_id\"));",
+                  "    pm.expect(data).to.include({pasarela: \"onvo\", proposito: \"deposito\", monto: 7500, moneda_cobrada: \"CRC\", monto_cobrado: 7500, medio: \"tarjeta\", estado: \"fallido\", consulta_pendiente: false});",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && data && validId(data.id) && data.pasarela === \"onvo\" && data.proposito === \"deposito\" && data.monto === 7500 && data.moneda_cobrada === \"CRC\" && data.monto_cobrado === 7500 && data.medio === \"tarjeta\" && data.estado === \"fallido\" && data.consulta_pendiente === false;",
+                  "  const samePayment = valid && data.id === pm.variables.get(\"onvo_declined_payment_id\");",
+                  "  if (samePayment) { pm.environment.set(\"onvo_declined_verified\", \"true\"); }",
+                  "  if (!(samePayment)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "04 · Ver pedido sin pagar",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{onvo_declined_order_id}}",
+            "description": "Comprueba pedido, línea, subtotal y monto pagado después del resultado final verificado. No basta con mirar el pago aisladamente. No encargues botellas ni prepares decants: el primer pedido aprobado se usará para la devolución."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_declined_order_id\", \"onvo_variant_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_declined_order_id\", \"onvo_variant_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_declined_verified\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Estado e importes del pedido\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.eql(pm.variables.get(\"onvo_declined_order_id\"));",
+                  "    pm.expect(data).to.include({estado: \"pendiente_de_pago\", subtotal: 15000, por_cobrar_ahora: 7500, pagado: 0, saldo: 7500});",
+                  "    pm.expect(data.lineas).to.be.an(\"array\").with.lengthOf(1);",
+                  "    pm.expect(data.lineas[0]).to.include({tipo: \"botella\", presentacion_id: pm.variables.get(\"onvo_variant_id\"), presentacion_ml: 100, cantidad: 1, precio_unitario: 15000});",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && data && validId(data.id) && data.estado === \"pendiente_de_pago\" && data.subtotal === 15000 && data.por_cobrar_ahora === 7500 && data.pagado === 0 && data.saldo === 7500 && Array.isArray(data.lineas) && data.lineas.length === 1 && data.lineas[0].presentacion_id === pm.variables.get(\"onvo_variant_id\") && data.lineas[0].tipo === \"botella\" && data.lineas[0].presentacion_ml === 100 && data.lineas[0].cantidad === 1 && data.lineas[0].precio_unitario === 15000;",
+                  "  const sameOrder = valid && data.id === pm.variables.get(\"onvo_declined_order_id\");",
+                  "  if (!(sameOrder)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 · SINPE Móvil",
+      "description": "Petición 01 crea un pedido exclusivo; 02 inicia el checkout y detiene Runner. Continúa con Send, completa el navegador y luego consulta el mismo pago. Datos oficiales del escenario: +50688888888: simula éxito aproximadamente 15 segundos después. Completa los demás datos ficticios en el formato solicitado. No hagas ninguna transferencia bancaria. Los IDs de esta carpeta usan onvo_sinpe_ y no reemplazan los de otra. No ejecutes toda la colección como si fuera una prueba automática de extremo a extremo: hay intervención humana. Fuente de datos: https://docs.onvopay.com/payments/testing (consulta documental 25/10/2026). Este escenario se ejecutó en sandbox el 25/10/2026 con la API local y el navegador; su evidencia está en docs/evidencia-investigacion-1. La colección no se importó ni se ejecutó completa en Postman nativo.",
+      "item": [
+        {
+          "name": "01 · Crear pedido",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/tiendas/archivumparfums/pedidos",
+            "description": "Crea solo el pedido de onvo_sinpe. Espera 201, subtotal=15000, depósito=7500 y pagado=0. No sobrescribe el pedido aprobado de la primera carpeta. Los pedidos vencen: completa cada escenario dentro del plazo de la tienda.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"lineas\": [\n    {\n      \"presentacion_id\": \"{{onvo_variant_id}}\",\n      \"cantidad\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_variant_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_variant_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_settings_ready\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const existing = [\"onvo_sinpe_order_id\"].filter(key => Boolean(pm.variables.get(key)));",
+                  "  if (existing.length) {",
+                  "    console.error(\"Petición omitida: ya existe \" + existing.join(\", \") + \". Conserva esta evidencia y usa el recurso existente. Para otro recorrido, importa un entorno nuevo o limpia conscientemente sus variables después de conciliar; no sobrescribas el primer pedido.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Estado e importes del pedido\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data).to.include({estado: \"pendiente_de_pago\", subtotal: 15000, por_cobrar_ahora: 7500, pagado: 0, saldo: 7500});",
+                  "    pm.expect(data.lineas).to.be.an(\"array\").with.lengthOf(1);",
+                  "    pm.expect(data.lineas[0]).to.include({tipo: \"botella\", presentacion_id: pm.variables.get(\"onvo_variant_id\"), presentacion_ml: 100, cantidad: 1, precio_unitario: 15000});",
+                  "  });",
+                  "  const valid = pm.response.code === 201 && data && validId(data.id) && data.estado === \"pendiente_de_pago\" && data.subtotal === 15000 && data.por_cobrar_ahora === 7500 && data.pagado === 0 && data.saldo === 7500 && Array.isArray(data.lineas) && data.lineas.length === 1 && data.lineas[0].presentacion_id === pm.variables.get(\"onvo_variant_id\") && data.lineas[0].tipo === \"botella\" && data.lineas[0].presentacion_ml === 100 && data.lineas[0].cantidad === 1 && data.lineas[0].precio_unitario === 15000;",
+                  "  if (valid) { pm.environment.set(\"onvo_sinpe_order_id\", data.id); }",
+                  "  if (!(valid)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "02 · Crear checkout SINPE (pausa)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{onvo_sinpe_order_id}}/pagos",
+            "description": "Espera 201 con un pago pendiente y URL de checkout; crear no confirma el pago. Se guarda onvo_sinpe_payment_id y onvo_sinpe_checkout_url. El Runner se detiene aquí mediante setNextRequest(null). Con Send debes hacer tú la pausa; esa función no abre el navegador ni encadena otra petición. Abre la URL guardada y usa +50688888888: simula éxito aproximadamente 15 segundos después. Completa los demás datos ficticios en el formato solicitado. No hagas ninguna transferencia bancaria. Consulta después el mismo pago desde Archivum. Si falla por credenciales 422, configura solo el .env servidor; no registres secretos ONVO en Postman. Si responde 202, conserva ID, respeta Retry-After y concilia; no crees otro pedido para eludir la incertidumbre.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"medio\": \"sinpe_movil\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_sinpe_order_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_sinpe_order_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_settings_ready\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const existing = [\"onvo_sinpe_payment_id\"].filter(key => Boolean(pm.variables.get(key)));",
+                  "  if (existing.length) {",
+                  "    console.error(\"Petición omitida: ya existe \" + existing.join(\", \") + \". Conserva esta evidencia y usa el recurso existente. Para otro recorrido, importa un entorno nuevo o limpia conscientemente sus variables después de conciliar; no sobrescribas el primer pedido.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  pm.environment.unset(\"onvo_sinpe_checkout_url\");",
+                  "  pm.environment.unset(\"onvo_sinpe_confirmed\");",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Monto, medio y estado del pago\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data).to.include({pasarela: \"onvo\", proposito: \"deposito\", monto: 7500, moneda_cobrada: \"CRC\", monto_cobrado: 7500, medio: \"sinpe_movil\", estado: \"pendiente\", consulta_pendiente: false});",
+                  "    pm.expect(data.url_pago).to.match(/^https:\\/\\/checkout\\.onvopay\\.com\\//);",
+                  "  });",
+                  "  const valid = pm.response.code === 201 && data && validId(data.id) && data.pasarela === \"onvo\" && data.proposito === \"deposito\" && data.monto === 7500 && data.moneda_cobrada === \"CRC\" && data.monto_cobrado === 7500 && data.medio === \"sinpe_movil\" && data.estado === \"pendiente\" && data.consulta_pendiente === false;",
+                  "  // Incluso un 202 debe conservar su ID para consultar el mismo intento, sin repetir un cobro incierto.",
+                  "  if ([200, 201, 202].includes(pm.response.code) && data && validId(data.id)) { pm.environment.set(\"onvo_sinpe_payment_id\", data.id); }",
+                  "  if (valid && typeof data.url_pago === \"string\" && /^https:\\/\\/checkout\\.onvopay\\.com\\//.test(data.url_pago)) { pm.environment.set(\"onvo_sinpe_checkout_url\", data.url_pago); }",
+                  "  console.info(\"PAUSA MANUAL: conserva onvo_sinpe_payment_id. Abre onvo_sinpe_checkout_url en el navegador solo si hay checkout válido. Completa el escenario sandbox antes del GET final. Un 202 o un 422 no son aprobación.\");",
+                  "  pm.execution.setNextRequest(null);",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "03 · Confirmar pago SINPE",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pagos/{{onvo_sinpe_payment_id}}",
+            "description": "Envía solo después de completar manualmente el checkout: +50688888888: simula éxito aproximadamente 15 segundos después. Completa los demás datos ficticios en el formato solicitado. No hagas ninguna transferencia bancaria. Exige HTTP 200 y estado=confirmado, consulta_pendiente=false, CRC y 7500 exactos. Pendiente o 202 hacen fallar esta comprobación; no se consideran desenlace final. Si el proveedor aún procesa, espera y repite únicamente este GET. Un rechazo recuperable ONVO se declara fallido solo tras cerrar y verificar el intento remoto. La pantalla o URL de retorno no confirma nada."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_sinpe_payment_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_sinpe_payment_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  pm.environment.unset(\"onvo_sinpe_confirmed\");",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Monto, medio y estado del pago\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data.id).to.eql(pm.variables.get(\"onvo_sinpe_payment_id\"));",
+                  "    pm.expect(data).to.include({pasarela: \"onvo\", proposito: \"deposito\", monto: 7500, moneda_cobrada: \"CRC\", monto_cobrado: 7500, medio: \"sinpe_movil\", estado: \"confirmado\", consulta_pendiente: false});",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && data && validId(data.id) && data.pasarela === \"onvo\" && data.proposito === \"deposito\" && data.monto === 7500 && data.moneda_cobrada === \"CRC\" && data.monto_cobrado === 7500 && data.medio === \"sinpe_movil\" && data.estado === \"confirmado\" && data.consulta_pendiente === false;",
+                  "  const samePayment = valid && data.id === pm.variables.get(\"onvo_sinpe_payment_id\");",
+                  "  if (samePayment) { pm.environment.set(\"onvo_sinpe_confirmed\", \"true\"); }",
+                  "  if (!(samePayment)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "04 · Ver depósito del pedido",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{onvo_sinpe_order_id}}",
+            "description": "Comprueba pedido, línea, subtotal y monto pagado después del resultado final verificado. No basta con mirar el pago aisladamente. No encargues botellas ni prepares decants: el primer pedido aprobado se usará para la devolución."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_sinpe_order_id\", \"onvo_variant_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_sinpe_order_id\", \"onvo_variant_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_sinpe_confirmed\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Estado e importes del pedido\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.eql(pm.variables.get(\"onvo_sinpe_order_id\"));",
+                  "    pm.expect(data).to.include({estado: \"confirmado\", subtotal: 15000, por_cobrar_ahora: 0, pagado: 7500, saldo: 7500});",
+                  "    pm.expect(data.lineas).to.be.an(\"array\").with.lengthOf(1);",
+                  "    pm.expect(data.lineas[0]).to.include({tipo: \"botella\", presentacion_id: pm.variables.get(\"onvo_variant_id\"), presentacion_ml: 100, cantidad: 1, precio_unitario: 15000});",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && data && validId(data.id) && data.estado === \"confirmado\" && data.subtotal === 15000 && data.por_cobrar_ahora === 0 && data.pagado === 7500 && data.saldo === 7500 && Array.isArray(data.lineas) && data.lineas.length === 1 && data.lineas[0].presentacion_id === pm.variables.get(\"onvo_variant_id\") && data.lineas[0].tipo === \"botella\" && data.lineas[0].presentacion_ml === 100 && data.lineas[0].cantidad === 1 && data.lineas[0].precio_unitario === 15000;",
+                  "  const sameOrder = valid && data.id === pm.variables.get(\"onvo_sinpe_order_id\");",
+                  "  if (!(sameOrder)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 · Reembolso",
+      "description": "Solo el pedido onvo_card_order_id, antes de encargo o preparación. No sobrescribe IDs con escenarios posteriores. Cancelar registra la intención de devolver; procesar consulta ONVO; solo la confirmación permite pasar a las comprobaciones finales. Este reembolso se confirmó en sandbox el 25/10/2026 mediante la API local; el resultado sanitizado está documentado en docs/evidencia-investigacion-1. La colección no se importó ni se ejecutó completa en Postman nativo.",
+      "item": [
+        {
+          "name": "01 · Cancelar pedido aprobado",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{onvo_card_order_id}}/cancelacion",
+            "description": "Usa exclusivamente el primer pedido de tarjeta aprobada. Antes de encargar botellas o preparar decants. Sin cuerpo: el servidor registra una devolución pendiente por 7500. Cancelado todavía puede mostrar pagado=7500 hasta confirmar el reembolso. No cancela el pedido de SINPE ni el rechazado."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_card_order_id\", \"onvo_variant_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_card_order_id\", \"onvo_variant_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_card_confirmed\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const existing = [\"onvo_card_cancelled\"].filter(key => Boolean(pm.variables.get(key)));",
+                  "  if (existing.length) {",
+                  "    console.error(\"Petición omitida: ya existe \" + existing.join(\", \") + \". Conserva esta evidencia y usa el recurso existente. Para otro recorrido, importa un entorno nuevo o limpia conscientemente sus variables después de conciliar; no sobrescribas el primer pedido.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Estado e importes del pedido\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.eql(pm.variables.get(\"onvo_card_order_id\"));",
+                  "    pm.expect(data).to.include({estado: \"cancelado\", subtotal: 15000, por_cobrar_ahora: 0, pagado: 7500, saldo: 7500});",
+                  "    pm.expect(data.lineas).to.be.an(\"array\").with.lengthOf(1);",
+                  "    pm.expect(data.lineas[0]).to.include({tipo: \"botella\", presentacion_id: pm.variables.get(\"onvo_variant_id\"), presentacion_ml: 100, cantidad: 1, precio_unitario: 15000});",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && data && validId(data.id) && data.estado === \"cancelado\" && data.subtotal === 15000 && data.por_cobrar_ahora === 0 && data.pagado === 7500 && data.saldo === 7500 && Array.isArray(data.lineas) && data.lineas.length === 1 && data.lineas[0].presentacion_id === pm.variables.get(\"onvo_variant_id\") && data.lineas[0].tipo === \"botella\" && data.lineas[0].presentacion_ml === 100 && data.lineas[0].cantidad === 1 && data.lineas[0].precio_unitario === 15000;",
+                  "  const sameOrder = valid && data.id === pm.variables.get(\"onvo_card_order_id\");",
+                  "  if (sameOrder) { pm.environment.set(\"onvo_card_cancelled\", \"true\"); }",
+                  "  if (!(sameOrder)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "02 · Procesar reembolso",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_owner}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/panel/pedidos/{{onvo_card_order_id}}/reembolsos",
+            "description": "Sin monto ni ID de proveedor en el cuerpo. El servidor procesa lo ya asignado por la cancelación. Exige data como lista con un reembolso de monto=7500 y estado=confirmado. Pendiente y fallido no se aprueban por esta prueba. Si queda pendiente, repite la misma petición más adelante: una referencia conocida se consulta sin otro POST a ONVO; una respuesta perdida sin referencia no se reenvía a ciegas. Si ya se confirmó, repetir puede devolver lista vacía, no una segunda devolución."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_owner\", \"onvo_card_order_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_card_order_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_card_confirmed\", \"onvo_card_cancelled\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  if (pm.variables.get(\"onvo_card_refund_confirmed\") === \"true\") {",
+                  "    console.error(\"Petición omitida: esta devolución ya quedó confirmada. Continúa con los GET finales; no borres su evidencia al repetir el procesamiento.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  pm.environment.unset(\"onvo_card_refund_confirmed\");",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Reembolso confirmado por ₡7.500\", function () {",
+                  "    pm.expect(data).to.be.an(\"array\").with.lengthOf(1);",
+                  "    pm.expect(data[0].id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data[0]).to.include({monto: 7500, estado: \"confirmado\"});",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && Array.isArray(data) && data.length === 1 && validId(data[0].id) && data[0].monto === 7500 && data[0].estado === \"confirmado\";",
+                  "  if (Array.isArray(data) && data.length === 1 && validId(data[0].id)) { pm.environment.set(\"onvo_card_refund_id\", data[0].id); }",
+                  "  if (valid) { pm.environment.set(\"onvo_card_refund_confirmed\", \"true\"); }",
+                  "  if (!valid) { console.info(\"Devolución no confirmada: conserva su referencia. Si está pendiente, repite esta misma operación más adelante; no inventes monto ni crees otro reembolso.\"); }",
+                  "  if (!(valid)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "03 · Comprobar pago reembolsado",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pagos/{{onvo_card_payment_id}}",
+            "description": "Comprueba el mismo pago ONVO de tarjeta, monto original de 7500 y estado=reembolsado. El importe original no cambia de signo; el estado acredita que se devolvió todo."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_card_payment_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_card_payment_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_card_refund_confirmed\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Monto, medio y estado del pago\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);",
+                  "    pm.expect(data.id).to.eql(pm.variables.get(\"onvo_card_payment_id\"));",
+                  "    pm.expect(data).to.include({pasarela: \"onvo\", proposito: \"deposito\", monto: 7500, moneda_cobrada: \"CRC\", monto_cobrado: 7500, medio: \"tarjeta\", estado: \"reembolsado\", consulta_pendiente: false});",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && data && validId(data.id) && data.pasarela === \"onvo\" && data.proposito === \"deposito\" && data.monto === 7500 && data.moneda_cobrada === \"CRC\" && data.monto_cobrado === 7500 && data.medio === \"tarjeta\" && data.estado === \"reembolsado\" && data.consulta_pendiente === false;",
+                  "  const samePayment = valid && data.id === pm.variables.get(\"onvo_card_payment_id\");",
+                  "  if (!(samePayment)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "04 · Ver pedido cancelado",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token_customer}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/v1/cuenta/pedidos/{{onvo_card_order_id}}",
+            "description": "Después del reembolso confirmado el pedido sigue cancelado, pagado=0 y por_cobrar_ahora=0. saldo=7500 representa la parte posterior al depósito, no una instrucción para cobrar un pedido cancelado."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  const required = [\"token_customer\", \"onvo_card_order_id\", \"onvo_variant_id\"];",
+                  "  const missing = required.filter(key => typeof pm.variables.get(key) !== \"string\" || pm.variables.get(key).trim() === \"\");",
+                  "  if (missing.length) {",
+                  "    console.error(\"Petición omitida: faltan variables de pasos anteriores: \" + missing.join(\", \") + \". Revisa la respuesta original; no inventes IDs ni repitas un cobro incierto.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const ids = [\"onvo_card_order_id\", \"onvo_variant_id\"];",
+                  "  if (ids.some(key => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pm.variables.get(key)))) {",
+                  "    console.error(\"Petición omitida: un UUID capturado no es válido. Revisa el paso que lo creó.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "  const flags = [\"onvo_card_refund_confirmed\"];",
+                  "  if (flags.some(key => pm.variables.get(key) !== \"true\")) {",
+                  "    console.error(\"Petición omitida: falta verificar el resultado del paso anterior: \" + flags.join(\", \") + \". Una respuesta pendiente no equivale a aprobación o devolución.\");",
+                  "    pm.execution.skipRequest(); return;",
+                  "  }",
+                  "})();"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "(function () {",
+                  "  pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "  pm.test(\"ID de solicitud válido\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"X-Request-Id\")).to.match(/^[0-9a-f-]{36}$/i);",
+                  "  });",
+                  "  let body = null;",
+                  "  try { body = pm.response.json(); } catch (error) {",
+                  "    pm.test(\"Respuesta JSON válida\", function () { pm.expect.fail(\"Se esperaba JSON de Archivum\"); });",
+                  "  }",
+                  "  const data = body && body.data;",
+                  "  const validId = value => typeof value === \"string\" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);",
+                  "  pm.test(\"Estado e importes del pedido\", function () {",
+                  "    pm.expect(data).to.be.an(\"object\");",
+                  "    pm.expect(data.id).to.eql(pm.variables.get(\"onvo_card_order_id\"));",
+                  "    pm.expect(data).to.include({estado: \"cancelado\", subtotal: 15000, por_cobrar_ahora: 0, pagado: 0, saldo: 7500});",
+                  "    pm.expect(data.lineas).to.be.an(\"array\").with.lengthOf(1);",
+                  "    pm.expect(data.lineas[0]).to.include({tipo: \"botella\", presentacion_id: pm.variables.get(\"onvo_variant_id\"), presentacion_ml: 100, cantidad: 1, precio_unitario: 15000});",
+                  "  });",
+                  "  const valid = pm.response.code === 200 && data && validId(data.id) && data.estado === \"cancelado\" && data.subtotal === 15000 && data.por_cobrar_ahora === 0 && data.pagado === 0 && data.saldo === 7500 && Array.isArray(data.lineas) && data.lineas.length === 1 && data.lineas[0].presentacion_id === pm.variables.get(\"onvo_variant_id\") && data.lineas[0].tipo === \"botella\" && data.lineas[0].presentacion_ml === 100 && data.lineas[0].cantidad === 1 && data.lineas[0].precio_unitario === 15000;",
+                  "  const sameOrder = valid && data.id === pm.variables.get(\"onvo_card_order_id\");",
+                  "  if (!(sameOrder)) { pm.execution.setNextRequest(null); }",
+                  "})();"
+                ]
+              }
+            }
+          ],
+          "response": [],
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ]
+    }
+  ]
+}
