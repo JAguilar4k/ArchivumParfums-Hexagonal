@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Src\Shared\Infrastructure\Storage;
 
 use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -41,7 +42,10 @@ final readonly class LaravelFileStorage implements FileStorage
 
     public function url(string $path): string
     {
-        return $this->disk()->url($path);
+        /** @var FilesystemAdapter $adapter */
+        $adapter = $this->disk();
+
+        return $adapter->url($path);
     }
 
     private function disk(): Filesystem
