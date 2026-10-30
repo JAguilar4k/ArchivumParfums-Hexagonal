@@ -210,6 +210,7 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/` | Cualquiera | Redirección temporal (302) a `/api/v1`, para que abrir el servidor en el navegador no dé 404. |
 | GET | `/up` | Cualquiera | Estado de la aplicación, fuera del prefijo `/api/v1`. |
 | GET | `/api/v1` | Cualquiera | Nombre y versión de la API. |
+| POST | `/api/v1/cuentas` | Cualquiera | Registra una cuenta de cliente con `nombre`, `correo`, `contrasena` y `acepta_privacidad: true`; responde 201 con `Location` hacia `/api/v1/cuenta` y los datos públicos de la cuenta, sin iniciar sesión. |
 | POST | `/api/v1/sesiones` | Cualquiera | Ingresa con `correo`, `contrasena` y el nombre del `dispositivo` y devuelve un token Bearer. |
 | DELETE | `/api/v1/sesiones/actual` | Con token | Cierra la sesión: revoca solo el token de la petición y responde 204. |
 | GET | `/api/v1/cuenta` | Con token | Nombre, correo y rol de la cuenta (`dueno`, `colaborador` o `cliente`) y, para el personal, su tienda. |
@@ -295,6 +296,14 @@ Las validaciones fallidas deben responder 422 con `errores`, y los errores usan 
 Para probar fotos, añade `foto` como archivo en el POST de foto; para el logo, el campo es `logo`. Envía una imagen ficticia del tipo y tamaño admitidos por el contrato y abre la URL devuelta. Ese segundo paso comprueba el enlace público y `APP_URL`, además de la respuesta de subida. PHP necesita una carpeta temporal existente y escribible; si informa `unable to create a temporary file`, revisa `upload_tmp_dir` en el PHP que atiende HTTP y utiliza el comando de arranque documentado con `--no-reload`.
 
 Los ejemplos cURL de la sección siguiente usan sintaxis Bash para continuar líneas; en PowerShell puedes crear las mismas solicitudes en Postman o escribir el comando `curl.exe` en una sola línea.
+
+Un visitante crea su cuenta con `POST /api/v1/cuentas` (#101). Solo se piden `nombre` (hasta 120 caracteres), `correo` y `contrasena` (al menos 8 caracteres, `Password::defaults()`), como pide la Ley 8968. La cuenta nueva siempre es de cliente: `rol`, `business_id` o una tienda enviados en el cuerpo se ignoran, no se crea ninguna fila en `members` y tampoco en `customers`, que se crea al operar en una tienda (#62). La respuesta `201` trae el encabezado `Location` hacia `/api/v1/cuenta` y los mismos datos públicos que `GET /api/v1/cuenta`, nunca la contraseña, su hash ni un token: el registro no inicia sesión y el cliente llama después a `POST /api/v1/sesiones`. Un correo ya registrado, aunque cambien las mayúsculas, responde 422 `datos-invalidos` con el error en `errores.correo`; si dos registros simultáneos usan el mismo correo, la llave única de `users.email` deja pasar uno y el otro recibe ese mismo 422, nunca un 500. El límite por IP llega con #108.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/cuentas \
+  -H 'Content-Type: application/json' -H 'Accept: application/json' \
+  -d '{"nombre": "Cliente Ficticia", "correo": "cliente.ficticia@clientes.test", "contrasena": "<una contraseña de 8 o más caracteres>"}'
+```
 
 El token de `POST /api/v1/sesiones` se muestra una sola vez y se envía en cada petición en el encabezado `Authorization: Bearer <token>`; cada ingreso crea un token nuevo con el nombre de su dispositivo, así cada sesión se distingue de las demás, y `DELETE /api/v1/sesiones/actual` borra solo el token de la petición, sin cerrar las demás sesiones de la cuenta. Un correo inexistente y una contraseña incorrecta reciben la misma respuesta 401 `credenciales-invalidas`, sin indicar cuál dato falló, como en el proyecto guía. Los campos ausentes o mal formados responden 422 `datos-invalidos` con sus errores de validación. Sin token, o con uno inválido, las rutas protegidas responden 401 `no-autenticado`. Para ingresar con una cuenta de los [datos de demostración](#datos-de-demostración):
 
