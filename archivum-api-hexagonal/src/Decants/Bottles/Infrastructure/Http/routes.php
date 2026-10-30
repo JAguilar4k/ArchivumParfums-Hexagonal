@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Src\Decants\Bottles\Infrastructure\Http\Controllers\DecantBottleController;
 use Src\Decants\Bottles\Infrastructure\Http\Controllers\DecantMovementController;
 
-Route::prefix('panel/botellas')->middleware(['auth:sanctum', 'business:staff', 'role:owner'])->name('decants.bottles.')->group(function (): void {
+Route::prefix('panel/botellas')->middleware(['auth:sanctum', 'abilities:catalog:manage', 'business:staff'])->name('decants.bottles.')->group(function (): void {
     Route::get('/', [DecantBottleController::class, 'index'])->name('index');
     Route::post('/', [DecantBottleController::class, 'store'])->name('store');
     Route::get('/{botella}', [DecantBottleController::class, 'show'])->whereUuid('botella')->name('show');
