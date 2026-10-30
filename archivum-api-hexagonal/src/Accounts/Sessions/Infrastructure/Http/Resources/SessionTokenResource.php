@@ -15,14 +15,14 @@ final class SessionTokenResource extends JsonResource
 {
     private const string TYPE = 'Bearer';
 
-    /** Wrap the token issued at sign-in. */
+    /** Wrap the token issued at sign-in or at a renewal. */
     public function __construct(private readonly StartedSession $session)
     {
         parent::__construct($session);
     }
 
     /**
-     * Expose the token and the way to send it.
+     * Expose the token, the way to send it and when it expires.
      *
      * @return array<string, string>
      */
@@ -31,6 +31,7 @@ final class SessionTokenResource extends JsonResource
         return [
             'token' => $this->session->plainTextToken,
             'tipo' => self::TYPE,
+            'vence_en' => $this->session->expiresAt,
         ];
     }
 }

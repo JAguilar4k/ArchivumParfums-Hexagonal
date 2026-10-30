@@ -44,6 +44,8 @@ final readonly class StartSession
         // Fixed for the life of the token: changing the role or deactivating a person revokes their tokens (#106).
         $role = $this->memberships->of($user->id)->role ?? AccountRole::Customer;
 
-        return new StartedSession($this->tokens->issue($user->id, $command->deviceName, Ability::namesGrantedTo($role)));
+        $token = $this->tokens->issue($user->id, $command->deviceName, Ability::namesGrantedTo($role));
+
+        return new StartedSession($token->plainTextToken, $token->expiresAt->format(DATE_ATOM));
     }
 }

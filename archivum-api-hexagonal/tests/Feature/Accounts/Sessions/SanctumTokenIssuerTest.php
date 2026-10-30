@@ -17,7 +17,7 @@ pest()->use(RefreshDatabaseAsOwner::class);
 it('stores the token as a hash, named after the device, and never the secret', function () {
     $user = UserModel::factory()->create();
 
-    $plainTextToken = new SanctumTokenIssuer()->issue(new UserId($user->id), 'Celular de la tienda', ['customer:own']);
+    $plainTextToken = new SanctumTokenIssuer()->issue(new UserId($user->id), 'Celular de la tienda', ['customer:own'])->plainTextToken;
 
     [$id, $secret] = explode('|', $plainTextToken, 2);
     assertDatabaseHas('personal_access_tokens', [
@@ -37,6 +37,6 @@ it('gives every device its own token, so each one can be closed on its own', fun
     $first = $issuer->issue(new UserId($user->id), 'Celular', ['customer:own']);
     $second = $issuer->issue(new UserId($user->id), 'Computadora', ['customer:own']);
 
-    expect($first)->not->toBe($second);
+    expect($first->plainTextToken)->not->toBe($second->plainTextToken);
     assertDatabaseCount('personal_access_tokens', 2);
 });
