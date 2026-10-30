@@ -106,7 +106,7 @@ it('does not keep a person out of their account below the limit by email', funct
 it('answers 429 by IP on POST /cuentas, until the window ends', function () {
     limitTo('sign_up_by_ip', 1, 60);
 
-    $account = fn (int $number): array => ['nombre' => 'Cliente', 'correo' => "cliente{$number}@cuentas.test", 'contrasena' => LIMITED_PASSWORD];
+    $account = fn (int $number): array => ['nombre' => 'Cliente', 'correo' => "cliente{$number}@cuentas.test", 'contrasena' => LIMITED_PASSWORD, 'acepta_privacidad' => true];
 
     postFrom('10.0.0.1', '/api/v1/cuentas', $account(1))->assertCreated();
 
