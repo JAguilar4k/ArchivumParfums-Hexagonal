@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Tests\Support\Businesses;
 
 use Laravel\Sanctum\Sanctum;
+use Src\Accounts\Sessions\Application\Contracts\StaffMemberships;
+use Src\Accounts\Sessions\Domain\ValueObjects\Ability;
+use Src\Accounts\Sessions\Domain\ValueObjects\AccountRole;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel;
+use Src\Shared\Domain\ValueObjects\UserId;
 
 /**
  * Two businesses made with the factories, each with its staff and customers, to prove that each one only reaches
@@ -73,11 +77,12 @@ final class TwoBusinesses
         return UserModel::query()->where('email', $email)->sole()->id;
     }
 
-    /** Authenticate the account of an email for the next requests, with every ability, as a sign-in gives it. */
+    /** Authenticate the account of an email for the next requests, with the abilities of its role, as a sign-in gives them. */
     public static function actAs(string $email): UserModel
     {
         $user = UserModel::query()->where('email', $email)->sole();
-        Sanctum::actingAs($user, ['*']);
+        $role = app(StaffMemberships::class)->of(new UserId($user->id))->role ?? AccountRole::Customer;
+        Sanctum::actingAs($user, Ability::namesGrantedTo($role));
 
         return $user;
     }

@@ -7,6 +7,7 @@ namespace Tests\Support\Businesses;
 use Src\Businesses\Members\Domain\Contracts\MemberRepository;
 use Src\Businesses\Members\Domain\Entities\Member;
 use Src\Businesses\Members\Domain\Exceptions\AccountAlreadyOnStaffException;
+use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\MemberId;
 
 final class InMemoryMemberRepository implements MemberRepository
@@ -32,6 +33,24 @@ final class InMemoryMemberRepository implements MemberRepository
         }
 
         $this->members[$member->userId->value] = $member;
+    }
+
+    /** Find a member of one business. */
+    public function find(MemberId $id, BusinessId $businessId): ?Member
+    {
+        return array_find(
+            $this->members,
+            fn (Member $member): bool => $member->id->equals($id) && $member->businessId->equals($businessId),
+        );
+    }
+
+    /** Count the active owners of a business. */
+    public function countActiveOwners(BusinessId $businessId): int
+    {
+        return count(array_filter(
+            $this->members,
+            fn (Member $member): bool => $member->isActiveOwner() && $member->businessId->equals($businessId),
+        ));
     }
 
     /**

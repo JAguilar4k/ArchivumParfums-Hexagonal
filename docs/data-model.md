@@ -88,6 +88,7 @@ erDiagram
         uuid user_id FK
         varchar role
         boolean attends_appointments
+        boolean is_active
     }
     customers {
         uuid id PK
