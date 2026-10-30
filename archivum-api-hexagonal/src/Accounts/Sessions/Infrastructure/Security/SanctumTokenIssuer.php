@@ -10,12 +10,16 @@ use Src\Shared\Domain\ValueObjects\UserId;
 
 final readonly class SanctumTokenIssuer implements TokenIssuer
 {
-    /** Create a Sanctum personal access token named after the device; each sign-in gets its own. */
-    public function issue(UserId $userId, string $deviceName): string
+    /**
+     * Create a Sanctum personal access token named after the device, with the abilities given; each sign-in gets its own.
+     *
+     * @param  list<string>  $abilities
+     */
+    public function issue(UserId $userId, string $deviceName, array $abilities): string
     {
         return UserModel::query()
             ->findOrFail($userId->value)
-            ->createToken($deviceName)
+            ->createToken($deviceName, $abilities)
             ->plainTextToken;
     }
 }
