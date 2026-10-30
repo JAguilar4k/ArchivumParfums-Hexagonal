@@ -217,6 +217,10 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/api/v1/panel/tienda` | Dueño | Perfil y ajustes de la tienda de la sesión: nombre, slug, lugar de la cita, zona horaria y ajustes. |
 | PATCH | `/api/v1/panel/tienda` | Dueño | Cambia solo los campos enviados del perfil y de los ajustes. El slug no cambia. |
 | POST | `/api/v1/panel/tienda/logo` | Dueño | Sube el logo mediante `multipart/form-data`. |
+| GET | `/api/v1/panel/personal` | Dueño | Personal de la tienda de la sesión con su rol, si atiende citas y si está activo. |
+| POST | `/api/v1/panel/personal` | Dueño | Agrega a una persona con `nombre`, `correo`, `contrasena` inicial, `rol` (`dueno` o `colaborador`) y `atiende_citas`. Responde 201 con `Location`; un correo ya registrado responde 422 en `correo`. |
+| GET | `/api/v1/panel/personal/{persona}` | Dueño | Una persona de la tienda; la de otra tienda responde 404. |
+| PATCH | `/api/v1/panel/personal/{persona}` | Dueño | Cambia `nombre`, `rol`, `atiende_citas` y `activo`. Cambiar el rol o desactivar revoca sus tokens; quitar al último dueño activo responde 409 `conflicto`. |
 | GET | `/api/v1/panel/perfumes` | Dueño | Lista perfumes de su tienda, incluidos los inactivos, con búsqueda por marca/nombre y paginación. |
 | POST | `/api/v1/panel/perfumes` | Dueño | Crea un perfume con sus notas y etiquetas. |
 | GET | `/api/v1/panel/perfumes/{perfume}` | Dueño | Consulta un perfume de su tienda. |
