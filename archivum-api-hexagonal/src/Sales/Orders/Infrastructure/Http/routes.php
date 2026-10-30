@@ -7,16 +7,16 @@ use Src\Sales\Orders\Infrastructure\Http\Controllers\BusinessOrderController;
 use Src\Sales\Orders\Infrastructure\Http\Controllers\CustomerOrderController;
 
 Route::post('tiendas/{tienda}/pedidos', [CustomerOrderController::class, 'store'])
-    ->middleware(['auth:sanctum', 'role:customer', 'business:route'])->name('sales.customer.orders.store');
+    ->middleware(['auth:sanctum', 'abilities:customer:own', 'business:route'])->name('sales.customer.orders.store');
 
-Route::prefix('cuenta/pedidos')->middleware(['auth:sanctum', 'role:customer'])->name('sales.customer.orders.')
+Route::prefix('cuenta/pedidos')->middleware(['auth:sanctum', 'abilities:customer:own'])->name('sales.customer.orders.')
     ->controller(CustomerOrderController::class)->group(function (): void {
         Route::get('/', 'index')->name('index');
         Route::get('/{pedido}', 'show')->whereUuid('pedido')->middleware('business:account')->name('show');
         Route::post('/{pedido}/cancelacion', 'cancel')->whereUuid('pedido')->middleware('business:account')->name('cancel');
     });
 
-Route::prefix('panel/pedidos')->middleware(['auth:sanctum', 'business:staff', 'role:owner'])->name('sales.business.orders.')
+Route::prefix('panel/pedidos')->middleware(['auth:sanctum', 'abilities:orders:manage', 'business:staff'])->name('sales.business.orders.')
     ->controller(BusinessOrderController::class)->group(function (): void {
         Route::get('/', 'index')->name('index');
         Route::get('/{pedido}', 'show')->whereUuid('pedido')->name('show');
