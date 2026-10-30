@@ -77,6 +77,12 @@ it('redirects a plain HTTP request to HTTPS in production, without serving it', 
         ->assertHeader('Location', 'https://archivum.test/api/v1?pagina=2');
 });
 
+it('does not redirect the documentation, which production answers with a 403 on any scheme', function () {
+    asProduction();
+
+    get('/docs/api')->assertForbidden()->assertHeader('X-Content-Type-Options', 'nosniff');
+});
+
 it('takes the host of the redirect from APP_URL, not from the request', function () {
     asProduction();
 

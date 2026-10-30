@@ -18,7 +18,7 @@ También quita `X-Powered-By`. La documentación en `/docs/api` tiene su propia 
 
 ## HTTPS
 
-En producción, `RedirectToHttps` responde 308 a una petición por HTTP. El 308 conserva el método y el cuerpo, y el dominio sale de `APP_URL`, nunca de la petición. `/up` queda fuera para que el chequeo de salud de la plataforma no dependa del proxy.
+En producción, `RedirectToHttps` responde 308 a una petición por HTTP. El 308 conserva el método y el cuerpo, y el dominio sale de `APP_URL`, nunca de la petición. `/up` queda fuera para que el chequeo de salud de la plataforma no dependa del proxy, y `/docs/*` también, porque en producción esa ruta responde 403 sea cual sea el esquema.
 
 `config/trustedproxy.php` toma de `ARCHIVUM_TRUSTED_PROXIES` las direcciones en las que se confía. Vacía no confía en nadie: un cliente no puede fingir HTTPS con su propio `X-Forwarded-Proto`. Al desplegar (#21) hay que poner ahí el proxy de la plataforma; sin eso, toda petición se redirige.
 
@@ -33,4 +33,4 @@ Con `APP_DEBUG=false`, un error inesperado responde 500 `error-interno` sin traz
 ## Lo que falta
 
 - **Producción.** La dirección pública (#21), el dominio de archivum-web (#131) y los valores reales de `ARCHIVUM_TRUSTED_PROXIES` y `ARCHIVUM_WEB_ORIGIN` todavía no existen. Las pruebas simulan la configuración de producción, pero nada de esto se ha probado en un despliegue real.
-- **Credenciales de `/docs/api`.** Pedirlas en producción corresponde a #180; mientras tanto, esa documentación queda abierta.
+- **Credenciales de `/docs/api`.** Pedirlas en producción corresponde a #180; mientras tanto, esa documentación responde 403 en producción.
