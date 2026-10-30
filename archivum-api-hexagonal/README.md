@@ -210,7 +210,7 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/` | Cualquiera | Redirección temporal (302) a `/api/v1`, para que abrir el servidor en el navegador no dé 404. |
 | GET | `/up` | Cualquiera | Estado de la aplicación, fuera del prefijo `/api/v1`. |
 | GET | `/api/v1` | Cualquiera | Nombre y versión de la API. |
-| POST | `/api/v1/cuentas` | Cualquiera | Registra una cuenta de cliente con `nombre`, `correo` y `contrasena`; responde 201 con `Location` hacia `/api/v1/cuenta` y los datos públicos de la cuenta, sin iniciar sesión. |
+| POST | `/api/v1/cuentas` | Cualquiera | Registra una cuenta de cliente con `nombre`, `correo`, `contrasena` y `acepta_privacidad: true`; responde 201 con `Location` hacia `/api/v1/cuenta` y los datos públicos de la cuenta, sin iniciar sesión. |
 | POST | `/api/v1/sesiones` | Cualquiera | Ingresa con `correo`, `contrasena` y el nombre del `dispositivo` y devuelve un token Bearer. |
 | DELETE | `/api/v1/sesiones/actual` | Con token | Cierra la sesión: revoca solo el token de la petición y responde 204. |
 | GET | `/api/v1/cuenta` | Con token | Nombre, correo y rol de la cuenta (`dueno`, `colaborador` o `cliente`) y, para el personal, su tienda. |
