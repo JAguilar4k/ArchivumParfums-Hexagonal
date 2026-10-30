@@ -5,6 +5,8 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Auth;
 use Laravel\Sanctum\Sanctum;
 use Pest\Support\HigherOrderTapProxy;
+use Src\Accounts\Sessions\Domain\ValueObjects\Ability;
+use Src\Accounts\Sessions\Domain\ValueObjects\AccountRole;
 use Tests\Support\Businesses\StaffedBusiness;
 use Tests\Support\Shared\ParallelProcesses;
 use Tests\TestCase;
@@ -27,8 +29,8 @@ pest()->extend(TestCase::class)->in('Feature');
 |--------------------------------------------------------------------------
 |
 | Each helper signs in one person of a business with its staff, a new one
-| unless the test gives it, and returns that business. The tokens of the
-| API carry every ability, so these do too.
+| unless the test gives it, and returns that business. Each token carries
+| the abilities of its role, as POST /api/v1/sesiones issues it (#102).
 |
 */
 
@@ -36,7 +38,7 @@ pest()->extend(TestCase::class)->in('Feature');
 function actingAsOwner(?StaffedBusiness $business = null): StaffedBusiness
 {
     $business ??= StaffedBusiness::create();
-    Sanctum::actingAs($business->owner, ['*']);
+    Sanctum::actingAs($business->owner, Ability::namesGrantedTo(AccountRole::Owner));
 
     return $business;
 }
@@ -45,7 +47,7 @@ function actingAsOwner(?StaffedBusiness $business = null): StaffedBusiness
 function actingAsStaff(?StaffedBusiness $business = null): StaffedBusiness
 {
     $business ??= StaffedBusiness::create();
-    Sanctum::actingAs($business->staff, ['*']);
+    Sanctum::actingAs($business->staff, Ability::namesGrantedTo(AccountRole::Staff));
 
     return $business;
 }
@@ -54,7 +56,7 @@ function actingAsStaff(?StaffedBusiness $business = null): StaffedBusiness
 function actingAsCustomer(?StaffedBusiness $business = null): StaffedBusiness
 {
     $business ??= StaffedBusiness::create();
-    Sanctum::actingAs($business->customer, ['*']);
+    Sanctum::actingAs($business->customer, Ability::namesGrantedTo(AccountRole::Customer));
 
     return $business;
 }

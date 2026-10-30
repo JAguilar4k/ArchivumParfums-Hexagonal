@@ -8,7 +8,7 @@ use Src\Catalog\Perfumes\Infrastructure\Http\Controllers\PerfumePhotoController;
 use Src\Catalog\Perfumes\Infrastructure\Http\Controllers\PerfumeVariantController;
 
 Route::prefix('panel/perfumes')
-    ->middleware(['auth:sanctum', 'business:staff', 'role:owner'])
+    ->middleware(['auth:sanctum', 'abilities:catalog:manage', 'business:staff'])
     ->name('catalog.perfumes.')
     ->group(function (): void {
         Route::controller(PerfumeController::class)->group(function (): void {
