@@ -117,6 +117,7 @@ it('API3: opens every new account as a customer, whatever the body claims', func
         'nombre' => 'Nueva Cuenta',
         'correo' => 'nueva@clientes.test',
         'contrasena' => 'una-clave-bien-larga',
+        'acepta_privacidad' => true,
         'rol' => 'dueno',
         'role' => 'owner',
         'business_id' => MatrixResources::BUSINESS,
