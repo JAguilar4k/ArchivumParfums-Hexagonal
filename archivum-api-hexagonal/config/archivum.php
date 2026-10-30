@@ -31,4 +31,16 @@ return [
 
     'ai_timeout_seconds' => 10,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Web client
+    |--------------------------------------------------------------------------
+    |
+    | Origin of archivum-web, the only one config/cors.php accepts (#109). Its
+    | public address is set with #131.
+    |
+    */
+
+    'web_origin' => env('ARCHIVUM_WEB_ORIGIN', 'http://localhost:5173'),
+
 ];

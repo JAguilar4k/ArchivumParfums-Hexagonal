@@ -8,6 +8,8 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Support\Facades\Route;
 use Src\Accounts\Sessions\Infrastructure\Http\Middleware\RequireAccountRole;
 use Src\Shared\Infrastructure\Http\Middleware\AssignRequestId;
+use Src\Shared\Infrastructure\Http\Middleware\RedirectToHttps;
+use Src\Shared\Infrastructure\Http\Middleware\SetSecurityHeaders;
 use Src\Shared\Infrastructure\Http\Problem\ProblemDetailsRenderer;
 use Src\Shared\Infrastructure\Tenancy\ScopeRequestToBusiness;
 
@@ -23,6 +25,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->prepend(AssignRequestId::class);
+        // After the trusted proxies and CORS of the global stack, so the request already knows it came through HTTPS.
+        $middleware->append([SetSecurityHeaders::class, RedirectToHttps::class]);
         $middleware->redirectGuestsTo(null);
         $middleware->trimStrings(except: ['contrasena']);
 
