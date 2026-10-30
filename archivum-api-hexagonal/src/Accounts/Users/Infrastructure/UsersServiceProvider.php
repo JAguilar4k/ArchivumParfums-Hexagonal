@@ -7,8 +7,10 @@ namespace Src\Accounts\Users\Infrastructure;
 use Illuminate\Support\ServiceProvider;
 use Src\Accounts\Users\Application\Contracts\CustomerBusinesses;
 use Src\Accounts\Users\Domain\Contracts\PasswordHasher;
+use Src\Accounts\Users\Domain\Contracts\PrivacyConsents;
 use Src\Accounts\Users\Domain\Contracts\UserRepository;
 use Src\Accounts\Users\Infrastructure\Persistence\Queries\PostgresCustomerBusinesses;
+use Src\Accounts\Users\Infrastructure\Persistence\Repositories\EloquentPrivacyConsents;
 use Src\Accounts\Users\Infrastructure\Persistence\Repositories\EloquentUserRepository;
 use Src\Accounts\Users\Infrastructure\Security\BcryptPasswordHasher;
 use Src\Accounts\Users\Infrastructure\Tenancy\CustomerBusinessContext;
@@ -24,6 +26,7 @@ final class UsersServiceProvider extends ServiceProvider
     public array $bindings = [
         CustomerBusinesses::class => PostgresCustomerBusinesses::class,
         PasswordHasher::class => BcryptPasswordHasher::class,
+        PrivacyConsents::class => EloquentPrivacyConsents::class,
         UserRepository::class => EloquentUserRepository::class,
     ];
 

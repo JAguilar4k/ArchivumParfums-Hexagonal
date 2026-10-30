@@ -25,4 +25,16 @@ final class CustomerModel extends Model
 {
     /** @use HasFactory<CustomerFactory> */
     use HasFactory, HasUuids;
+
+    /**
+     * Store the phone encrypted with APP_KEY: a direct query to the database does not show the number (#110).
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'phone' => 'encrypted',
+        ];
+    }
 }

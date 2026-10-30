@@ -30,6 +30,7 @@ function signUp(array $overrides = []): array
         'nombre' => 'Mariana Rojas',
         'correo' => 'mariana@clientes.test',
         'contrasena' => 'clave-de-prueba',
+        'acepta_privacidad' => true,
         ...$overrides,
     ];
 }
@@ -148,6 +149,7 @@ it('answers 422 and never 500 to the loser of two simultaneous sign-ups with the
                 'nombre' => $name,
                 'correo' => 'simultaneo@clientes.test',
                 'contrasena' => 'clave-de-prueba',
+                'acepta_privacidad' => true,
             ]));
             $response = app(Kernel::class)->handle($request);
 

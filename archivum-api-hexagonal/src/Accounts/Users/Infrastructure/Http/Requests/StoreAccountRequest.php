@@ -24,6 +24,7 @@ final class StoreAccountRequest extends FormRequest
             'nombre' => ['required', 'string', 'max:'.UserName::MAX_LENGTH],
             'correo' => ['required', 'string', 'email:filter', 'max:'.Email::MAX_LENGTH],
             'contrasena' => ['required', 'string', Password::defaults()],
+            'acepta_privacidad' => ['required', 'boolean', 'accepted'],
         ];
     }
 
