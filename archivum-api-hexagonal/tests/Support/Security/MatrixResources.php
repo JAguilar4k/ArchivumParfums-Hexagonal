@@ -47,7 +47,9 @@ final class MatrixResources
             $bottle = DB::table('decant_bottles')->where('business_id', self::BUSINESS)->orderBy('id')->value('id');
             $customer = DB::table('customers')->join('users', 'users.id', '=', 'customers.user_id')
                 ->where('customers.business_id', self::BUSINESS)->where('users.email', self::ACCOUNTS['cliente'])->value('customers.id');
-            assert(is_object($variant) && is_string($bottle) && is_string($customer));
+            $person = DB::table('members')->join('users', 'users.id', '=', 'members.user_id')
+                ->where('members.business_id', self::BUSINESS)->where('users.email', self::ACCOUNTS['colaborador'])->value('members.id');
+            assert(is_object($variant) && is_string($bottle) && is_string($customer) && is_string($person));
 
             $order = OrderModel::factory()->create([
                 'business_id' => self::BUSINESS, 'customer_id' => $customer, 'status' => 'confirmed',
@@ -71,6 +73,7 @@ final class MatrixResources
                 'pedido' => $order->id,
                 'linea' => $line->id,
                 'pago' => $payment->id,
+                'persona' => $person,
             ];
         });
     }

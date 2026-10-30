@@ -5,12 +5,13 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Route;
 use Src\Accounts\Sessions\Infrastructure\Http\Controllers\CurrentAccountController;
 use Src\Accounts\Sessions\Infrastructure\Http\Controllers\SessionController;
+use Src\Businesses\Members\Infrastructure\Http\Middleware\RefuseDeactivatedMembers;
 
 Route::prefix('sesiones')
     ->name('accounts.sessions.')
     ->controller(SessionController::class)
     ->group(function (): void {
-        Route::post('/', 'store')->name('store');
+        Route::post('/', 'store')->middleware(RefuseDeactivatedMembers::class)->name('store');
         Route::delete('actual', 'destroy')->middleware('auth:sanctum')->name('destroy');
     });
 

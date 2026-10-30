@@ -62,6 +62,10 @@ function permissionMatrixRows(): array
             'ver el perfil' => ['GET', 'api/v1/panel/tienda', [], ownerOnly(200)],
             'editar el perfil' => ['PATCH', 'api/v1/panel/tienda', [], ownerOnly(200)],
             'subir el logo' => ['POST', 'api/v1/panel/tienda/logo', [], ownerOnly(422)],
+            'listar el personal' => ['GET', 'api/v1/panel/personal', [], ownerOnly(200)],
+            'agregar a una persona' => ['POST', 'api/v1/panel/personal', [], ownerOnly(422)],
+            'ver a una persona' => ['GET', 'api/v1/panel/personal/{persona}', [], ownerOnly(200)],
+            'editar a una persona' => ['PATCH', 'api/v1/panel/personal/{persona}', [], ownerOnly(200)],
         ],
         'catálogo, importación, botellas, proveedores y órdenes de compra' => [
             'listar perfumes' => ['GET', 'api/v1/panel/perfumes', [], ownerOnly(200)],
