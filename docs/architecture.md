@@ -189,7 +189,7 @@ Toda respuesta de error sigue RFC 9457 (`application/problem+json`). `ProblemDet
 | `NotFoundException`, también para un recurso de otra tienda o de otro cliente | `no-encontrado` | 404 |
 | `AuthenticationFailedException`, como un correo o una contraseña incorrectos | `credenciales-invalidas` | 401 |
 | Ruta protegida sin un token válido (`AuthenticationException` del framework) | `no-autenticado` | 401 |
-| Persona autenticada sin permiso: una cuenta sin el rol que pide la ruta (`role:owner` o `role:customer`) o un cliente en una ruta del panel. Ambas son `AuthorizationException` del framework | `prohibido` | 403 |
+| Persona autenticada sin permiso: un token sin la ability que declara la ruta (`abilities:` o `ability:` de Sanctum, #102), como un colaborador o un cliente en una ruta del dueño. Es `MissingAbilityException`, una `AuthorizationException` del framework | `prohibido` | 403 |
 | Otra excepción del dominio, como un horario que ya no está disponible | `conflicto` | 409 |
 | Excepción HTTP del framework | El tipo de su código de estado | 4xx o 5xx |
 | Cualquier otra | `error-interno`, sin detalles técnicos | 500 |

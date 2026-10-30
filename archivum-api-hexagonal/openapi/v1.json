@@ -4162,6 +4162,60 @@
                 ]
             }
         },
+        "/sesiones/actual/renovacion": {
+            "post": {
+                "operationId": "accounts.sessions.renewal.store",
+                "summary": "Swap the token of the request, while it is still valid, for a new one with its expiration; the old one stops\nworking. A token that expired or was revoked meanwhile gets the same 401 as a missing token: sign in again",
+                "tags": [
+                    "SessionRenewal"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "`SessionTokenResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/SessionTokenResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/tiendas/{tienda}/perfumes": {
             "get": {
                 "operationId": "catalog.showcase.index",
@@ -5499,11 +5553,15 @@
                     "tipo": {
                         "type": "string",
                         "const": "Bearer"
+                    },
+                    "vence_en": {
+                        "type": "string"
                     }
                 },
                 "required": [
                     "token",
-                    "tipo"
+                    "tipo",
+                    "vence_en"
                 ],
                 "title": "SessionTokenResource"
             },

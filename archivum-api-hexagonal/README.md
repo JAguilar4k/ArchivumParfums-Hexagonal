@@ -212,6 +212,7 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/api/v1` | Cualquiera | Nombre y versión de la API. |
 | POST | `/api/v1/sesiones` | Cualquiera | Ingresa con `correo`, `contrasena` y el nombre del `dispositivo` y devuelve un token Bearer. |
 | DELETE | `/api/v1/sesiones/actual` | Con token | Cierra la sesión: revoca solo el token de la petición y responde 204. |
+| POST | `/api/v1/sesiones/actual/renovacion` | Con token vigente | Cambia el token de la petición por uno nuevo con su `vence_en` y revoca el anterior; responde 201. |
 | GET | `/api/v1/cuenta` | Con token | Nombre, correo y rol de la cuenta (`dueno`, `colaborador` o `cliente`) y, para el personal, su tienda. |
 | GET | `/api/v1/panel/tienda` | Dueño | Perfil y ajustes de la tienda de la sesión: nombre, slug, lugar de la cita, zona horaria y ajustes. |
 | PATCH | `/api/v1/panel/tienda` | Dueño | Cambia solo los campos enviados del perfil y de los ajustes. El slug no cambia. |
@@ -304,7 +305,7 @@ curl -X POST http://localhost:8000/api/v1/sesiones \
   -d '{"correo": "duena@archivumparfums.test", "contrasena": "<ARCHIVUM_DEMO_PASSWORD>", "dispositivo": "Computadora"}'
 ```
 
-La respuesta `201` trae el token en `data.token`. Con él se consulta la cuenta que ingresó:
+La respuesta `201` trae el token en `data.token` y su vencimiento en `data.vence_en`. Con él se consulta la cuenta que ingresó:
 
 ```bash
 curl http://localhost:8000/api/v1/cuenta -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
@@ -316,7 +317,13 @@ Para cerrar esa sesión se envía el mismo token; la respuesta es `204` y las de
 curl -X DELETE http://localhost:8000/api/v1/sesiones/actual -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
 ```
 
-Mientras llegan las abilities y las policies de #102 y #104, el middleware `RequireAccountRole` separa los grupos de rutas según el rol indicado. `role:owner` deja pasar solo a los dueños de la tienda: la configuración (perfil y ajustes, servicios, horarios, bloqueos, perfumes, botellas y proveedores) y las citas que se reservan, reprograman o cancelan en nombre de un cliente. `role:customer` deja pasar solo a las cuentas sin fila en `members`: las reservas, los pedidos y las rutas de `/api/v1/cuenta/...`. Cualquier otra cuenta recibe 403 `prohibido` antes de que la petición escriba algo, y `GET /api/v1/cuenta` sigue abierta a los tres roles. `tests/Feature/Accounts/Sessions/RoleGroupsTest.php` falla si una ruta de esos grupos no lleva su middleware, y cada endpoint nuevo de los dos grupos suma su fila a su dataset, con el estado exacto que recibe el rol permitido.
+Cada token vence a los minutos de `SANCTUM_EXPIRATION` (60 por defecto, en `config/sanctum.php`) y `POST /api/v1/sesiones` lo informa en `vence_en`, en ISO 8601 con el desplazamiento de la zona horaria (#103). Un token vencido responde 401 `no-autenticado` en cualquier ruta protegida. Mientras siga vigente, `POST /api/v1/sesiones/actual/renovacion` lo cambia por uno nuevo para el mismo dispositivo, con su propio `vence_en` y las abilities del rol que la cuenta tiene en ese momento, y responde 201. El token anterior deja de servir: usarlo de nuevo, o renovar con un token vencido o cerrado, responde 401 y hay que ingresar otra vez. `RenewSession` borra el token anterior con un `DELETE` condicionado a que siga vigente y emite el nuevo en la misma transacción, así dos renovaciones simultáneas del mismo token producen un solo token nuevo y la otra recibe 401. Las demás sesiones de la cuenta no cambian. El scheduler ejecuta `sanctum:prune-expired --hours=24` cada día para borrar las filas de los tokens vencidos. Todavía no hay un tiempo máximo de sesión: una sesión que se renueva a tiempo no vence.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/sesiones/actual/renovacion -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
+```
+
+Cada token lleva solo las abilities del rol de la cuenta (#102). El mapa vive en un solo lugar, el enum `Src\Accounts\Sessions\Domain\ValueObjects\Ability`, y sigue la matriz de la sección 9 de la especificación: el dueño recibe `business:configure`, `catalog:manage`, `appointments:view-all`, `appointments:attendance`, `appointments:book-for-customer`, `orders:manage`, `payments:record`, `packs:manage` y `reports:view`; el colaborador, `appointments:view-own` y `appointments:attendance`; el cliente, `customer:own`. `POST /api/v1/sesiones` fija las abilities al emitir el token, así que cambiar el rol o desactivar a una persona revoca sus tokens (#106) y renovar las recalcula (#103). Cada ruta de `/api/v1/panel`, de `/api/v1/cuenta/...` y de las operaciones autenticadas del cliente bajo `/api/v1/tiendas/{tienda}` declara la que exige con los middleware `abilities` (todas) o `ability` (alguna) de Sanctum, justo después de `auth:sanctum`; un token sin ella recibe 403 `prohibido` antes de que la petición escriba algo. `GET /api/v1/cuenta` y `DELETE /api/v1/sesiones/actual` sirven a los tres roles y las rutas públicas no exigen ability. Que el recurso sea de la cuenta (solo sus citas, solo sus pedidos) lo deciden las policies de #104. `tests/Feature/Accounts/Sessions/RoleAbilitiesTest.php` falla si una de esas rutas no declara ability o declara una que no existe, y `RoleGroupsTest` sigue probando los grupos de los dueños y de los clientes con las abilities.
 
 La tienda de `/api/v1/panel/tienda` siempre es la de la sesión: un `business_id` o un slug en el cuerpo se ignoran. `PATCH` acepta `nombre`, `lugar_cita` (`null` lo deja sin configurar), `zona_horaria` (identificador IANA) y, dentro de `ajustes`, cualquiera de estos campos; los que no se envían conservan su valor:
 
@@ -370,6 +377,7 @@ Las guías independientes [Demostración de ONVO](../docs/demostracion-onvo.md) 
 | `DB_ADMIN_USERNAME`, `DB_ADMIN_PASSWORD` | Rol dueño del esquema, `archivum_owner`, y su contraseña. Lo usa la conexión `pgsql_admin` para migrar. |
 | `DB_SSLMODE` | Modo SSL de las dos conexiones. Por defecto, `prefer`. |
 | `ARCHIVUM_DEMO_PASSWORD` | Contraseña de las cuentas de los [datos de demostración](#datos-de-demostración). Se deja vacía fuera del desarrollo local. |
+| `SANCTUM_EXPIRATION` | Minutos que dura cada token de `POST /api/v1/sesiones` y de su renovación. Por defecto, `60`. |
 
 El código nunca lee variables de entorno directamente: lo hacen los archivos de `config/`, porque con `php artisan config:cache` en producción `env()` devuelve `null` fuera de ellos. `tests/Architecture/EnvironmentConfigurationTest.php` falla si se llama `env()` fuera de `config/`, si `config/` lee una variable que `.env.example` no lista o si `.env.example` trae el valor de una llave, un secreto, un token o una contraseña. `config/` solo guarda los archivos que cambian algo del framework, y `.env.example` solo las variables que la API usa: el issue que agrega un servicio (correo, colas en Redis, pasarelas, IA) agrega sus variables a `.env.example` y a esta tabla en el mismo pull request. `.env` nunca se versiona, y las credenciales de producción se cargan en la plataforma de despliegue, nunca en el repositorio.
 
