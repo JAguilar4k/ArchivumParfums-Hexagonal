@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Route as RouteDefinition;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
+use Src\Accounts\Sessions\Domain\ValueObjects\Ability;
+use Src\Accounts\Sessions\Domain\ValueObjects\AccountRole;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Tests\Support\Businesses\TwoBusinesses;
 use Tests\Support\RefreshDatabaseAsOwner;
@@ -137,7 +139,7 @@ beforeEach(function () {
         'user_id' => $request->user()?->getAuthIdentifier(),
         'created_at' => now(),
         'updated_at' => now(),
-    ])], 201))->middleware(['api', 'auth:sanctum', 'business:route', 'role:customer']);
+    ])], 201))->middleware(['api', 'auth:sanctum', 'abilities:customer:own', 'business:route']);
 });
 
 it('lets the owner and the co-owner through the owners only group', function (string $method, string $path, array $payload, int $status, string $email) {
@@ -187,26 +189,48 @@ it('keeps GET /cuenta open to the three roles', function (string $email) {
     'customer' => TwoBusinesses::CUSTOMER,
 ]);
 
-it('puts every registered route of the owners only group behind role:owner', function () {
+/**
+ * Abilities a route declares with the abilities or ability middleware of Sanctum.
+ *
+ * @return list<string>
+ */
+function declaredAbilities(RouteDefinition $route): array
+{
+    $abilities = [];
+
+    foreach ($route->gatherMiddleware() as $middleware) {
+        if (is_string($middleware) && preg_match('/^abilities?:(.+)$/', $middleware, $matches) === 1) {
+            $abilities = [...$abilities, ...explode(',', $matches[1])];
+        }
+    }
+
+    return $abilities;
+}
+
+it('puts every registered route of the owners only group behind an ability only the owner has', function () {
     $violations = [];
+    $notOwner = [...Ability::namesGrantedTo(AccountRole::Staff), ...Ability::namesGrantedTo(AccountRole::Customer)];
 
     foreach (Route::getRoutes()->getRoutes() as $route) {
-        if (routeFallsUnder($route, ownerOnlyRoutes()) && ! in_array('role:owner', $route->gatherMiddleware(), true)) {
-            $violations[] = implode('|', $route->methods())." {$route->uri()} lacks role:owner";
+        $declared = declaredAbilities($route);
+
+        if (routeFallsUnder($route, ownerOnlyRoutes())
+            && ($declared === [] || array_diff($declared, Ability::namesGrantedTo(AccountRole::Owner)) !== [] || array_intersect($declared, $notOwner) !== [])) {
+            $violations[] = implode('|', $route->methods())." {$route->uri()} lacks an ability of the owner only";
         }
     }
 
     expect($violations)->toBe([]);
 });
 
-it('puts every registered route of the customers only group behind role:customer', function () {
+it('puts every registered route of the customers only group behind customer:own', function () {
     $violations = [];
 
     foreach (Route::getRoutes()->getRoutes() as $route) {
         $underAccount = str_starts_with($route->uri(), 'api/v1/cuenta/');
 
-        if (($underAccount || routeFallsUnder($route, customerOnlyRoutes())) && ! in_array('role:customer', $route->gatherMiddleware(), true)) {
-            $violations[] = implode('|', $route->methods())." {$route->uri()} lacks role:customer";
+        if (($underAccount || routeFallsUnder($route, customerOnlyRoutes())) && declaredAbilities($route) !== [Ability::CustomerOwn->value]) {
+            $violations[] = implode('|', $route->methods())." {$route->uri()} lacks customer:own";
         }
     }
 
