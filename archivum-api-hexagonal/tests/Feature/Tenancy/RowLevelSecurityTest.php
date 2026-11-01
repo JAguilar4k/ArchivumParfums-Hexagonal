@@ -68,8 +68,13 @@ function writeError(Closure $write): ?QueryException
 /** Expect the write to be rejected by a row-level security policy. */
 function expectRowLevelSecurityViolation(?QueryException $error): void
 {
+    $message = (string) $error?->getMessage();
+
     expect($error?->getCode())->toBe('42501')
-        ->and($error?->getMessage())->toContain('violates row-level security policy');
+        ->and(
+            str_contains($message, 'violates row-level security policy')
+            || str_contains($message, 'viola la política de seguridad')
+        )->toBeTrue();
 }
 
 beforeEach(function () {
@@ -96,8 +101,8 @@ it('R55: forces row-level security with its isolation policy on every table with
     sort($protected);
     $modelled = array_keys(protectedModels());
     sort($modelled);
-    // Their module schema tests exercise the catalog, stock, orders and payments with the application role.
-    $catalog = ['perfume_notes', 'perfume_tags', 'perfume_variants', 'perfumes', 'decant_bottles', 'decant_movements', 'orders', 'order_lines', 'payments', 'refunds'];
+    // Their module schema tests exercise the catalog, stock, orders, payments and scheduling with the application role.
+    $catalog = ['perfume_notes', 'perfume_tags', 'perfume_variants', 'perfumes', 'decant_bottles', 'decant_movements', 'orders', 'order_lines', 'payments', 'refunds', 'business_hours', 'schedule_blocks', 'services', 'staff_schedules'];
     $withPolicy = [...$protected, ...$catalog];
     sort($withPolicy);
 
