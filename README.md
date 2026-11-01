@@ -100,6 +100,8 @@ composer openapi
 git diff -- openapi/v1.json
 ```
 
+Con el contrato regenerado, se regeneran también los tipos del cliente con `npm run api:types` en `archivum-web/`.
+
 Los comandos, la configuración en PowerShell, la separación de roles, las migraciones, el recorrido de Postman y la resolución de problemas se detallan en [el README de la API](archivum-api-hexagonal/README.md).
 
 El cliente web se instala y se inicia aparte, en `archivum-web/`, con Node.js 26 y la API ya en ejecución:
@@ -111,7 +113,7 @@ cp .env.example .env
 npm run dev
 ```
 
-En PowerShell, la copia es `Copy-Item .env.example .env`. Las variables, los comandos de verificación (`npm run lint`, `npm run type-check`, `npm run test` y `npm run build`) y la estructura se detallan en [el README del cliente](archivum-web/README.md).
+En PowerShell, la copia es `Copy-Item .env.example .env`. Las variables, los comandos de verificación (`npm run lint`, `npm run type-check`, `npm run test`, `npm run build` y `npm run api:check`), los tipos generados desde el contrato y la estructura se detallan en [el README del cliente](archivum-web/README.md).
 
 ## Investigación 1: ejecutar los cobros
 
