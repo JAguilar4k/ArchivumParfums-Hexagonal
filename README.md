@@ -15,7 +15,7 @@ La estructura, la arquitectura y la forma de trabajo siguen el proyecto guía de
 | [`CLAUDE.md`](CLAUDE.md) | Instrucciones del proyecto para los asistentes de IA. |
 | [`.github/`](.github/) | Plantillas de issue y de pull request, integración continua ([`ci.yml`](.github/workflows/ci.yml)) y Dependabot ([`dependabot.yml`](.github/dependabot.yml)). |
 | [`archivum-api-hexagonal/`](archivum-api-hexagonal/) | API REST en Laravel 13 sobre PostgreSQL 18. |
-| `archivum-web/` | Cliente web en Vue 3 con TypeScript. Llega con [M16](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/16). |
+| [`archivum-web/`](archivum-web/) | Cliente web en Vue 3 con TypeScript que consume solo la API. Sus pantallas llegan con [M16](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/16). |
 | [`docs/architecture.md`](docs/architecture.md) | Estructura, capas, contextos, regla de dependencias y recorrido de una petición. |
 | [`docs/database.md`](docs/database.md) | Roles, migraciones y convenciones de la base de datos. |
 | [`docs/data-model.md`](docs/data-model.md) | Modelo de datos en tercera forma normal. |
@@ -39,7 +39,7 @@ El dominio no depende de Laravel y una prueba de arquitectura lo verifica en cad
 
 Cada tienda ve solo sus datos gracias a dos barreras: el puerto `BusinessContext` indica a qué tienda pertenece la operación y cada repositorio filtra por ella, y PostgreSQL 18 aplica seguridad a nivel de fila en toda tabla con `business_id`. La aplicación se conecta con `archivum_app`, un rol que no es dueño de las tablas; las migraciones corren con `archivum_owner`.
 
-El cliente previsto, `archivum-web`, será una SPA que consuma solo la API, con tipos generados desde el contrato `openapi/v1.json`. Su implementación corresponde a M16; actualmente se utiliza un cliente HTTP como Postman.
+`archivum-web` es una SPA en Vue 3 con TypeScript, Vue Router y Pinia que consume solo la API, organizada por funcionalidad en `src/features`. Sus tipos se generan desde el contrato `openapi/v1.json` ([#124](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/124)) y sus pantallas llegan con M16; mientras tanto, la API se prueba con un cliente HTTP como Postman.
 
 ## Estado
 
@@ -79,7 +79,7 @@ php artisan storage:link
 composer run dev
 ```
 
-Deja esa terminal abierta. En Postman, envía `GET /api/v1` sobre la dirección del servidor; debe responder 200 con el nombre de la API. La documentación está en `/docs/api` y su JSON en `/docs/api.json` durante desarrollo local. La API se prueba mediante solicitudes HTTP; el cliente Vue todavía está pendiente.
+Deja esa terminal abierta. En Postman, envía `GET /api/v1` sobre la dirección del servidor; debe responder 200 con el nombre de la API. La documentación está en `/docs/api` y su JSON en `/docs/api.json` durante desarrollo local. La API se prueba mediante solicitudes HTTP; las pantallas del cliente web llegan con M16.
 
 La [colección y el entorno de Postman](archivum-api-hexagonal/tests/Postman/README.md) están incluidos en el repositorio como material de pruebas HTTP. Importa ambos JSON y ajusta `base_url` a la dirección real de la API. Puedes elegir otro host o puerto mediante `php artisan serve --host=localhost --port=8080 --no-reload`; configura también `APP_URL` y `base_url` con ese mismo origen, como explica el README de la API.
 
@@ -101,6 +101,17 @@ git diff -- openapi/v1.json
 ```
 
 Los comandos, la configuración en PowerShell, la separación de roles, las migraciones, el recorrido de Postman y la resolución de problemas se detallan en [el README de la API](archivum-api-hexagonal/README.md).
+
+El cliente web se instala y se inicia aparte, en `archivum-web/`, con Node.js 26 y la API ya en ejecución:
+
+```bash
+cd archivum-web
+npm ci
+cp .env.example .env
+npm run dev
+```
+
+En PowerShell, la copia es `Copy-Item .env.example .env`. Las variables, los comandos de verificación (`npm run lint`, `npm run type-check`, `npm run test` y `npm run build`) y la estructura se detallan en [el README del cliente](archivum-web/README.md).
 
 ## Investigación 1: ejecutar los cobros
 
