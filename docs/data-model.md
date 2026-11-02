@@ -542,6 +542,22 @@ Tabla global preparada para #94 y #95; todavía no hay un endpoint que procese e
 
 Llaves únicas: `id` y `(gateway, event_id)`. Sin `business_id`, llave al pago ni política de fila: al recibir un evento todavía hay que resolver su pago y tienda desde una referencia verificada. La llave compuesta proporciona el respaldo de idempotencia para el futuro procesador; crear la tabla no implementa ese procesador.
 
+### audit_logs
+
+Bitácora inalterable de cambios sensibles (#113, `docs/audit-log.md`). El rol de la aplicación solo inserta y lee, y `trg_audit_logs_immutable` rechaza `UPDATE`, `DELETE` y `TRUNCATE` desde cualquier rol. Política: `audit_logs_business_isolation`.
+
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Tienda; sin llave foránea |
+| `actor_user_id` | `uuid` | Cuenta autora; nulo es el sistema; sin llave foránea |
+| `action` | `varchar(60)` | Acción, por ejemplo `member.added` |
+| `resource_type` | `varchar(40)` | Tipo de recurso |
+| `resource_id` | `uuid` | Recurso |
+| `before`, `after` | `jsonb` | Valores antes y después, sin datos sensibles |
+| `request_id` | `uuid` | `X-Request-Id` de la solicitud |
+| `created_at` | `timestamptz` | Momento de la entrada |
+
 ## Tablas previstas
 
 Existen en el diagrama, pero su detalle llega en el pull request de la migración que las crea (sección 7 de la especificación).
