@@ -13,7 +13,6 @@ use Src\Recommendations\Recommender\Domain\ValueObjects\CustomerPreferences;
 use Src\Recommendations\Recommender\Domain\ValueObjects\Recommendation;
 use Src\Recommendations\Recommender\Domain\ValueObjects\RecommendationOrigin;
 use Src\Recommendations\Recommender\Domain\ValueObjects\SuggestedPerfume;
-use Src\Recommendations\Recommender\Infrastructure\Ai\LaravelAiRecommender;
 
 use function Pest\Laravel\travel;
 
@@ -120,7 +119,7 @@ it('asks the configured model for the declared schema, with the catalog apart fr
             ->and($schema['properties']['preferences']['required'])->toBe(['notes'])
             ->and($schema['properties']['preferences']['properties']['time_of_day']['enum'])->toBe(['day', 'afternoon', 'night'])
             ->and($schema['properties']['preferences']['properties']['climate']['enum'])->toBe(['warm', 'temperate', 'cold'])
-            ->and($schema['properties']['perfumes']['maxItems'])->toBe(LaravelAiRecommender::MAX_PERFUMES)
+            ->and($schema['properties']['perfumes']['maxItems'])->toBe(Recommendation::MAX_PERFUMES)
             ->and($schema['properties']['perfumes']['items']['required'])->toBe(['id', 'reason']);
 
         return true;
@@ -243,5 +242,5 @@ it('discards whole an answer that does not have the shape or the types of the sc
     'a perfume without a reason' => recommenderAnswer(['perfumes' => [['id' => RECOMMENDER_AMBER_ID]]]),
     'a perfume without an id' => recommenderAnswer(['perfumes' => [['reason' => 'Encaja.']]]),
     'an id that is not a text' => recommenderAnswer(['perfumes' => [['id' => 12, 'reason' => 'Encaja.']]]),
-    'more than five perfumes' => recommenderAnswer(['perfumes' => array_fill(0, LaravelAiRecommender::MAX_PERFUMES + 1, ['id' => RECOMMENDER_AMBER_ID, 'reason' => 'Encaja.'])]),
+    'more than five perfumes' => recommenderAnswer(['perfumes' => array_fill(0, Recommendation::MAX_PERFUMES + 1, ['id' => RECOMMENDER_AMBER_ID, 'reason' => 'Encaja.'])]),
 ]);

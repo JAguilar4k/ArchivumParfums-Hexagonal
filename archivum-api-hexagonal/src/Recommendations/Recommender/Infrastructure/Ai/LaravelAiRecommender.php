@@ -20,9 +20,6 @@ use Throwable;
  */
 final readonly class LaravelAiRecommender implements AiRecommender
 {
-    /** The most perfumes a recommendation suggests (R48). */
-    public const int MAX_PERFUMES = 5;
-
     /** Receive the seconds the recommendation waits for the provider, fixed in config/archivum.php (R50). */
     public function __construct(private int $timeoutSeconds) {}
 
@@ -64,7 +61,7 @@ final readonly class LaravelAiRecommender implements AiRecommender
         $preferences = $answer['preferences'] ?? null;
         $perfumes = $answer['perfumes'] ?? null;
 
-        if (! is_array($preferences) || ! is_array($perfumes) || ! array_is_list($perfumes) || count($perfumes) > self::MAX_PERFUMES) {
+        if (! is_array($preferences) || ! is_array($perfumes) || ! array_is_list($perfumes) || count($perfumes) > Recommendation::MAX_PERFUMES) {
             throw new AiUnavailableException('recommendations.ai_invalid_output');
         }
 
