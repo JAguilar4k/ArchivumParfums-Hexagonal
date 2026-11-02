@@ -217,6 +217,9 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/api/v1/panel/tienda` | Dueño | Perfil y ajustes de la tienda de la sesión: nombre, slug, lugar de la cita, zona horaria y ajustes. |
 | PATCH | `/api/v1/panel/tienda` | Dueño | Cambia solo los campos enviados del perfil y de los ajustes. El slug no cambia. |
 | POST | `/api/v1/panel/tienda/logo` | Dueño | Sube el logo mediante `multipart/form-data`. |
+| PUT | `/api/v1/cuenta/contrasena` | Cualquier rol | Cambia la contraseña con `contrasena_actual` y `contrasena_nueva`. Responde 204 y cierra las demás sesiones de la cuenta. |
+| POST | `/api/v1/recuperaciones-de-contrasena` | Cualquiera | Con `correo`, responde 202 con el mismo cuerpo exista o no la cuenta; solo si existe envía el enlace en cola. |
+| POST | `/api/v1/recuperaciones-de-contrasena/confirmacion` | Cualquiera | Con `correo`, `token` y `contrasena_nueva`, responde 204 y cierra todas las sesiones. Un token vencido, usado o de otro correo responde 422 en `token`. |
 | GET | `/api/v1/panel/personal` | Dueño | Personal de la tienda de la sesión con su rol, si atiende citas y si está activo. |
 | POST | `/api/v1/panel/personal` | Dueño | Agrega a una persona con `nombre`, `correo`, `contrasena` inicial, `rol` (`dueno` o `colaborador`) y `atiende_citas`. Responde 201 con `Location`; un correo ya registrado responde 422 en `correo`. |
 | GET | `/api/v1/panel/personal/{persona}` | Dueño | Una persona de la tienda; la de otra tienda responde 404. |
