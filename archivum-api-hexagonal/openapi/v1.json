@@ -5523,10 +5523,15 @@
                         ]
                     },
                     "medio": {
-                        "type": "string",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Medio del cobro en l\u00ednea; es nulo en un pago registrado en la entrega.",
                         "enum": [
+                            "tarjeta",
                             "sinpe_movil",
-                            "tarjeta"
+                            null
                         ]
                     },
                     "consulta_pendiente": {

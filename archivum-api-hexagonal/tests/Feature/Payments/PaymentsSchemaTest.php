@@ -36,6 +36,33 @@ it('rejects invalid payment values with the named PostgreSQL checks', function (
     ['charged_currency', 'USD', 'payments_exchange_rate_check'],
 ]);
 
+it('keeps the online method out of a payment received on delivery and requires it on a charge of a gateway', function (string $gateway, ?string $method): void {
+    $business = StaffedBusiness::create();
+    $order = StoredOrders::create($business, 'ready')['order'];
+    app(BusinessTransaction::class)->scope($business->business->id);
+
+    expect(fn () => DB::transaction(fn (): bool => DB::table('payments')->insert([
+        'id' => (string) Str::uuid7(), 'business_id' => $business->business->id, 'order_id' => $order->id,
+        'purpose' => 'balance', 'amount' => 7500, 'gateway' => $gateway, 'method' => $method, 'status' => 'succeeded',
+        'recorded_by' => DB::table('members')->where('user_id', $business->owner->id)->value('id'), 'manual_method' => 'cash', 'manual_reference' => 'Recibo 1',
+    ])))->toThrow(QueryException::class, 'payments_method_check');
+})->with([['manual', 'card'], ['manual', 'sinpe_mobile'], ['onvo', null], ['paypal', null]]);
+
+it('accepts a payment received on delivery with the record of its owner and no online method', function (): void {
+    $business = StaffedBusiness::create();
+    $order = StoredOrders::create($business, 'ready')['order'];
+    app(BusinessTransaction::class)->scope($business->business->id);
+    $id = (string) Str::uuid7();
+
+    DB::table('payments')->insert([
+        'id' => $id, 'business_id' => $business->business->id, 'order_id' => $order->id, 'purpose' => 'balance', 'amount' => 7500,
+        'gateway' => 'manual', 'method' => null, 'status' => 'succeeded', 'charged_amount' => 7500,
+        'recorded_by' => DB::table('members')->where('user_id', $business->owner->id)->value('id'), 'manual_method' => 'sinpe', 'manual_reference' => 'SINPE-2026-0001',
+    ]);
+
+    expect(DB::table('payments')->where('id', $id)->value('method'))->toBeNull();
+});
+
 it('prevents a payment from referencing another tenant order', function (): void {
     $first = StaffedBusiness::create();
     $other = StaffedBusiness::create();

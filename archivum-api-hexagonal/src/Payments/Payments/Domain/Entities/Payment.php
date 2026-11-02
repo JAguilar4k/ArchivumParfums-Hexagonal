@@ -7,6 +7,7 @@ namespace Src\Payments\Payments\Domain\Entities;
 use Src\Payments\Payments\Domain\Exceptions\InvalidPaymentTransitionException;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeResult;
 use Src\Payments\Payments\Domain\ValueObjects\ExchangeRate;
+use Src\Payments\Payments\Domain\ValueObjects\ManualRecord;
 use Src\Payments\Payments\Domain\ValueObjects\Payable;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentId;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentMethod;
@@ -25,7 +26,7 @@ final class Payment
         public readonly PaymentPurpose $purpose,
         public readonly Colones $amount,
         public readonly string $gateway,
-        public readonly PaymentMethod $method,
+        public readonly ?PaymentMethod $method,
         public readonly ?string $exchangeRate,
         public private(set) PaymentStatus $status,
         public private(set) ?string $providerReference,
@@ -35,8 +36,13 @@ final class Payment
         public private(set) string $chargedCurrency,
         public private(set) int $chargedAmount,
         public private(set) int $refundedAmount,
+        public readonly ?ManualRecord $manual = null,
     ) {
         if ($amount->amount === 0 || ! in_array($gateway, ['onvo', 'paypal', 'manual'], true)) {
+            throw new InvalidValueException('payments.invalid_payment');
+        }
+        // A gateway charges with an online method; a payment received on delivery has the owner's record instead.
+        if (($gateway === 'manual') !== ($method === null) || ($gateway === 'manual') !== ($manual !== null)) {
             throw new InvalidValueException('payments.invalid_payment');
         }
         if ($gateway === 'paypal') {
@@ -53,10 +59,19 @@ final class Payment
         return new self($id, $businessId, $payable, $purpose, $amount, $gateway, $method, $exchangeRate, PaymentStatus::Pending, null, null, null, null, $gateway === 'paypal' ? 'USD' : 'CRC', 0, 0);
     }
 
-    /** Restore persisted state without repeating a provider operation. */
-    public static function reconstitute(PaymentId $id, BusinessId $businessId, Payable $payable, PaymentPurpose $purpose, Colones $amount, string $gateway, PaymentMethod $method, ?string $exchangeRate, PaymentStatus $status, ?string $providerReference, ?string $checkoutUrl, ?string $checkoutReference, ?string $captureReference, string $chargedCurrency, int $chargedAmount, int $refundedAmount): self
+    /**
+     * Record the balance that the customer paid the owner on delivery, by SINPE or in cash (R29). No gateway takes
+     * part, so the payment is confirmed as it is recorded, in colones, with the owner's record as its only reference.
+     */
+    public static function recordManually(PaymentId $id, BusinessId $businessId, Payable $payable, Colones $amount, ManualRecord $record): self
     {
-        return new self($id, $businessId, $payable, $purpose, $amount, $gateway, $method, $exchangeRate, $status, $providerReference, $checkoutUrl, $checkoutReference, $captureReference, $chargedCurrency, $chargedAmount, $refundedAmount);
+        return new self($id, $businessId, $payable, PaymentPurpose::Balance, $amount, 'manual', null, null, PaymentStatus::Succeeded, null, null, null, null, 'CRC', $amount->amount, 0, $record);
+    }
+
+    /** Restore persisted state without repeating a provider operation. */
+    public static function reconstitute(PaymentId $id, BusinessId $businessId, Payable $payable, PaymentPurpose $purpose, Colones $amount, string $gateway, ?PaymentMethod $method, ?string $exchangeRate, PaymentStatus $status, ?string $providerReference, ?string $checkoutUrl, ?string $checkoutReference, ?string $captureReference, string $chargedCurrency, int $chargedAmount, int $refundedAmount, ?ManualRecord $manual = null): self
+    {
+        return new self($id, $businessId, $payable, $purpose, $amount, $gateway, $method, $exchangeRate, $status, $providerReference, $checkoutUrl, $checkoutReference, $captureReference, $chargedCurrency, $chargedAmount, $refundedAmount, $manual);
     }
 
     /** Persist the provider identity before any subsequent confirmation query. */

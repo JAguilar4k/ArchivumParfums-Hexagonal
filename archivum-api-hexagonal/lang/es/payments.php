@@ -17,6 +17,7 @@ return [
     'refund_not_supported' => 'Esta integración todavía no permite reembolsar con esa pasarela.',
     'unknown_outcome' => 'El resultado del cobro aún no se conoce. Conserva la referencia y consulta su estado.',
     'refund_pending' => 'Espera a que termine el reembolso antes de pagar el saldo.',
+    'invalid_manual_reference' => 'La referencia del pago es obligatoria y admite hasta 255 caracteres.',
     'webhook_not_verified' => 'No se pudo verificar el origen del aviso.',
     'invalid_webhook' => 'El aviso de la pasarela no tiene el formato esperado.',
     'event_reference_mismatch' => 'El aviso de la pasarela no corresponde a este pago.',
