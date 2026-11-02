@@ -23,4 +23,19 @@ final readonly class CatalogPerfume
         public array $tags,
         public array $variants,
     ) {}
+
+    /**
+     * Whether a presentation of the perfume costs at most the budget: its cheapest presentation decides, the same
+     * criterion as the maximum price of the showcase (#48). A perfume without a presentation for sale fits no budget.
+     */
+    public function fitsBudget(int $budget): bool
+    {
+        foreach ($this->variants as $variant) {
+            if ($variant->price <= $budget) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

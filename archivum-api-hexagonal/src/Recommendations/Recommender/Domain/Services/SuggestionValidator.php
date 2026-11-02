@@ -99,7 +99,7 @@ final readonly class SuggestionValidator
             return DiscardCause::Repeated;
         }
 
-        if ($budget !== null && ! $this->fitsBudget($perfume, $budget)) {
+        if ($budget !== null && ! $perfume->fitsBudget($budget)) {
             return DiscardCause::OverBudget;
         }
 
@@ -112,20 +112,5 @@ final readonly class SuggestionValidator
         }
 
         return null;
-    }
-
-    /**
-     * Whether a presentation of the perfume costs at most the budget, the same criterion as the maximum price of the
-     * showcase (#48): its cheapest presentation decides.
-     */
-    private function fitsBudget(CatalogPerfume $perfume, int $budget): bool
-    {
-        foreach ($perfume->variants as $variant) {
-            if ($variant->price <= $budget) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }
