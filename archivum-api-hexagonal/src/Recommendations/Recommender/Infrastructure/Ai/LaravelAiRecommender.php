@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Src\Recommendations\Recommender\Infrastructure\Ai;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Src\Recommendations\Recommender\Domain\Contracts\AiRecommender;
 use Src\Recommendations\Recommender\Domain\Exceptions\AiUnavailableException;
+use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogPerfume;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CustomerPreferences;
 use Src\Recommendations\Recommender\Domain\ValueObjects\Recommendation;
 use Src\Recommendations\Recommender\Domain\ValueObjects\RecommendationOrigin;
@@ -27,6 +29,26 @@ final readonly class LaravelAiRecommender implements AiRecommender
     {
         $startedAt = Carbon::now();
 
+        try {
+            return $this->ask($text, $catalog, $startedAt);
+        } catch (AiUnavailableException $exception) {
+            // The log keeps the cause and the duration of the failure, never the customer's text (R51).
+            Log::warning('The AI recommender is unavailable.', [
+                'cause' => $exception->translationKey(),
+                'duration_ms' => (int) round($startedAt->diffInMilliseconds(Carbon::now())),
+            ]);
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * Prompt the agent and translate its answer to the domain.
+     *
+     * @param  list<CatalogPerfume>  $catalog
+     */
+    private function ask(string $text, array $catalog, Carbon $startedAt): Recommendation
+    {
         try {
             $response = (new RecommendationAgent($catalog))->prompt($text, timeout: $this->timeoutSeconds);
         } catch (Throwable) {
