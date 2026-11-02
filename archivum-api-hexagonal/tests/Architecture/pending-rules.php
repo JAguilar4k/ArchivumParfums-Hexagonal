@@ -46,7 +46,6 @@ return [
     'R43' => 'entrega-final: #175, #178',
     'R44' => 'entrega-final: #170, #177',
     'R45' => 'entrega-final: #161, #162, #163, #164, #196',
-    'R46' => 'avance-2: #95',
     'R47' => 'entrega-final: #167, #168, #169',
     'R48' => 'avance-2: #117, #118',
     'R49' => 'avance-2: #119',

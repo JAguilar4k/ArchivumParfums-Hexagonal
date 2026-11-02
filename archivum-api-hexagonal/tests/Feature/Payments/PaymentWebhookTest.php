@@ -457,7 +457,7 @@ it('R38: leaves one job for an event sent twice', function (): void {
     Http::assertSentCount(2);
 });
 
-it('never applies a kept notice twice, even when a second job processes it', function (): void {
+it('R46: never applies a kept notice twice, even when a second job processes it', function (): void {
     config(['queue.default' => 'database']);
     $business = StaffedBusiness::create();
     $order = StoredOrders::create($business)['order'];
