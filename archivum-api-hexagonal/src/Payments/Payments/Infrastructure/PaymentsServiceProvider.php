@@ -6,7 +6,11 @@ namespace Src\Payments\Payments\Infrastructure;
 
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
+use Src\Payments\Payments\Application\Contracts\BusinessScope;
 use Src\Payments\Payments\Application\Contracts\PayableReader;
+use Src\Payments\Payments\Application\Contracts\PaymentBusinesses;
+use Src\Payments\Payments\Application\Contracts\WebhookEventLog;
+use Src\Payments\Payments\Application\UseCases\ApplyPaymentEvent;
 use Src\Payments\Payments\Application\UseCases\ObservePayment;
 use Src\Payments\Payments\Application\UseCases\ProcessOrderRefunds;
 use Src\Payments\Payments\Application\UseCases\StartPayment;
@@ -19,10 +23,13 @@ use Src\Payments\Payments\Infrastructure\Gateways\PayPal\PayPalGateway;
 use Src\Payments\Payments\Infrastructure\GatewaySelection\BusinessExchangeRates;
 use Src\Payments\Payments\Infrastructure\GatewaySelection\ConfiguredPaymentGateways;
 use Src\Payments\Payments\Infrastructure\Persistence\PaymentTransactionRunner;
+use Src\Payments\Payments\Infrastructure\Persistence\Queries\PostgresPaymentBusinesses;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\DatabaseRefundRepository;
+use Src\Payments\Payments\Infrastructure\Persistence\Repositories\DatabaseWebhookEventLog;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymentRepository;
 use Src\Payments\Payments\Infrastructure\Sales\PaymentRefundRequests;
 use Src\Payments\Payments\Infrastructure\Sales\SalesPayableReader;
+use Src\Payments\Payments\Infrastructure\Tenancy\PaymentEventBusinessContext;
 use Src\Sales\Orders\Application\Contracts\RefundRequests;
 use Src\Shared\Domain\Contracts\TransactionRunner;
 
@@ -36,12 +43,17 @@ final class PaymentsServiceProvider extends ServiceProvider
         PayableReader::class => SalesPayableReader::class,
         RefundRepository::class => DatabaseRefundRepository::class,
         RefundRequests::class => PaymentRefundRequests::class,
+        WebhookEventLog::class => DatabaseWebhookEventLog::class,
+        PaymentBusinesses::class => PostgresPaymentBusinesses::class,
+        BusinessScope::class => PaymentEventBusinessContext::class,
     ];
 
     public function register(): void
     {
-        $this->app->when([StartPayment::class, ObservePayment::class, ProcessOrderRefunds::class])
+        $this->app->when([StartPayment::class, ObservePayment::class, ProcessOrderRefunds::class, ApplyPaymentEvent::class])
             ->needs(TransactionRunner::class)->give(PaymentTransactionRunner::class);
+        // One per request: the webhook binds it as the BusinessContext of the notice and pins it through BusinessScope.
+        $this->app->scoped(PaymentEventBusinessContext::class);
         $this->app->bind(OnvoGateway::class, fn (Application $app): OnvoGateway => new OnvoGateway(
             (string) config('payments.onvo.secret_key'),
             (string) config('payments.return_url'),

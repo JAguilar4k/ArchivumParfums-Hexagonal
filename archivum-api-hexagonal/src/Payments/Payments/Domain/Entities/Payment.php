@@ -88,6 +88,18 @@ final class Payment
         $this->status = $status;
     }
 
+    /** Whether a reference of the provider names this payment's charge, checkout or capture. */
+    public function hasReference(string $reference): bool
+    {
+        return $reference !== '' && in_array($reference, [$this->providerReference, $this->checkoutReference, $this->captureReference], true);
+    }
+
+    /** Whether a provider reports exactly what this payment charged, in the currency and unit the payment keeps. */
+    public function matchesCharge(?string $currency, ?int $amount): bool
+    {
+        return $this->chargedAmount > 0 && $currency === $this->chargedCurrency && $amount === $this->chargedAmount;
+    }
+
     /** Record a confirmed refund without allowing a total greater than the original payment. */
     public function refund(int $amount): void
     {

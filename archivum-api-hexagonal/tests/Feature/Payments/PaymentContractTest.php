@@ -92,3 +92,16 @@ it('keeps the order JSON and its unwrapped line list unchanged while clamping th
         'cantidad' => 1, 'precio_unitario' => 15000, 'estado' => 'pendiente',
     ]]);
 })->with([[OrderStatus::PendingPayment, 0, 7500], [OrderStatus::PendingPayment, 8000, 0], [OrderStatus::Confirmed, 7500, 0]]);
+
+it('documents the notices of the providers as public operations with their outcome and their problems', function (): void {
+    $document = paymentApiContract();
+
+    foreach (['/webhooks/onvo', '/webhooks/paypal'] as $path) {
+        $operation = $document['paths'][$path]['post'];
+
+        expect($operation)->not->toHaveKey('security')
+            ->and(array_keys($operation['responses']))->toBe([200, 401, 422, 500, 503])
+            ->and($operation['responses'][200]['content']['application/json']['schema']['properties']['data']['properties']['estado']['enum'])->toBe(['procesado', 'fallido'])
+            ->and($operation['responses'][401]['content']['application/problem+json']['schema'])->toBe(['$ref' => '#/components/schemas/Problema']);
+    }
+});

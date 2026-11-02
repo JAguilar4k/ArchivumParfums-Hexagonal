@@ -46,6 +46,15 @@ final readonly class EloquentPaymentRepository implements PaymentRepository
         return $model === null ? null : $this->restore($model);
     }
 
+    public function findByReference(string $gateway, string $reference): ?Payment
+    {
+        $model = PaymentModel::query()->where('business_id', $this->business->current()->value)->where('gateway', $gateway)
+            ->where(fn ($query) => $query->where('provider_reference', $reference)->orWhere('checkout_reference', $reference)->orWhere('capture_reference', $reference))
+            ->orderBy('id')->first();
+
+        return $model === null ? null : $this->restore($model);
+    }
+
     public function save(Payment $payment): void
     {
         $businessId = $this->business->current()->value;

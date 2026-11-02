@@ -3090,6 +3090,176 @@
                 ]
             }
         },
+        "/webhooks/onvo": {
+            "post": {
+                "operationId": "payments.webhooks.onvo",
+                "summary": "Receive a notice of ONVO Pay, whose origin is the secret ONVO sends in `X-Webhook-Secret`",
+                "tags": [
+                    "PaymentWebhook"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Aviso verificado y registrado con su resultado.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "evento": {
+                                                    "type": "string"
+                                                },
+                                                "estado": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "procesado",
+                                                        "fallido"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "evento",
+                                                "estado"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciales inv\u00e1lidas",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Servicio no disponible",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/webhooks/paypal": {
+            "post": {
+                "operationId": "payments.webhooks.paypal",
+                "summary": "Receive a notice of PayPal, whose signature PayPal's verification API checks",
+                "tags": [
+                    "PaymentWebhook"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Aviso verificado y registrado con su resultado.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "evento": {
+                                                    "type": "string"
+                                                },
+                                                "estado": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "procesado",
+                                                        "fallido"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "evento",
+                                                "estado"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciales inv\u00e1lidas",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Servicio no disponible",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/panel/perfumes": {
             "get": {
                 "operationId": "catalog.perfumes.index",

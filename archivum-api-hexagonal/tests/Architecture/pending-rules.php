@@ -40,7 +40,6 @@ return [
     'R33' => 'entrega-final: #142, #145, #159, #160',
     'R34' => 'entrega-final: #142, #143, #146, #147',
     'R35' => 'entrega-final: #142, #146, #148, #159',
-    'R38' => 'avance-2: #94, #95; Investigación 1 confirma por consulta autenticada',
     'R39' => 'avance-2: #96, #192',
     'R41' => 'entrega-final: #170, #171, #172',
     'R42' => 'entrega-final: #170, #176, #177',

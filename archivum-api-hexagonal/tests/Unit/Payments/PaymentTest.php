@@ -81,3 +81,32 @@ it('keeps the exchange rate as a positive exact decimal', function () {
 it('refuses an invalid exchange rate before creating a remote charge', function (string $rate) {
     expect(fn () => new ExchangeRate($rate))->toThrow(InvalidValueException::class);
 })->with(['0', '-1', 'not-a-rate', '1e3', '0.0000001']);
+
+it('knows the provider references of its charge, checkout and capture', function () {
+    $payment = requestedPayment();
+    expect($payment->hasReference('session'))->toBeFalse();
+
+    $payment->attach(new ChargeResult('session', PaymentStatus::Pending, 'CRC', 7500, 'https://checkout.onvopay.com/pay/session', 'session', 'intent'));
+
+    expect($payment->hasReference('session'))->toBeTrue()
+        ->and($payment->hasReference('intent'))->toBeTrue()
+        ->and($payment->hasReference('another-session'))->toBeFalse()
+        ->and($payment->hasReference(''))->toBeFalse();
+});
+
+it('matches only the exact charged currency and amount', function (?string $currency, ?int $amount, bool $matches) {
+    $payment = requestedPayment();
+    $payment->attach(new ChargeResult('session', PaymentStatus::Pending, 'CRC', 7500));
+
+    expect($payment->matchesCharge($currency, $amount))->toBe($matches);
+})->with([
+    'the charge' => ['CRC', 7500, true],
+    'another amount' => ['CRC', 7499, false],
+    'another currency' => ['USD', 7500, false],
+    'no amount' => ['CRC', null, false],
+    'no currency' => [null, 7500, false],
+]);
+
+it('matches nothing before the provider reports what it charged', function () {
+    expect(requestedPayment()->matchesCharge('CRC', 0))->toBeFalse();
+});
