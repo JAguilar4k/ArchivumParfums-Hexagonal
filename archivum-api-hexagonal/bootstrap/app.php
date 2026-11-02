@@ -6,7 +6,8 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Support\Facades\Route;
-use Src\Accounts\Sessions\Infrastructure\Http\Middleware\RequireAccountRole;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
 use Src\Shared\Infrastructure\Http\Middleware\AssignRequestId;
 use Src\Shared\Infrastructure\Http\Problem\ProblemDetailsRenderer;
 use Src\Shared\Infrastructure\Tenancy\ScopeRequestToBusiness;
@@ -27,8 +28,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trimStrings(except: ['contrasena']);
 
         $middleware->alias([
+            'abilities' => CheckAbilities::class,
+            'ability' => CheckForAnyAbility::class,
             'business' => ScopeRequestToBusiness::class,
-            'role' => RequireAccountRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

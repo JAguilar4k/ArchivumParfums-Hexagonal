@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Src\Businesses\Logo\Infrastructure\Http\Controllers\BusinessLogoController;
 
 Route::prefix('panel/tienda/logo')
-    ->middleware(['auth:sanctum', 'business:staff', 'role:owner'])
+    ->middleware(['auth:sanctum', 'abilities:business:configure', 'business:staff'])
     ->name('businesses.logo.')
     ->controller(BusinessLogoController::class)
     ->group(function (): void {
