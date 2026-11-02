@@ -18,6 +18,9 @@ use Src\Shared\Domain\ValueObjects\Colones;
 
 final class Payment
 {
+    /** Minutes a pending charge waits for the provider's notice before the reconciliation asks the provider itself (#96). */
+    public const int MINUTES_FOR_THE_NOTICE = 5;
+
     private function __construct(
         public readonly PaymentId $id,
         public readonly BusinessId $businessId,

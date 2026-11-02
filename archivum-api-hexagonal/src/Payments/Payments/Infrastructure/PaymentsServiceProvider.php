@@ -4,27 +4,32 @@ declare(strict_types=1);
 
 namespace Src\Payments\Payments\Infrastructure;
 
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 use Src\Payments\Payments\Application\Contracts\BusinessScope;
 use Src\Payments\Payments\Application\Contracts\PayableReader;
 use Src\Payments\Payments\Application\Contracts\PaymentBusinesses;
 use Src\Payments\Payments\Application\Contracts\PendingPaymentEvents;
+use Src\Payments\Payments\Application\Contracts\PendingPayments;
 use Src\Payments\Payments\Application\Contracts\WebhookEventLog;
 use Src\Payments\Payments\Application\UseCases\ApplyPaymentEvent;
 use Src\Payments\Payments\Application\UseCases\ObservePayment;
 use Src\Payments\Payments\Application\UseCases\ProcessOrderRefunds;
+use Src\Payments\Payments\Application\UseCases\ReconcilePayment;
 use Src\Payments\Payments\Application\UseCases\StartPayment;
 use Src\Payments\Payments\Domain\Contracts\ExchangeRates;
 use Src\Payments\Payments\Domain\Contracts\PaymentGateways;
 use Src\Payments\Payments\Domain\Contracts\PaymentRepository;
 use Src\Payments\Payments\Domain\Contracts\RefundRepository;
+use Src\Payments\Payments\Infrastructure\Console\ReconcilePaymentsConsoleCommand;
 use Src\Payments\Payments\Infrastructure\Gateways\Onvo\OnvoGateway;
 use Src\Payments\Payments\Infrastructure\Gateways\PayPal\PayPalGateway;
 use Src\Payments\Payments\Infrastructure\GatewaySelection\BusinessExchangeRates;
 use Src\Payments\Payments\Infrastructure\GatewaySelection\ConfiguredPaymentGateways;
 use Src\Payments\Payments\Infrastructure\Persistence\PaymentTransactionRunner;
 use Src\Payments\Payments\Infrastructure\Persistence\Queries\PostgresPaymentBusinesses;
+use Src\Payments\Payments\Infrastructure\Persistence\Queries\PostgresPendingPayments;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\DatabaseRefundRepository;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\DatabaseWebhookEventLog;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymentRepository;
@@ -48,15 +53,16 @@ final class PaymentsServiceProvider extends ServiceProvider
         WebhookEventLog::class => DatabaseWebhookEventLog::class,
         PendingPaymentEvents::class => QueuedPendingPaymentEvents::class,
         PaymentBusinesses::class => PostgresPaymentBusinesses::class,
+        PendingPayments::class => PostgresPendingPayments::class,
         BusinessScope::class => PaymentEventBusinessContext::class,
     ];
 
     public function register(): void
     {
-        $this->app->when([StartPayment::class, ObservePayment::class, ProcessOrderRefunds::class, ApplyPaymentEvent::class])
+        $this->app->when([StartPayment::class, ObservePayment::class, ProcessOrderRefunds::class, ApplyPaymentEvent::class, ReconcilePayment::class])
             ->needs(TransactionRunner::class)->give(PaymentTransactionRunner::class);
-        // One per request or job: ProcessPaymentEventJob binds it as the BusinessContext of the notice, and
-        // ProcessPaymentEvent pins the business of the notice through BusinessScope.
+        // One per request, job or command: ProcessPaymentEventJob and ReconcilePaymentsConsoleCommand bind it as the
+        // BusinessContext, and ProcessPaymentEvent and ReconcilePayment pin the business of each payment through BusinessScope.
         $this->app->scoped(PaymentEventBusinessContext::class);
         $this->app->bind(OnvoGateway::class, fn (Application $app): OnvoGateway => new OnvoGateway(
             (string) config('payments.onvo.secret_key'),
@@ -76,5 +82,20 @@ final class PaymentsServiceProvider extends ServiceProvider
             (int) config('payments.timeout_seconds'),
             (int) config('payments.connect_timeout_seconds'),
         ));
+    }
+
+    /**
+     * Register the console command of the module and run it every five minutes, never twice at the same time: the
+     * reconciliation is the safety net for a notice of the provider that never arrived (#96).
+     */
+    public function boot(): void
+    {
+        $this->commands([ReconcilePaymentsConsoleCommand::class]);
+
+        $this->callAfterResolving(Schedule::class, function (Schedule $schedule): void {
+            $schedule->command(ReconcilePaymentsConsoleCommand::class)
+                ->everyFiveMinutes()
+                ->withoutOverlapping(15);
+        });
     }
 }

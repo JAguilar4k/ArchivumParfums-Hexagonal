@@ -22,4 +22,7 @@ return [
     'invalid_webhook' => 'El aviso de la pasarela no tiene el formato esperado.',
     'event_reference_mismatch' => 'El aviso de la pasarela no corresponde a este pago.',
     'event_amount_mismatch' => 'El monto o la moneda del aviso no coinciden con el pago.',
+    'reconcile_payments_description' => 'Consulta a la pasarela los pagos pendientes de todas las tiendas que ya esperaron su aviso y aplica su estado real.',
+    'payments_reconciled' => '{0} Ningún pago pendiente cambió de estado.|{1} Cambió de estado 1 pago pendiente.|[2,*] Cambiaron de estado :count pagos pendientes.',
+    'payments_not_reconciled' => '{1} No se pudo revisar 1 pago; sigue pendiente para la siguiente corrida.|[2,*] No se pudieron revisar :count pagos; siguen pendientes para la siguiente corrida.',
 ];
