@@ -4,7 +4,7 @@ API REST de ArchivumParfums. Laravel 13, PHP 8.4 y PostgreSQL 18.
 
 ## Alcance integrado
 
-La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Avance 2 suma la confirmación de pagos por aviso verificado de ONVO y PayPal (#94), procesado una sola vez en la cola (#95). Los servicios y horarios, la disponibilidad, las citas y el cliente Vue siguen pendientes de integración. Los escenarios externos ONVO y PayPal ya tienen [evidencia sandbox](../docs/evidencia-investigacion-1/README.md); el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
+La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Avance 2 suma la confirmación de pagos por aviso verificado de ONVO y PayPal (#94), procesado una sola vez en la cola (#95), la conciliación de los pagos pendientes (#96) y los reembolsos pedidos en la cola a ONVO y a PayPal (#97). Los servicios y horarios, la disponibilidad, las citas y el cliente Vue siguen pendientes de integración. Los escenarios externos ONVO y PayPal ya tienen [evidencia sandbox](../docs/evidencia-investigacion-1/README.md); el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
 
 ## Requisitos
 
@@ -134,7 +134,7 @@ COMMIT;
 | `php artisan migrate --database=pgsql_admin` | Aplica migraciones pendientes con el rol dueño del esquema, sin volver a sembrar. |
 | `php artisan route:list --path=api --except-vendor` | Muestra las rutas realmente cargadas de la API. Añade `-vv` para consultar sus middleware. |
 | `php artisan schedule:work` | Ejecuta las tareas programadas en desarrollo; en producción se usa `schedule:run` desde cron, cada minuto. |
-| `php artisan archivum:reconcile-payments` | Consulta a la pasarela los pagos pendientes de todas las tiendas que ya esperaron su aviso y aplica su estado real (#96). Corre sola cada cinco minutos. |
+| `php artisan archivum:reconcile-payments` | Consulta a la pasarela los pagos pendientes de todas las tiendas que ya esperaron su aviso (#96), y los reembolsos que la pasarela aceptó y siguen pendientes (#97), y aplica su estado real. Corre sola cada cinco minutos. |
 | `php artisan archivum:create-business` | Da de alta una tienda y la cuenta de su dueño. Ver [Dar de alta una tienda](#dar-de-alta-una-tienda). |
 
 Antes de abrir un pull request deben pasar `composer validate --strict`, `composer lint`, `composer analyse` y `composer test`. La auditoría completa se ejecuta con `composer audit --locked`; CI ejecuta `composer audit --locked --ignore-severity=low --ignore-severity=medium` después de las pruebas, por lo que una ejecución local completa puede informar avisos adicionales.
@@ -148,7 +148,7 @@ git diff -- openapi/v1.json
 
 Para comprobar que el contrato versionado ya coincide con el generador, usa `git diff --exit-code -- openapi/v1.json` después de exportarlo. Un diff requiere revisar y actualizar el contrato; no significa que se haya ejecutado el comportamiento HTTP.
 
-Los avisos de las pasarelas se procesan en la cola (#95): con `QUEUE_CONNECTION=database`, el worker local corre en otra terminal con `php artisan queue:work`, y cada aviso guardado espera en la tabla `jobs` hasta que el worker lo aplica. El trabajo declara sus propios reintentos (cinco intentos, con esperas de 10, 60 y 300 segundos), y uno que los agota queda en `failed_jobs`, desde donde `php artisan queue:retry` lo vuelve a encolar. El scheduler usa `php artisan schedule:work` y concilia cada cinco minutos los pagos pendientes cuyo aviso no llegó (#96). Son procesos separados de `composer run dev`. El cobro y su consulta desde la API no necesitan el worker. Los recordatorios y websockets siguen pendientes.
+Los avisos de las pasarelas se procesan en la cola (#95): con `QUEUE_CONNECTION=database`, el worker local corre en otra terminal con `php artisan queue:work`, y cada aviso guardado espera en la tabla `jobs` hasta que el worker lo aplica. El trabajo declara sus propios reintentos (cinco intentos, con esperas de 10, 60 y 300 segundos), y uno que los agota queda en `failed_jobs`, desde donde `php artisan queue:retry` lo vuelve a encolar. Los reembolsos también salen por la cola (#97): la cancelación, la línea no disponible y el cobro que llega con el pedido ya cerrado solo registran el reembolso y su trabajo, y el worker lo pide a la pasarela. El scheduler usa `php artisan schedule:work` y concilia cada cinco minutos los pagos pendientes cuyo aviso no llegó (#96) y los reembolsos que la pasarela todavía procesa (#97). Son procesos separados de `composer run dev`. El cobro y su consulta desde la API no necesitan el worker. Los recordatorios y websockets siguen pendientes.
 
 ## Pruebas
 
@@ -238,7 +238,7 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | POST | `/api/v1/tiendas/{tienda}/pedidos` | Cliente | Crea un pedido con precios y depósito calculados por el servidor. |
 | GET | `/api/v1/cuenta/pedidos` | Cliente | Lista sus pedidos, también si pertenece a varias tiendas. |
 | GET | `/api/v1/cuenta/pedidos/{pedido}` | Cliente propietario | Consulta el pedido y sus importes. |
-| POST | `/api/v1/cuenta/pedidos/{pedido}/cancelacion` | Cliente propietario | Cancela cuando las reglas lo permiten y registra los reembolsos pendientes. |
+| POST | `/api/v1/cuenta/pedidos/{pedido}/cancelacion` | Cliente propietario | Cancela cuando las reglas lo permiten, registra los reembolsos pendientes y deja su envío en la cola. |
 | GET | `/api/v1/panel/pedidos` | Dueño | Lista pedidos de su tienda. |
 | GET | `/api/v1/panel/pedidos/{pedido}` | Dueño | Consulta un pedido de su tienda. |
 | POST | `/api/v1/panel/pedidos/{pedido}/preparacion` | Dueño | Consume los ml reservados al preparar los decants. |
@@ -247,7 +247,7 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | POST | `/api/v1/panel/pedidos/{pedido}/lineas/{linea}/no-disponible` | Dueño | Marca una botella encargada como no disponible y calcula la devolución correspondiente. |
 | POST | `/api/v1/cuenta/pedidos/{pedido}/pagos` | Cliente propietario | Inicia el cobro calculado o devuelve su intento pendiente existente. |
 | GET | `/api/v1/cuenta/pagos/{pago}` | Cliente propietario | Consulta el proveedor y confirma el resultado; en PayPal captura tras la aprobación. |
-| POST | `/api/v1/panel/pedidos/{pedido}/reembolsos` | Dueño | Procesa los importes de devolución ya registrados; ONVO ejecuta y consulta el reembolso. |
+| POST | `/api/v1/panel/pedidos/{pedido}/reembolsos` | Dueño | Lista los reembolsos del pedido con su pago, línea, monto y estado, y vuelve a encolar los que nunca salieron hacia la pasarela. |
 | POST | `/api/v1/webhooks/onvo` | ONVO Pay | Recibe un aviso con `X-Webhook-Secret`, guarda solo la primera llegada de cada evento y responde de inmediato `recibido`, o `repetido` sin cambiar nada. En la cola, el worker consulta al proveedor y confirma el pago y su pedido, o deja el aviso con su error. Un origen no verificado responde 401. |
 | POST | `/api/v1/webhooks/paypal` | PayPal | Recibe un aviso cuya firma verifica la API de PayPal y lo guarda y procesa igual que el de ONVO; en la cola, la orden aprobada se captura y el pago se confirma con la captura completada. Un origen no verificado responde 401. |
 | GET | `/docs/api` | Desarrollo local | Documentación interactiva de Scramble; el gate la deniega en producción. |
