@@ -91,7 +91,7 @@ it('reads the budget from the largest amount of money in the text', function (st
     'no amount' => ['Algo dulce.', null],
 ]);
 
-it('scores each perfume by what it shares with the text and suggests the best first', function (Recommendation $recommendation): void {
+it('R50: scores each perfume by what it shares with the text and suggests the best first', function (Recommendation $recommendation): void {
     expect($recommendation->perfumes)->toEqual([
         new SuggestedPerfume(RULES_AMBER_ID, 'notes: vainilla, ámbar; time of day: night'),
         new SuggestedPerfume(RULES_LEATHER_ID, 'notes: vainilla; time of day: night'),
