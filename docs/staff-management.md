@@ -29,4 +29,4 @@ Se tomó la opción más conservadora en cada caso. Falta que el equipo las conf
 
 ## Lo que falta
 
-La bitácora de altas, cambios de rol y desactivaciones depende de #113, que todavía no existe en el código. El horario de atención llega con #56.
+Las altas, los cambios de rol y las desactivaciones quedan en la bitácora de #113 (`docs/audit-log.md`). El horario de atención llega con #56.
