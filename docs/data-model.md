@@ -542,6 +542,16 @@ Tabla global preparada para #94 y #95; todavía no hay un endpoint que procese e
 
 Llaves únicas: `id` y `(gateway, event_id)`. Sin `business_id`, llave al pago ni política de fila: al recibir un evento todavía hay que resolver su pago y tienda desde una referencia verificada. La llave compuesta proporciona el respaldo de idempotencia para el futuro procesador; crear la tabla no implementa ese procesador.
 
+### password_reset_tokens
+
+Recuperación de contraseña pendiente de cada correo (#193, `docs/password-recovery.md`). Una cuenta no pertenece a una tienda: no lleva `business_id` ni política de fila.
+
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `email` | `varchar(255)` | Llave primaria |
+| `token` | `varchar(255)` | Solo el hash del token |
+| `created_at` | `timestamptz` | Marca el vencimiento del enlace |
+
 ## Tablas previstas
 
 Existen en el diagrama, pero su detalle llega en el pull request de la migración que las crea (sección 7 de la especificación).
