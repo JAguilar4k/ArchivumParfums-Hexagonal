@@ -21,6 +21,8 @@ use Src\Shared\Domain\ValueObjects\UserId;
 use Tests\Support\Businesses\InMemoryMemberDirectory;
 use Tests\Support\Businesses\InMemoryMemberRepository;
 use Tests\Support\Businesses\InMemoryStaffAccounts;
+use Tests\Support\Shared\RecordingAuditTrail;
+use Tests\Support\Shared\RecordingTransactionRunner;
 
 const MANAGE_BUSINESS = '0192f0c4-0000-7000-9000-000000000001';
 const MANAGE_OTHER_BUSINESS = '0192f0c4-0000-7000-9000-000000000002';
@@ -41,7 +43,7 @@ function staffToManage(): array
     $members->save(Member::reconstitute(new MemberId(MANAGE_OWNER), new UserId(MANAGE_OWNER_USER), new BusinessId(MANAGE_BUSINESS), MemberRole::Owner, true));
     $members->save(Member::reconstitute(new MemberId(MANAGE_STAFF), new UserId(MANAGE_STAFF_USER), new BusinessId(MANAGE_BUSINESS), MemberRole::Staff, false));
 
-    return [$members, $accounts, new UpdateMember($members, new InMemoryMemberDirectory($members), $accounts)];
+    return [$members, $accounts, new UpdateMember($members, new InMemoryMemberDirectory($members), $accounts, new RecordingAuditTrail, new RecordingTransactionRunner)];
 }
 
 it('closes the sessions of a person whose role changes', function () {
@@ -91,7 +93,7 @@ it('does not look for a person of another business', function () {
 
 it('registers a new person by opening the account and adding it to the staff', function () {
     $members = new InMemoryMemberRepository;
-    $register = new RegisterMember(new InMemoryStaffAccounts, new AddMember($members));
+    $register = new RegisterMember(new InMemoryStaffAccounts, new AddMember($members), new RecordingAuditTrail, new RecordingTransactionRunner);
 
     $profile = $register->execute(new RegisterMemberCommand(MANAGE_BUSINESS, 'Andrea', ' ANDREA@personal.test ', 'una-clave-larga', MemberRole::Staff, true));
 
@@ -103,7 +105,7 @@ it('registers a new person by opening the account and adding it to the staff', f
 
 it('does not add anybody when the email is already registered', function () {
     $members = new InMemoryMemberRepository;
-    $register = new RegisterMember(new InMemoryStaffAccounts(refuseEmails: true), new AddMember($members));
+    $register = new RegisterMember(new InMemoryStaffAccounts(refuseEmails: true), new AddMember($members), new RecordingAuditTrail, new RecordingTransactionRunner);
 
     expect(fn () => $register->execute(new RegisterMemberCommand(MANAGE_BUSINESS, 'Andrea', 'andrea@personal.test', 'una-clave-larga', MemberRole::Staff, true)))
         ->toThrow(EmailAlreadyRegisteredException::class)
