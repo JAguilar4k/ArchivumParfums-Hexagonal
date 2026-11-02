@@ -18,6 +18,7 @@ return [
     'unknown_outcome' => 'El resultado del cobro aún no se conoce. Conserva la referencia y consulta su estado.',
     'refund_pending' => 'Espera a que termine el reembolso antes de pagar el saldo.',
     'webhook_not_verified' => 'No se pudo verificar el origen del aviso.',
+    'event_not_processed' => 'No se pudo procesar el aviso de la pasarela.',
     'invalid_webhook' => 'El aviso de la pasarela no tiene el formato esperado.',
     'event_reference_mismatch' => 'El aviso de la pasarela no corresponde a este pago.',
     'event_amount_mismatch' => 'El monto o la moneda del aviso no coinciden con el pago.',
