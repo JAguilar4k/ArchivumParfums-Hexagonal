@@ -3025,6 +3025,168 @@
                 ]
             }
         },
+        "/cuenta/contrasena": {
+            "put": {
+                "operationId": "accounts.password.update",
+                "summary": "Change the password of the account of the session. A wrong current password answers 422 in its field",
+                "tags": [
+                    "Password"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdatePassword"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/recuperaciones-de-contrasena": {
+            "post": {
+                "operationId": "accounts.password.reset.store",
+                "summary": "Queue the recovery for every email and answer the same: the search of the account, the token and the mail all\nhappen outside the request, so neither the body nor the time tell whether the account exists",
+                "tags": [
+                    "PasswordReset"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StorePasswordReset"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "`PasswordResetRequestedResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PasswordResetRequestedResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/recuperaciones-de-contrasena/confirmacion": {
+            "post": {
+                "operationId": "accounts.password.reset.confirm",
+                "summary": "Set the new password. A token that expired, was used or belongs to another email answers 422 in its field",
+                "tags": [
+                    "PasswordReset"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConfirmPasswordReset"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/cuenta/pedidos/{pedido}/pagos": {
             "post": {
                 "operationId": "payments.store",
@@ -4973,6 +5135,28 @@
                 ],
                 "title": "BusinessProfileResource"
             },
+            "ConfirmPasswordReset": {
+                "type": "object",
+                "properties": {
+                    "correo": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "contrasena_nueva": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "correo",
+                    "token",
+                    "contrasena_nueva"
+                ],
+                "title": "ConfirmPasswordReset"
+            },
             "CurrentAccountResource": {
                 "type": "object",
                 "properties": {
@@ -5520,6 +5704,19 @@
                     "activa"
                 ],
                 "title": "PanelPerfumeVariant"
+            },
+            "PasswordResetRequestedResource": {
+                "type": "object",
+                "properties": {
+                    "mensaje": {
+                        "type": "string",
+                        "const": "Si el correo tiene una cuenta, le enviamos un enlace para recuperar la contrase\u00f1a."
+                    }
+                },
+                "required": [
+                    "mensaje"
+                ],
+                "title": "PasswordResetRequestedResource"
             },
             "PatchDecantBottle": {
                 "type": "object",
@@ -6187,6 +6384,20 @@
                 ],
                 "title": "StoreOrder"
             },
+            "StorePasswordReset": {
+                "type": "object",
+                "properties": {
+                    "correo": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "correo"
+                ],
+                "title": "StorePasswordReset"
+            },
             "StorePayment": {
                 "type": "object",
                 "properties": {
@@ -6489,6 +6700,22 @@
                     }
                 },
                 "title": "UpdateMemberRequest"
+            },
+            "UpdatePassword": {
+                "type": "object",
+                "properties": {
+                    "contrasena_actual": {
+                        "type": "string"
+                    },
+                    "contrasena_nueva": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "contrasena_actual",
+                    "contrasena_nueva"
+                ],
+                "title": "UpdatePassword"
             }
         },
         "responses": {
