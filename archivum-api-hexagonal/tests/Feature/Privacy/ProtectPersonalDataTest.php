@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
+use Src\Shared\Infrastructure\Logging\RedactSensitiveData;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Accounts\DemoAccounts;
 use Tests\Support\Businesses\StaffedBusiness;
@@ -182,6 +183,58 @@ it('keeps the bindings of a failed query out of the log', function () {
 
     expect($text)->not->toContain('mariana@clientes.test')
         ->and($text)->not->toContain(str_repeat('b', 53));
+});
+
+it('keeps the stack trace of an exception in the log, and the exceptions it wraps', function () {
+    $throwing = function (string $password): never {
+        throw new RuntimeException('Falló con mariana@clientes.test', previous: new LogicException('Causa interna'));
+    };
+
+    try {
+        $throwing('una-clave-bien-larga');
+    } catch (RuntimeException $exception) {
+        $text = loggedText('Error', ['exception' => $exception]);
+    }
+
+    expect($text)->toContain('RuntimeException')
+        ->and($text)->toContain('ProtectPersonalDataTest.php')
+        ->and($text)->toContain('#0 ')
+        ->and($text)->toContain('Causa interna')
+        ->and($text)->not->toContain('mariana@clientes.test')
+        ->and($text)->not->toContain('una-clave-bien-larga');
+});
+
+it('hides a phone written in any of its usual forms', function (string $phone) {
+    expect(loggedText("Llamar al {$phone} hoy"))->not->toContain($phone)
+        ->and(loggedText("Llamar al {$phone} hoy"))->toContain('[teléfono]');
+})->with(['8888-8888', '8888 8888', '88888888', '+506 8888 8888', '+506-8888-8888', '+50688888888', '50688888888']);
+
+it('leaves alone the identifiers, dates and amounts of an entry', function () {
+    $text = loggedText('Solicitud 01a18d8e-8888-7888-8888-3be58c509da9 del 2026-11-02 por 15000 colones');
+
+    expect($text)->toContain('01a18d8e-8888-7888-8888-3be58c509da9')
+        ->and($text)->toContain('2026-11-02')
+        ->and($text)->toContain('15000');
+});
+
+it('redacts in every channel that writes a log', function (string $channel) {
+    expect(config("logging.channels.{$channel}.tap"))->toContain(RedactSensitiveData::class);
+})->with(['single', 'daily', 'stderr', 'syslog', 'errorlog']);
+
+it('redacts what reaches stderr', function () {
+    $path = tempnam(sys_get_temp_dir(), 'archivum-log');
+    assert(is_string($path));
+    config(['logging.channels.stderr.handler_with' => ['stream' => $path]]);
+    Log::forgetChannel('stderr');
+
+    Log::channel('stderr')->error('Falló con mariana@clientes.test y 8888-8888');
+
+    $text = (string) file_get_contents($path);
+    Log::forgetChannel('stderr');
+    unlink($path);
+
+    expect($text)->not->toContain('mariana@clientes.test')
+        ->and($text)->not->toContain('8888-8888');
 });
 
 it('fails when a seeder creates an email outside the reserved .test domain', function () {
