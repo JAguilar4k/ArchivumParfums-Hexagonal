@@ -69,7 +69,7 @@ function recommenderAnswer(array $changes = []): string
     ], $changes), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
 }
 
-it('translates the structured answer of the provider into the domain', function (): void {
+it('R48: translates the structured answer of the provider into the domain', function (): void {
     Http::fake([GEMINI_INTERACTIONS => Http::response(geminiAnswer(recommenderAnswer([
         'perfumes' => [
             ['id' => RECOMMENDER_AMBER_ID, 'reason' => 'Su vainilla y su ámbar abrigan una cita en una noche fría.'],
@@ -148,7 +148,7 @@ it('keeps the values of the schema for the check against the catalog, which come
         ->and($recommendation->perfumes)->toEqual([new SuggestedPerfume('perfume-inventado', ''), new SuggestedPerfume(RECOMMENDER_AMBER_ID, 'Gratis por hoy.')]);
 });
 
-it('reports an error of the provider as unavailable, without letting an exception of the SDK or of the HTTP client out', function (Closure $answer): void {
+it('R50: reports an error of the provider as unavailable, without letting an exception of the SDK or of the HTTP client out', function (Closure $answer): void {
     Http::fake([GEMINI_INTERACTIONS => $answer]);
 
     expect(fn () => app(AiRecommender::class)->recommend(RECOMMENDER_TEXT, recommenderCatalog()))
@@ -166,7 +166,7 @@ it('reports an error of the provider as unavailable, without letting an exceptio
     'host it cannot reach' => fn () => Http::failedConnection(),
 ]);
 
-it('cuts the request at the fixed limit and reports that the provider ran out of time', function (): void {
+it('R50: cuts the request at the fixed limit and reports that the provider ran out of time', function (): void {
     Http::fake([GEMINI_INTERACTIONS => function (Request $request) {
         travel(10_001)->milliseconds();
 
