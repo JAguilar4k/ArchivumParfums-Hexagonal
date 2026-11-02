@@ -7,6 +7,7 @@ namespace Tests\Support\Recommendations;
 use Closure;
 use Src\Recommendations\Recommender\Domain\Contracts\AiRecommender;
 use Src\Recommendations\Recommender\Domain\Exceptions\AiUnavailableException;
+use Src\Recommendations\Recommender\Domain\Services\SuggestionValidator;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogPerfume;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CustomerPreferences;
 use Src\Recommendations\Recommender\Domain\ValueObjects\Recommendation;
@@ -48,8 +49,9 @@ final class FakeAiRecommender implements AiRecommender
 
     /**
      * Answer what the schema allows but the catalog does not: a moment, a climate and a budget that do not exist, a
-     * perfume that is not in the catalog, the first perfume of the catalog twice and a suggestion without a reason.
-     * Checking the answer against the catalog discards all of it (#119).
+     * perfume that is not in the catalog and the first perfume of the catalog once without a reason and once with a
+     * reason too long. SuggestionValidator discards all of it, so the suggestion does not validate and the rules
+     * recommender answers instead (#120).
      */
     public static function answeringInvalidData(): self
     {
@@ -61,8 +63,8 @@ final class FakeAiRecommender implements AiRecommender
                 new CustomerPreferences(['vainilla'], 'madrugada', 'lluvioso', 'una cena', 0),
                 [
                     new SuggestedPerfume(self::UNKNOWN_PERFUME, 'Un perfume que la tienda no vende.'),
-                    new SuggestedPerfume($known, 'Su vainilla acompaña bien una cena.'),
                     new SuggestedPerfume($known, ''),
+                    new SuggestedPerfume($known, str_repeat('a', SuggestionValidator::MAX_REASON_LENGTH + 1)),
                 ],
             );
         });

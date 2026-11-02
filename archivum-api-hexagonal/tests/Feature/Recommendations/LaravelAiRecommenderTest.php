@@ -10,6 +10,7 @@ use Src\Recommendations\Recommender\Domain\Exceptions\AiUnavailableException;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogPerfume;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogVariant;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CustomerPreferences;
+use Src\Recommendations\Recommender\Domain\ValueObjects\Recommendation;
 use Src\Recommendations\Recommender\Domain\ValueObjects\RecommendationOrigin;
 use Src\Recommendations\Recommender\Domain\ValueObjects\SuggestedPerfume;
 use Src\Recommendations\Recommender\Infrastructure\Ai\LaravelAiRecommender;
@@ -143,9 +144,33 @@ it('keeps the values of the schema for the check against the catalog, which come
 
     $recommendation = app(AiRecommender::class)->recommend(RECOMMENDER_TEXT, recommenderCatalog());
 
-    // The adapter only translates: a moment, a climate, a budget, a perfume or a reason that are not valid are discarded by #119.
+    // The adapter only translates: SuggestionValidator discards a moment, a climate, a budget, a perfume or a reason that are not valid.
     expect($recommendation->preferences)->toEqual(new CustomerPreferences(['vainilla'], 'madrugada', 'lluvioso', null, 0))
         ->and($recommendation->perfumes)->toEqual([new SuggestedPerfume('perfume-inventado', ''), new SuggestedPerfume(RECOMMENDER_AMBER_ID, 'Gratis por hoy.')]);
+});
+
+it('keeps only the identifier and the reason of each perfume, so a store, a role, a name or a price the AI makes up never leaves the adapter', function (): void {
+    Http::fake([GEMINI_INTERACTIONS => Http::response(geminiAnswer(recommenderAnswer([
+        'store' => 'otra-tienda',
+        'role' => 'owner',
+        'perfumes' => [[
+            'id' => RECOMMENDER_AMBER_ID,
+            'reason' => 'Su vainilla y su ámbar abrigan una cita en una noche fría.',
+            'brand' => 'Marca Inventada',
+            'name' => 'Nombre Inventado',
+            'price' => 0,
+            'presentations' => [['ml' => 100, 'price' => 0]],
+        ]],
+    ])))]);
+
+    $recommendation = app(AiRecommender::class)->recommend(RECOMMENDER_TEXT, recommenderCatalog());
+
+    // Brand, name and prices are read from the catalog when the answer is built (#118), never from the AI (#119).
+    expect($recommendation)->toEqual(new Recommendation(
+        RecommendationOrigin::Ai,
+        new CustomerPreferences(['vainilla'], 'night', 'cold', 'una cita', 90_000),
+        [new SuggestedPerfume(RECOMMENDER_AMBER_ID, 'Su vainilla y su ámbar abrigan una cita en una noche fría.')],
+    ));
 });
 
 it('reports an error of the provider as unavailable, without letting an exception of the SDK or of the HTTP client out', function (Closure $answer): void {
