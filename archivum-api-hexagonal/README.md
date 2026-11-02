@@ -133,6 +133,8 @@ COMMIT;
 | `php artisan storage:link` | Hace accesibles los logos y fotos guardados en el disco público. Se ejecuta una vez por instalación. |
 | `php artisan migrate --database=pgsql_admin` | Aplica migraciones pendientes con el rol dueño del esquema, sin volver a sembrar. |
 | `php artisan route:list --path=api --except-vendor` | Muestra las rutas realmente cargadas de la API. Añade `-vv` para consultar sus middleware. |
+| `php artisan schedule:work` | Ejecuta las tareas programadas en desarrollo; en producción se usa `schedule:run` desde cron, cada minuto. |
+| `php artisan archivum:reconcile-payments` | Consulta a la pasarela los pagos pendientes de todas las tiendas que ya esperaron su aviso y aplica su estado real (#96). Corre sola cada cinco minutos. |
 | `php artisan archivum:create-business` | Da de alta una tienda y la cuenta de su dueño. Ver [Dar de alta una tienda](#dar-de-alta-una-tienda). |
 
 Antes de abrir un pull request deben pasar `composer validate --strict`, `composer lint`, `composer analyse` y `composer test`. La auditoría completa se ejecuta con `composer audit --locked`; CI ejecuta `composer audit --locked --ignore-severity=low --ignore-severity=medium` después de las pruebas, por lo que una ejecución local completa puede informar avisos adicionales.
@@ -146,7 +148,7 @@ git diff -- openapi/v1.json
 
 Para comprobar que el contrato versionado ya coincide con el generador, usa `git diff --exit-code -- openapi/v1.json` después de exportarlo. Un diff requiere revisar y actualizar el contrato; no significa que se haya ejecutado el comportamiento HTTP.
 
-Los avisos de las pasarelas se procesan en la cola (#95): con `QUEUE_CONNECTION=database`, el worker local corre en otra terminal con `php artisan queue:work`, y cada aviso guardado espera en la tabla `jobs` hasta que el worker lo aplica. El trabajo declara sus propios reintentos (cinco intentos, con esperas de 10, 60 y 300 segundos), y uno que los agota queda en `failed_jobs`, desde donde `php artisan queue:retry` lo vuelve a encolar. El scheduler usa `php artisan schedule:work`. Son procesos separados de `composer run dev`. El cobro y su consulta desde la API no necesitan el worker. Los recordatorios y websockets siguen pendientes.
+Los avisos de las pasarelas se procesan en la cola (#95): con `QUEUE_CONNECTION=database`, el worker local corre en otra terminal con `php artisan queue:work`, y cada aviso guardado espera en la tabla `jobs` hasta que el worker lo aplica. El trabajo declara sus propios reintentos (cinco intentos, con esperas de 10, 60 y 300 segundos), y uno que los agota queda en `failed_jobs`, desde donde `php artisan queue:retry` lo vuelve a encolar. El scheduler usa `php artisan schedule:work` y concilia cada cinco minutos los pagos pendientes cuyo aviso no llegó (#96). Son procesos separados de `composer run dev`. El cobro y su consulta desde la API no necesitan el worker. Los recordatorios y websockets siguen pendientes.
 
 ## Pruebas
 

@@ -88,6 +88,7 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Principal reembolsado | `refundedAmount` | `payments.refunded_amount`, colones enteros | Se refleja en el estado del pago y en `pagado` del pedido después de confirmarse |
 | Aviso de la pasarela (evento de webhook) | `PaymentEvent` | `webhook_events`, global, `pending` hasta procesarse y luego `processed` o `failed` con su error | `POST /api/v1/webhooks/onvo` y `/paypal`; responde `evento` y `estado`: `recibido` o `repetido` |
 | Procesamiento del aviso en la cola | `ProcessPaymentEventJob`, `ProcessPaymentEvent` | La fila del aviso en `webhook_events` y su trabajo en `jobs` | — |
+| Conciliación de los pagos pendientes | `ReconcilePayment`, `PendingPayments` | Los pagos `pending` con referencia del proveedor que ya esperaron su aviso | `php artisan archivum:reconcile-payments`, cada cinco minutos |
 | Paquete de decants (oferta) | `DecantPackPlan` | `decant_pack_plans` | `paquetes` |
 | Paquete comprado | `DecantPack` | `decant_packs` | `paquetes-comprados` |
 | Proveedor | `Supplier` | `suppliers` | `proveedores` |
