@@ -13,10 +13,12 @@ use Src\Payments\Payments\Application\Contracts\PayableReader;
 use Src\Payments\Payments\Application\Contracts\PaymentBusinesses;
 use Src\Payments\Payments\Application\Contracts\PendingPaymentEvents;
 use Src\Payments\Payments\Application\Contracts\PendingPayments;
+use Src\Payments\Payments\Application\Contracts\PendingRefunds;
 use Src\Payments\Payments\Application\Contracts\WebhookEventLog;
 use Src\Payments\Payments\Application\UseCases\ApplyPaymentEvent;
 use Src\Payments\Payments\Application\UseCases\ObservePayment;
 use Src\Payments\Payments\Application\UseCases\ReconcilePayment;
+use Src\Payments\Payments\Application\UseCases\ReconcileRefund;
 use Src\Payments\Payments\Application\UseCases\RefundPayment;
 use Src\Payments\Payments\Application\UseCases\RequestOrderRefunds;
 use Src\Payments\Payments\Application\UseCases\RequestRefund;
@@ -33,6 +35,7 @@ use Src\Payments\Payments\Infrastructure\GatewaySelection\ConfiguredPaymentGatew
 use Src\Payments\Payments\Infrastructure\Persistence\PaymentTransactionRunner;
 use Src\Payments\Payments\Infrastructure\Persistence\Queries\PostgresPaymentBusinesses;
 use Src\Payments\Payments\Infrastructure\Persistence\Queries\PostgresPendingPayments;
+use Src\Payments\Payments\Infrastructure\Persistence\Queries\PostgresPendingRefunds;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\DatabaseRefundRepository;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\DatabaseWebhookEventLog;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymentRepository;
@@ -59,6 +62,7 @@ final class PaymentsServiceProvider extends ServiceProvider
         PaymentBusinesses::class => PostgresPaymentBusinesses::class,
         PendingPayments::class => PostgresPendingPayments::class,
         OutgoingRefunds::class => QueuedOutgoingRefunds::class,
+        PendingRefunds::class => PostgresPendingRefunds::class,
         BusinessScope::class => PaymentEventBusinessContext::class,
     ];
 
@@ -66,11 +70,11 @@ final class PaymentsServiceProvider extends ServiceProvider
     {
         $this->app->when([
             StartPayment::class, ObservePayment::class, ApplyPaymentEvent::class, ReconcilePayment::class,
-            RefundPayment::class, RequestRefund::class, RequestOrderRefunds::class,
+            RefundPayment::class, RequestRefund::class, ReconcileRefund::class, RequestOrderRefunds::class,
         ])->needs(TransactionRunner::class)->give(PaymentTransactionRunner::class);
         // One per request, job or command: ProcessPaymentEventJob, RequestRefundJob and ReconcilePaymentsConsoleCommand
-        // bind it as the BusinessContext, and ProcessPaymentEvent, RequestRefund and ReconcilePayment pin the business of
-        // each payment or refund through BusinessScope.
+        // bind it as the BusinessContext, and ProcessPaymentEvent, RequestRefund, ReconcilePayment and ReconcileRefund pin
+        // the business of each payment or refund through BusinessScope.
         $this->app->scoped(PaymentEventBusinessContext::class);
         $this->app->bind(OnvoGateway::class, fn (Application $app): OnvoGateway => new OnvoGateway(
             (string) config('payments.onvo.secret_key'),

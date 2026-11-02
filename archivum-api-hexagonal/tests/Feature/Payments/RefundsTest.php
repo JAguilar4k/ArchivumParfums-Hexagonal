@@ -9,9 +9,12 @@ use Illuminate\Support\Str;
 use Illuminate\Testing\PendingCommand;
 use Src\Payments\Payments\Application\DTOs\RefundPaymentCommand;
 use Src\Payments\Payments\Application\UseCases\RefundPayment;
+use Src\Payments\Payments\Domain\Contracts\PaymentRepository;
+use Src\Payments\Payments\Domain\Entities\Payment;
 use Src\Payments\Payments\Domain\Exceptions\InvalidPaymentTransitionException;
 use Src\Payments\Payments\Infrastructure\Jobs\RequestRefundJob;
 use Src\Payments\Payments\Infrastructure\Persistence\Models\PaymentModel;
+use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymentRepository;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderLineModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
 use Src\Shared\Domain\Contracts\BusinessContext;
@@ -19,6 +22,7 @@ use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
 use Tests\Support\Catalog\FixedBusinessContext;
+use Tests\Support\Payments\FailPaymentSave;
 use Tests\Support\Payments\StoredPayments;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Sales\StoredOrders;
@@ -27,6 +31,7 @@ use function Pest\Laravel\artisan;
 use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\assertDatabaseHas;
 use function Pest\Laravel\postJson;
+use function Pest\Laravel\travel;
 
 pest()->use(RefreshDatabaseAsOwner::class);
 
@@ -49,6 +54,15 @@ function workNextRefundJob(): void
     $worker = artisan('queue:work', ['connection' => 'database', '--once' => true]);
     assert($worker instanceof PendingCommand);
     $worker->assertSuccessful();
+}
+
+/** The reconciliation the scheduler starts every few minutes. */
+function reconcileRefundsNow(): PendingCommand
+{
+    $command = artisan('archivum:reconcile-payments');
+    assert($command instanceof PendingCommand);
+
+    return $command;
 }
 
 /**
@@ -232,6 +246,37 @@ it('R40: leaves the refund failed, visible to the owner, and the payment unchang
     'a refund the provider failed' => ['failed', 'refund-failed'],
 ]);
 
+it('R40: confirms with the reconciliation a refund the provider still processes', function (): void {
+    $business = actingAsCustomer();
+    $order = StoredOrders::create($business, 'confirmed')['order'];
+    $payment = StoredPayments::create($business, $order, 'succeeded');
+    Http::fake([
+        'api.onvopay.com/v1/refunds' => Http::response(['id' => 'refund-later'], 201),
+        'api.onvopay.com/v1/refunds/refund-later' => Http::sequence()
+            ->push(onvoRefundAnswer($payment, 'refund-later', 750_000, 'pending'))
+            ->push(onvoRefundAnswer($payment, 'refund-later', 750_000, 'succeeded')),
+    ]);
+    postJson('/api/v1/cuenta/pedidos/'.$order->id.'/cancelacion')->assertOk();
+    workNextRefundJob();
+
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'pending', 'provider_reference' => 'refund-later']);
+    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded', 'refunded_amount' => 0]);
+    // The reconciliation leaves a refund alone while it still waits for its confirmation.
+    reconcileRefundsNow()->expectsOutputToContain('Ningún reembolso pendiente cambió de estado.')->assertSuccessful();
+    Http::assertSentCount(2);
+
+    travel(Payment::MINUTES_FOR_THE_NOTICE + 1)->minutes();
+    reconcileRefundsNow()->expectsOutputToContain('Cambió de estado 1 reembolso pendiente.')->assertSuccessful();
+
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'succeeded', 'provider_reference' => 'refund-later']);
+    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'refunded', 'refunded_amount' => 7500]);
+    assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'cancelled', 'paid' => 0]);
+    expect(Http::recorded(fn (Request $request): bool => $request->method() === 'POST')->count())->toBe(1);
+    Http::assertSentCount(3);
+});
+
 it('R40: confirms a PayPal refund with its verified notice and applies the repeated notice once', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business, 'confirmed')['order'];
@@ -369,11 +414,45 @@ it('R40: keeps an uncertain refund pending without sending it again or counting 
     expect(DB::table('refunds')->where('payment_id', $payment->id)->value('attempted_at'))->not->toBeNull();
     assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded', 'refunded_amount' => 0]);
     assertDatabaseHas('orders', ['id' => $order->id, 'paid' => 7500]);
-    // The owner's list does not send it again: a person checks it in the provider.
+    // Neither the owner's list nor the reconciliation sends it again: a person checks it in the provider.
     actingAsOwner($business);
     postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonPath('data.0.estado', 'pendiente');
+    travel(Payment::MINUTES_FOR_THE_NOTICE + 1)->minutes();
+    reconcileRefundsNow()->expectsOutputToContain('Ningún reembolso pendiente cambió de estado.')->assertSuccessful();
     expect(DB::table('jobs')->count())->toBe(0);
     Http::assertSentCount(1);
+});
+
+it('R40: keeps the reference when applying the answer fails and confirms the refund with the reconciliation', function (): void {
+    $business = actingAsCustomer();
+    $order = StoredOrders::create($business, 'confirmed')['order'];
+    $payment = StoredPayments::create($business, $order, 'succeeded');
+    fakeOnvoRefund($payment, 'refund-durable', 750_000, 'succeeded');
+    postJson('/api/v1/cuenta/pedidos/'.$order->id.'/cancelacion')->assertOk();
+    app()->bind(PaymentRepository::class, fn (): FailPaymentSave => new FailPaymentSave(app(EloquentPaymentRepository::class), afterReference: true));
+
+    workNextRefundJob();
+
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'pending', 'provider_reference' => 'refund-durable']);
+    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded', 'refunded_amount' => 0]);
+    assertDatabaseHas('orders', ['id' => $order->id, 'paid' => 7500]);
+    expect(DB::table('jobs')->value('attempts'))->toBe(1);
+
+    app()->bind(PaymentRepository::class, EloquentPaymentRepository::class);
+    travel(Payment::MINUTES_FOR_THE_NOTICE + 1)->minutes();
+    reconcileRefundsNow()->expectsOutputToContain('Cambió de estado 1 reembolso pendiente.')->assertSuccessful();
+    // The job tries again, finds the refund already started and sends nothing.
+    workNextRefundJob();
+
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'succeeded', 'provider_reference' => 'refund-durable']);
+    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'refunded', 'refunded_amount' => 7500]);
+    assertDatabaseHas('orders', ['id' => $order->id, 'paid' => 0]);
+    expect(DB::table('jobs')->count())->toBe(0)
+        ->and(DB::table('failed_jobs')->count())->toBe(0);
+    expect(Http::recorded(fn (Request $request): bool => $request->method() === 'POST')->count())->toBe(1);
+    Http::assertSentCount(3);
 });
 
 it('R31, R37: returns a PayPal payment in two refunds that add up to the cents it captured', function (): void {
