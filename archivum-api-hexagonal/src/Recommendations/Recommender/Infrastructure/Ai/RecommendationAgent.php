@@ -8,10 +8,11 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Promptable;
-use Src\Catalog\Perfumes\Domain\ValueObjects\Climate;
-use Src\Catalog\Perfumes\Domain\ValueObjects\TimeOfDay;
+use Src\Recommendations\Recommender\Domain\Services\SuggestionValidator;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogPerfume;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogVariant;
+use Src\Recommendations\Recommender\Domain\ValueObjects\Climate;
+use Src\Recommendations\Recommender\Domain\ValueObjects\TimeOfDay;
 
 /**
  * The laravel/ai agent that LaravelAiRecommender prompts. It has no tools and keeps no conversation (section 12 of
@@ -75,7 +76,7 @@ final class RecommendationAgent implements Agent, HasStructuredOutput
                 'id' => $schema->string()->required()
                     ->description('Id of the perfume, exactly as the catalog gives it.'),
                 'reason' => $schema->string()->required()
-                    ->description('One short sentence in Spanish that says why the perfume fits.'),
+                    ->description('One short sentence in Spanish, of at most '.SuggestionValidator::MAX_REASON_LENGTH.' characters, that says why the perfume fits.'),
             ]))->max(LaravelAiRecommender::MAX_PERFUMES)->required(),
         ];
     }
