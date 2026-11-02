@@ -2965,7 +2965,8 @@
         "/panel/pedidos/{pedido}/reembolsos": {
             "post": {
                 "operationId": "payments.refunds.process",
-                "summary": "Process only refund amounts already registered by cancellation or an unavailable line",
+                "description": "Only a cancellation, an unavailable line (R30, R31) or a charge confirmed after the order closed registers a\nrefund, with the amount the server calculates.",
+                "summary": "List the refunds of an order with their state and ask the provider again for those that never left",
                 "tags": [
                     "Payment"
                 ],
@@ -2981,7 +2982,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "",
+                        "description": "Array of `RefundResource`",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -2990,28 +2991,7 @@
                                         "data": {
                                             "type": "array",
                                             "items": {
-                                                "type": "object",
-                                                "properties": {
-                                                    "id": {
-                                                        "type": "string"
-                                                    },
-                                                    "monto": {
-                                                        "type": "integer"
-                                                    },
-                                                    "estado": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "confirmado",
-                                                            "fallido",
-                                                            "pendiente"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": [
-                                                    "id",
-                                                    "monto",
-                                                    "estado"
-                                                ]
+                                                "$ref": "#/components/schemas/RefundResource"
                                             }
                                         }
                                     },
@@ -5659,6 +5639,42 @@
                     "zona_horaria"
                 ],
                 "title": "PublicBusiness"
+            },
+            "RefundResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "pago": {
+                        "type": "string"
+                    },
+                    "linea": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "monto": {
+                        "type": "integer"
+                    },
+                    "estado": {
+                        "type": "string",
+                        "enum": [
+                            "confirmado",
+                            "fallido",
+                            "pendiente"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "pago",
+                    "linea",
+                    "monto",
+                    "estado"
+                ],
+                "title": "RefundResource"
             },
             "SessionTokenResource": {
                 "type": "object",

@@ -103,6 +103,26 @@ final class Payment
         return $this->chargedAmount > 0 && $currency === $this->chargedCurrency && $amount === $this->chargedAmount;
     }
 
+    /**
+     * Start a refund of this payment (R40). Only a confirmed payment returns money, and its refunds never pass what it
+     * paid and has not returned yet, counting the ones still pending (R30, R31). The caller holds the lock of the
+     * payment's row, so two refunds of the same payment cannot both count on the same colones.
+     *
+     * @param  int  $pending  colones of the refunds of this payment that are still pending
+     */
+    public function requestRefund(string $refundId, int $amount, int $pending, ?string $orderLineId = null): Refund
+    {
+        if (! in_array($this->status, [PaymentStatus::Succeeded, PaymentStatus::PartiallyRefunded], true)) {
+            throw new InvalidPaymentTransitionException('payments.not_refundable');
+        }
+
+        if ($amount <= 0 || $pending < 0 || $amount > $this->amount->amount - $this->refundedAmount - $pending) {
+            throw new InvalidPaymentTransitionException('payments.invalid_refund');
+        }
+
+        return Refund::create($refundId, $this->businessId->value, $this->id->value, $amount, $orderLineId);
+    }
+
     /** Record a confirmed refund without allowing a total greater than the original payment. */
     public function refund(int $amount): void
     {

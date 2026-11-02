@@ -296,7 +296,7 @@ it('requests and queries a refund in cents against its original intent', functio
         'api.onvopay.com/v1/refunds/refund-1' => Http::response(['id' => 'refund-1', 'mode' => 'test', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => $status]),
     ]);
 
-    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500, 'intent-1'));
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1'));
 
     expect($result->status)->toBe($status);
     expect($result->providerReference)->toBe('refund-1');
@@ -307,7 +307,7 @@ it('requests and queries a refund in cents against its original intent', functio
 it('queries an existing pending refund without sending a second refund request', function (): void {
     Http::fake(['api.onvopay.com/v1/refunds/refund-1' => Http::response(['id' => 'refund-1', 'mode' => 'test', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => 'succeeded'])]);
 
-    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500, 'intent-1', providerRefundReference: 'refund-1'));
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1', providerRefundReference: 'refund-1'));
 
     expect($result->status)->toBe('succeeded');
     Http::assertSent(fn (Request $request): bool => $request->method() === 'GET');
@@ -321,7 +321,7 @@ it('resolves the refund intent from a checkout that omits mode', function (): vo
         'api.onvopay.com/v1/refunds/refund-1' => Http::response(['id' => 'refund-1', 'mode' => 'test', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => 'succeeded']),
     ]);
 
-    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500));
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500));
 
     expect($result->status)->toBe('succeeded');
     Http::assertSent(fn (Request $request): bool => $request->method() === 'POST' && $request['paymentIntentId'] === 'intent-1' && $request['amount'] === 250_000);
@@ -333,7 +333,7 @@ it('requires an explicit test mode on a refund before accepting its outcome', fu
         'id' => 'refund-1', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => 'succeeded', ...$modeFields,
     ])]);
 
-    expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500, 'intent-1', providerRefundReference: 'refund-1')))->toThrow(GatewayUnavailableException::class);
+    expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1', providerRefundReference: 'refund-1')))->toThrow(GatewayUnavailableException::class);
 
     Http::assertSentCount(1);
 })->with([[
@@ -350,11 +350,21 @@ it('preserves the refund reference when its subsequent query cannot communicate'
         'api.onvopay.com/v1/refunds/refund-1' => Http::failedConnection(),
     ]);
 
-    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500, 'intent-1'));
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1'));
 
     expect($result->status)->toBe('pending');
     expect($result->providerReference)->toBe('refund-1');
     Http::assertSentCount(2);
+});
+
+it('reports a refusal of ONVO as a failed refund without a reference and without asking for it', function (): void {
+    Http::fake(['api.onvopay.com/v1/refunds' => Http::response(['code' => 'refund_declined'], 402)]);
+
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1'));
+
+    // ONVO created no refund, so there is no reference of the provider to keep or to query.
+    expect($result->status)->toBe('failed')->and($result->providerReference)->toBeNull();
+    Http::assertSentCount(1);
 });
 
 it('accepts only the configured webhook secret regardless of header casing', function (): void {

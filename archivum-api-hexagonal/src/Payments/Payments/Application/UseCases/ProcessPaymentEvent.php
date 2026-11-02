@@ -30,9 +30,10 @@ final readonly class ProcessPaymentEvent
 
     /**
      * Apply a kept notice as the business of the payment it names and mark it processed in one transaction: both
-     * happen or neither does. The business is the one Archivum sent with the charge, when the notice brings it back,
-     * or the one of the provider's reference. A notice that is not about a charge is marked processed without
-     * changing anything, and one already processed is left as it is, so a new attempt never applies it twice.
+     * happen or neither does. The business is the one Archivum sent with the charge or the refund, when the notice
+     * brings it back, or the one of the provider's reference of the charge. A notice about neither a charge nor a
+     * refund is marked processed without changing anything, and one already processed is left as it is, so a new
+     * attempt never applies it twice.
      *
      * A notice that fails is marked failed with the key of its error. When the provider cannot be asked, or the error
      * is unexpected, the error is thrown again so the queue tries later; an error of the notice itself, such as an
@@ -50,7 +51,7 @@ final readonly class ProcessPaymentEvent
                 }
 
                 $event = $this->gateways->for($notice->gateway)->parseWebhook($notice->payload);
-                if ($event->aboutCharge()) {
+                if ($event->aboutCharge() || $event->aboutRefund()) {
                     $this->scope->run($this->businessOf($event), fn () => $this->apply->execute($event));
                 }
 
@@ -73,7 +74,7 @@ final readonly class ProcessPaymentEvent
     private function businessOf(PaymentEvent $event): BusinessId
     {
         return $event->businessId
-            ?? $this->businesses->ofReference($event->gateway, (string) $event->reference)
+            ?? ($event->reference !== null ? $this->businesses->ofReference($event->gateway, $event->reference) : null)
             ?? throw new PaymentNotFoundException('payments.not_found');
     }
 }

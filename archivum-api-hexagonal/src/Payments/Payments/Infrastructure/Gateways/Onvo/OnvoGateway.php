@@ -171,9 +171,21 @@ final readonly class OnvoGateway implements PaymentGateway
         return $intent->json('status') === 'failed' ? PaymentStatus::Failed : $closedStatus;
     }
 
+    /** ONVO charged whole colones, so a refund returns its own colones: the earlier refunds do not change it. */
+    public function refundAmount(int $amount, int $refundedBefore, ?string $exchangeRate): int
+    {
+        GatewayMoney::colonesToMinor($amount);
+
+        return $amount;
+    }
+
+    /**
+     * ONVO does not notify refunds by webhook (its notices are about charges, subscriptions and transfers), so the
+     * answer comes from asking for the refund right after creating it, and later from the reconciliation (#96).
+     */
     public function refund(RefundRequest $request): RefundResult
     {
-        $amount = GatewayMoney::colonesToMinor($request->amount);
+        $amount = GatewayMoney::colonesToMinor($request->chargedAmount);
         $intentId = $request->captureReference;
 
         if ($intentId === null) {
@@ -192,7 +204,7 @@ final readonly class OnvoGateway implements PaymentGateway
             ]));
 
             if ($response->status() === 402) {
-                return new RefundResult($request->refundId, 'failed');
+                return new RefundResult(null, 'failed');
             }
 
             $refundId = $this->string($response->json('id'));
