@@ -15,15 +15,21 @@ use Src\Payments\Payments\Domain\Exceptions\GatewayUnavailableException;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeReference;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeRequest;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeResult;
+use Src\Payments\Payments\Domain\ValueObjects\PaymentEvent;
+use Src\Payments\Payments\Domain\ValueObjects\PaymentId;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentMethod;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentStatus;
 use Src\Payments\Payments\Domain\ValueObjects\RefundRequest;
 use Src\Payments\Payments\Domain\ValueObjects\RefundResult;
 use Src\Payments\Payments\Infrastructure\Gateways\GatewayMoney;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
+use Src\Shared\Domain\ValueObjects\BusinessId;
 
 final readonly class OnvoGateway implements PaymentGateway
 {
+    /** Notices about the charge of a checkout session; the rest, such as subscription renewals, change no payment. */
+    private const array CHARGE_EVENTS = ['checkout-session.succeeded', 'payment-intent.succeeded', 'payment-intent.failed', 'payment-intent.deferred'];
+
     public function __construct(
         private string $secretKey,
         private string $returnUrl,
@@ -214,6 +220,47 @@ final readonly class OnvoGateway implements PaymentGateway
         $headers = array_change_key_case($headers, CASE_LOWER);
 
         return $this->webhookSecret !== '' && isset($headers['x-webhook-secret']) && hash_equals($this->webhookSecret, $headers['x-webhook-secret']);
+    }
+
+    /**
+     * ONVO sends `type` and the object it is about in `data`, with no identifier of the notice, so the notice is its
+     * type and its object. A checkout session brings back the metadata Archivum sent and its total; a payment intent
+     * carries its own amount. Amounts arrive in céntimos and the payment keeps whole colones.
+     */
+    public function parseWebhook(string $body): PaymentEvent
+    {
+        $event = json_decode($body, true);
+        $type = is_array($event) ? ($event['type'] ?? null) : null;
+        $data = is_array($event) ? ($event['data'] ?? null) : null;
+
+        if (! is_string($type) || ! is_array($data) || ! is_string($data['id'] ?? null) || ($data['mode'] ?? 'test') !== 'test') {
+            throw new InvalidValueException('payments.invalid_webhook');
+        }
+
+        if (! in_array($type, self::CHARGE_EVENTS, true)) {
+            return new PaymentEvent('onvo', $type.':'.$data['id'], $type);
+        }
+
+        $metadata = is_array($data['metadata'] ?? null) ? $data['metadata'] : [];
+        [$businessId, $paymentId] = $this->ownReferences($metadata['businessId'] ?? null, $metadata['paymentId'] ?? null);
+        $amount = $type === 'checkout-session.succeeded' ? ($data['amountTotal'] ?? null) : ($data['amount'] ?? null);
+
+        return new PaymentEvent('onvo', $type.':'.$data['id'], $type, $data['id'], $businessId, $paymentId,
+            is_string($data['currency'] ?? null) ? $data['currency'] : null, is_int($amount) && $amount > 0 && $amount % 100 === 0 ? intdiv($amount, 100) : null);
+    }
+
+    /**
+     * The identifiers Archivum sent in the metadata of the checkout; both must be valid or neither is used.
+     *
+     * @return array{?BusinessId, ?PaymentId}
+     */
+    private function ownReferences(mixed $businessId, mixed $paymentId): array
+    {
+        try {
+            return [new BusinessId(is_string($businessId) ? $businessId : ''), new PaymentId(is_string($paymentId) ? $paymentId : '')];
+        } catch (InvalidValueException) {
+            return [null, null];
+        }
     }
 
     /** ONVO does not document a POST idempotency guarantee, so mutations are never retried here.
