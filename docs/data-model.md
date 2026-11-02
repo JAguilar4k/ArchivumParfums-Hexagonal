@@ -530,7 +530,7 @@ Llaves únicas: `id` y `(id, business_id)`. Índice `(business_id, status)`. Pol
 
 ### webhook_events
 
-Tabla global con cada aviso verificado de una pasarela y su resultado (#94). Un aviso de origen no verificado no se guarda.
+Tabla global con cada aviso verificado de una pasarela y su resultado (#94). Un aviso de origen no verificado no se guarda, y uno verificado se guarda antes de procesarse (#95).
 
 | Columna | Tipo | Regla |
 |---|---|---|
@@ -539,12 +539,12 @@ Tabla global con cada aviso verificado de una pasarela y su resultado (#94). Un 
 | `event_id` | `varchar(255)` | Identificador del evento en la pasarela; ONVO no envía uno y se usa `tipo:id del objeto` |
 | `event_type` | `varchar(255)` | Tipo recibido del proveedor |
 | `payload` | `jsonb` | Cuerpo del evento |
-| `status` | `varchar(16)` | `webhook_events_status_check`: `processed` o `failed` |
+| `status` | `varchar(16)` | Por defecto `pending`; `webhook_events_status_check`: `pending`, `processed` o `failed` |
 | `error` | `text` | Clave de traducción del error; `webhook_events_error_check`: presente solo si `status` es `failed` |
 | `processed_at` | `timestamptz` | `webhook_events_processed_at_check`: presente solo si `status` es `processed` |
 | `created_at`, `updated_at` | `timestamptz` | |
 
-Llaves únicas: `id` y `(gateway, event_id)`. Sin `business_id`, llave al pago ni política de fila: al recibir un evento todavía hay que resolver su pago y tienda desde una referencia verificada. Un aviso que la pasarela reenvía actualiza su resultado, salvo que ya esté `processed`. El registro único antes de procesar, con `INSERT ... ON CONFLICT DO NOTHING`, y la cola llegan con #95.
+Llaves únicas: `id` y `(gateway, event_id)`. Sin `business_id`, llave al pago ni política de fila: al recibir un evento todavía hay que resolver su pago y tienda desde una referencia verificada. `INSERT ... ON CONFLICT DO NOTHING` guarda solo la primera llegada de cada evento, como `pending`, junto con su trabajo en la cola; un aviso que la pasarela reenvía no cambia nada. El trabajo lo bloquea, lo aplica y lo marca `processed` en una transacción, o lo deja `failed` con la clave de su error (#95).
 
 ## Tablas previstas
 
