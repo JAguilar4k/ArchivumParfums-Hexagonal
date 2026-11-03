@@ -34,10 +34,10 @@ final readonly class ApplyPaymentEvent
 
     /**
      * Apply a verified notice to the payment it names, in one transaction of the business pinned for it. The notice
-     * must name this payment's charge with its exact amount and currency; then, while the payment is pending, it
-     * changes with what the provider answers to the server's own query, together with its order. A notice about a
-     * payment that is no longer pending changes nothing. A notice about a refund (#97) is applied to that refund the
-     * same way.
+     * must name this payment's charge with its currency and exact amount, which only a notice of a failure may leave
+     * out; then, while the payment is pending, it changes with what the provider answers to the server's own query,
+     * together with its order. A notice about a payment that is no longer pending changes nothing. A notice about a
+     * refund (#97) is applied to that refund the same way.
      *
      * @throws PaymentNotFoundException when no payment of the business has the notice's references
      * @throws PaymentEventMismatchException when the notice names another charge, amount or currency
@@ -64,7 +64,7 @@ final readonly class ApplyPaymentEvent
                 throw new PaymentEventMismatchException('payments.event_reference_mismatch');
             }
 
-            if (! $payment->matchesCharge($event->currency, $event->amount)) {
+            if (! $payment->matchesCharge($event->currency, $event->amount, $event->reportsFailure)) {
                 throw new PaymentEventMismatchException('payments.event_amount_mismatch');
             }
 

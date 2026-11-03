@@ -97,10 +97,14 @@ final class Payment
         return $reference !== '' && in_array($reference, [$this->providerReference, $this->checkoutReference, $this->captureReference], true);
     }
 
-    /** Whether a provider reports exactly what this payment charged, in the currency and unit the payment keeps. */
-    public function matchesCharge(?string $currency, ?int $amount): bool
+    /**
+     * Whether a provider reports exactly what this payment charged, in the currency and unit the payment keeps. A report
+     * of a failure may leave the amount out, as ONVO's notice of a failed charge does; its currency must still match.
+     */
+    public function matchesCharge(?string $currency, ?int $amount, bool $failure = false): bool
     {
-        return $this->chargedAmount > 0 && $currency === $this->chargedCurrency && $amount === $this->chargedAmount;
+        return $this->chargedAmount > 0 && $currency === $this->chargedCurrency
+            && ($amount === $this->chargedAmount || ($failure && $amount === null));
     }
 
     /**

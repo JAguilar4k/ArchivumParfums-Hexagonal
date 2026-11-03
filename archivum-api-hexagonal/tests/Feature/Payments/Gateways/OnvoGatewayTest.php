@@ -390,7 +390,22 @@ it('reads a paid checkout notice with the identifiers Archivum sent and the tota
         ->and($event->businessId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62')
         ->and($event->paymentId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a61')
         ->and($event->currency)->toBe('CRC')
-        ->and($event->amount)->toBe(7_500);
+        ->and($event->amount)->toBe(7_500)
+        ->and($event->reportsFailure)->toBeFalse();
+    Http::assertNothingSent();
+});
+
+it('reads the notice ONVO documents for a failed intent as a failure without amount', function (): void {
+    $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'type' => 'payment-intent.failed',
+        'data' => ['id' => 'intent-1', 'accountId' => 'account-fictitious', 'currency' => 'CRC', 'capturableAmount' => 0, 'status' => 'requires_payment_method', 'metadata' => ['orderId' => 'order-fictitious']],
+    ]));
+
+    expect($event->eventId)->toBe('payment-intent.failed:intent-1')
+        ->and($event->reference)->toBe('intent-1')
+        ->and($event->currency)->toBe('CRC')
+        ->and($event->amount)->toBeNull()
+        ->and($event->reportsFailure)->toBeTrue();
     Http::assertNothingSent();
 });
 

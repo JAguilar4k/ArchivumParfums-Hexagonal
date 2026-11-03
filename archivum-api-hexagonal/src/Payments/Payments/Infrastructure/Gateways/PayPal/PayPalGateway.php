@@ -183,7 +183,7 @@ final readonly class PayPalGateway implements PaymentGateway
         ])->post('/v2/payments/captures/'.rawurlencode($capture).'/refund', [
             'amount' => ['currency_code' => 'USD', 'value' => GatewayMoney::decimal($request->chargedAmount)],
             'custom_id' => $request->businessId.':'.$request->refundId,
-        ]), refusalAllowed: true);
+        ]), answers: [422]);
 
         if ($refund->status() === 422) {
             return new RefundResult(null, 'failed');
@@ -240,9 +240,11 @@ final readonly class PayPalGateway implements PaymentGateway
             'webhook_id' => $this->webhookId,
         ], JSON_THROW_ON_ERROR);
         $payload = substr($verification, 0, -1).',"webhook_event":'.$body.'}';
-        $response = $this->send(fn (PendingRequest $http): Response => $http->withBody($payload, 'application/json')->post('/v1/notifications/verify-webhook-signature'));
+        // PayPal refusing to verify what the notice brings (400 or 422) means its origin is not verified, as a FAILURE
+        // does; its 401, a 5xx or a lost connection mean PayPal could not check it, and the notice must come again.
+        $response = $this->send(fn (PendingRequest $http): Response => $http->withBody($payload, 'application/json')->post('/v1/notifications/verify-webhook-signature'), answers: [400, 422]);
 
-        return $response->json('verification_status') === 'SUCCESS';
+        return $response->successful() && $response->json('verification_status') === 'SUCCESS';
     }
 
     /**
@@ -367,9 +369,9 @@ final readonly class PayPalGateway implements PaymentGateway
 
     /**
      * @param  Closure(PendingRequest): Response  $request
-     * @param  bool  $refusalAllowed  whether a refusal of PayPal (422) is an answer of the operation and not a failure
+     * @param  list<int>  $answers  error statuses that answer the request instead of showing PayPal unavailable
      */
-    private function send(Closure $request, bool $refusalAllowed = false): Response
+    private function send(Closure $request, array $answers = []): Response
     {
         try {
             $token = Http::baseUrl($this->baseUrl)->withBasicAuth($this->clientId, $this->clientSecret)->acceptJson()->asForm()->timeout($this->timeout)->connectTimeout($this->connectTimeout)->withoutRedirecting()->post('/v1/oauth2/token', ['grant_type' => 'client_credentials']);
@@ -383,7 +385,7 @@ final readonly class PayPalGateway implements PaymentGateway
             throw new GatewayUnavailableException('payments.unavailable');
         }
 
-        if (! $response->successful() && ! $this->declined($response) && ! ($refusalAllowed && $response->status() === 422)) {
+        if (! $response->successful() && ! $this->declined($response) && ! in_array($response->status(), $answers, true)) {
             throw new GatewayUnavailableException('payments.unavailable');
         }
 

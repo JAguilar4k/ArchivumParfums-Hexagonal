@@ -94,21 +94,27 @@ it('knows the provider references of its charge, checkout and capture', function
         ->and($payment->hasReference(''))->toBeFalse();
 });
 
-it('matches only the exact charged currency and amount', function (?string $currency, ?int $amount, bool $matches) {
+it('matches only the exact charged currency and amount, which only a failure may leave out', function (?string $currency, ?int $amount, bool $failure, bool $matches) {
     $payment = requestedPayment();
     $payment->attach(new ChargeResult('session', PaymentStatus::Pending, 'CRC', 7500));
 
-    expect($payment->matchesCharge($currency, $amount))->toBe($matches);
+    expect($payment->matchesCharge($currency, $amount, $failure))->toBe($matches);
 })->with([
-    'the charge' => ['CRC', 7500, true],
-    'another amount' => ['CRC', 7499, false],
-    'another currency' => ['USD', 7500, false],
-    'no amount' => ['CRC', null, false],
-    'no currency' => [null, 7500, false],
+    'the charge' => ['CRC', 7500, false, true],
+    'another amount' => ['CRC', 7499, false, false],
+    'another currency' => ['USD', 7500, false, false],
+    'no amount' => ['CRC', null, false, false],
+    'no currency' => [null, 7500, false, false],
+    'a failure without amount' => ['CRC', null, true, true],
+    'a failure with the charge' => ['CRC', 7500, true, true],
+    'a failure with another amount' => ['CRC', 7499, true, false],
+    'a failure in another currency' => ['USD', null, true, false],
+    'a failure without currency' => [null, null, true, false],
 ]);
 
 it('matches nothing before the provider reports what it charged', function () {
-    expect(requestedPayment()->matchesCharge('CRC', 0))->toBeFalse();
+    expect(requestedPayment()->matchesCharge('CRC', 0))->toBeFalse()
+        ->and(requestedPayment()->matchesCharge('CRC', null, true))->toBeFalse();
 });
 
 it('R40: registers a pending refund tied to the confirmed payment, counting what it already returned and the pending refunds', function () {

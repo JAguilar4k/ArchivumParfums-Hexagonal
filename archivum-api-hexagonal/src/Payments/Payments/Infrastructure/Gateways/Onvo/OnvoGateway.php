@@ -237,7 +237,8 @@ final readonly class OnvoGateway implements PaymentGateway
     /**
      * ONVO sends `type` and the object it is about in `data`, with no identifier of the notice, so the notice is its
      * type and its object. A checkout session brings back the metadata Archivum sent and its total; a payment intent
-     * carries its own amount. Amounts arrive in céntimos and the payment keeps whole colones.
+     * carries its own amount, except in the notice of a failed one, which ONVO documents without `amount` or `mode`.
+     * Amounts arrive in céntimos and the payment keeps whole colones.
      */
     public function parseWebhook(string $body): PaymentEvent
     {
@@ -258,7 +259,8 @@ final readonly class OnvoGateway implements PaymentGateway
         $amount = $type === 'checkout-session.succeeded' ? ($data['amountTotal'] ?? null) : ($data['amount'] ?? null);
 
         return new PaymentEvent('onvo', $type.':'.$data['id'], $type, $data['id'], $businessId, $paymentId,
-            is_string($data['currency'] ?? null) ? $data['currency'] : null, is_int($amount) && $amount > 0 && $amount % 100 === 0 ? intdiv($amount, 100) : null);
+            is_string($data['currency'] ?? null) ? $data['currency'] : null, is_int($amount) && $amount > 0 && $amount % 100 === 0 ? intdiv($amount, 100) : null,
+            reportsFailure: $type === 'payment-intent.failed');
     }
 
     /**
