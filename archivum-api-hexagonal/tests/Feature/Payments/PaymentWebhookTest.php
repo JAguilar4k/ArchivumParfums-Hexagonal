@@ -221,6 +221,32 @@ it('leaves a failed or expired charge without confirming the order', function (s
     'expired' => ['canceled', 'expired'],
 ]);
 
+it('R38: fails the charge with the notice ONVO documents for a failed intent, which brings no amount', function (): void {
+    $business = StaffedBusiness::create();
+    $order = StoredOrders::create($business)['order'];
+    $payment = StoredPayments::create($business, $order);
+    $session = fn (string $status): array => ['id' => $payment->provider_reference, 'mode' => 'test', 'status' => $status, 'paymentIntentId' => $payment->capture_reference];
+    $intent = fn (string $status, ?array $error): array => ['id' => $payment->capture_reference, 'mode' => 'test', 'amount' => 750_000, 'currency' => 'CRC', 'status' => $status, 'lastPaymentError' => $error];
+    // ONVO keeps a rejected intent waiting for another card; the server closes its checkout before failing the payment.
+    Http::fake([
+        'api.onvopay.com/v1/checkout/sessions/'.$payment->provider_reference.'/expire' => Http::response($session('expired')),
+        'api.onvopay.com/v1/payment-intents/'.$payment->capture_reference.'/cancel' => Http::response($intent('canceled', null)),
+        'api.onvopay.com/v1/checkout/sessions/'.$payment->provider_reference => Http::sequence()->push($session('open'))->push($session('expired')),
+        'api.onvopay.com/v1/payment-intents/'.$payment->capture_reference => Http::sequence()
+            ->push($intent('requires_payment_method', ['code' => 'card_declined']))->push($intent('canceled', null)),
+    ]);
+
+    // The example of payment-intent.failed in https://docs.onvopay.com/webhooks, with fictitious identifiers.
+    postOnvoNotice(['type' => 'payment-intent.failed', 'data' => [
+        'id' => $payment->capture_reference, 'accountId' => 'account-fictitious', 'currency' => 'CRC', 'capturableAmount' => 0, 'status' => 'requires_payment_method',
+    ]])->assertOk()->assertJsonPath('data.estado', 'procesado');
+
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'failed']);
+    assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'pending_payment', 'paid' => 0]);
+    assertDatabaseHas('webhook_events', ['event_id' => 'payment-intent.failed:'.$payment->capture_reference, 'status' => 'processed', 'error' => null]);
+});
+
 it('records a notice whose amount or currency differs from the payment as failed and confirms nothing', function (int $amountTotal, string $currency): void {
     $business = StaffedBusiness::create();
     $order = StoredOrders::create($business)['order'];
@@ -237,6 +263,26 @@ it('records a notice whose amount or currency differs from the payment as failed
     'a smaller amount' => [100, 'CRC'],
     'a fraction of a colón' => [750_050, 'CRC'],
     'another currency' => [750_000, 'USD'],
+]);
+
+it('still asks a paid intent for its amount, and a failed one for its currency and any amount it brings', function (string $type, array $charge): void {
+    $business = StaffedBusiness::create();
+    $order = StoredOrders::create($business)['order'];
+    $payment = StoredPayments::create($business, $order);
+
+    postOnvoNotice(['type' => $type, 'data' => ['id' => $payment->capture_reference, 'status' => 'requires_payment_method', ...$charge]])
+        ->assertOk()->assertJsonPath('data.estado', 'fallido');
+
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'pending']);
+    assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'pending_payment', 'paid' => 0]);
+    assertDatabaseHas('webhook_events', ['event_id' => $type.':'.$payment->capture_reference, 'status' => 'failed', 'error' => 'payments.event_amount_mismatch']);
+    Http::assertNothingSent();
+})->with([
+    'a paid intent without amount' => ['payment-intent.succeeded', ['currency' => 'CRC', 'status' => 'succeeded']],
+    'a failed intent with another amount' => ['payment-intent.failed', ['currency' => 'CRC', 'amount' => 100_000]],
+    'a failed intent in another currency' => ['payment-intent.failed', ['currency' => 'USD']],
+    'a failed intent without currency' => ['payment-intent.failed', []],
 ]);
 
 it('captures an approved PayPal order and confirms the payment once the capture completes', function (): void {

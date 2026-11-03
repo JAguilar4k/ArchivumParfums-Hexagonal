@@ -10,8 +10,9 @@ use Src\Shared\Domain\ValueObjects\BusinessId;
 /**
  * What a verified notice of a provider says, as its gateway adapter reads it: the event, the provider's reference of
  * the charge it is about, the identifiers Archivum sent with that charge when the notice brings them back, and the
- * amount in the unit the payment keeps (whole colones with ONVO, cents of a dollar with PayPal). A notice that is not
- * about a charge, such as a subscription renewal, carries only its identity.
+ * amount in the unit the payment keeps (whole colones with ONVO, cents of a dollar with PayPal). A notice that reports
+ * a failed charge may come without its amount, as ONVO sends it. A notice that is not about a charge, such as a
+ * subscription renewal, carries only its identity.
  */
 final readonly class PaymentEvent
 {
@@ -24,6 +25,7 @@ final readonly class PaymentEvent
         public ?PaymentId $paymentId = null,
         public ?string $currency = null,
         public ?int $amount = null,
+        public bool $reportsFailure = false,
     ) {
         if (! in_array($gateway, ['onvo', 'paypal'], true) || ! $this->fits($eventId) || ! $this->fits($type)
             || ($reference !== null && ! $this->fits($reference))) {
