@@ -135,13 +135,13 @@ it('R38: rejects an ONVO notice whose origin is not verified and changes nothing
     'with no test key configured' => ['webhook_secret_fictitious', ['payments.onvo.secret_key' => '']],
 ]);
 
-it('R38: rejects a PayPal notice whose signature PayPal does not verify and changes nothing', function (): void {
+it('R38: rejects a PayPal notice whose signature PayPal does not verify and changes nothing', function (array $answer, int $status): void {
     $business = StaffedBusiness::create();
     $payment = StoredPayments::create($business, StoredOrders::create($business)['order'], gateway: 'paypal');
     $before = webhookState($business);
     Http::fake([
         'api-m.sandbox.paypal.com/v1/oauth2/token' => Http::response(['access_token' => 'fake-token']),
-        'api-m.sandbox.paypal.com/v1/notifications/verify-webhook-signature' => Http::response(['verification_status' => 'FAILURE']),
+        'api-m.sandbox.paypal.com/v1/notifications/verify-webhook-signature' => Http::response($answer, $status),
     ]);
     $notice = paypalNotice('CHECKOUT.ORDER.APPROVED', ['id' => $payment->provider_reference, 'status' => 'APPROVED', 'purchase_units' => [[
         'custom_id' => $business->business->id.':'.$payment->id, 'amount' => ['currency_code' => 'USD', 'value' => '15.00'],
@@ -156,7 +156,33 @@ it('R38: rejects a PayPal notice whose signature PayPal does not verify and chan
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/verify-webhook-signature') && $request['webhook_id'] === 'WH-FICTITIOUS');
     // The notice without signature headers is rejected before PayPal is asked.
     Http::assertSentCount(2);
-});
+})->with([
+    'a failed verification' => [['verification_status' => 'FAILURE'], 200],
+    'a refused request' => [['name' => 'VALIDATION_ERROR', 'message' => 'Invalid request - see details.'], 400],
+    'an unprocessable request' => [['name' => 'UNPROCESSABLE_ENTITY', 'message' => 'The requested action could not be performed.'], 422],
+]);
+
+it('answers 503 and records nothing when PayPal cannot check the signature of a notice', function (?int $status): void {
+    $business = StaffedBusiness::create();
+    $payment = StoredPayments::create($business, StoredOrders::create($business)['order'], gateway: 'paypal');
+    $before = webhookState($business);
+    Http::fake([
+        'api-m.sandbox.paypal.com/v1/oauth2/token' => Http::response(['access_token' => 'fake-token']),
+        'api-m.sandbox.paypal.com/v1/notifications/verify-webhook-signature' => $status === null ? Http::failedConnection() : Http::response(['name' => 'INTERNAL_SERVER_ERROR'], $status),
+    ]);
+    $notice = paypalNotice('CHECKOUT.ORDER.APPROVED', ['id' => $payment->provider_reference, 'status' => 'APPROVED', 'purchase_units' => [[
+        'custom_id' => $business->business->id.':'.$payment->id, 'amount' => ['currency_code' => 'USD', 'value' => '15.00'],
+    ]]]);
+
+    // The origin of the notice is not what failed, so PayPal must send it again later.
+    postJson('/api/v1/webhooks/paypal', $notice, paypalSignature())->assertServiceUnavailable()->assertHeader('Retry-After', '30');
+
+    expect(webhookState($business))->toEqual($before);
+})->with([
+    'its credentials refused' => [401],
+    'an error of PayPal' => [500],
+    'a lost connection' => [null],
+]);
 
 it('R26: confirms the payment and its order with a verified ONVO notice of the paid checkout', function (): void {
     $business = StaffedBusiness::create();
