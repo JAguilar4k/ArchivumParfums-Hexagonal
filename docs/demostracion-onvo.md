@@ -4,6 +4,8 @@ ArchivumParfums · Investigación 1 · Revisión de código y fuentes: **25/10/2
 
 Nombres de solicitudes y recorrido manual revisados el **26/10/2026**; la evidencia sandbox conserva su fecha de ejecución.
 
+**Desde #96**, `GET /api/v1/cuenta/pagos/{pago}` solo lee el pago guardado. La consulta autenticada a ONVO que esta guía atribuye a ese GET la hace ahora la conciliación: para repetir el recorrido sin dirección pública, después de completar el checkout espera a que el pago tenga cinco minutos de creado y corre `php artisan archivum:reconcile-payments` en otra terminal, o deja corriendo `php artisan schedule:work`. La evidencia del 25/10/2026 se conserva tal como se registró.
+
 Esta guía permite preparar ONVO sin depender de la guía de PayPal. Recorre un pedido ficticio de una botella de ₡15.000, su depósito de ₡7.500, tarjeta aprobada y rechazada, SINPE Móvil y devolución. **El recorrido ONVO se ejecutó en sandbox el 25/10/2026**, con solicitudes a la API local y checkout en navegador: tarjeta aprobada, tarjeta rechazada, SINPE confirmado y reembolso confirmado. La [evidencia registrada](#16-evidencia-de-la-ejecución-sandbox-del-25102026) distingue esos resultados de las instrucciones y de las pruebas HTTP simuladas. No se usó dinero real ni se afirma que toda la colección se ejecutara en Postman nativo.
 
 El recorrido manual de esta guía se puede seguir en el cliente **Lightweight** elegido, sin importar archivos ni iniciar sesión en una cuenta de Postman. La [colección ONVO](../archivum-api-hexagonal/tests/Postman/ArchivumParfums-ONVO.postman_collection.json) y su [entorno local](../archivum-api-hexagonal/tests/Postman/ArchivumParfums-ONVO-local.postman_environment.json) quedan preparados como alternativa; **no fueron importados ni ejecutados en Postman nativo**. Las [instrucciones de importación](../archivum-api-hexagonal/tests/Postman/README.md#investigación-1-archivos-y-nombres-del-recorrido) son opcionales. Las peticiones tienen nombres breves como `Crear pedido`, `Crear checkout (pausa)`, `Repetir pago pendiente`, `Confirmar pago` y `Procesar reembolso`.
@@ -229,15 +231,15 @@ Repetir esa petición mientras existe un intento pendiente devuelve el mismo pag
 
 En el checkout **de prueba** usa la Visa `4242424242424242`, fecha futura —por ejemplo, 12/2028—, CVC ficticio válido y nombre ficticio. Es un dato publicado por [ONVO Testing](https://docs.onvopay.com/payments/testing), consultado el 25/10/2026. No ingreses una tarjeta real.
 
-Tras aprobar, vuelve a Postman con token de cliente:
+Tras aprobar, espera a que el pago tenga cinco minutos de creado y corre `php artisan archivum:reconcile-payments` en otra terminal, o deja corriendo `php artisan schedule:work`. Después vuelve a Postman con token de cliente:
 
 ```http
 GET {{base_url}}/api/v1/cuenta/pagos/{{pago_id}}
 ```
 
-- **200 + `estado = "confirmado"`**: la consulta del servidor comprobó el éxito. No basta con la pantalla de ONVO ni con la URL de retorno.
-- **200 + `estado = "pendiente"`**: el proveedor todavía informa un estado intermedio; consulta de nuevo más adelante.
-- **202 + `consulta_pendiente = true`**: no se logró resolver el resultado. Respeta `Retry-After` y conserva el mismo intento.
+- **200 + `estado = "confirmado"`**: la conciliación del servidor comprobó el éxito. No basta con la pantalla de ONVO ni con la URL de retorno.
+- **200 + `estado = "pendiente"`**: la conciliación todavía no cerró el pago o el proveedor informa un estado intermedio; vuelve a conciliar y consulta de nuevo.
+- **202 + `consulta_pendiente = true`**: todavía no se sabe si ONVO creó el cobro. Respeta `Retry-After` y conserva el mismo intento.
 
 Comprueba el pedido con:
 
@@ -346,7 +348,7 @@ Las líneas son referencias orientativas del código revisado el 25/10/2026; si 
 | Estado remoto no reconocido | [`OnvoGateway.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Gateways/Onvo/OnvoGateway.php#L271) | `unknownStatus()`, cerca de 275 | Conserva pendiente y registra diagnóstico. El `failed` documentado de intención tiene su propia rama y no debe entrar aquí. |
 | Devolución a ONVO | [`OnvoGateway.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Gateways/Onvo/OnvoGateway.php#L167) | `refund()`, desde 170 aproximadamente | Pide o reconsulta la devolución por referencia. Su `failed` describe la devolución, sin convertir en fallido el cobro original. |
 | Persistencia del intento y doble clic | [`StartPayment.php`](../archivum-api-hexagonal/src/Payments/Payments/Application/UseCases/StartPayment.php#L28) | `execute()`, 28–91 | Guarda el intento antes del POST. No eliminar esa protección para “reintentar” una falla. |
-| Aplicar confirmación y pedido | [`ObservePayment.php`](../archivum-api-hexagonal/src/Payments/Payments/Application/UseCases/ObservePayment.php#L22) | `execute()`, 22–57 | Consulta autorizada y cambios financieros transaccionales. |
+| Aplicar confirmación y pedido | [`PaymentSettlement.php`](../archivum-api-hexagonal/src/Payments/Payments/Application/Services/PaymentSettlement.php) | `settle()` | Consulta autorizada y cambios financieros transaccionales; la usan el aviso (#94) y la conciliación (#96). [`ObservePayment.php`](../archivum-api-hexagonal/src/Payments/Payments/Application/UseCases/ObservePayment.php) solo lee el pago guardado. |
 | Procesar devoluciones ya calculadas | [`ProcessOrderRefunds.php`](../archivum-api-hexagonal/src/Payments/Payments/Application/UseCases/ProcessOrderRefunds.php#L23) | `execute()`, 23–95 aproximadamente | Registra el intento de devolución antes de llamar al proveedor. |
 | Cuerpo permitido al iniciar pago | [`StorePayment.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Http/Requests/StorePayment.php#L18) | `rules()`, 18–21 | Solo `medio`: `tarjeta` o `sinpe_movil`. |
 | Elección de SINPE desde la aplicación | [`PaymentController.php`](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Http/Controllers/PaymentController.php#L24) | `store()` | Convierte `sinpe_movil` en el valor del dominio; `OnvoGateway::create()` lo convierte a `mobile_number`. |
@@ -366,7 +368,7 @@ Las líneas son referencias orientativas del código revisado el 25/10/2026; si 
 | Pago `fallido` tras rechazo | Distingue intención `failed` definitiva de rechazo recuperable `requires_payment_method` ya cerrado por el adaptador; comprueba que el pedido no recibió el importe. |
 | Reembolso `fallido` | La devolución no quedó confirmada; revisa su referencia y resultado. No lo interpretes como un rechazo del cobro original. |
 | 202 con intento incierto | Conserva `pago_id`; consulta el mismo recurso. Si se perdió la referencia remota, revisa el Dashboard con los identificadores internos y concilia antes de intentar otro cobro. |
-| Regreso al navegador sin pedido confirmado | Ejecuta `GET /cuenta/pagos/{pago}` con token de cliente; el retorno por sí solo no paga. |
+| Regreso al navegador sin pedido confirmado | Corre la conciliación y ejecuta `GET /cuenta/pagos/{pago}` con token de cliente; el retorno por sí solo no paga. |
 | SINPE sigue pendiente | Revisa número simulado y el tiempo de ese escenario. No hagas una transferencia real. |
 
 Para la evidencia final registra fecha, escenario, ID ficticio del pedido/pago, resultado del proveedor y resultado de la consulta de Archivum; evita llaves, tokens, contraseñas y datos personales en capturas. Mantén como pendiente cada escenario que todavía no se haya ejecutado. El [informe comparativo](investigacion-1.md) y el [expediente técnico](payment-gateways.md) explican las decisiones de costos y seguridad por separado.
@@ -378,7 +380,7 @@ Puedes defender el flujo con estas cinco ideas, señalando el código del mapa a
 1. **El servidor decide cuánto cobrar.** Una botella de ₡15.000 genera un depósito de ₡7.500 con las reglas del pedido. El cuerpo del pago solo elige el medio.
 2. **Primero se guarda el intento.** `StartPayment` conserva un pago pendiente antes de llamar a ONVO; así un doble clic o una respuesta perdida no autoriza otro cobro.
 3. **ONVO recibe su propio formato.** El adaptador manda ₡7.500 como `750000` céntimos y abre un checkout hospedado para tarjeta o SINPE Móvil. El resto de la aplicación usa el mismo puerto de pagos.
-4. **La vuelta del navegador no confirma.** `ObservePayment` pregunta a ONVO, verifica referencia, moneda e importe y acredita pago y pedido en una transacción. Si no puede conocer el resultado, conserva pendiente.
+4. **La vuelta del navegador no confirma.** La conciliación (`ReconcilePayment`) pregunta a ONVO con `PaymentSettlement`, verifica referencia, moneda e importe y acredita pago y pedido en una transacción; el GET del cliente solo lee el pago guardado. Si no puede conocer el resultado, conserva pendiente.
 5. **Cancelar y devolver son pasos diferentes.** La cancelación registra lo que corresponde devolver; la dueña procesa ese registro. Las referencias y el intento persistido evitan duplicar la devolución.
 
 Como cierre: “Además de las pruebas con HTTP simulado, el 25 de octubre verificamos con la API local y el navegador tarjeta aprobada, tarjeta rechazada, SINPE y devolución en sandbox. La consulta del servidor confirmó los resultados; no usamos dinero real”.
