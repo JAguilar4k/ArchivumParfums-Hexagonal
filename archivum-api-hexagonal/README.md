@@ -146,6 +146,8 @@ git diff -- openapi/v1.json
 
 Para comprobar que el contrato versionado ya coincide con el generador, usa `git diff --exit-code -- openapi/v1.json` después de exportarlo. Un diff requiere revisar y actualizar el contrato; no significa que se haya ejecutado el comportamiento HTTP.
 
+`archivum-web` genera sus tipos desde este contrato: después de exportarlo, se ejecuta `npm run api:types` en `archivum-web/` y el pull request incluye los dos archivos ([README del cliente](../archivum-web/README.md#tipos-de-la-api)).
+
 Cuando se implemente trabajo en cola, el worker local se ejecuta en otra terminal con `php artisan queue:work --tries=1`; el scheduler usa `php artisan schedule:work`. Son procesos separados de `composer run dev`, y se inician cuando el módulo que se prueba los necesita. Los pagos de Investigación 1 usan peticiones HTTP y consultas explícitas desde la API; no requieren un worker ni un webhook. Los recordatorios y websockets siguen pendientes.
 
 ## Pruebas

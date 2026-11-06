@@ -9,6 +9,8 @@ export default mergeConfig(
       environment: 'jsdom',
       exclude: [...configDefaults.exclude, 'e2e/**'],
       root: fileURLToPath(new URL('./', import.meta.url)),
+      // The tests never depend on a local .env file.
+      env: { VITE_API_URL: 'https://api.example.test/api/v1' },
     },
   }),
 )

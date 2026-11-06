@@ -67,8 +67,35 @@ Las variables se leen al compilar: después de cambiar `.env`, se reinicia `npm 
 | `npm run lint:fix` | Corrige con ESLint lo que se puede corregir solo. |
 | `npm run test` | Ejecuta las pruebas unitarias con Vitest una vez. |
 | `npm run test:watch` | Ejecuta las pruebas cada vez que cambia un archivo. |
+| `npm run api:types` | Regenera `src/api/schema.ts` desde `../archivum-api-hexagonal/openapi/v1.json`. |
+| `npm run api:check` | Falla si `src/api/schema.ts` no coincide con `openapi/v1.json`. |
 
-Antes de abrir un pull request pasan `npm run lint`, `npm run type-check`, `npm run test` y `npm run build`.
+Antes de abrir un pull request pasan `npm run lint`, `npm run type-check`, `npm run test`, `npm run build` y `npm run api:check`.
+
+## Tipos de la API
+
+Ningún tipo de la API se escribe a mano. `openapi-typescript` genera `src/api/schema.ts` desde el contrato `openapi/v1.json` de la API, que genera Scramble, y `openapi-fetch` da el cliente tipado de `src/api/client.ts`. Una llamada que el contrato no permite (una ruta que no existe, un cuerpo sin un campo obligatorio o un atributo que la respuesta no tiene) hace fallar `npm run type-check`; las pruebas de `src/api/__tests__/contract.spec.ts` lo comprueban.
+
+`src/api/schema.ts` se versiona y no se edita. El pull request que cambia un endpoint regenera los dos archivos y los incluye:
+
+```bash
+cd archivum-api-hexagonal && composer openapi      # openapi/v1.json
+cd ../archivum-web && npm run api:types            # src/api/schema.ts
+```
+
+`npm run api:check` regenera los tipos en memoria y falla si difieren de los versionados.
+
+El cliente `api` toma la dirección de `VITE_API_URL`, envía `Accept: application/json` y, cuando hay sesión, su token como `Authorization: Bearer`. Cada llamada devuelve `data` si la respuesta fue exitosa o `error` con el problema RFC 9457 que documenta el contrato (`Problem` o, en una validación fallida, `ValidationProblem` con `errores` por campo):
+
+```ts
+import { api } from '@/api/client'
+
+const { data, error } = await api.GET('/tiendas/{tienda}/perfumes', {
+  params: { path: { tienda: 'archivum' }, query: { nota: 'vainilla' } },
+})
+```
+
+La sesión ([#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)) registra una vez cómo leer su token con `setTokenProvider(() => token)`; mientras no lo haga, las peticiones salen sin token.
 
 ## Estructura
 
@@ -81,6 +108,7 @@ archivum-web/
 │   ├── main.ts           crea la aplicación con Pinia y Vue Router
 │   ├── App.vue
 │   ├── router/index.ts   junta las rutas de cada funcionalidad
+│   ├── api/              schema.ts (generado) y client.ts, el cliente tipado de la API
 │   ├── features/         una carpeta por funcionalidad
 │   │   └── home/         vista de inicio, sus rutas y sus pruebas
 │   └── shared/           lo que usan varias funcionalidades, como config.ts
