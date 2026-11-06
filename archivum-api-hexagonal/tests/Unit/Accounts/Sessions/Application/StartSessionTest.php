@@ -10,6 +10,7 @@ use Src\Accounts\Users\Domain\ValueObjects\Email;
 use Src\Accounts\Users\Domain\ValueObjects\UserName;
 use Tests\Support\Accounts\FakePasswordHasher;
 use Tests\Support\Accounts\FakeTokenIssuer;
+use Tests\Support\Accounts\InMemoryStaffMemberships;
 use Tests\Support\Accounts\InMemoryUserRepository;
 
 /**
@@ -25,7 +26,7 @@ function startSessionWiring(): array
     $user = User::create($users->nextId(), new UserName('Valeria Solano'), new Email('duena@archivum.test'), $passwords->hash('clave-segura'));
     $users->save($user);
 
-    return [new StartSession($users, $passwords, $tokens), $passwords, $tokens, $user];
+    return [new StartSession($users, $passwords, $tokens, new InMemoryStaffMemberships), $passwords, $tokens, $user];
 }
 
 it('issues a token named after the device for the account of the credentials', function () {
