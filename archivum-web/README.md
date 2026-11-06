@@ -72,6 +72,12 @@ Las variables se leen al compilar: después de cambiar `.env`, se reinicia `npm 
 
 Antes de abrir un pull request pasan `npm run lint`, `npm run type-check`, `npm run test`, `npm run build` y `npm run api:check`.
 
+## Integración continua
+
+El job `Web` de [`ci.yml`](../.github/workflows/ci.yml) valida el cliente en cada pull request y en cada push a `main`, junto al job `Quality` de la API. Con la versión de Node.js de `engines` y la caché de npm, ejecuta `npm ci`, `npm run api:check`, `npm run lint`, `npm run type-check`, `npm run test`, `npm run build` y `npm audit --audit-level=high`: falla si los tipos no coinciden con `openapi/v1.json` o si hay una vulnerabilidad alta o crítica. Corre en todo pull request, aunque no toque `archivum-web/`, para que el check siempre se informe.
+
+Dependabot revisa las dependencias de npm cada lunes, con el mismo prefijo `build` y el mismo grupo de versiones menores y parches que Composer ([`dependabot.yml`](../.github/dependabot.yml)).
+
 ## Tipos de la API
 
 Ningún tipo de la API se escribe a mano. `openapi-typescript` genera `src/api/schema.ts` desde el contrato `openapi/v1.json` de la API, que genera Scramble, y `openapi-fetch` da el cliente tipado de `src/api/client.ts`. Una llamada que el contrato no permite (una ruta que no existe, un cuerpo sin un campo obligatorio o un atributo que la respuesta no tiene) hace fallar `npm run type-check`; las pruebas de `src/api/__tests__/contract.spec.ts` lo comprueban.
