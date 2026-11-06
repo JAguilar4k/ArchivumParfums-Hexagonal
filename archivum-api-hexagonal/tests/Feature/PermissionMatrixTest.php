@@ -104,7 +104,8 @@ it('puts every route of /api/v1/panel and /api/v1/cuenta in a row of the matrix'
     foreach (Route::getRoutes()->getRoutes() as $route) {
         $uri = $route->uri();
 
-        if (! str_starts_with($uri, 'api/v1/panel') && ! str_starts_with($uri, 'api/v1/cuenta')) {
+        // A whole segment, so that the public POST /cuentas of #101 is not taken for a route of /cuenta.
+        if (preg_match('#^api/v1/(panel|cuenta)(/|$)#', $uri) !== 1) {
             continue;
         }
 
