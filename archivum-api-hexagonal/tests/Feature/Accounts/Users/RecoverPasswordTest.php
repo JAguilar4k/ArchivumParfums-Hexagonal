@@ -237,14 +237,14 @@ it('lets a person added to the staff set their password and sign in with their r
 });
 
 it('answers 429 with Retry-After on the request, by IP and by email, until the window ends', function () {
-    config(['archivum.password_rate_limits.request_by_ip' => ['attempts' => 1, 'minutes' => 1]]);
+    config(['archivum.rate_limits.password_reset_by_ip' => ['attempts' => 1, 'minutes' => 1]]);
     askForRecovery('uno@cuentas.test')->assertAccepted();
     askForRecovery('dos@cuentas.test')->assertTooManyRequests()->assertHeader('Retry-After');
     askForRecovery('dos@cuentas.test', '10.0.0.2')->assertAccepted();
 
     config([
-        'archivum.password_rate_limits.request_by_ip' => ['attempts' => 100, 'minutes' => 1],
-        'archivum.password_rate_limits.request_by_email' => ['attempts' => 1, 'minutes' => 1],
+        'archivum.rate_limits.password_reset_by_ip' => ['attempts' => 100, 'minutes' => 1],
+        'archivum.rate_limits.password_reset_by_email' => ['attempts' => 1, 'minutes' => 1],
     ]);
     travel(61)->seconds();
     askForRecovery('tres@cuentas.test', '10.0.0.3')->assertAccepted();
@@ -255,13 +255,13 @@ it('answers 429 with Retry-After on the request, by IP and by email, until the w
 });
 
 it('answers 429 with Retry-After on the confirmation, by IP and by email, until the window ends', function () {
-    config(['archivum.password_rate_limits.confirm_by_ip' => ['attempts' => 1, 'minutes' => 1]]);
+    config(['archivum.rate_limits.password_reset_confirmation_by_ip' => ['attempts' => 1, 'minutes' => 1]]);
     confirmRecovery('uno@cuentas.test', 'x')->assertUnprocessable();
     confirmRecovery('dos@cuentas.test', 'x')->assertTooManyRequests()->assertHeader('Retry-After');
 
     config([
-        'archivum.password_rate_limits.confirm_by_ip' => ['attempts' => 100, 'minutes' => 1],
-        'archivum.password_rate_limits.confirm_by_email' => ['attempts' => 1, 'minutes' => 1],
+        'archivum.rate_limits.password_reset_confirmation_by_ip' => ['attempts' => 100, 'minutes' => 1],
+        'archivum.rate_limits.password_reset_confirmation_by_email' => ['attempts' => 1, 'minutes' => 1],
     ]);
     travel(61)->seconds();
     confirmRecovery('tres@cuentas.test', 'x', ip: '10.0.0.3')->assertUnprocessable();

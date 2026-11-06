@@ -23,15 +23,7 @@ Un correo ya atendido hace menos de un minuto no recibe otro, y la respuesta es 
 
 ## Límites de tasa
 
-Los limitadores están en `PasswordsServiceProvider` y sus valores en `config/archivum.php`, con la misma forma que los de #108.
-
-| Limitador | Clave | Valor por defecto |
-| --- | --- | --- |
-| `contrasena-cambio` | Cuenta | 5 por minuto |
-| `contrasena-recuperacion` | IP | 10 cada 15 minutos |
-| `contrasena-recuperacion` | Correo, como hash | 3 cada 15 minutos |
-| `contrasena-confirmacion` | IP | 10 cada 15 minutos |
-| `contrasena-confirmacion` | Correo, como hash | 5 cada 15 minutos |
+Las tres rutas usan los limitadores de #108: `contrasena-cambio` por cuenta, y `contrasena-recuperacion` y `contrasena-confirmacion` por IP y por correo. Están definidos en `RateLimitsServiceProvider`, y sus valores, en `archivum.rate_limits` de `config/archivum.php`. La tabla con cada ruta, clave y valor está en [rate-limits.md](rate-limits.md).
 
 ## Decisiones pendientes de confirmar
 

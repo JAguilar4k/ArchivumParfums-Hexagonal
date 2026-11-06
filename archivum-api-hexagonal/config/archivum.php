@@ -46,40 +46,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Rate limits of the password
-    |--------------------------------------------------------------------------
-    |
-    | Attempts allowed per window, in minutes, by the named limiters of
-    | PasswordsServiceProvider (#193). A limit by email is low because a person
-    | asks for few links, and it says nothing about whether the account exists.
-    |
-    */
-
-    'password_rate_limits' => [
-        'change_by_account' => [
-            'attempts' => (int) env('ARCHIVUM_RATE_CREDENTIAL_CHANGE_ATTEMPTS', 5),
-            'minutes' => (int) env('ARCHIVUM_RATE_CREDENTIAL_CHANGE_MINUTES', 1),
-        ],
-        'request_by_ip' => [
-            'attempts' => (int) env('ARCHIVUM_RATE_RECOVERY_IP_ATTEMPTS', 10),
-            'minutes' => (int) env('ARCHIVUM_RATE_RECOVERY_IP_MINUTES', 15),
-        ],
-        'request_by_email' => [
-            'attempts' => (int) env('ARCHIVUM_RATE_RECOVERY_EMAIL_ATTEMPTS', 3),
-            'minutes' => (int) env('ARCHIVUM_RATE_RECOVERY_EMAIL_MINUTES', 15),
-        ],
-        'confirm_by_ip' => [
-            'attempts' => (int) env('ARCHIVUM_RATE_RECOVERY_CONFIRM_IP_ATTEMPTS', 10),
-            'minutes' => (int) env('ARCHIVUM_RATE_RECOVERY_CONFIRM_IP_MINUTES', 15),
-        ],
-        'confirm_by_email' => [
-            'attempts' => (int) env('ARCHIVUM_RATE_RECOVERY_CONFIRM_EMAIL_ATTEMPTS', 5),
-            'minutes' => (int) env('ARCHIVUM_RATE_RECOVERY_CONFIRM_EMAIL_MINUTES', 15),
-        ],
-    ],
-
-    /*
-    |--------------------------------------------------------------------------
     | Rate limits
     |--------------------------------------------------------------------------
     |
@@ -88,6 +54,9 @@ return [
     | many addresses; it is high enough, and its window short enough, that a
     | third party cannot easily keep another person out of their account. The
     | webhook limit is generous so it does not stop the retries of a gateway.
+    | The limits by email of the password recovery (#193) are low because a
+    | person asks for few links, and they say nothing about whether the account
+    | exists.
     |
     */
 
@@ -115,6 +84,26 @@ return [
         'webhooks_by_ip' => [
             'attempts' => (int) env('ARCHIVUM_RATE_WEBHOOKS_IP_ATTEMPTS', 300),
             'minutes' => (int) env('ARCHIVUM_RATE_WEBHOOKS_IP_MINUTES', 1),
+        ],
+        'password_change_by_account' => [
+            'attempts' => (int) env('ARCHIVUM_RATE_CREDENTIAL_CHANGE_ATTEMPTS', 5),
+            'minutes' => (int) env('ARCHIVUM_RATE_CREDENTIAL_CHANGE_MINUTES', 1),
+        ],
+        'password_reset_by_ip' => [
+            'attempts' => (int) env('ARCHIVUM_RATE_RECOVERY_IP_ATTEMPTS', 10),
+            'minutes' => (int) env('ARCHIVUM_RATE_RECOVERY_IP_MINUTES', 15),
+        ],
+        'password_reset_by_email' => [
+            'attempts' => (int) env('ARCHIVUM_RATE_RECOVERY_EMAIL_ATTEMPTS', 3),
+            'minutes' => (int) env('ARCHIVUM_RATE_RECOVERY_EMAIL_MINUTES', 15),
+        ],
+        'password_reset_confirmation_by_ip' => [
+            'attempts' => (int) env('ARCHIVUM_RATE_RECOVERY_CONFIRM_IP_ATTEMPTS', 10),
+            'minutes' => (int) env('ARCHIVUM_RATE_RECOVERY_CONFIRM_IP_MINUTES', 15),
+        ],
+        'password_reset_confirmation_by_email' => [
+            'attempts' => (int) env('ARCHIVUM_RATE_RECOVERY_CONFIRM_EMAIL_ATTEMPTS', 5),
+            'minutes' => (int) env('ARCHIVUM_RATE_RECOVERY_CONFIRM_EMAIL_MINUTES', 15),
         ],
     ],
 

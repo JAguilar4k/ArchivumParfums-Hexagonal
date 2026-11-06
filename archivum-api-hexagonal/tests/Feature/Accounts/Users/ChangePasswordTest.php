@@ -106,7 +106,7 @@ it('keeps the spaces of a password exactly as typed, as a sign-in reads them', f
 });
 
 it('answers 429 by account with Retry-After, until the window ends', function () {
-    config(['archivum.password_rate_limits.change_by_account' => ['attempts' => 1, 'minutes' => 1]]);
+    config(['archivum.rate_limits.password_change_by_account' => ['attempts' => 1, 'minutes' => 1]]);
     $user = StaffedBusiness::create()->customer;
     $token = openSession($user);
 
