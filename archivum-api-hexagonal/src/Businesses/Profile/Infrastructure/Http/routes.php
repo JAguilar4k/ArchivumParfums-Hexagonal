@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 use Src\Businesses\Profile\Infrastructure\Http\Controllers\BusinessProfileController;
 
 Route::prefix('panel/tienda')
-    ->middleware(['auth:sanctum', 'business:staff', 'role:owner'])
+    ->middleware(['auth:sanctum', 'abilities:business:configure', 'business:staff'])
     ->name('businesses.profile.')
     ->controller(BusinessProfileController::class)
     ->group(function (): void {
