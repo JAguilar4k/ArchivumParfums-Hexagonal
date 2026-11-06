@@ -11,5 +11,6 @@ return [
     'name_invalid' => 'El nombre es obligatorio y no puede superar los :max caracteres.',
     'password_too_short' => 'La contraseña debe tener al menos :min caracteres.',
     'resource_not_found' => 'El recurso solicitado no existe.',
+    'session_not_renewable' => 'La sesión venció o se cerró: hay que ingresar de nuevo.',
 
 ];

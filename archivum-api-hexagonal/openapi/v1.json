@@ -11,6 +11,65 @@
         }
     ],
     "paths": {
+        "/cuentas": {
+            "post": {
+                "operationId": "accounts.users.store",
+                "summary": "Register a customer and answer its public data. It does not sign in: the client calls POST /sesiones next",
+                "tags": [
+                    "Account"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreAccountRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`CurrentAccountResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CurrentAccountResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/": {
             "get": {
                 "operationId": "index",
@@ -2691,6 +2750,340 @@
                 ]
             }
         },
+        "/panel/personal": {
+            "get": {
+                "operationId": "businesses.members.index",
+                "summary": "List the staff of the business of the session",
+                "tags": [
+                    "Member"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `MemberResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/MemberResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "businesses.members.store",
+                "summary": "Add a person to the staff of the business of the session. An email already registered answers 422 in the field,\nwith a message that does not say where it is registered",
+                "tags": [
+                    "Member"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreMemberRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`MemberResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/MemberResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/panel/personal/{persona}": {
+            "get": {
+                "operationId": "businesses.members.show",
+                "summary": "Show one person of the staff of the business of the session",
+                "tags": [
+                    "Member"
+                ],
+                "parameters": [
+                    {
+                        "name": "persona",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`MemberResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/MemberResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "businesses.members.update",
+                "summary": "Change the name, the role, whether the person attends appointments and whether they stay active",
+                "tags": [
+                    "Member"
+                ],
+                "parameters": [
+                    {
+                        "name": "persona",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateMemberRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`MemberResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/MemberResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/cuenta/pedidos/{pedido}/pagos": {
             "post": {
                 "operationId": "payments.store",
@@ -4162,6 +4555,60 @@
                 ]
             }
         },
+        "/sesiones/actual/renovacion": {
+            "post": {
+                "operationId": "accounts.sessions.renewal.store",
+                "summary": "Swap the token of the request, while it is still valid, for a new one with its expiration; the old one stops\nworking. A token that expired or was revoked meanwhile gets the same 401 as a missing token: sign in again",
+                "tags": [
+                    "SessionRenewal"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "`SessionTokenResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/SessionTokenResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/tiendas/{tienda}/perfumes": {
             "get": {
                 "operationId": "catalog.showcase.index",
@@ -4690,6 +5137,47 @@
                     "tienda"
                 ],
                 "title": "CurrentAccountResource"
+            },
+            "MemberResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "correo": {
+                        "type": "string"
+                    },
+                    "rol": {
+                        "type": "string"
+                    },
+                    "atiende_citas": {
+                        "type": "boolean"
+                    },
+                    "activo": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "correo",
+                    "rol",
+                    "atiende_citas",
+                    "activo"
+                ],
+                "title": "MemberResource"
+            },
+            "MemberRoleName": {
+                "type": "string",
+                "description": "Names of the roles of the staff in the API, as GET /api/v1/cuenta names them.\n",
+                "enum": [
+                    "dueno",
+                    "colaborador"
+                ],
+                "title": "MemberRoleName"
             },
             "OrderLineResource": {
                 "type": "object",
@@ -5499,11 +5987,15 @@
                     "tipo": {
                         "type": "string",
                         "const": "Bearer"
+                    },
+                    "vence_en": {
+                        "type": "string"
                     }
                 },
                 "required": [
                     "token",
-                    "tipo"
+                    "tipo",
+                    "vence_en"
                 ],
                 "title": "SessionTokenResource"
             },
@@ -5697,6 +6189,40 @@
                 ],
                 "title": "ShowcasePerfumeDetail"
             },
+            "StoreAccountRequest": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "correo": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "contrasena": {
+                        "type": "string"
+                    },
+                    "acepta_privacidad": {
+                        "enum": [
+                            "yes",
+                            "on",
+                            "1",
+                            1,
+                            "true",
+                            true
+                        ]
+                    }
+                },
+                "required": [
+                    "nombre",
+                    "correo",
+                    "contrasena",
+                    "acepta_privacidad"
+                ],
+                "title": "StoreAccountRequest"
+            },
             "StoreBusinessLogo": {
                 "type": "object",
                 "properties": {
@@ -5745,6 +6271,36 @@
                     "abierta_en"
                 ],
                 "title": "StoreDecantBottle"
+            },
+            "StoreMemberRequest": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "correo": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "contrasena": {
+                        "type": "string"
+                    },
+                    "rol": {
+                        "$ref": "#/components/schemas/MemberRoleName"
+                    },
+                    "atiende_citas": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "nombre",
+                    "correo",
+                    "contrasena",
+                    "rol"
+                ],
+                "title": "StoreMemberRequest"
             },
             "StoreOrder": {
                 "type": "object",
@@ -6065,6 +6621,25 @@
                     }
                 },
                 "title": "UpdateBusinessProfileRequest"
+            },
+            "UpdateMemberRequest": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "rol": {
+                        "$ref": "#/components/schemas/MemberRoleName"
+                    },
+                    "atiende_citas": {
+                        "type": "boolean"
+                    },
+                    "activo": {
+                        "type": "boolean"
+                    }
+                },
+                "title": "UpdateMemberRequest"
             }
         },
         "responses": {
