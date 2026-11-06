@@ -230,6 +230,7 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/api/v1/tiendas/{tienda}` | Cualquiera | Perfil público de la tienda identificada por su slug. |
 | GET | `/api/v1/tiendas/{tienda}/perfumes` | Cualquiera | Vitrina pública de perfumes activos, con búsqueda, filtros y paginación. |
 | GET | `/api/v1/tiendas/{tienda}/perfumes/{perfume}` | Cualquiera | Detalle público del perfume activo con sus presentaciones activas. |
+| POST | `/api/v1/tiendas/{tienda}/recomendaciones` | Cualquiera | Recomienda hasta 5 perfumes de la vitrina para lo que describe el cliente, con la IA o, si falla, por reglas; `origen` dice cuál respondió. |
 | GET | `/api/v1/panel/botellas` | Dueño | Lista botellas de decants de su tienda. |
 | POST | `/api/v1/panel/botellas` | Dueño | Registra una botella abierta de una presentación. |
 | GET | `/api/v1/panel/botellas/{botella}` | Dueño | Consulta los ml y el estado de una botella. |

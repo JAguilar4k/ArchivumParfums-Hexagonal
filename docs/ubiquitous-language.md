@@ -95,6 +95,7 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Orden de compra | `PurchaseOrder` | `purchase_orders` | `ordenes-de-compra` |
 | Línea de la orden de compra | `PurchaseOrderLine` | `purchase_order_lines` | `lineas` |
 | Recomendación | `Recommendation` | — | `recomendaciones` |
+| Catálogo del recomendador | `RecommendableCatalog`, `CatalogPerfume` | — | No viaja: es la vitrina de la tienda que recibe la IA y contra la que se valida su sugerencia |
 | Preferencias del cliente | `CustomerPreferences` | — | `preferencias` |
 | Perfume sugerido | `SuggestedPerfume` | — | `perfumes`, cada uno con su `razon` |
 | Origen de la recomendación | `RecommendationOrigin` | — | `origen` |
