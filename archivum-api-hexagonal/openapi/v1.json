@@ -4113,6 +4113,85 @@
                 }
             }
         },
+        "/tiendas/{tienda}/recomendaciones": {
+            "post": {
+                "operationId": "recommendations.store",
+                "summary": "Recommend up to five perfumes of the showcase for what the customer describes, by the AI or, if it fails, by the rules",
+                "tags": [
+                    "Recommendation"
+                ],
+                "parameters": [
+                    {
+                        "name": "tienda",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreRecommendation"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`RecommendationResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/RecommendationResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/sesiones": {
             "post": {
                 "operationId": "accounts.sessions.store",
@@ -5549,6 +5628,119 @@
                 ],
                 "title": "PublicBusiness"
             },
+            "RecommendationResource": {
+                "type": "object",
+                "properties": {
+                    "origen": {
+                        "type": "string",
+                        "enum": [
+                            "ia",
+                            "reglas"
+                        ]
+                    },
+                    "preferencias": {
+                        "type": "object",
+                        "properties": {
+                            "notas": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            "momento": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "clima": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "ocasion": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "presupuesto": {
+                                "type": [
+                                    "integer",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "notas",
+                            "momento",
+                            "clima",
+                            "ocasion",
+                            "presupuesto"
+                        ]
+                    },
+                    "perfumes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RecommendedPerfumeResource"
+                        }
+                    }
+                },
+                "required": [
+                    "origen",
+                    "preferencias",
+                    "perfumes"
+                ],
+                "title": "RecommendationResource"
+            },
+            "RecommendedPerfumeResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "marca": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "razon": {
+                        "type": "string"
+                    },
+                    "presentaciones": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RecommendedVariantResource"
+                        }
+                    }
+                },
+                "required": [
+                    "id",
+                    "marca",
+                    "nombre",
+                    "razon",
+                    "presentaciones"
+                ],
+                "title": "RecommendedPerfumeResource"
+            },
+            "RecommendedVariantResource": {
+                "type": "object",
+                "properties": {
+                    "ml": {
+                        "type": "integer"
+                    },
+                    "precio_venta": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "ml",
+                    "precio_venta"
+                ],
+                "title": "RecommendedVariantResource"
+            },
             "SessionTokenResource": {
                 "type": "object",
                 "properties": {
@@ -6057,6 +6249,19 @@
                     "ml"
                 ],
                 "title": "StorePerfumeVariant"
+            },
+            "StoreRecommendation": {
+                "type": "object",
+                "properties": {
+                    "texto": {
+                        "type": "string",
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "texto"
+                ],
+                "title": "StoreRecommendation"
             },
             "StoreSessionRequest": {
                 "type": "object",
