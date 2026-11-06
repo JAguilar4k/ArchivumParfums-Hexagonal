@@ -11,6 +11,65 @@
         }
     ],
     "paths": {
+        "/cuentas": {
+            "post": {
+                "operationId": "accounts.users.store",
+                "summary": "Register a customer and answer its public data. It does not sign in: the client calls POST /sesiones next",
+                "tags": [
+                    "Account"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreAccountRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`CurrentAccountResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CurrentAccountResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/": {
             "get": {
                 "operationId": "index",
@@ -4162,6 +4221,60 @@
                 ]
             }
         },
+        "/sesiones/actual/renovacion": {
+            "post": {
+                "operationId": "accounts.sessions.renewal.store",
+                "summary": "Swap the token of the request, while it is still valid, for a new one with its expiration; the old one stops\nworking. A token that expired or was revoked meanwhile gets the same 401 as a missing token: sign in again",
+                "tags": [
+                    "SessionRenewal"
+                ],
+                "responses": {
+                    "201": {
+                        "description": "`SessionTokenResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/SessionTokenResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/tiendas/{tienda}/perfumes": {
             "get": {
                 "operationId": "catalog.showcase.index",
@@ -5499,11 +5612,15 @@
                     "tipo": {
                         "type": "string",
                         "const": "Bearer"
+                    },
+                    "vence_en": {
+                        "type": "string"
                     }
                 },
                 "required": [
                     "token",
-                    "tipo"
+                    "tipo",
+                    "vence_en"
                 ],
                 "title": "SessionTokenResource"
             },
@@ -5696,6 +5813,40 @@
                     "decants"
                 ],
                 "title": "ShowcasePerfumeDetail"
+            },
+            "StoreAccountRequest": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "correo": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "contrasena": {
+                        "type": "string"
+                    },
+                    "acepta_privacidad": {
+                        "enum": [
+                            "yes",
+                            "on",
+                            "1",
+                            1,
+                            "true",
+                            true
+                        ]
+                    }
+                },
+                "required": [
+                    "nombre",
+                    "correo",
+                    "contrasena",
+                    "acepta_privacidad"
+                ],
+                "title": "StoreAccountRequest"
             },
             "StoreBusinessLogo": {
                 "type": "object",
