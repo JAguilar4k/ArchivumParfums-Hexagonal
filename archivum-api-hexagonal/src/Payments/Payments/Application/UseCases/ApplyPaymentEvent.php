@@ -56,7 +56,7 @@ final readonly class ApplyPaymentEvent
 
         $this->transaction->run(function () use ($event, $reference): void {
             $payment = $this->paymentOf($event, $reference);
-            // Lock in the same order as StartPayment and ObservePayment: the order first, then its payment.
+            // Lock in the same order as StartPayment and ReconcilePayment: the order first, then its payment.
             $order = $this->orders->findForUpdate($payment->payable->id);
             $payment = $this->payments->find($payment->id, true) ?? throw new PaymentNotFoundException('payments.not_found');
 

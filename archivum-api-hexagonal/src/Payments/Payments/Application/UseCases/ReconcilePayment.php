@@ -42,7 +42,7 @@ final readonly class ReconcilePayment
                 return false;
             }
 
-            // Lock in the same order as StartPayment, ObservePayment and ApplyPaymentEvent: the order first, then its payment.
+            // Lock in the same order as StartPayment and ApplyPaymentEvent: the order first, then its payment.
             $order = $this->orders->findForUpdate($payment->payable->id);
             $payment = $this->payments->find($payment->id, true);
             if ($payment === null || $payment->status !== PaymentStatus::Pending || $payment->providerReference === null) {

@@ -26,8 +26,7 @@ final readonly class SalesPayableReader implements PayableReader
     public function findForPayment(string $orderId, string $userId, bool $startingPayment = true): PayableOrder
     {
         $order = $this->orders->find(new OrderId($orderId), true) ?? throw new PaymentNotFoundException('payments.not_found');
-        $customer = CustomerModel::query()->where('business_id', $this->business->current()->value)->whereKey($order->customerId)->where('user_id', $userId)->exists();
-        if (! $customer) {
+        if (! $this->isCustomerOf($order, $userId)) {
             throw new PaymentNotFoundException('payments.not_found');
         }
         if ($startingPayment && $order->status->value === 'pending_payment' && $order->expiresAt <= new DateTimeImmutable) {
@@ -37,11 +36,24 @@ final readonly class SalesPayableReader implements PayableReader
         return $this->payable($order, $startingPayment);
     }
 
+    public function isOwnedBy(string $orderId, string $userId): bool
+    {
+        $order = $this->orders->find(new OrderId($orderId));
+
+        return $order !== null && $this->isCustomerOf($order, $userId);
+    }
+
     public function findForUpdate(string $orderId): PayableOrder
     {
         $order = $this->orders->find(new OrderId($orderId), true) ?? throw new PaymentNotFoundException('payments.not_found');
 
         return $this->payable($order, startingPayment: false);
+    }
+
+    /** Whether the user is the customer who placed the order in the current business. */
+    private function isCustomerOf(Order $order, string $userId): bool
+    {
+        return CustomerModel::query()->where('business_id', $this->business->current()->value)->whereKey($order->customerId)->where('user_id', $userId)->exists();
     }
 
     /** What payments need to know about a locked order; only a new PayPal charge needs the exchange rate. */
