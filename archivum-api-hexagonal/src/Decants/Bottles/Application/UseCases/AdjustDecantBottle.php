@@ -26,16 +26,20 @@ final readonly class AdjustDecantBottle
     public function execute(string $id, int $ml, string $reason, string $userId): MovementView
     {
         return $this->transaction->run(function () use ($id, $ml, $reason, $userId): MovementView {
-            $bottle = $this->reader->find($id) ?? throw BottleNotFoundException::create();
+            $this->reader->find($id) ?? throw BottleNotFoundException::create();
             $movement = $this->reader->movement($this->stock->adjust($id, $ml, $reason, $userId));
+
+            // Read again after the conditional UPDATE, which locked the row in this transaction, so it still exists: a
+            // sale that consumed ml before it is already counted, and the entry keeps the ml the bottle really had.
+            $after = $this->reader->find($id);
 
             $this->audit->record(
                 $this->business->current(),
                 AuditAction::BottleAdjusted,
                 'decant_bottle',
                 $id,
-                ['remaining_ml' => $bottle->remainingMl],
-                ['remaining_ml' => $bottle->remainingMl + $ml, 'reason' => $reason],
+                ['remaining_ml' => $after->remainingMl - $ml],
+                ['remaining_ml' => $after->remainingMl, 'reason' => $reason],
             );
 
             return $movement;
