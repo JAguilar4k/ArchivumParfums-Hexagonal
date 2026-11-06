@@ -97,3 +97,44 @@ jobs:
 
       - name: Audit dependencies
         run: composer audit --locked --ignore-severity=low --ignore-severity=medium
+
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        working-directory: archivum-web
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: archivum-web/package.json
+          cache: npm
+          cache-dependency-path: archivum-web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check the API types against openapi/v1.json
+        run: npm run api:check
+
+      - name: Check the code style
+        run: npm run lint
+
+      - name: Check the types
+        run: npm run type-check
+
+      - name: Run the test suite
+        run: npm run test
+
+      - name: Build for production
+        run: npm run build
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
