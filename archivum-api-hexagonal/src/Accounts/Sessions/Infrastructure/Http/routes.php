@@ -6,13 +6,15 @@ use Illuminate\Support\Facades\Route;
 use Src\Accounts\Sessions\Infrastructure\Http\Controllers\CurrentAccountController;
 use Src\Accounts\Sessions\Infrastructure\Http\Controllers\SessionController;
 use Src\Accounts\Sessions\Infrastructure\Http\Controllers\SessionRenewalController;
+use Src\Businesses\Members\Infrastructure\Http\Middleware\RefuseDeactivatedMembers;
 use Src\Shared\Infrastructure\RateLimitsServiceProvider;
 
 Route::prefix('sesiones')
     ->name('accounts.sessions.')
     ->controller(SessionController::class)
     ->group(function (): void {
-        Route::post('/', 'store')->middleware('throttle:'.RateLimitsServiceProvider::SIGN_IN)->name('store');
+        // The limit goes first, so a guessed password is counted even for a deactivated person.
+        Route::post('/', 'store')->middleware(['throttle:'.RateLimitsServiceProvider::SIGN_IN, RefuseDeactivatedMembers::class])->name('store');
         Route::delete('actual', 'destroy')->middleware('auth:sanctum')->name('destroy');
     });
 
