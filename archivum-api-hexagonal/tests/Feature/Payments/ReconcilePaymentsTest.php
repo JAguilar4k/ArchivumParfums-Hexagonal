@@ -12,11 +12,14 @@ use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\PendingCommand;
 use Illuminate\Testing\TestResponse;
+use Src\Payments\Payments\Domain\Contracts\PaymentRepository;
 use Src\Payments\Payments\Domain\Exceptions\GatewayUnavailableException;
 use Src\Payments\Payments\Infrastructure\Persistence\Models\PaymentModel;
+use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymentRepository;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
+use Tests\Support\Payments\FailPaymentSave;
 use Tests\Support\Payments\StoredPayments;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Sales\StoredOrders;
@@ -220,6 +223,19 @@ it('keeps pending a payment the provider answers with another amount, reports it
     expect(reconciledState($business, $mismatched))->toBe(['payment' => 'pending', 'order' => 'pending_payment', 'paid' => 0])
         ->and(reconciledState($business, $answered))->toBe(['payment' => 'succeeded', 'order' => 'confirmed', 'paid' => 7500]);
     Exceptions::assertReported(fn (InvalidValueException $exception): bool => $exception->translationKey() === 'payments.invalid_amount');
+});
+
+it('undoes what the order received when saving the confirmed payment fails', function (): void {
+    $business = StaffedBusiness::create();
+    $payment = StoredPayments::create($business, StoredOrders::create($business)['order']);
+    app()->bind(PaymentRepository::class, fn (): FailPaymentSave => new FailPaymentSave(app(EloquentPaymentRepository::class)));
+    fakeOnvoStatusFor($payment);
+    travelTo('2026-11-02 12:05:00');
+
+    expect(fn () => reconcilePendingPayments()->run())->toThrow(RuntimeException::class, 'Injected payment persistence failure.');
+
+    expect(reconciledState($business, $payment))->toBe(['payment' => 'pending', 'order' => 'pending_payment', 'paid' => 0]);
+    Http::assertSentCount(2);
 });
 
 it('R39: reconciles the pending payments of two stores, each in a transaction of its own store', function (): void {
