@@ -21,6 +21,7 @@ use Tests\Support\RefreshDatabaseAsOwner;
 use function Pest\Laravel\json;
 use function Pest\Laravel\postJson;
 use function Pest\Laravel\travel;
+use function Pest\Laravel\travelBack;
 use function Pest\Laravel\travelTo;
 
 pest()->use(RefreshDatabaseAsOwner::class);
@@ -184,6 +185,8 @@ it('asks for a token to renew', function () {
 });
 
 it('gives a single new token to two simultaneous renewals of the same token, and 401 to the other', function () {
+    // The parallel processes read the real clock, not the one of the test, so the token is issued with it too.
+    travelBack();
     $admin = DB::connection('pgsql_admin');
     $userId = (string) Str::uuid7();
     $secret = Str::random(40);
