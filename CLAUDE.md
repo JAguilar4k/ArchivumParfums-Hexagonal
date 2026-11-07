@@ -135,6 +135,19 @@ composer openapi     # regenera openapi/v1.json
 composer audit
 ```
 
+En `archivum-web/`, el cliente:
+
+```bash
+npm ci               # dependencias exactas de package-lock.json
+npm run dev          # SPA en desarrollo; la API se lee de VITE_API_URL (.env)
+npm run lint         # ESLint sin modificar
+npm run type-check   # vue-tsc en modo estricto
+npm run test         # Vitest
+npm run build        # versión de producción en dist/
+npm run api:types    # regenera src/api/schema.ts desde openapi/v1.json
+npm run api:check    # falla si src/api/schema.ts no coincide con openapi/v1.json
+```
+
 Si al crear el proyecto algún comando cambia, actualizá esta sección.
 
 ## Forma de trabajo (igual que el repo guía)
