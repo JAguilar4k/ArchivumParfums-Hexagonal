@@ -32,6 +32,11 @@ final readonly class FailPaymentSave implements PaymentRepository
         return $this->repository->pending($payable, $purpose);
     }
 
+    public function findByReference(string $gateway, string $reference): ?Payment
+    {
+        return $this->repository->findByReference($gateway, $reference);
+    }
+
     public function save(Payment $payment): void
     {
         if ($payment->status === PaymentStatus::Succeeded || ($this->afterReference && $payment->providerReference !== null)) {
