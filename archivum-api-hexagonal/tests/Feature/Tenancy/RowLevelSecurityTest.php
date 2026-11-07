@@ -97,7 +97,7 @@ it('R55: forces row-level security with its isolation policy on every table with
     $modelled = array_keys(protectedModels());
     sort($modelled);
     // Their module schema tests exercise the catalog, stock, orders and payments with the application role.
-    $catalog = ['perfume_notes', 'perfume_tags', 'perfume_variants', 'perfumes', 'decant_bottles', 'decant_movements', 'orders', 'order_lines', 'payments', 'refunds'];
+    $catalog = ['perfume_notes', 'perfume_tags', 'perfume_variants', 'perfumes', 'decant_bottles', 'decant_movements', 'orders', 'order_lines', 'payments', 'refunds', 'audit_logs'];
     $withPolicy = [...$protected, ...$catalog];
     sort($withPolicy);
 

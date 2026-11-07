@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Src\Payments\Payments\Infrastructure;
 
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Src\Payments\Payments\Application\Contracts\PayableReader;
 use Src\Payments\Payments\Application\UseCases\ObservePayment;
@@ -14,6 +15,7 @@ use Src\Payments\Payments\Domain\Contracts\ExchangeRates;
 use Src\Payments\Payments\Domain\Contracts\PaymentGateways;
 use Src\Payments\Payments\Domain\Contracts\PaymentRepository;
 use Src\Payments\Payments\Domain\Contracts\RefundRepository;
+use Src\Payments\Payments\Domain\Entities\Payment;
 use Src\Payments\Payments\Infrastructure\Gateways\Onvo\OnvoGateway;
 use Src\Payments\Payments\Infrastructure\Gateways\PayPal\PayPalGateway;
 use Src\Payments\Payments\Infrastructure\GatewaySelection\BusinessExchangeRates;
@@ -21,6 +23,7 @@ use Src\Payments\Payments\Infrastructure\GatewaySelection\ConfiguredPaymentGatew
 use Src\Payments\Payments\Infrastructure\Persistence\PaymentTransactionRunner;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\DatabaseRefundRepository;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymentRepository;
+use Src\Payments\Payments\Infrastructure\Policies\PaymentPolicy;
 use Src\Payments\Payments\Infrastructure\Sales\PaymentRefundRequests;
 use Src\Payments\Payments\Infrastructure\Sales\SalesPayableReader;
 use Src\Sales\Orders\Application\Contracts\RefundRequests;
@@ -37,6 +40,12 @@ final class PaymentsServiceProvider extends ServiceProvider
         RefundRepository::class => DatabaseRefundRepository::class,
         RefundRequests::class => PaymentRefundRequests::class,
     ];
+
+    /** Let PaymentPolicy decide who reaches a payment (#104). */
+    public function boot(): void
+    {
+        Gate::policy(Payment::class, PaymentPolicy::class);
+    }
 
     public function register(): void
     {
