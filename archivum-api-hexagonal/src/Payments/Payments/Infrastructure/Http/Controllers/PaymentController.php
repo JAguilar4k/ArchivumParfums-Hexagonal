@@ -7,13 +7,15 @@ namespace Src\Payments\Payments\Infrastructure\Http\Controllers;
 use Dedoc\Scramble\Attributes\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Src\Payments\Payments\Application\DTOs\PaymentResult;
 use Src\Payments\Payments\Application\UseCases\ObservePayment;
-use Src\Payments\Payments\Application\UseCases\ProcessOrderRefunds;
+use Src\Payments\Payments\Application\UseCases\RequestOrderRefunds;
 use Src\Payments\Payments\Application\UseCases\StartPayment;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentMethod;
 use Src\Payments\Payments\Infrastructure\Http\Requests\StorePayment;
 use Src\Payments\Payments\Infrastructure\Http\Resources\PaymentResource;
+use Src\Payments\Payments\Infrastructure\Http\Resources\RefundResource;
 
 final readonly class PaymentController
 {
@@ -29,18 +31,23 @@ final readonly class PaymentController
         return $this->respond($result, $request, $result->created ? 201 : 200);
     }
 
-    /** Confirm only by asking the provider from the server; the request carries no status. */
-    #[Response(200, 'Estado del pago consultado desde el servidor.', type: PaymentResource::class)]
-    #[Response(202, 'El resultado sigue pendiente de consulta al proveedor.', type: PaymentResource::class)]
+    /** Read the stored payment: this query never asks the provider nor changes the payment, and the request carries no status. */
+    #[Response(200, 'Estado guardado del pago. Mientras siga pendiente, el cliente muestra "procesando".', type: PaymentResource::class)]
+    #[Response(202, 'Todavía no se sabe si el proveedor creó el cobro.', type: PaymentResource::class)]
     public function show(Request $request, string $pago, ObservePayment $observe): JsonResponse
     {
         return $this->respond($observe->execute($pago, (string) $request->user()?->getAuthIdentifier()), $request);
     }
 
-    /** Process only refund amounts already registered by cancellation or an unavailable line. */
-    public function refund(string $pedido, ProcessOrderRefunds $process): JsonResponse
+    /**
+     * List the refunds of an order with their state and ask the provider again for those that never left.
+     *
+     * Only a cancellation, an unavailable line (R30, R31) or a charge confirmed after the order closed registers a
+     * refund, with the amount the server calculates.
+     */
+    public function refund(string $pedido, RequestOrderRefunds $request): AnonymousResourceCollection
     {
-        return response()->json(['data' => $process->execute($pedido)]);
+        return RefundResource::collection($request->execute($pedido));
     }
 
     private function respond(PaymentResult $result, Request $request, int $status = 200): JsonResponse

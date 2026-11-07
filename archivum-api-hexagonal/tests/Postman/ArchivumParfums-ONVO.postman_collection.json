@@ -846,7 +846,7 @@
               }
             ],
             "url": "{{base_url}}/api/v1/cuenta/pagos/{{onvo_card_payment_id}}",
-            "description": "Envía solo después de completar manualmente el checkout: 4242424242424242, fecha futura y CVC ficticio válido. No uses tarjeta real. Exige HTTP 200 y estado=confirmado, consulta_pendiente=false, CRC y 7500 exactos. Pendiente o 202 hacen fallar esta comprobación; no se consideran desenlace final. Si el proveedor aún procesa, espera y repite únicamente este GET. Un rechazo recuperable ONVO se declara fallido solo tras cerrar y verificar el intento remoto. La pantalla o URL de retorno no confirma nada."
+            "description": "Envía solo después de completar manualmente el checkout: 4242424242424242, fecha futura y CVC ficticio válido. No uses tarjeta real. Exige HTTP 200 y estado=confirmado, consulta_pendiente=false, CRC y 7500 exactos. Pendiente o 202 hacen fallar esta comprobación; no se consideran desenlace final. Desde #96 esta consulta solo lee el pago guardado: antes de enviarla, espera a que el pago tenga cinco minutos de creado y corre php artisan archivum:reconcile-payments en otra terminal, o deja corriendo php artisan schedule:work. Si sigue pendiente, vuelve a conciliar y repite únicamente este GET. Un rechazo recuperable ONVO se declara fallido solo tras cerrar y verificar el intento remoto. La pantalla o URL de retorno no confirma nada."
           },
           "event": [
             {
@@ -1317,7 +1317,7 @@
               }
             ],
             "url": "{{base_url}}/api/v1/cuenta/pagos/{{onvo_declined_payment_id}}",
-            "description": "Envía solo después de completar manualmente el checkout: 4000000000000002, fecha futura y CVC ficticio válido. No es una falla de comunicación. Exige HTTP 200 y estado=fallido, consulta_pendiente=false, CRC y 7500 exactos. Pendiente o 202 hacen fallar esta comprobación; no se consideran desenlace final. Si el proveedor aún procesa, espera y repite únicamente este GET. Un rechazo recuperable ONVO se declara fallido solo tras cerrar y verificar el intento remoto. La pantalla o URL de retorno no confirma nada."
+            "description": "Envía solo después de completar manualmente el checkout: 4000000000000002, fecha futura y CVC ficticio válido. No es una falla de comunicación. Exige HTTP 200 y estado=fallido, consulta_pendiente=false, CRC y 7500 exactos. Pendiente o 202 hacen fallar esta comprobación; no se consideran desenlace final. Desde #96 esta consulta solo lee el pago guardado: antes de enviarla, espera a que el pago tenga cinco minutos de creado y corre php artisan archivum:reconcile-payments en otra terminal, o deja corriendo php artisan schedule:work. Si sigue pendiente, vuelve a conciliar y repite únicamente este GET. Un rechazo recuperable ONVO se declara fallido solo tras cerrar y verificar el intento remoto. La pantalla o URL de retorno no confirma nada."
           },
           "event": [
             {
@@ -1703,7 +1703,7 @@
               }
             ],
             "url": "{{base_url}}/api/v1/cuenta/pagos/{{onvo_sinpe_payment_id}}",
-            "description": "Envía solo después de completar manualmente el checkout: +50688888888: simula éxito aproximadamente 15 segundos después. Completa los demás datos ficticios en el formato solicitado. No hagas ninguna transferencia bancaria. Exige HTTP 200 y estado=confirmado, consulta_pendiente=false, CRC y 7500 exactos. Pendiente o 202 hacen fallar esta comprobación; no se consideran desenlace final. Si el proveedor aún procesa, espera y repite únicamente este GET. Un rechazo recuperable ONVO se declara fallido solo tras cerrar y verificar el intento remoto. La pantalla o URL de retorno no confirma nada."
+            "description": "Envía solo después de completar manualmente el checkout: +50688888888: simula éxito aproximadamente 15 segundos después. Completa los demás datos ficticios en el formato solicitado. No hagas ninguna transferencia bancaria. Exige HTTP 200 y estado=confirmado, consulta_pendiente=false, CRC y 7500 exactos. Pendiente o 202 hacen fallar esta comprobación; no se consideran desenlace final. Desde #96 esta consulta solo lee el pago guardado: antes de enviarla, espera a que el pago tenga cinco minutos de creado y corre php artisan archivum:reconcile-payments en otra terminal, o deja corriendo php artisan schedule:work. Si sigue pendiente, vuelve a conciliar y repite únicamente este GET. Un rechazo recuperable ONVO se declara fallido solo tras cerrar y verificar el intento remoto. La pantalla o URL de retorno no confirma nada."
           },
           "event": [
             {

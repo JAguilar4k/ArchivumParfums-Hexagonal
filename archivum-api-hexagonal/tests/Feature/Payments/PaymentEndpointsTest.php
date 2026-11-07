@@ -5,11 +5,15 @@ declare(strict_types=1);
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use Illuminate\Testing\PendingCommand;
 use Laravel\Sanctum\Sanctum;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Payments\Payments\Domain\Contracts\PaymentRepository;
+use Src\Payments\Payments\Domain\Entities\Payment;
+use Src\Payments\Payments\Infrastructure\Jobs\RequestRefundJob;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymentRepository;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
@@ -18,10 +22,12 @@ use Tests\Support\Payments\StoredPayments;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Sales\StoredOrders;
 
+use function Pest\Laravel\artisan;
 use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\assertDatabaseHas;
 use function Pest\Laravel\getJson;
 use function Pest\Laravel\postJson;
+use function Pest\Laravel\travel;
 
 pest()->use(RefreshDatabaseAsOwner::class);
 
@@ -29,6 +35,18 @@ beforeEach(function (): void {
     config(['payments.onvo.secret_key' => 'onvo_test_fake', 'payments.paypal.client_id' => 'fake-client', 'payments.paypal.client_secret' => 'fake-secret']);
     Http::preventStrayRequests();
 });
+
+/**
+ * Let the stored payments wait for their notice and run the reconciliation of #96, as the scheduler does: since #96 it
+ * is the reconciliation, and not the customer's query, that asks the provider when no notice arrives.
+ */
+function reconcileWaitingPayments(): void
+{
+    travel(Payment::MINUTES_FOR_THE_NOTICE)->minutes();
+    $command = artisan('archivum:reconcile-payments');
+    assert($command instanceof PendingCommand);
+    $command->assertSuccessful();
+}
 
 it('creates a charge from server values and ignores browser overrides', function (): void {
     $business = actingAsCustomer();
@@ -73,9 +91,11 @@ it('confirms SINPE when checkout omits mode', function (): void {
     $response->assertCreated()->assertJsonPath('data.medio', 'sinpe_movil')->assertJsonPath('data.estado', 'pendiente')
         ->assertJsonPath('data.pasarela', 'onvo')->assertJsonPath('data.moneda_cobrada', 'CRC')->assertJsonPath('data.monto_cobrado', 7500);
     $paymentId = (string) $response->json('data.id');
+    getJson('/api/v1/cuenta/pagos/'.$paymentId)->assertOk()->assertJsonPath('data.estado', 'pendiente');
+    Http::assertSentCount(1);
+    reconcileWaitingPayments();
     getJson('/api/v1/cuenta/pagos/'.$paymentId)->assertOk()->assertJsonPath('data.medio', 'sinpe_movil')
         ->assertJsonPath('data.estado', 'confirmado')->assertJsonPath('data.consulta_pendiente', false);
-    getJson('/api/v1/cuenta/pagos/'.$paymentId)->assertOk()->assertJsonPath('data.estado', 'confirmado');
 
     app(BusinessTransaction::class)->scope($business->business->id);
     assertDatabaseHas('payments', ['id' => $paymentId, 'order_id' => $order->id, 'method' => 'sinpe_mobile', 'status' => 'succeeded', 'capture_reference' => 'intent-sinpe']);
@@ -88,22 +108,29 @@ it('confirms SINPE when checkout omits mode', function (): void {
     Http::assertSentCount(3);
 });
 
-it('confirms the queried payment and its order exactly once in the same transaction', function (): void {
+it('R38: reads the stored payment without asking the provider or changing it, whatever the browser sends', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business)['order'];
     $payment = StoredPayments::create($business, $order);
+    // The provider would report the charge paid, but the query never asks it.
     Http::fake([
         'api.onvopay.com/v1/checkout/sessions/'.$payment->provider_reference => Http::response(['id' => $payment->provider_reference, 'mode' => 'test', 'paymentIntentId' => $payment->capture_reference]),
         'api.onvopay.com/v1/payment-intents/'.$payment->capture_reference => Http::response(['id' => $payment->capture_reference, 'mode' => 'test', 'amount' => 750000, 'currency' => 'CRC', 'status' => 'succeeded']),
     ]);
+    $stored = fn (): array => app(BusinessTransaction::class)->run($business->business->id, fn (): array => [
+        (array) DB::table('payments')->where('id', $payment->id)->first(),
+        (array) DB::table('orders')->where('id', $order->id)->first(),
+    ]);
+    $before = $stored();
+    travel(Payment::MINUTES_FOR_THE_NOTICE + 1)->minutes();
 
-    getJson('/api/v1/cuenta/pagos/'.$payment->id.'?estado=confirmado')->assertOk()->assertJsonPath('data.estado', 'confirmado');
-    getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertOk()->assertJsonPath('data.estado', 'confirmado');
+    getJson('/api/v1/cuenta/pagos/'.$payment->id.'?estado=confirmado')->assertOk()->assertJsonPath('data.estado', 'pendiente')->assertJsonPath('data.consulta_pendiente', false);
+    getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertOk()->assertJsonPath('data.estado', 'pendiente')->assertHeaderMissing('Retry-After');
 
-    app(BusinessTransaction::class)->scope($business->business->id);
-    assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'confirmed', 'paid' => 7500, 'balance' => 7500]);
-    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded']);
-    Http::assertSentCount(2);
+    Http::assertNothingSent();
+    expect($stored())->toBe($before)
+        ->and($before[0]['status'])->toBe('pending')
+        ->and($before[1]['paid'])->toBe(0);
 });
 
 it('records an explicit refusal while leaving the order unpaid', function (): void {
@@ -129,8 +156,8 @@ it('allows one retry after a failed intent and an expired checkout', function ()
         'api.onvopay.com/v1/checkout/sessions/one-time-link' => Http::response(['id' => 'session-retry', 'url' => 'https://checkout.onvopay.com/pay/session-retry', 'paymentIntentId' => 'intent-retry'], 201),
     ]);
 
+    reconcileWaitingPayments();
     getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertOk()->assertJsonPath('data.estado', 'fallido')->assertJsonPath('data.consulta_pendiente', false);
-    getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertOk()->assertJsonPath('data.estado', 'fallido');
     Http::assertSentCount(2);
 
     app(BusinessTransaction::class)->scope($business->business->id);
@@ -150,6 +177,7 @@ it('allows one retry after a failed intent and an expired checkout', function ()
 });
 
 it('records a late approval and one full refund without reactivating a closed order', function (string $status): void {
+    Queue::fake();
     $business = actingAsCustomer();
     $fixture = StoredOrders::create($business, withDecant: true);
     $order = $fixture['order'];
@@ -167,15 +195,20 @@ it('records a late approval and one full refund without reactivating a closed or
         'api.onvopay.com/v1/payment-intents/'.$payment->capture_reference => Http::response(['id' => $payment->capture_reference, 'mode' => 'test', 'amount' => 830000, 'currency' => 'CRC', 'status' => 'succeeded']),
     ]);
 
+    reconcileWaitingPayments();
+    reconcileWaitingPayments();
     getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertOk()->assertJsonPath('data.estado', 'confirmado');
-    getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertOk();
 
     app(BusinessTransaction::class)->scope($business->business->id);
     assertDatabaseHas('orders', ['id' => $order->id, 'status' => $status, 'paid' => 8300]);
     assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded']);
-    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'amount' => 8300, 'status' => 'pending']);
+    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'amount' => 8300, 'status' => 'pending', 'attempted_at' => null]);
     assertDatabaseCount('refunds', 1);
     assertDatabaseHas('decant_bottles', ['id' => $fixture['bottle']?->id, 'remaining_ml' => 100, 'reserved_ml' => 0]);
+    // The refund is asked of the provider by its job, apart from the query that confirmed the charge.
+    $refundId = (string) DB::table('refunds')->where('payment_id', $payment->id)->value('id');
+    Queue::assertPushed(RequestRefundJob::class, 1);
+    Queue::assertPushed(RequestRefundJob::class, fn (RequestRefundJob $job): bool => $job->refundId === $refundId && $job->businessId === $business->business->id);
     Http::assertSentCount(2);
 })->with(['cancelled', 'expired']);
 
@@ -189,15 +222,17 @@ it('does not capture PayPal approval for a cancelled order', function (): void {
         'api-m.sandbox.paypal.com/v2/checkout/orders/'.$payment->provider_reference => Http::response(['id' => $payment->provider_reference, 'status' => 'APPROVED', 'purchase_units' => [['amount' => ['currency_code' => 'USD', 'value' => '15.00']]]]),
     ]);
 
+    reconcileWaitingPayments();
     getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertOk()->assertJsonPath('data.estado', 'pendiente');
 
     app(BusinessTransaction::class)->scope($business->business->id);
     assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'cancelled', 'paid' => 0]);
     assertDatabaseCount('refunds', 0);
+    Http::assertNotSent(fn (Request $request): bool => str_ends_with($request->url(), '/capture'));
     Http::assertSentCount(2);
 });
 
-it('queries an existing payment after the order deadline', function (): void {
+it('reconciles an existing payment after the order deadline', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business)['order'];
     $payment = StoredPayments::create($business, $order);
@@ -208,6 +243,7 @@ it('queries an existing payment after the order deadline', function (): void {
         'api.onvopay.com/v1/payment-intents/'.$payment->capture_reference => Http::response(['id' => $payment->capture_reference, 'mode' => 'test', 'amount' => 750000, 'currency' => 'CRC', 'status' => 'succeeded']),
     ]);
 
+    reconcileWaitingPayments();
     getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertOk()->assertJsonPath('data.estado', 'confirmado');
     Http::assertSentCount(2);
 });
@@ -223,7 +259,8 @@ it('reuses the payment while checkout closure is uncertain', function (): void {
         'api.onvopay.com/v1/payment-intents/'.$payment->capture_reference.'/cancel' => Http::failedConnection(),
     ]);
 
-    getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertAccepted()->assertJsonPath('data.estado', 'pendiente');
+    reconcileWaitingPayments();
+    getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertOk()->assertJsonPath('data.estado', 'pendiente');
     postJson('/api/v1/cuenta/pedidos/'.$order->id.'/pagos')->assertOk()->assertJsonPath('data.id', $payment->id);
 
     app(BusinessTransaction::class)->scope($business->business->id);
@@ -244,37 +281,6 @@ it('retains an uncertain creation and returns the same attempt without a second 
     assertDatabaseCount('payments', 1);
     assertDatabaseHas('orders', ['id' => $order->id, 'paid' => 0]);
     Http::assertSentCount(1);
-});
-
-it('keeps a payment pending when the authoritative query cannot communicate', function (): void {
-    $business = actingAsCustomer();
-    $order = StoredOrders::create($business)['order'];
-    $payment = StoredPayments::create($business, $order);
-    Http::fake(['api.onvopay.com/v1/checkout/sessions/'.$payment->provider_reference => Http::failedConnection()]);
-
-    getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertAccepted()->assertJsonPath('data.estado', 'pendiente')->assertJsonPath('data.consulta_pendiente', true);
-
-    app(BusinessTransaction::class)->scope($business->business->id);
-    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'pending']);
-    assertDatabaseHas('orders', ['id' => $order->id, 'paid' => 0]);
-    Http::assertSentCount(1);
-});
-
-it('returns 422 for a mismatched provider amount without confirming either record', function (): void {
-    $business = actingAsCustomer();
-    $order = StoredOrders::create($business)['order'];
-    $payment = StoredPayments::create($business, $order);
-    Http::fake([
-        'api.onvopay.com/v1/checkout/sessions/'.$payment->provider_reference => Http::response(['id' => $payment->provider_reference, 'mode' => 'test', 'paymentIntentId' => $payment->capture_reference]),
-        'api.onvopay.com/v1/payment-intents/'.$payment->capture_reference => Http::response(['id' => $payment->capture_reference, 'mode' => 'test', 'amount' => 7500, 'currency' => 'CRC', 'status' => 'succeeded']),
-    ]);
-
-    getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertUnprocessable()->assertJsonPath('detail', __('payments.invalid_amount'));
-
-    app(BusinessTransaction::class)->scope($business->business->id);
-    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'pending']);
-    assertDatabaseHas('orders', ['id' => $order->id, 'paid' => 0]);
-    Http::assertSentCount(2);
 });
 
 it('returns 422 before creating an attempt when sandbox credentials are missing', function (): void {
@@ -416,24 +422,6 @@ it('R29: permits the ready balance and calculates it from paid money', function 
     Http::assertSentCount(1);
 });
 
-it('rolls back the order update when saving the confirmed payment fails', function (): void {
-    $business = actingAsCustomer();
-    $order = StoredOrders::create($business)['order'];
-    $payment = StoredPayments::create($business, $order);
-    app()->bind(PaymentRepository::class, fn (): FailPaymentSave => new FailPaymentSave(app(EloquentPaymentRepository::class)));
-    Http::fake([
-        'api.onvopay.com/v1/checkout/sessions/'.$payment->provider_reference => Http::response(['id' => $payment->provider_reference, 'mode' => 'test', 'paymentIntentId' => $payment->capture_reference]),
-        'api.onvopay.com/v1/payment-intents/'.$payment->capture_reference => Http::response(['id' => $payment->capture_reference, 'mode' => 'test', 'amount' => 750000, 'currency' => 'CRC', 'status' => 'succeeded']),
-    ]);
-
-    getJson('/api/v1/cuenta/pagos/'.$payment->id)->assertInternalServerError();
-
-    app(BusinessTransaction::class)->scope($business->business->id);
-    assertDatabaseHas('orders', ['id' => $order->id, 'paid' => 0, 'status' => 'pending_payment']);
-    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'pending']);
-    Http::assertSentCount(2);
-});
-
 it('retains the committed attempt if saving its external reference fails', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business)['order'];
@@ -449,98 +437,66 @@ it('retains the committed attempt if saving its external reference fails', funct
     Http::assertSentCount(1);
 });
 
-it('refunds a cancelled order once using the server amount', function (): void {
-    $business = actingAsCustomer();
-    $order = StoredOrders::create($business, 'confirmed')['order'];
-    $payment = StoredPayments::create($business, $order, 'succeeded');
-    Http::fake([
-        'api.onvopay.com/v1/refunds' => Http::response(['id' => 'refund-1'], 201),
-        'api.onvopay.com/v1/refunds/refund-1' => Http::response(['id' => 'refund-1', 'mode' => 'test', 'paymentIntentId' => $payment->capture_reference, 'amount' => 750000, 'currency' => 'CRC', 'status' => 'succeeded']),
-    ]);
-    postJson('/api/v1/cuenta/pedidos/'.$order->id.'/cancelacion')->assertOk();
-    Sanctum::actingAs($business->owner, ['*']);
-
-    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos', ['monto' => 1])->assertOk()->assertJsonPath('data.0.monto', 7500)->assertJsonPath('data.0.estado', 'confirmado');
-    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonCount(0, 'data');
-
+it('R40: lists every refund of the order to the owner with its payment, line, amount and state', function (): void {
+    $business = actingAsOwner();
+    $order = StoredOrders::create($business, 'cancelled')['order'];
+    $payment = StoredPayments::create($business, $order, 'partially_refunded');
     app(BusinessTransaction::class)->scope($business->business->id);
-    assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'cancelled', 'paid' => 0]);
-    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'refunded', 'refunded_amount' => 7500]);
-    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'amount' => 7500, 'status' => 'succeeded']);
-    Http::assertSent(fn (Request $request): bool => $request->method() === 'POST' && $request['amount'] === 750000);
-    Http::assertSentCount(2);
-});
-
-it('preserves paid money until a refund succeeds', function (string $status, string $state): void {
-    $business = actingAsCustomer();
-    $order = StoredOrders::create($business, 'confirmed')['order'];
-    $payment = StoredPayments::create($business, $order, 'succeeded');
-    Http::fake([
-        'api.onvopay.com/v1/refunds' => Http::response(['id' => 'refund-unreturned'], 201),
-        'api.onvopay.com/v1/refunds/refund-unreturned' => Http::response(['id' => 'refund-unreturned', 'mode' => 'test', 'paymentIntentId' => $payment->capture_reference, 'amount' => 750_000, 'currency' => 'CRC', 'status' => $status]),
-    ]);
-    postJson('/api/v1/cuenta/pedidos/'.$order->id.'/cancelacion')->assertOk();
-    Sanctum::actingAs($business->owner, ['*']);
-
-    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonPath('data.0.estado', $state)->assertJsonPath('data.0.monto', 7500);
-    $repeated = postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk();
-    if ($status === 'pending') {
-        $repeated->assertJsonPath('data.0.estado', 'pendiente');
-    } else {
-        $repeated->assertJsonCount(0, 'data');
+    $line = (string) DB::table('order_lines')->where('order_id', $order->id)->value('id');
+    DB::table('payments')->where('id', $payment->id)->update(['refunded_amount' => 2000]);
+    $ids = collect([Str::uuid7(), Str::uuid7(), Str::uuid7()])->map(fn ($id): string => (string) $id)->sort()->values()->all();
+    foreach ([[2000, 'succeeded', null], [1500, 'failed', null], [4000, 'pending', $line]] as $index => [$amount, $status, $lineId]) {
+        DB::table('refunds')->insert(['id' => $ids[$index], 'business_id' => $business->business->id, 'payment_id' => $payment->id, 'order_line_id' => $lineId,
+            'amount' => $amount, 'status' => $status, 'charged_amount' => $amount, 'attempted_at' => now(), 'provider_reference' => 'refund-listed-'.$index]);
     }
 
-    app(BusinessTransaction::class)->scope($business->business->id);
-    assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'cancelled', 'paid' => 7500]);
-    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded', 'refunded_amount' => 0]);
-    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'amount' => 7500, 'status' => $status, 'provider_reference' => 'refund-unreturned']);
-    assertDatabaseCount('refunds', 1);
-    expect(Http::recorded(fn (Request $request): bool => $request->method() === 'POST' && $request->url() === 'https://api.onvopay.com/v1/refunds')->count())->toBe(1);
-    Http::assertSentCount($status === 'pending' ? 3 : 2);
-})->with([['pending', 'pendiente'], ['failed', 'fallido']]);
+    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonCount(3, 'data')
+        ->assertJsonPath('data.0', ['id' => $ids[0], 'pago' => $payment->id, 'linea' => null, 'monto' => 2000, 'estado' => 'confirmado'])
+        ->assertJsonPath('data.1', ['id' => $ids[1], 'pago' => $payment->id, 'linea' => null, 'monto' => 1500, 'estado' => 'fallido'])
+        ->assertJsonPath('data.2', ['id' => $ids[2], 'pago' => $payment->id, 'linea' => $line, 'monto' => 4000, 'estado' => 'pendiente']);
 
-it('does not resend an uncertain refund or record it as returned', function (): void {
-    $business = actingAsCustomer();
-    $order = StoredOrders::create($business, 'confirmed')['order'];
-    $payment = StoredPayments::create($business, $order, 'succeeded');
-    Http::fake(['api.onvopay.com/v1/refunds' => Http::failedConnection()]);
-    postJson('/api/v1/cuenta/pedidos/'.$order->id.'/cancelacion')->assertOk();
-    Sanctum::actingAs($business->owner, ['*']);
-
-    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonPath('data.0.estado', 'pendiente');
-    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonPath('data.0.estado', 'pendiente');
-
-    app(BusinessTransaction::class)->scope($business->business->id);
-    assertDatabaseHas('orders', ['id' => $order->id, 'paid' => 7500]);
-    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'pending', 'provider_reference' => null]);
-    expect(DB::table('refunds')->where('payment_id', $payment->id)->value('attempted_at'))->not->toBeNull();
-    Http::assertSentCount(1);
+    Http::assertNothingSent();
 });
 
-it('preserves the refund reference after rollback and retries its query', function (): void {
-    $business = actingAsCustomer();
-    $order = StoredOrders::create($business, 'confirmed')['order'];
+it('R40: queues again only the refunds that never left for the provider', function (): void {
+    Queue::fake();
+    $business = actingAsOwner();
+    $order = StoredOrders::create($business, 'cancelled')['order'];
     $payment = StoredPayments::create($business, $order, 'succeeded');
-    Http::fake([
-        'api.onvopay.com/v1/refunds' => Http::response(['id' => 'refund-durable'], 201),
-        'api.onvopay.com/v1/refunds/refund-durable' => Http::response(['id' => 'refund-durable', 'mode' => 'test', 'paymentIntentId' => $payment->capture_reference, 'amount' => 750000, 'currency' => 'CRC', 'status' => 'succeeded']),
-    ]);
-    postJson('/api/v1/cuenta/pedidos/'.$order->id.'/cancelacion')->assertOk();
-    Sanctum::actingAs($business->owner, ['*']);
-    app()->bind(PaymentRepository::class, fn (): FailPaymentSave => new FailPaymentSave(app(EloquentPaymentRepository::class), afterReference: true));
-
-    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertInternalServerError();
-
     app(BusinessTransaction::class)->scope($business->business->id);
-    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'pending', 'provider_reference' => 'refund-durable']);
+    $ids = collect([Str::uuid7(), Str::uuid7(), Str::uuid7()])->map(fn ($id): string => (string) $id)->sort()->values()->all();
+    $rows = [
+        // Its job ran out of attempts before the refund started.
+        ['amount' => 3000, 'status' => 'pending', 'charged_amount' => null, 'attempted_at' => null, 'provider_reference' => null],
+        // It already left: its notice or the reconciliation confirms it.
+        ['amount' => 2500, 'status' => 'pending', 'charged_amount' => 2500, 'attempted_at' => now(), 'provider_reference' => null],
+        ['amount' => 2000, 'status' => 'failed', 'charged_amount' => 2000, 'attempted_at' => now(), 'provider_reference' => 'refund-rejected'],
+    ];
+    foreach ($rows as $index => $row) {
+        DB::table('refunds')->insert(['id' => $ids[$index], 'business_id' => $business->business->id, 'payment_id' => $payment->id, ...$row]);
+    }
+
+    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonCount(3, 'data')
+        ->assertJsonPath('data.0.estado', 'pendiente')->assertJsonPath('data.1.estado', 'pendiente')->assertJsonPath('data.2.estado', 'fallido');
+
+    Queue::assertPushed(RequestRefundJob::class, 1);
+    Queue::assertPushed(RequestRefundJob::class, fn (RequestRefundJob $job): bool => $job->refundId === $ids[0] && $job->businessId === $business->business->id);
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('refunds', ['id' => $ids[0], 'status' => 'pending', 'attempted_at' => null]);
     assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded', 'refunded_amount' => 0]);
-    assertDatabaseHas('orders', ['id' => $order->id, 'paid' => 7500]);
-    app()->bind(PaymentRepository::class, EloquentPaymentRepository::class);
-    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonPath('data.0.estado', 'confirmado');
+    Http::assertNothingSent();
+});
+
+it('answers an empty list for an order without refunds', function (): void {
+    Queue::fake();
+    $business = actingAsOwner();
+    $order = StoredOrders::create($business, 'confirmed')['order'];
+
+    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos', ['pago' => (string) Str::uuid7(), 'monto' => 1])->assertOk()->assertExactJson(['data' => []]);
+
+    Queue::assertNothingPushed();
     app(BusinessTransaction::class)->scope($business->business->id);
-    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'refunded', 'refunded_amount' => 7500]);
-    assertDatabaseHas('orders', ['id' => $order->id, 'paid' => 0]);
-    Http::assertSentCount(3);
+    assertDatabaseCount('refunds', 0);
 });
 
 it('returns 409 for a balance while the order still has an unresolved refund', function (string $status): void {

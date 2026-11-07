@@ -11,11 +11,11 @@
 | Desactivar o reactivar a una persona | `member.deactivated`, `member.activated` | `UpdateMember` |
 | Ajuste de una botella | `bottle.adjusted` | `AdjustDecantBottle` |
 | Precio manual de una presentación | `variant.manual_price_changed` | `AddPerfumeVariant`, `EditPerfumeVariant` |
-| Reembolso solicitado | `refund.requested`, una entrada por cada reembolso | `PaymentRefundRequests` |
+| Reembolso solicitado | `refund.requested`, una entrada por cada reembolso | `RefundPayment` |
 
 Un `PATCH` que desactiva y además cambia el rol deja una sola entrada, `member.deactivated`, con los dos valores antes y después. Cambiar solo el nombre o si atiende citas no deja entrada.
 
-El reembolso se registra en el adaptador porque ahí nace cada fila de `refunds` con su identificador; un pedido cancelado puede repartir el importe entre varios pagos. Queda con el cliente como autor si canceló, con el dueño si marcó una línea no disponible, y con el sistema cuando no hay sesión.
+El reembolso se registra en `RefundPayment`, el caso de uso que crea cada fila de `refunds` con su identificador y deja su solicitud a la pasarela en la cola (#97); un pedido cancelado puede repartir el importe entre varios pagos, y cada parte deja su entrada. Queda con el cliente como autor si canceló, con el dueño si marcó una línea no disponible, y con el sistema cuando no hay sesión.
 
 ## Las garantías
 
@@ -31,7 +31,6 @@ El reembolso se registra en el adaptador porque ahí nace cada fila de `refunds`
 ## Lo que falta
 
 - **Pago manual.** `POST /panel/pedidos/{pedido}/pagos-manuales` llega con #98, que todavía no está en esta rama. Ya existe `AuditAction::ManualPaymentRecorded`: al integrar, `RecordManualPayment` debe llamar a `AuditTrail` dentro de su transacción, y hay que completar el `todo` de `AuditTrailTest`.
-- **Reembolsos en cola.** #97 (PR #279) reescribe el flujo de reembolsos. Al integrar, hay que conservar la llamada a `AuditTrail` donde se crea la fila de `refunds`.
 - **Alta por consola.** El dueño que se crea al dar de alta una tienda con `CreateBusinessConsoleCommand` no deja entrada, porque esa tienda todavía no tiene operación que aclarar.
 
 ## Pendiente de definir

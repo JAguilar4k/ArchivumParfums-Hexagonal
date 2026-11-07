@@ -18,6 +18,9 @@ use Src\Shared\Domain\ValueObjects\Colones;
 
 final class Payment
 {
+    /** Minutes a pending charge waits for the provider's notice before the reconciliation asks the provider itself (#96). */
+    public const int MINUTES_FOR_THE_NOTICE = 5;
+
     private function __construct(
         public readonly PaymentId $id,
         public readonly BusinessId $businessId,
@@ -86,6 +89,42 @@ final class Payment
         }
 
         $this->status = $status;
+    }
+
+    /** Whether a reference of the provider names this payment's charge, checkout or capture. */
+    public function hasReference(string $reference): bool
+    {
+        return $reference !== '' && in_array($reference, [$this->providerReference, $this->checkoutReference, $this->captureReference], true);
+    }
+
+    /**
+     * Whether a provider reports exactly what this payment charged, in the currency and unit the payment keeps. A report
+     * of a failure may leave the amount out, as ONVO's notice of a failed charge does; its currency must still match.
+     */
+    public function matchesCharge(?string $currency, ?int $amount, bool $failure = false): bool
+    {
+        return $this->chargedAmount > 0 && $currency === $this->chargedCurrency
+            && ($amount === $this->chargedAmount || ($failure && $amount === null));
+    }
+
+    /**
+     * Start a refund of this payment (R40). Only a confirmed payment returns money, and its refunds never pass what it
+     * paid and has not returned yet, counting the ones still pending (R30, R31). The caller holds the lock of the
+     * payment's row, so two refunds of the same payment cannot both count on the same colones.
+     *
+     * @param  int  $pending  colones of the refunds of this payment that are still pending
+     */
+    public function requestRefund(string $refundId, int $amount, int $pending, ?string $orderLineId = null): Refund
+    {
+        if (! in_array($this->status, [PaymentStatus::Succeeded, PaymentStatus::PartiallyRefunded], true)) {
+            throw new InvalidPaymentTransitionException('payments.not_refundable');
+        }
+
+        if ($amount <= 0 || $pending < 0 || $amount > $this->amount->amount - $this->refundedAmount - $pending) {
+            throw new InvalidPaymentTransitionException('payments.invalid_refund');
+        }
+
+        return Refund::create($refundId, $this->businessId->value, $this->id->value, $amount, $orderLineId);
     }
 
     /** Record a confirmed refund without allowing a total greater than the original payment. */

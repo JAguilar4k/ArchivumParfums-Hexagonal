@@ -2,6 +2,8 @@
 
 Esta guía prepara y demuestra un depósito de un pedido de ArchivumParfums mediante PayPal. Se usa Postman **sin cuenta, con pestañas manuales en Lightweight**, y el navegador para el checkout hospedado. Los pasos están contrastados con el código del corte y con documentación oficial consultada el **25/10/2026**; la aceptación sandbox se completó el **26/10/2026**.
 
+**Desde #96**, `GET /api/v1/cuenta/pagos/{pago}` solo lee el pago guardado. La consulta a PayPal y la captura que esta guía atribuye a ese GET las hace ahora la conciliación: para repetir el recorrido sin dirección pública, después de aprobar en PayPal espera a que el pago tenga cinco minutos de creado y corre `php artisan archivum:reconcile-payments` en otra terminal, o deja corriendo `php artisan schedule:work`. La evidencia del 26/10/2026 se conserva tal como se registró.
+
 **Estado de la evidencia:** se seleccionó la Visa ficticia terminada en **5083**, se aprobó y capturó el depósito de **USD 15,00** y se verificaron pago y pedido mediante HTTP real. Dos consultas del mismo pago conservaron `confirmado`; el proveedor devolvió una sola captura `COMPLETED`. Los resultados están en el paso 10. **Las colecciones nativas de Postman no se han ejecutado**: la evidencia proviene de solicitudes HTTP y del navegador; el recorrido manual de Lightweight se prepara por separado.
 
 La [colección PayPal](../archivum-api-hexagonal/tests/Postman/ArchivumParfums-PayPal.postman_collection.json) y su [entorno local](../archivum-api-hexagonal/tests/Postman/ArchivumParfums-PayPal-local.postman_environment.json) están preparados como archivos; no están importados en la aplicación. Puedes copiar sus peticiones a pestañas manuales siguiendo el [README de Postman](../archivum-api-hexagonal/tests/Postman/README.md#sin-cuenta-pestañas-manuales-en-lightweight). Allí también aparecen los [nombres breves y el orden del recorrido](../archivum-api-hexagonal/tests/Postman/README.md#investigación-1-archivos-y-nombres-del-recorrido). La importación de colección y entorno es opcional para quien inicie sesión en Postman.
@@ -251,7 +253,7 @@ Si el checkout solo ofrece saldo o impide usar la tarjeta ficticia, registrar es
 
 ## 9. Consultar, capturar y confirmar desde el servidor
 
-Después de aprobar y regresar a la URL local, volver a Postman con **Bearer de Mariana**:
+Después de aprobar y regresar a la URL local, espera a que el pago tenga cinco minutos de creado y corre `php artisan archivum:reconcile-payments` en otra terminal, o deja corriendo `php artisan schedule:work`. Luego volver a Postman con **Bearer de Mariana**:
 
 ```http
 GET http://localhost:8000/api/v1/cuenta/pagos/PEGA_PAGO_ID
@@ -259,7 +261,7 @@ GET http://localhost:8000/api/v1/cuenta/pagos/PEGA_PAGO_ID
 
 No enviar `estado`, `monto` ni el `token` que aparece en la URL de retorno. El valor de `PEGA_PAGO_ID` es el UUID de Archivum obtenido del POST, no el identificador de la orden PayPal.
 
-En esta petición el servidor consulta la orden PayPal; si está `APPROVED` y el pedido admite el cobro, ejecuta la captura desde el servidor. **La aprobación sola no acredita el pedido:** exige una captura `COMPLETED` con identificadores, moneda e importe coincidentes. La API actualiza pago y pedido en una misma transacción. [Crear y capturar desde el backend](https://developer.paypal.com/studio/checkout/standard/integrate).
+Esta petición solo lee el pago guardado. Es la conciliación la que consulta la orden PayPal; si está `APPROVED` y el pedido admite el cobro, ejecuta la captura desde el servidor. **La aprobación sola no acredita el pedido:** exige una captura `COMPLETED` con identificadores, moneda e importe coincidentes. La API actualiza pago y pedido en una misma transacción. [Crear y capturar desde el backend](https://developer.paypal.com/studio/checkout/standard/integrate).
 
 Si la captura terminó, la respuesta es **200**, con `data.estado = "confirmado"` y `data.consulta_pendiente = false`. Consultar el pedido:
 
@@ -273,9 +275,9 @@ Repetir el **GET del pago dos veces** y volver a consultar el pedido: `pagado` d
 
 | Resultado | Qué observar y hacer |
 |---|---|
-| Orden externa todavía no aprobada o captura `PENDING` | La API conserva `estado: "pendiente"`. No presentar el depósito como cobrado; consultar otra vez cuando cambie el proveedor. |
+| Orden externa todavía no aprobada o captura `PENDING` | La API conserva `estado: "pendiente"`. No presentar el depósito como cobrado; volver a conciliar y consultar cuando cambie el proveedor. |
 | Rechazo explícito reconocido, como `INSTRUMENT_DECLINED` | `estado: "fallido"`; el pedido no recibe ese importe. Un rechazo se distingue de una caída de red. |
-| Error de comunicación | **202**, `consulta_pendiente: true`, `Retry-After: 30`. Conservar el intento y consultar de nuevo; no borrar el registro para forzar otro cargo. |
+| Error de comunicación | Al crear el cobro, **202**, `consulta_pendiente: true`, `Retry-After: 30`; al conciliar, el pago sigue pendiente para la siguiente corrida. Conservar el intento y consultar de nuevo; no borrar el registro para forzar otro cargo. |
 | Error al crear y `url_pago` nula | El intento ya quedó guardado, pero el resultado remoto es incierto. Repetir el POST conserva su identidad; no reconstruye una URL ni hace otro POST de creación. Revisar la configuración y los registros para conciliarlo. |
 | `422` al solicitar SINPE o sin conversión válida | Corregir el medio o el ajuste. PayPal en este proyecto admite `tarjeta`, con conversión a USD; no admite `sinpe_movil`. |
 | Retorno a la URL de cancelación | No es una confirmación de pago ni una cancelación local automática. Consultar el estado real. Para la demostración de aceptación usar un pedido nuevo y vigente. |
@@ -329,6 +331,8 @@ Estas pruebas usan la base `archivum_hexagonal_testing`, aplican las migraciones
 
 ## 12. Reembolso de PayPal: documentación y límite de este corte
 
+> Actualización de #97 (Avance 2): el adaptador ya implementa el reembolso. `PayPalGateway::refund()` envía `POST /v2/payments/captures/{capture_id}/refund` con `PayPal-Request-Id`, en dólares con el tipo de cambio del pago original, desde el trabajo en cola de cada reembolso; el aviso `PAYMENT.CAPTURE.REFUNDED` o `php artisan archivum:reconcile-payments` lo confirman. Lo que sigue describe el límite de Investigación 1, el corte en que se ejecutó esta guía.
+
 PayPal ofrece `POST /v2/payments/captures/{capture_id}/refund` y la consulta de su resultado. Esto es la capacidad documentada del proveedor. [Referencia oficial de Payments v2](https://developer.paypal.com/api/payments/v2).
 
 **El adaptador PayPal del proyecto no implementa esa operación**: `PayPalGateway::refund()` lanza `payments.refund_not_supported`; el procesador de reembolsos solo envía a ONVO. Una devolución registrada para PayPal conserva su pendiente y no debe marcarse como confirmada por completar una devolución manual en el panel externo. Investigación 1 permite dejar el reembolso de PayPal documentado para el corte posterior. No afirmar que la API ya devuelve dinero con PayPal ni intentar demostrarlo con el endpoint de ONVO.
@@ -343,10 +347,10 @@ Las rutas de esta tabla son relativas a `archivum-api-hexagonal/`. Para **ejecut
 | Documentar nuevas variables para el equipo | [.env.example](../archivum-api-hexagonal/.env.example) | Añadir nombres y ejemplos sin secretos, si cambian los requisitos de configuración. |
 | Elegir pasarela o tipo de cambio | `PATCH /api/v1/panel/tienda`; [UpdateBusinessProfileRequest.php](../archivum-api-hexagonal/src/Businesses/Profile/Infrastructure/Http/Requests/UpdateBusinessProfileRequest.php) | Para la demo usar la API. La Request define `pasarela_por_defecto` y `tipo_cambio_usd`; no cambiar controladores para elegir tienda o proveedor. |
 | Consultar el host y los nombres de variables | [config/payments.php](../archivum-api-hexagonal/config/payments.php) | Revisar el mapa de configuración. Mantener el host sandbox del corte. |
-| Cambiar la comunicación con PayPal | [PayPalGateway.php](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Gateways/PayPal/PayPalGateway.php) | Ajustar OAuth, creación, consulta y captura dentro de este adaptador. Es donde se implementaría el reembolso pendiente. |
+| Cambiar la comunicación con PayPal | [PayPalGateway.php](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Gateways/PayPal/PayPalGateway.php) | Ajustar OAuth, creación, consulta y captura dentro de este adaptador. Desde #97 también contiene el reembolso. |
 | Cambiar validación/conversión de dinero | [GatewayMoney.php](../archivum-api-hexagonal/src/Payments/Payments/Infrastructure/Gateways/GatewayMoney.php); [ExchangeRate.php](../archivum-api-hexagonal/src/Payments/Payments/Domain/ValueObjects/ExchangeRate.php) | Conservar colones enteros y centavos USD; validar antes de guardar un nuevo intento. Añadir evidencia de redondeo y límites. |
 | Cambiar el contrato común del proveedor | [PaymentGateway.php](../archivum-api-hexagonal/src/Payments/Payments/Domain/Contracts/PaymentGateway.php) | Modificar el puerto solo si la capacidad común cambia, junto con adaptadores y pruebas. No hace falta para poner credenciales. |
-| Cambiar inicio y confirmación del pago | [StartPayment.php](../archivum-api-hexagonal/src/Payments/Payments/Application/UseCases/StartPayment.php); [ObservePayment.php](../archivum-api-hexagonal/src/Payments/Payments/Application/UseCases/ObservePayment.php) | Conservar el intento antes del POST externo y el efecto pago/pedido atómico tras la consulta verificada. |
+| Cambiar inicio y confirmación del pago | [StartPayment.php](../archivum-api-hexagonal/src/Payments/Payments/Application/UseCases/StartPayment.php); [PaymentSettlement.php](../archivum-api-hexagonal/src/Payments/Payments/Application/Services/PaymentSettlement.php) | Conservar el intento antes del POST externo y el efecto pago/pedido atómico tras la consulta verificada. |
 | Revisar estados y reglas del pago | [Payment.php](../archivum-api-hexagonal/src/Payments/Payments/Domain/Entities/Payment.php) | El dominio no depende de PayPal ni debe recibir estados enviados por el navegador. Cambiarlo solo por una regla de negocio acordada. |
 | Revisar el depósito por defecto | [BusinessSettings.php](../archivum-api-hexagonal/src/Businesses/Profile/Domain/ValueObjects/BusinessSettings.php); [OrderAmounts.php](../archivum-api-hexagonal/src/Sales/Orders/Domain/ValueObjects/OrderAmounts.php) | El 50 % se toma al crear el pedido y queda congelado. Para esta demo comprobar la respuesta; no alterar precios ni estado del pago a mano. |
 | Cambiar datos de demo permanentes | [CatalogDemoSeeder.php](../archivum-api-hexagonal/database/seeders/CatalogDemoSeeder.php); [StaffSeeder.php](../archivum-api-hexagonal/database/seeders/StaffSeeder.php); [CustomersSeeder.php](../archivum-api-hexagonal/database/seeders/CustomersSeeder.php) | Usar únicamente identidades ficticias. Esta guía crea su producto por HTTP, sin modificar los sembradores. |
@@ -358,4 +362,4 @@ La explicación del diseño y la comparación de proveedores están separadas en
 
 ## Cómo explicarlo en la exposición
 
-> El servidor toma el precio guardado del producto y calcula el depósito, sin aceptar el monto que envíe el navegador. En este ejemplo, una presentación de ₡15 000 requiere un depósito de ₡7 500, que con el tipo ilustrativo de 500 se cobra como USD 15,00. La aprobación del comprador en PayPal todavía no es la captura del dinero. Al consultar el pago por GET, nuestro servidor verifica la orden en PayPal y captura si está aprobada; solo una captura completada acredita el pedido. Las consultas repetidas conservan el mismo pago y no vuelven a cobrar el depósito confirmado.
+> El servidor toma el precio guardado del producto y calcula el depósito, sin aceptar el monto que envíe el navegador. En este ejemplo, una presentación de ₡15 000 requiere un depósito de ₡7 500, que con el tipo ilustrativo de 500 se cobra como USD 15,00. La aprobación del comprador en PayPal todavía no es la captura del dinero. Al conciliar los pagos pendientes, nuestro servidor verifica la orden en PayPal y captura si está aprobada; solo una captura completada acredita el pedido, y el GET del cliente solo lee el pago guardado. Las consultas repetidas conservan el mismo pago y no vuelven a cobrar el depósito confirmado.

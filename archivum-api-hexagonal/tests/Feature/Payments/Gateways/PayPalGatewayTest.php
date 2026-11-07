@@ -173,13 +173,97 @@ it('distinguishes an explicit capture refusal from a network timeout', function 
     Http::assertSentCount(4);
 });
 
-it('refuses production endpoints and keeps unsupported refunds offline', function (): void {
+it('refuses production endpoints', function (): void {
     expect(fn () => new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c', baseUrl: 'https://api-m.paypal.com'))->toThrow(InvalidValueException::class);
-    $gateway = new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c');
-
-    expect(fn () => $gateway->refund(new RefundRequest('refund-1', 'order-1', 5_000)))->toThrow(InvalidValueException::class, 'payments.refund_not_supported');
 
     Http::assertNothingSent();
+});
+
+it('R37: converts the running total of the refunds, so together they return exactly the captured cents', function (): void {
+    $gateway = new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c');
+
+    // ₡15.000 at 503.17 were captured as $29.81; two refunds of ₡7.500 each would round to $14.91 twice, one cent too many.
+    $first = $gateway->refundAmount(7_500, 0, '503.17');
+    $second = $gateway->refundAmount(7_500, 7_500, '503.17');
+
+    expect($first)->toBe(1_491)
+        ->and($second)->toBe(1_490)
+        ->and($first + $second)->toBe($gateway->refundAmount(15_000, 0, '503.17'))
+        ->and($gateway->refundAmount(15_000, 0, '503.17'))->toBe(2_981);
+    Http::assertNothingSent();
+});
+
+it('refunds the capture with its cents under an idempotency key of the refund and the custom_id Archivum reads back', function (string $status, string $expected): void {
+    Http::fake([
+        'api-m.sandbox.paypal.com/v1/oauth2/token' => Http::response(['access_token' => 'fake-token']),
+        'api-m.sandbox.paypal.com/v2/payments/captures/capture-1/refund' => Http::response(['id' => 'paypal-refund-1', 'status' => $status, 'amount' => ['currency_code' => 'USD', 'value' => '14.90']], 201),
+    ]);
+
+    $result = (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))
+        ->refund(new RefundRequest('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'order-1', 1_490, 'capture-1'));
+
+    expect($result->providerReference)->toBe('paypal-refund-1')->and($result->status)->toBe($expected);
+    Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/v2/payments/captures/capture-1/refund')
+        && $request['amount'] === ['currency_code' => 'USD', 'value' => '14.90']
+        && $request['custom_id'] === '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62:0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64'
+        && $request->header('PayPal-Request-Id') === [substr(hash('sha256', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64:refund'), 0, 32)]
+        && $request->header('Prefer') === ['return=representation']);
+    Http::assertSentCount(2);
+})->with([['COMPLETED', 'succeeded'], ['PENDING', 'pending'], ['FAILED', 'failed'], ['CANCELLED', 'failed']]);
+
+it('reports a refusal of PayPal as a failed refund, not as an unavailable provider', function (): void {
+    Http::fake([
+        'api-m.sandbox.paypal.com/v1/oauth2/token' => Http::response(['access_token' => 'fake-token']),
+        'api-m.sandbox.paypal.com/v2/payments/captures/capture-1/refund' => Http::response(['name' => 'UNPROCESSABLE_ENTITY', 'details' => [['issue' => 'REFUND_AMOUNT_EXCEEDED']]], 422),
+    ]);
+
+    $result = (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))
+        ->refund(new RefundRequest('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'order-1', 1_491, 'capture-1'));
+
+    // PayPal created no refund, so there is no reference of the provider to keep.
+    expect($result->status)->toBe('failed')->and($result->providerReference)->toBeNull();
+});
+
+it('asks only for the state of a refund PayPal already accepted', function (): void {
+    Http::fake([
+        'api-m.sandbox.paypal.com/v1/oauth2/token' => Http::response(['access_token' => 'fake-token']),
+        'api-m.sandbox.paypal.com/v2/payments/refunds/paypal-refund-1' => Http::response(['id' => 'paypal-refund-1', 'status' => 'COMPLETED', 'amount' => ['currency_code' => 'USD', 'value' => '14.90']]),
+    ]);
+
+    $result = (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))
+        ->refund(new RefundRequest('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'order-1', 1_490, 'capture-1', 'paypal-refund-1'));
+
+    expect($result->status)->toBe('succeeded');
+    Http::assertNotSent(fn (Request $request): bool => $request->method() === 'POST' && str_contains($request->url(), '/refund'));
+    Http::assertSentCount(2);
+});
+
+it('rejects a refund answer with other cents, another currency or another refund', function (array $answer, string $exception): void {
+    Http::fake([
+        'api-m.sandbox.paypal.com/v1/oauth2/token' => Http::response(['access_token' => 'fake-token']),
+        'api-m.sandbox.paypal.com/v2/payments/refunds/paypal-refund-1' => Http::response($answer),
+    ]);
+
+    expect(fn () => (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))
+        ->refund(new RefundRequest('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'order-1', 1_490, 'capture-1', 'paypal-refund-1')))
+        ->toThrow($exception);
+})->with([
+    'other cents' => [['id' => 'paypal-refund-1', 'status' => 'COMPLETED', 'amount' => ['currency_code' => 'USD', 'value' => '14.91']], InvalidValueException::class],
+    'another currency' => [['id' => 'paypal-refund-1', 'status' => 'COMPLETED', 'amount' => ['currency_code' => 'EUR', 'value' => '14.90']], InvalidValueException::class],
+    'another refund' => [['id' => 'paypal-refund-2', 'status' => 'COMPLETED', 'amount' => ['currency_code' => 'USD', 'value' => '14.90']], GatewayUnavailableException::class],
+]);
+
+it('reports a refund that cannot reach PayPal as unavailable, and one without capture without contacting PayPal', function (): void {
+    Http::fake(['api-m.sandbox.paypal.com/*' => Http::failedConnection()]);
+    $gateway = new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c');
+
+    expect(fn () => $gateway->refund(new RefundRequest('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'order-1', 1_490, 'capture-1')))
+        ->toThrow(GatewayUnavailableException::class);
+    Http::assertSentCount(1);
+
+    expect(fn () => $gateway->refund(new RefundRequest('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'order-1', 1_490)))
+        ->toThrow(InvalidValueException::class, 'payments.invalid_refund');
+    Http::assertSentCount(1);
 });
 
 it('verifies webhook origin with PayPal and preserves the original event JSON', function (): void {
@@ -212,3 +296,88 @@ it('does not treat an OAuth or upstream failure as a payment decline', function 
 
     Http::assertSentCount(1);
 })->with([401, 503]);
+
+it('reads an approved order notice from its purchase unit, in cents', function (): void {
+    $event = (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'id' => 'WH-1', 'event_type' => 'CHECKOUT.ORDER.APPROVED',
+        'resource' => ['id' => 'order-1', 'status' => 'APPROVED', 'purchase_units' => [[
+            'custom_id' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62:0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a61', 'amount' => ['currency_code' => 'USD', 'value' => '15.63'],
+        ]]],
+    ]));
+
+    expect($event->gateway)->toBe('paypal')
+        ->and($event->eventId)->toBe('WH-1')
+        ->and($event->reference)->toBe('order-1')
+        ->and($event->businessId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62')
+        ->and($event->paymentId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a61')
+        ->and($event->currency)->toBe('USD')
+        ->and($event->amount)->toBe(1_563);
+    Http::assertNothingSent();
+});
+
+it('reads a capture notice by the order it belongs to', function (): void {
+    $event = (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'id' => 'WH-2', 'event_type' => 'PAYMENT.CAPTURE.COMPLETED',
+        'resource' => ['id' => 'capture-1', 'status' => 'COMPLETED', 'custom_id' => 'not-ours', 'amount' => ['currency_code' => 'USD', 'value' => '30.00'],
+            'supplementary_data' => ['related_ids' => ['order_id' => 'order-1']]],
+    ]));
+
+    expect($event->reference)->toBe('order-1')
+        ->and($event->businessId)->toBeNull()
+        ->and($event->paymentId)->toBeNull()
+        ->and($event->amount)->toBe(3_000);
+});
+
+it('reads a refund notice by its refund, the capture it returns and the custom_id Archivum sent, in cents', function (): void {
+    $event = (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'id' => 'WH-3', 'event_type' => 'PAYMENT.CAPTURE.REFUNDED', 'resource_type' => 'refund',
+        'resource' => ['id' => 'paypal-refund-1', 'status' => 'COMPLETED', 'amount' => ['currency_code' => 'USD', 'value' => '14.90'],
+            'custom_id' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62:0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64',
+            'links' => [
+                ['href' => 'https://api.sandbox.paypal.com/v2/payments/refunds/paypal-refund-1', 'rel' => 'self', 'method' => 'GET'],
+                ['href' => 'https://api.sandbox.paypal.com/v2/payments/captures/capture-1', 'rel' => 'up', 'method' => 'GET'],
+            ]],
+    ]));
+
+    expect($event->aboutRefund())->toBeTrue()
+        ->and($event->aboutCharge())->toBeFalse()
+        ->and($event->refundReference)->toBe('paypal-refund-1')
+        ->and($event->reference)->toBe('capture-1')
+        ->and($event->businessId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62')
+        ->and($event->refundId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64')
+        ->and($event->currency)->toBe('USD')
+        ->and($event->amount)->toBe(1_490);
+    Http::assertNothingSent();
+});
+
+it('reads a refund notice without the identifiers Archivum sends only by the provider\'s references', function (): void {
+    $event = (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'id' => 'WH-4', 'event_type' => 'PAYMENT.CAPTURE.REFUNDED',
+        'resource' => ['id' => 'paypal-refund-1', 'custom_id' => 'not-ours', 'amount' => ['currency_code' => 'USD', 'value' => '14.90']],
+    ]));
+
+    expect($event->aboutRefund())->toBeTrue()
+        ->and($event->reference)->toBeNull()
+        ->and($event->businessId)->toBeNull()
+        ->and($event->refundId)->toBeNull();
+});
+
+it('reads other notices without a charge or a refund', function (string $type): void {
+    $event = (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'id' => 'WH-5', 'event_type' => $type, 'resource' => ['id' => 'resource-1', 'amount' => ['currency_code' => 'USD', 'value' => '30.00']],
+    ]));
+
+    expect($event->aboutCharge())->toBeFalse()->and($event->aboutRefund())->toBeFalse()->and($event->eventId)->toBe('WH-5');
+})->with(['PAYMENT.CAPTURE.REVERSED', 'CUSTOMER.DISPUTE.CREATED']);
+
+it('refuses a body that is not a notice of PayPal', function (string $body): void {
+    expect(fn () => (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))->parseWebhook($body))
+        ->toThrow(InvalidValueException::class, 'payments.invalid_webhook');
+})->with([
+    'not JSON' => ['not-json'],
+    'without id' => ['{"event_type":"CHECKOUT.ORDER.APPROVED","resource":{"id":"order-1"}}'],
+    'without resource' => ['{"id":"WH-1","event_type":"CHECKOUT.ORDER.APPROVED"}'],
+    'an approval without order' => ['{"id":"WH-1","event_type":"CHECKOUT.ORDER.APPROVED","resource":{"purchase_units":[]}}'],
+    'a capture without order' => ['{"id":"WH-1","event_type":"PAYMENT.CAPTURE.COMPLETED","resource":{"id":"capture-1"}}'],
+    'a refund without its id' => ['{"id":"WH-1","event_type":"PAYMENT.CAPTURE.REFUNDED","resource":{"status":"COMPLETED"}}'],
+]);
