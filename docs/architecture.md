@@ -18,6 +18,7 @@ src/
         │   ├── Entities/
         │   ├── ValueObjects/
         │   ├── Contracts/       Puertos (interfaces)
+        │   ├── Services/        Servicios de dominio, si el módulo los necesita
         │   └── Exceptions/
         ├── Application/
         │   ├── UseCases/
@@ -33,7 +34,7 @@ Las carpetas `app/`, `bootstrap/`, `config/`, `database/`, `lang/` y `routes/` c
 
 ## Contextos
 
-La base compartida y los contextos de cuentas, tiendas y catálogo ya están implementados. Investigación 1 agrega `Decants/Bottles`, `Sales/Orders` y `Payments/Payments`; `Decants/Packs` sigue previsto. Cada contexto restante se crea con el primer issue de uno de sus módulos, con estos nombres. Los módulos marcados como extra solo se construyen si el núcleo del corte está completo:
+La base compartida y los contextos de cuentas, tiendas y catálogo ya están implementados. Investigación 1 agrega `Decants/Bottles`, `Sales/Orders` y `Payments/Payments`; `Decants/Packs` sigue previsto. Avance 2 crea `Recommendations/Recommender` con el puerto de la IA (#117). Cada contexto restante se crea con el primer issue de uno de sus módulos, con estos nombres. Los módulos marcados como extra solo se construyen si el núcleo del corte está completo:
 
 | Contexto | Módulos | Qué agrupa |
 |---|---|---|
@@ -74,7 +75,7 @@ El dominio de un módulo solo puede depender de su propio módulo, del `Shared` 
 
 | Capa | Contenido |
 |---|---|
-| Domain | Entidades y agregados, objetos de valor, excepciones del dominio e interfaces de los puertos (por ejemplo, un repositorio). |
+| Domain | Entidades y agregados, objetos de valor, excepciones del dominio, interfaces de los puertos (por ejemplo, un repositorio) y servicios de dominio: reglas que no pertenecen a una sola entidad, como `SuggestionValidator`. |
 | Application | Un caso de uso por clase, con un único método público. Recibe los puertos por constructor y no conoce HTTP ni Eloquent. Los DTO llevan datos primitivos. |
 | Infrastructure | Controladores, Form Requests, API Resources, rutas, modelos Eloquent, implementaciones de los puertos y el service provider del módulo. |
 
@@ -138,6 +139,16 @@ Las rutas de cobro llevan `business:account,context`, además de autenticación 
 ### Alta de una tienda con su dueño
 
 El caso de uso `RegisterBusiness`, del módulo `Businesses/Profile`, crea la tienda y la cuenta de su dueño en una sola transacción. Colabora con otras piezas por dos puertos: `TransactionRunner`, en `Shared/Domain/Contracts`, con el adaptador `DatabaseTransactionRunner`; y `OwnerAccounts`, en `Application/Contracts` del módulo, cuyo adaptador `AccountsOwnerAccounts` fija la tienda nueva en la transacción con `BusinessTransaction`, abre la cuenta con el caso de uso `RegisterAccount` de `Accounts/Users` y la agrega al personal como dueño con el caso de uso `AddMember` de `Businesses/Members`. El dominio y la aplicación de `Businesses/Profile` no importan clases de esos módulos: solo las importa ese adaptador. Si cualquiera de los dos pasos falla, la transacción se revierte y no queda ni la tienda ni la cuenta. El comando `archivum:create-business` es la entrada de este caso de uso (#27).
+
+### Recomendador con IA
+
+`Recommendations/Recommender` consulta a la IA por el puerto `AiRecommender`, en `Domain/Contracts`. Recibe el texto del cliente y el catálogo de la tienda como objetos del dominio (`CatalogPerfume` con sus `CatalogVariant`) y devuelve una `Recommendation`: las `CustomerPreferences` leídas del texto, hasta 5 `SuggestedPerfume` con su razón y el `RecommendationOrigin` que dice si la produjo la IA o las reglas. Lo que devuelve la IA no es confiable: se compara con el catálogo antes de usarse (#119), y si la IA falla responde el recomendador por reglas (#120).
+
+El adaptador `LaravelAiRecommender`, en `Infrastructure/Ai`, usa `laravel/ai` con Gemini ([ADR 0012](adr/0012-ai-recommender-through-laravel-ai-with-gemini.md)). Su agente `RecommendationAgent` lleva las reglas y el catálogo en las instrucciones, recibe el texto del cliente como el mensaje y pide salida estructurada con un esquema declarado, sin herramientas ni conversación. El adaptador corta la solicitud a los 10 s fijos de `config/archivum.php` y convierte cualquier excepción del SDK o del cliente HTTP, una respuesta tardía o una que no tiene la forma del esquema en `AiUnavailableException`. El proveedor y el modelo se cambian en `config/ai.php`, y la llave vive en `.env`; ni el dominio ni los casos de uso conocen el SDK.
+
+Antes de usarse, lo que sugiere la IA pasa por el servicio de dominio `SuggestionValidator`, en `Domain/Services` (#119). La sugerencia se trata como datos no confiables: se compara en memoria con el catálogo que recibió la IA y nada de ella llega a una consulta. Se descarta cada perfume que no está en ese catálogo (no existe, es de otra tienda o no está activo), el repetido, el que no tiene ninguna presentación que cueste a lo sumo el presupuesto (el mismo criterio del precio máximo de la vitrina) y el que trae una razón vacía o de más de 200 caracteres. En las preferencias se descarta un momento o un clima fuera de sus valores y un presupuesto que no es un entero positivo. El módulo tiene sus propios `TimeOfDay` y `Climate`, con los valores con que el catálogo etiqueta sus perfumes: el dominio de un módulo no depende del de otro, aunque nombren los mismos valores. El agente los usa en su esquema, así lo que pide y lo que acepta salen de la misma fuente.
+
+`SuggestionValidator` devuelve una `SuggestionValidation`: la recomendación con lo que quedó y una `DiscardCause` por cada descarte, para que el log cuente cuántos hubo y por qué, sin el texto del cliente (#121). Si no queda ningún perfume, la sugerencia no valida (`passed()` es falso) y responde el recomendador por reglas (#120). Marca, nombre y precios no forman parte de una sugerencia: siempre salen del catálogo.
 
 ### El tiempo es un parámetro
 
@@ -230,7 +241,7 @@ Las pruebas se escriben con Pest ([ADR 0009](adr/0009-pest-instead-of-phpunit.md
 
 Los caminos críticos tienen prueba propia: la doble reserva de una cita, los últimos ml de una botella, el canje simultáneo de un paquete, el webhook repetido y el webhook con firma inválida ([ADR 0010](adr/0010-concurrency-guaranteed-in-postgresql.md)).
 
-En M10, `ConcurrentMlReservationTest` usa dos procesos y conexiones reales con datos confirmados fuera de la transacción de prueba. `BottleSchemaTest` comprueba restricciones, RLS e historial inmutable con el rol de la aplicación. Las pruebas de pedidos también ejercitan la reserva por HTTP. Los adaptadores de pagos usan `Http::fake`; se impiden las solicitudes externas sin fake. Las pruebas de concurrencia y durabilidad del pago verifican que una respuesta perdida no permita repetir el cobro ni aplicar dos veces el resultado.
+En M10, `ConcurrentMlReservationTest` usa dos procesos y conexiones reales con datos confirmados fuera de la transacción de prueba. `BottleSchemaTest` comprueba restricciones, RLS e historial inmutable con el rol de la aplicación. Las pruebas de pedidos también ejercitan la reserva por HTTP. Los adaptadores de pagos y el de la IA usan `Http::fake`; se impiden las solicitudes externas sin fake. Las pruebas que solo necesitan una respuesta de la IA usan `FakeAiRecommender`, que devuelve una salida fija, falla, agota el tiempo sin esperar 10 s o devuelve datos que el catálogo no admite. Las pruebas de concurrencia y durabilidad del pago verifican que una respuesta perdida no permita repetir el cobro ni aplicar dos veces el resultado.
 
 ## Base de datos y decisiones
 
