@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Src\Recommendations\Recommender\Application\UseCases;
 
+use Src\Recommendations\Recommender\Application\Contracts\DiscardedSuggestions;
 use Src\Recommendations\Recommender\Application\Contracts\RecommendableCatalog;
 use Src\Recommendations\Recommender\Application\DTOs\RecommendationResult;
 use Src\Recommendations\Recommender\Application\DTOs\RecommendedPerfume;
@@ -18,11 +19,15 @@ use Src\Recommendations\Recommender\Domain\ValueObjects\Recommendation;
 
 final readonly class RecommendPerfumes
 {
-    /** Receive the showcase of the store, the AI, the check of what it answers and the recommender without AI. */
+    /**
+     * Receive the showcase of the store, the AI, the check of what it answers with the record of what it discards, and
+     * the recommender without AI.
+     */
     public function __construct(
         private RecommendableCatalog $catalog,
         private AiRecommender $ai,
         private SuggestionValidator $validator,
+        private DiscardedSuggestions $discarded,
         private RuleBasedRecommender $rules,
     ) {}
 
@@ -82,6 +87,10 @@ final readonly class RecommendPerfumes
 
         try {
             $validation = $this->validator->validate($this->ai->recommend($text, $catalog), $catalog);
+
+            if ($validation->discarded !== []) {
+                $this->discarded->record($validation->discarded);
+            }
 
             if ($validation->passed()) {
                 return $validation->recommendation;
