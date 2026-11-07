@@ -18,9 +18,10 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $user_id
  * @property string $role
  * @property bool $attends_appointments
+ * @property bool $is_active
  */
 #[Table('members')]
-#[Fillable(['id', 'business_id', 'user_id', 'role', 'attends_appointments'])]
+#[Fillable(['id', 'business_id', 'user_id', 'role', 'attends_appointments', 'is_active'])]
 #[UseFactory(MemberFactory::class)]
 final class MemberModel extends Model
 {
@@ -28,7 +29,7 @@ final class MemberModel extends Model
     use HasFactory, HasUuids;
 
     /**
-     * Cast the boolean column to a native type.
+     * Cast the boolean columns to a native type.
      *
      * @return array<string, string>
      */
@@ -36,6 +37,7 @@ final class MemberModel extends Model
     {
         return [
             'attends_appointments' => 'boolean',
+            'is_active' => 'boolean',
         ];
     }
 }

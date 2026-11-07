@@ -101,7 +101,13 @@ it('documents the notices of the providers as public operations with their recei
 
         expect($operation)->not->toHaveKey('security')
             ->and(array_keys($operation['responses']))->toBe([200, 401, 422, 500, 503])
-            ->and($operation['responses'][200]['content']['application/json']['schema']['properties']['data']['properties']['estado']['enum'])->toBe(['recibido', 'repetido'])
+            ->and($operation['responses'][200]['content']['application/json']['schema']['properties']['data'])->toBe(['$ref' => '#/components/schemas/PaymentNoticeResource'])
             ->and($operation['responses'][401]['content']['application/problem+json']['schema'])->toBe(['$ref' => '#/components/schemas/Problema']);
     }
+
+    // The answer names only the event and its outcome, never the payment or the order.
+    expect($document['components']['schemas']['PaymentNoticeResource']['properties'])->toBe([
+        'evento' => ['type' => 'string'],
+        'estado' => ['type' => 'string', 'enum' => ['repetido', 'recibido']],
+    ]);
 });
