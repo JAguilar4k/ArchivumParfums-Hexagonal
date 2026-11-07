@@ -86,7 +86,8 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Reembolso | `Refund` | `refunds` | `reembolsos` |
 | Intento de reembolso enviado | `attempted` | `refunds.attempted_at` | La devolución sigue `pendiente` si falta una respuesta verificable |
 | Principal reembolsado | `refundedAmount` | `payments.refunded_amount`, colones enteros | Se refleja en el estado del pago y en `pagado` del pedido después de confirmarse |
-| Evento de webhook | — | `webhook_events`, global | Recepción prevista para Avance 2; no hay endpoint en Investigación 1 |
+| Aviso de la pasarela (evento de webhook) | `PaymentEvent` | `webhook_events`, global, `pending` hasta procesarse y luego `processed` o `failed` con su error | `POST /api/v1/webhooks/onvo` y `/paypal`; responde `evento` y `estado`: `recibido` o `repetido` |
+| Procesamiento del aviso en la cola | `ProcessPaymentEventJob`, `ProcessPaymentEvent` | La fila del aviso en `webhook_events` y su trabajo en `jobs` | — |
 | Paquete de decants (oferta) | `DecantPackPlan` | `decant_pack_plans` | `paquetes` |
 | Paquete comprado | `DecantPack` | `decant_packs` | `paquetes-comprados` |
 | Proveedor | `Supplier` | `suppliers` | `proveedores` |
@@ -164,7 +165,7 @@ El dominio y la base guardan el estado en inglés. La API lo muestra en español
 
 - Un pago confirmado viaja como `confirmado`, nunca como `pagado`, para no chocar con el monto `pagado` del pedido.
 - Los estados del reembolso no estaban en la sección 6 inicial de la especificación; esta tabla es su definición y `refunds_status_check` ya los protege. Una solicitud pendiente no reduce el importe pagado hasta que el proveedor confirma la devolución.
-- Investigación 1 confirma por consulta autenticada del servidor al proveedor. La vuelta del navegador y una orden PayPal `APPROVED` no equivalen a un pago `succeeded`: debe comprobarse el resultado de la captura. Los webhooks verificados corresponden a #94 y #95 en Avance 2.
+- El pago se confirma por consulta autenticada del servidor al proveedor, que piden el cliente (Investigación 1) o un aviso de origen verificado (#94). La vuelta del navegador y una orden PayPal `APPROVED` no equivalen a un pago `succeeded`: debe comprobarse el resultado de la captura. El registro único de cada aviso llega con #95.
 - Las transiciones permitidas están en la sección 6 de [la especificación](especificacion.md#6-estados). Solo `held` y `confirmed` cuentan para la restricción de traslape de las citas.
 
 Los valores cerrados adicionales se traducen en la frontera HTTP:

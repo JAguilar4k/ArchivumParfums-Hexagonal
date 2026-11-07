@@ -4,7 +4,7 @@ API REST de ArchivumParfums. Laravel 13, PHP 8.4 y PostgreSQL 18.
 
 ## Alcance integrado
 
-La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Los servicios y horarios, la disponibilidad, las citas, los webhooks de pagos y el cliente Vue siguen pendientes de integración. Los escenarios externos ONVO y PayPal ya tienen [evidencia sandbox](../docs/evidencia-investigacion-1/README.md); el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
+La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Avance 2 suma la confirmación de pagos por aviso verificado de ONVO y PayPal (#94), procesado una sola vez en la cola (#95). Los servicios y horarios, la disponibilidad, las citas y el cliente Vue siguen pendientes de integración. Los escenarios externos ONVO y PayPal ya tienen [evidencia sandbox](../docs/evidencia-investigacion-1/README.md); el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
 
 ## Requisitos
 
@@ -148,7 +148,7 @@ Para comprobar que el contrato versionado ya coincide con el generador, usa `git
 
 `archivum-web` genera sus tipos desde este contrato: después de exportarlo, se ejecuta `npm run api:types` en `archivum-web/` y el pull request incluye los dos archivos ([README del cliente](../archivum-web/README.md#tipos-de-la-api)).
 
-Cuando se implemente trabajo en cola, el worker local se ejecuta en otra terminal con `php artisan queue:work --tries=1`; el scheduler usa `php artisan schedule:work`. Son procesos separados de `composer run dev`, y se inician cuando el módulo que se prueba los necesita. Los pagos de Investigación 1 usan peticiones HTTP y consultas explícitas desde la API; no requieren un worker ni un webhook. Los recordatorios y websockets siguen pendientes.
+Los avisos de las pasarelas se procesan en la cola (#95): con `QUEUE_CONNECTION=database`, el worker local corre en otra terminal con `php artisan queue:work`, y cada aviso guardado espera en la tabla `jobs` hasta que el worker lo aplica. El trabajo declara sus propios reintentos (cinco intentos, con esperas de 10, 60 y 300 segundos), y uno que los agota queda en `failed_jobs`, desde donde `php artisan queue:retry` lo vuelve a encolar. El scheduler usa `php artisan schedule:work`. Son procesos separados de `composer run dev`. El cobro y su consulta desde la API no necesitan el worker. Los recordatorios y websockets siguen pendientes.
 
 ## Pruebas
 
@@ -258,12 +258,14 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | POST | `/api/v1/cuenta/pedidos/{pedido}/pagos` | Cliente propietario | Inicia el cobro calculado o devuelve su intento pendiente existente. |
 | GET | `/api/v1/cuenta/pagos/{pago}` | Cliente propietario | Consulta el proveedor y confirma el resultado; en PayPal captura tras la aprobación. |
 | POST | `/api/v1/panel/pedidos/{pedido}/reembolsos` | Dueño | Procesa los importes de devolución ya registrados; ONVO ejecuta y consulta el reembolso. |
+| POST | `/api/v1/webhooks/onvo` | ONVO Pay | Recibe un aviso con `X-Webhook-Secret`, guarda solo la primera llegada de cada evento y responde de inmediato `recibido`, o `repetido` sin cambiar nada. En la cola, el worker consulta al proveedor y confirma el pago y su pedido, o deja el aviso con su error. Un origen no verificado responde 401. |
+| POST | `/api/v1/webhooks/paypal` | PayPal | Recibe un aviso cuya firma verifica la API de PayPal y lo guarda y procesa igual que el de ONVO; en la cola, la orden aprobada se captura y el pago se confirma con la captura completada. Un origen no verificado responde 401. |
 | GET | `/docs/api` | Desarrollo local | Documentación interactiva de Scramble; el gate la deniega en producción. |
 | GET | `/docs/api.json` | Desarrollo local | Contrato OpenAPI generado de las rutas. |
 
 Las rutas sin versión, como `/api`, responden 404: toda ruta de la API lleva el prefijo `/api/v1`.
 
-Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial). Las rutas de servicios, horarios, disponibilidad, reservas de citas y webhooks de pagos siguen pendientes de integración y no forman parte de esta tabla de rutas disponibles.
+Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial). Las rutas de servicios, horarios, disponibilidad y reservas de citas siguen pendientes de integración y no forman parte de esta tabla de rutas disponibles.
 
 ## Recorrido básico en Postman
 
@@ -386,7 +388,7 @@ Para Investigación 1, el [recorrido de pagos del README raíz](../README.md#inv
 
 Las guías independientes [Demostración de ONVO](../docs/demostracion-onvo.md) y [Demostración de PayPal](../docs/demostracion-paypal.md) incluyen el recorrido completo en Postman, los resultados esperados y los archivos que se modifican para configurar o ampliar cada pasarela. La colección de Postman existente cubre el recorrido básico; las peticiones adicionales de pagos se crean siguiendo esas guías.
 
-`config/payments.php` lee `ONVO_SECRET_KEY`, `ONVO_PUBLISHABLE_KEY`, `ONVO_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYMENTS_RETURN_URL` y `PAYMENTS_CANCEL_URL`. `.env.example` las declara; todas las credenciales quedan vacías. El flujo actual usa checkout hospedado y consultas desde el servidor, sin webhook habilitado. PayPal solo admite el host sandbox fijado en configuración. La pasarela y el tipo CRC/USD se eligen en los ajustes existentes de la tienda.
+`config/payments.php` lee `ONVO_SECRET_KEY`, `ONVO_PUBLISHABLE_KEY`, `ONVO_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYMENTS_RETURN_URL` y `PAYMENTS_CANCEL_URL`. `.env.example` las declara; todas las credenciales quedan vacías. El cobro usa checkout hospedado y se confirma con la consulta del servidor, que pide el cliente o un aviso verificado. Para recibir avisos, `ONVO_WEBHOOK_SECRET` lleva el secreto del webhook que muestra el panel de ONVO (empieza por `webhook_secret_`) y `PAYPAL_WEBHOOK_ID` el identificador del webhook registrado en el sandbox de PayPal; vacíos, toda notificación responde 401. La pasarela solo alcanza esas rutas en una dirección pública con HTTPS (#21). PayPal solo admite el host sandbox fijado en configuración. La pasarela y el tipo CRC/USD se eligen en los ajustes existentes de la tienda.
 
 `.env.example` lista todas las variables que lee la aplicación. Las propias del producto:
 
