@@ -211,7 +211,7 @@ El campo `instance` repite el identificador de la solicitud como `urn:uuid:<id>`
 
 ## Contrato de la API
 
-Scramble genera el contrato OpenAPI 3.1 desde el código, y el contrato se versiona en `archivum-api-hexagonal/openapi/v1.json`. Tras cambiar un endpoint hay que regenerarlo con `composer openapi` (#50). `archivum-web` genera sus tipos desde ese archivo (#124).
+Scramble genera el contrato OpenAPI 3.1 desde el código, y el contrato se versiona en `archivum-api-hexagonal/openapi/v1.json`. Tras cambiar un endpoint hay que regenerarlo con `composer openapi` (#50). `archivum-web` genera sus tipos desde ese archivo con `npm run api:types` y `npm run api:check` falla si quedaron desactualizados (#124).
 
 ## Rutas
 
