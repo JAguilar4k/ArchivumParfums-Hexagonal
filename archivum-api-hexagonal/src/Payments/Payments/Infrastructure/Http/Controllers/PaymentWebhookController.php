@@ -5,30 +5,30 @@ declare(strict_types=1);
 namespace Src\Payments\Payments\Infrastructure\Http\Controllers;
 
 use Dedoc\Scramble\Attributes\Response;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Src\Payments\Payments\Application\UseCases\ReceivePaymentEvent;
 use Src\Payments\Payments\Domain\Exceptions\GatewayUnavailableException;
+use Src\Payments\Payments\Infrastructure\Http\Resources\PaymentNoticeResource;
 use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
 final readonly class PaymentWebhookController
 {
     /** Receive a notice of ONVO Pay, whose origin is the secret ONVO sends in `X-Webhook-Secret`. */
-    #[Response(200, 'Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.', type: 'array{data: array{evento: string, estado: "recibido"|"repetido"}}')]
-    public function onvo(Request $request, ReceivePaymentEvent $receive): JsonResponse
+    #[Response(200, 'Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.', type: PaymentNoticeResource::class)]
+    public function onvo(Request $request, ReceivePaymentEvent $receive): PaymentNoticeResource
     {
         return $this->receive('onvo', $request, $receive);
     }
 
     /** Receive a notice of PayPal, whose signature PayPal's verification API checks. */
-    #[Response(200, 'Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.', type: 'array{data: array{evento: string, estado: "recibido"|"repetido"}}')]
-    public function paypal(Request $request, ReceivePaymentEvent $receive): JsonResponse
+    #[Response(200, 'Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.', type: PaymentNoticeResource::class)]
+    public function paypal(Request $request, ReceivePaymentEvent $receive): PaymentNoticeResource
     {
         return $this->receive('paypal', $request, $receive);
     }
 
     /** The provider gets its answer once the notice is kept; ProcessPaymentEventJob applies it later. */
-    private function receive(string $gateway, Request $request, ReceivePaymentEvent $receive): JsonResponse
+    private function receive(string $gateway, Request $request, ReceivePaymentEvent $receive): PaymentNoticeResource
     {
         try {
             $event = $receive->execute($gateway, $request->getContent(), $this->headers($request));
@@ -39,7 +39,7 @@ final readonly class PaymentWebhookController
             throw new ServiceUnavailableHttpException(30);
         }
 
-        return response()->json(['data' => ['evento' => $event->eventId, 'estado' => $event->repeated ? 'repetido' : 'recibido']]);
+        return new PaymentNoticeResource($event);
     }
 
     /**

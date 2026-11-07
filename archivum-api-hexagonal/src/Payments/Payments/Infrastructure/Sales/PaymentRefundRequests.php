@@ -8,11 +8,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Src\Payments\Payments\Domain\Exceptions\InvalidPaymentTransitionException;
 use Src\Sales\Orders\Application\Contracts\RefundRequests;
+use Src\Shared\Domain\Contracts\AuditTrail;
 use Src\Shared\Domain\Contracts\BusinessContext;
+use Src\Shared\Domain\ValueObjects\AuditAction;
+use Src\Shared\Domain\ValueObjects\BusinessId;
 
 final readonly class PaymentRefundRequests implements RefundRequests
 {
-    public function __construct(private BusinessContext $business) {}
+    public function __construct(private BusinessContext $business, private AuditTrail $audit) {}
 
     /** Register a durable refund allocation; request cancellation never makes an outbound call. */
     public function request(string $orderId, int $amount, ?string $lineId = null): void
@@ -28,10 +31,14 @@ final readonly class PaymentRefundRequests implements RefundRequests
             if ($part === 0) {
                 continue;
             }
+            $refundId = (string) Str::uuid7();
             DB::table('refunds')->insert([
-                'id' => (string) Str::uuid7(), 'business_id' => $business, 'payment_id' => $payment->id,
+                'id' => $refundId, 'business_id' => $business, 'payment_id' => $payment->id,
                 'order_line_id' => $lineId, 'amount' => $part, 'status' => 'pending',
                 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $this->audit->record(new BusinessId($business), AuditAction::RefundRequested, 'refund', $refundId, null, [
+                'payment_id' => $payment->id, 'order_id' => $orderId, 'order_line_id' => $lineId, 'amount' => $part,
             ]);
             $remaining -= $part;
             if ($remaining === 0) {
