@@ -11,8 +11,8 @@ final readonly class QueuedOutgoingRefunds implements OutgoingRefunds
 {
     /**
      * Leave the refund in the queue; the operation that registered it answers without waiting for the provider. The
-     * queue keeps its jobs in the database, so the job is written in the transaction that registered the refund and
-     * exists only if the refund does.
+     * queue writes the job once the transaction that registered the refund commits, so a refund that rolled back
+     * leaves no job, and a refund whose job is still waiting gets no second one (#156).
      */
     public function send(string $refundId, string $businessId): void
     {
