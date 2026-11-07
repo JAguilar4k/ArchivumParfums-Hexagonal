@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/cuentas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a customer and answer its public data. It does not sign in: the client calls POST /sesiones next */
+        post: operations["accounts.users.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -298,6 +315,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/panel/personal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the staff of the business of the session */
+        get: operations["businesses.members.index"];
+        put?: never;
+        /**
+         * Add a person to the staff of the business of the session. An email already registered answers 422 in the field,
+         *     with a message that does not say where it is registered
+         */
+        post: operations["businesses.members.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/panel/personal/{persona}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Show one person of the staff of the business of the session */
+        get: operations["businesses.members.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change the name, the role, whether the person attends appointments and whether they stay active */
+        patch: operations["businesses.members.update"];
+        trace?: never;
+    };
+    "/cuenta/contrasena": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change the password of the account of the session. A wrong current password answers 422 in its field */
+        put: operations["accounts.password.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recuperaciones-de-contrasena": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue the recovery for every email and answer the same: the search of the account, the token and the mail all
+         *     happen outside the request, so neither the body nor the time tell whether the account exists
+         */
+        post: operations["accounts.password.reset.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recuperaciones-de-contrasena/confirmacion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set the new password. A token that expired, was used or belongs to another email answers 422 in its field */
+        post: operations["accounts.password.reset.confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cuenta/pedidos/{pedido}/pagos": {
         parameters: {
             query?: never;
@@ -488,6 +598,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/sesiones/actual/renovacion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Swap the token of the request, while it is still valid, for a new one with its expiration; the old one stops
+         *     working. A token that expired or was revoked meanwhile gets the same 401 as a missing token: sign in again
+         */
+        post: operations["accounts.sessions.renewal.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tiendas/{tienda}/perfumes": {
         parameters: {
             query?: never;
@@ -551,6 +681,13 @@ export interface components {
                 tipo_cambio_usd: number | null;
             };
         };
+        /** ConfirmPasswordReset */
+        ConfirmPasswordReset: {
+            /** Format: email */
+            correo: string;
+            token: string;
+            contrasena_nueva: string;
+        };
         /** CurrentAccountResource */
         CurrentAccountResource: {
             id: string;
@@ -564,6 +701,21 @@ export interface components {
                 slug: string;
             } | null;
         };
+        /** MemberResource */
+        MemberResource: {
+            id: string;
+            nombre: string;
+            correo: string;
+            rol: string;
+            atiende_citas: boolean;
+            activo: boolean;
+        };
+        /**
+         * MemberRoleName
+         * @description Names of the roles of the staff in the API, as GET /api/v1/cuenta names them.
+         * @enum {string}
+         */
+        MemberRoleName: "dueno" | "colaborador";
         /** OrderLineResource */
         OrderLineResource: {
             id: string;
@@ -664,6 +816,11 @@ export interface components {
             precio_manual: number | null;
             activa: boolean;
         };
+        /** PasswordResetRequestedResource */
+        PasswordResetRequestedResource: {
+            /** @constant */
+            mensaje: "Si el correo tiene una cuenta, le enviamos un enlace para recuperar la contraseña.";
+        };
         /** PatchDecantBottle */
         PatchDecantBottle: {
             notas?: string | null;
@@ -759,6 +916,7 @@ export interface components {
             token: string;
             /** @constant */
             tipo: "Bearer";
+            vence_en: string;
         };
         /** ShowcasePerfume */
         ShowcasePerfume: {
@@ -798,6 +956,15 @@ export interface components {
             presentaciones: unknown[];
             decants: unknown[];
         };
+        /** StoreAccountRequest */
+        StoreAccountRequest: {
+            nombre: string;
+            /** Format: email */
+            correo: string;
+            contrasena: string;
+            /** @enum {unknown} */
+            acepta_privacidad: "yes" | "on" | "1" | 1 | "true" | true;
+        };
         /** StoreBusinessLogo */
         StoreBusinessLogo: {
             /**
@@ -816,6 +983,15 @@ export interface components {
             abierta_en: string;
             notas?: string | null;
         };
+        /** StoreMemberRequest */
+        StoreMemberRequest: {
+            nombre: string;
+            /** Format: email */
+            correo: string;
+            contrasena: string;
+            rol: components["schemas"]["MemberRoleName"];
+            atiende_citas?: boolean;
+        };
         /** StoreOrder */
         StoreOrder: {
             lineas: {
@@ -826,6 +1002,11 @@ export interface components {
                 cantidad?: number;
                 ml?: number;
             }[];
+        };
+        /** StorePasswordReset */
+        StorePasswordReset: {
+            /** Format: email */
+            correo: string;
         };
         /** StorePayment */
         StorePayment: {
@@ -891,6 +1072,18 @@ export interface components {
                 tipo_cambio_usd?: number | null;
             };
         };
+        /** UpdateMemberRequest */
+        UpdateMemberRequest: {
+            nombre?: string;
+            rol?: components["schemas"]["MemberRoleName"];
+            atiende_citas?: boolean;
+            activo?: boolean;
+        };
+        /** UpdatePassword */
+        UpdatePassword: {
+            contrasena_actual: string;
+            contrasena_nueva: string;
+        };
     };
     responses: {
         /** @description Validation error */
@@ -929,6 +1122,50 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "accounts.users.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description `CurrentAccountResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CurrentAccountResource"];
+                    };
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
     index: {
         parameters: {
             query?: never;
@@ -2541,6 +2778,383 @@ export interface operations {
             };
         };
     };
+    "businesses.members.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `MemberResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MemberResource"][];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "businesses.members.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description `MemberResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MemberResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "businesses.members.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                persona: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `MemberResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MemberResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "businesses.members.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                persona: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description `MemberResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MemberResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "accounts.password.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePassword"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "accounts.password.reset.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePasswordReset"];
+            };
+        };
+        responses: {
+            /** @description `PasswordResetRequestedResource` */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PasswordResetRequestedResource"];
+                    };
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "accounts.password.reset.confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmPasswordReset"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
     "payments.store": {
         parameters: {
             query?: never;
@@ -3489,6 +4103,46 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "accounts.sessions.renewal.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `SessionTokenResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SessionTokenResource"];
+                    };
+                };
             };
             /** @description No autenticado */
             401: {
