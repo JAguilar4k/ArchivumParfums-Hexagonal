@@ -13,18 +13,21 @@ use Src\Catalog\Perfumes\Domain\Exceptions\DuplicateVariantSizeException;
 use Src\Catalog\Perfumes\Domain\Exceptions\PerfumeNotFoundException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeId;
 use Src\Catalog\Perfumes\Domain\ValueObjects\SizeMl;
+use Src\Shared\Domain\Contracts\AuditTrail;
 use Src\Shared\Domain\Contracts\TransactionRunner;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
+use Src\Shared\Domain\ValueObjects\AuditAction;
 use Src\Shared\Domain\ValueObjects\Colones;
 
 final readonly class AddPerfumeVariant
 {
-    /** Receive the repository, which only reaches the business of the session, the costs, the margin and the transaction ports. */
+    /** Receive the repository, which only reaches the business of the session, the costs, the margin, the transaction and the audit ports. */
     public function __construct(
         private PerfumeRepository $perfumes,
         private VariantCost $costs,
         private BottleMargin $margin,
         private TransactionRunner $transaction,
+        private AuditTrail $audit,
     ) {}
 
     /**
@@ -49,6 +52,10 @@ final readonly class AddPerfumeVariant
             $perfume->priceVariant($id, $this->costs->costOf($id), $this->margin->current());
 
             $this->perfumes->save($perfume);
+
+            if ($command->manualPrice !== null) {
+                $this->audit->record($perfume->businessId, AuditAction::ManualPriceChanged, 'perfume_variant', $id->value, null, ['manual_price' => $command->manualPrice]);
+            }
 
             return $perfume->variant($id);
         });
