@@ -4,43 +4,40 @@ declare(strict_types=1);
 
 namespace Src\Payments\Payments\Infrastructure\Jobs;
 
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Queue\Queueable;
 use Src\Payments\Payments\Application\DTOs\RequestRefundCommand;
 use Src\Payments\Payments\Application\UseCases\RequestRefund;
-use Src\Payments\Payments\Infrastructure\Tenancy\PaymentEventBusinessContext;
-use Src\Shared\Domain\Contracts\BusinessContext;
+use Src\Shared\Infrastructure\Queue\IdempotentJob;
+use Src\Shared\Infrastructure\Queue\ScopeJobToBusiness;
 
 /** Sends a registered refund to the provider of its payment, apart from the operation that registered it (#97). */
-final class RequestRefundJob implements ShouldQueue
+final class RequestRefundJob extends IdempotentJob
 {
-    use Queueable;
-
-    /** Attempts before the job is recorded as failed. */
-    public int $tries = 5;
-
-    /** @var list<int> seconds to wait before the second, third and later attempts */
-    public array $backoff = [10, 60, 300];
-
     /** Carry the refund to send and its business. */
     public function __construct(
         public readonly string $refundId,
         public readonly string $businessId,
     ) {}
 
-    /**
-     * A worker has no request that names a business: the use case is resolved only after this context is bound, so
-     * every repository it uses asks the business that RequestRefund pins for the refund. The binding is removed
-     * afterwards, because a worker keeps its container for the next job.
-     */
-    public function handle(): void
+    /** One copy per refund waits in the queue. */
+    public function uniqueId(): string
     {
-        app()->instance(BusinessContext::class, app(PaymentEventBusinessContext::class));
+        return $this->refundId;
+    }
 
-        try {
-            app(RequestRefund::class)->execute(new RequestRefundCommand($this->refundId, $this->businessId));
-        } finally {
-            app()->forgetInstance(BusinessContext::class);
-        }
+    /**
+     * Run as the business of the refund. RequestRefund opens its own transactions, because it commits its attempt
+     * before it calls the provider.
+     *
+     * @return list<object>
+     */
+    public function middleware(): array
+    {
+        return [new ScopeJobToBusiness($this->businessId, ScopeJobToBusiness::CONTEXT)];
+    }
+
+    /** Send the refund; the use case is resolved after the middleware binds the business of the job. */
+    public function handle(RequestRefund $requestRefund): void
+    {
+        $requestRefund->execute(new RequestRefundCommand($this->refundId));
     }
 }

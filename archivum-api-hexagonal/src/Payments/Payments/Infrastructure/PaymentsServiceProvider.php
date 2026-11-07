@@ -75,9 +75,9 @@ final class PaymentsServiceProvider extends ServiceProvider
             StartPayment::class, ObservePayment::class, ApplyPaymentEvent::class, ReconcilePayment::class,
             RefundPayment::class, RequestRefund::class, ReconcileRefund::class, RequestOrderRefunds::class,
         ])->needs(TransactionRunner::class)->give(PaymentTransactionRunner::class);
-        // One per request, job or command: ProcessPaymentEventJob, RequestRefundJob and ReconcilePaymentsConsoleCommand
-        // bind it as the BusinessContext, and ProcessPaymentEvent, RequestRefund, ReconcilePayment and ReconcileRefund pin
-        // the business of each payment or refund through BusinessScope.
+        // One per request, job or command: ProcessPaymentEventJob and ReconcilePaymentsConsoleCommand bind it as the
+        // BusinessContext, and ProcessPaymentEvent, ReconcilePayment and ReconcileRefund pin the business of each payment
+        // or refund through BusinessScope. RequestRefundJob carries its business, and ScopeJobToBusiness binds it.
         $this->app->scoped(PaymentEventBusinessContext::class);
         $this->app->bind(OnvoGateway::class, fn (Application $app): OnvoGateway => new OnvoGateway(
             (string) config('payments.onvo.secret_key'),
