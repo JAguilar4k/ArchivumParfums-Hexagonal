@@ -13,9 +13,10 @@ use Src\Sales\Orders\Domain\ValueObjects\OrderStatus;
 
 /**
  * Makes two operations on the same order compete in a known order, as when a provider's notice confirms a charge while
- * the customer cancels. The first one locks the order, creates the file it was given so the other one starts, and keeps
- * its transaction open until another backend waits for it. The other one waits for that file before it starts, and is
- * given none. Without the lock of the order the other one would never wait here, and the test fails.
+ * the customer cancels or while the order expires. The first one locks the order, creates the file it was given so the
+ * other one starts, and keeps its transaction open until another backend waits for it. The other one waits for that
+ * file before it starts, and is given none. Without the lock of the order the other one would never wait here, and the
+ * test fails.
  */
 final class HoldLockedOrderForCompetingOperation implements OrderRepository
 {
