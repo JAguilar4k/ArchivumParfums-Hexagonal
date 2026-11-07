@@ -7,6 +7,7 @@ use Src\Recommendations\Recommender\Application\DTOs\RecommendationResult;
 use Src\Recommendations\Recommender\Application\DTOs\RecommendedPerfume;
 use Src\Recommendations\Recommender\Application\DTOs\RecommendedVariant;
 use Src\Recommendations\Recommender\Application\UseCases\RecommendPerfumes;
+use Src\Recommendations\Recommender\Domain\Services\PersonalDataMask;
 use Src\Recommendations\Recommender\Domain\Services\RuleBasedRecommender;
 use Src\Recommendations\Recommender\Domain\Services\SuggestionValidator;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogPerfume;
@@ -40,8 +41,8 @@ function useCaseCatalog(): array
 }
 
 /**
- * The use case with a fixed showcase, the AI of the tests, the record of discards of the tests and the real validator
- * and rules recommender.
+ * The use case with a fixed showcase, the AI of the tests, the record of discards of the tests and the real mask,
+ * validator and rules recommender.
  *
  * @param  list<CatalogPerfume>  $catalog
  */
@@ -60,6 +61,7 @@ function recommendPerfumes(FakeAiRecommender $ai, ?array $catalog = null, ?Recor
 
     return new RecommendPerfumes(
         $showcase,
+        new PersonalDataMask,
         $ai,
         new SuggestionValidator,
         $discarded ?? new RecordingDiscardedSuggestions,
@@ -119,13 +121,23 @@ it('R50: answers with the rules when the AI fails, runs out of time or suggests 
     'nothing valid' => [fn () => FakeAiRecommender::answeringInvalidData()],
 ]);
 
-// R51 stays pending for #121, which also inspects the request to the provider with a signed-in customer.
-it('sends the AI only the text of the customer and the catalog of the showcase', function () {
+it('R51: sends the AI only the text of the customer and the catalog of the showcase', function () {
     $ai = FakeAiRecommender::failing();
 
     recommendPerfumes($ai)->execute('Algo con limón para la playa.');
 
     expect($ai->received)->toEqual([['text' => 'Algo con limón para la playa.', 'catalog' => useCaseCatalog()]]);
+});
+
+it('R51: hides the emails and phones of the text from the AI and from the rules', function () {
+    $ai = FakeAiRecommender::failing();
+
+    // A phone of eight digits would also read as a budget of millions of colones if the rules saw it.
+    $result = recommendPerfumes($ai)->execute('Algo con vainilla. Escríbame a cliente.ficticia@clientes.test o al 88887777.');
+
+    expect($ai->received[0]['text'])->toBe('Algo con vainilla. Escríbame a [correo] o al [teléfono].')
+        ->and($result->origin)->toBe('rules')
+        ->and($result->budget)->toBeNull();
 });
 
 it('records what the validation discards from the suggestion of the AI, also when nothing valid is left', function (Recommendation $suggestion, string $origin, array $causes) {

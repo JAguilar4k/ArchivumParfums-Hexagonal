@@ -11,6 +11,7 @@ use Src\Recommendations\Recommender\Application\DTOs\RecommendedPerfume;
 use Src\Recommendations\Recommender\Application\DTOs\RecommendedVariant;
 use Src\Recommendations\Recommender\Domain\Contracts\AiRecommender;
 use Src\Recommendations\Recommender\Domain\Exceptions\AiUnavailableException;
+use Src\Recommendations\Recommender\Domain\Services\PersonalDataMask;
 use Src\Recommendations\Recommender\Domain\Services\RuleBasedRecommender;
 use Src\Recommendations\Recommender\Domain\Services\SuggestionValidator;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogPerfume;
@@ -20,11 +21,12 @@ use Src\Recommendations\Recommender\Domain\ValueObjects\Recommendation;
 final readonly class RecommendPerfumes
 {
     /**
-     * Receive the showcase of the store, the AI, the check of what it answers with the record of what it discards, and
-     * the recommender without AI.
+     * Receive the showcase of the store, the mask of the contact data, the AI, the check of what it answers with the
+     * record of what it discards, and the recommender without AI.
      */
     public function __construct(
         private RecommendableCatalog $catalog,
+        private PersonalDataMask $mask,
         private AiRecommender $ai,
         private SuggestionValidator $validator,
         private DiscardedSuggestions $discarded,
@@ -33,12 +35,14 @@ final readonly class RecommendPerfumes
 
     /**
      * Recommend up to five perfumes of the showcase of the store of the address for what the customer describes (R48).
-     * Only the text and the catalog reach the AI (R51): this use case does not even know who asks. What the AI suggests
-     * is checked against the catalog (R49), and when the AI fails, runs out of time or nothing it suggests is valid, the
-     * rules recommender answers instead (R50). Brand, name and prices always come from the catalog.
+     * Only the text, without the emails and phones it may carry, and the catalog reach the AI (R51): this use case does
+     * not even know who asks. What the AI suggests is checked against the catalog (R49), and when the AI fails, runs
+     * out of time or nothing it suggests is valid, the rules recommender answers instead (R50). Brand, name and prices
+     * always come from the catalog.
      */
     public function execute(string $text): RecommendationResult
     {
+        $text = $this->mask->apply($text);
         $catalog = $this->catalog->perfumes();
         $recommendation = $this->recommendation($text, $catalog);
 

@@ -155,8 +155,7 @@ it('R48: answers what the text does not mention as null or as an empty list', fu
         ->toBe(['notas' => [], 'momento' => null, 'clima' => null, 'ocasion' => null, 'presupuesto' => null]);
 });
 
-// R51 stays pending for #121, which also inspects the request to the provider with a signed-in customer.
-it('sends the AI only the text and the showcase of the store of the address', function () {
+it('R51: sends the AI only the text and the showcase of the store of the address', function () {
     $scenario = recommenderScenario();
     $ai = answerRecommendationsWith(FakeAiRecommender::failing());
 
