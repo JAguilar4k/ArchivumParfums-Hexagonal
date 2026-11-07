@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Src\Sales\Orders\Infrastructure\Persistence\Repositories;
 
+use Closure;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -69,17 +70,43 @@ final readonly class EloquentOrderRepository implements OrderRepository, OrderSe
     /** Store the aggregate inside a savepoint, translating integrity failures after rollback. */
     public function save(Order $order): void
     {
+        $this->store($order, function () use ($order): bool {
+            OrderModel::query()->updateOrCreate(['id' => $order->id->value, 'business_id' => $order->businessId->value], [
+                ...$this->changes($order), 'customer_id' => $order->customerId, 'deposit_percent' => $order->depositPercent,
+                'delivery_method' => $order->deliveryMethod, 'expires_at' => $order->expiresAt, 'created_at' => $order->createdAt,
+            ]);
+
+            return true;
+        });
+    }
+
+    /**
+     * Besides the lock of the row, UPDATE ... WHERE status = the one it was read with: the database lets only one
+     * operation take the order out of that status, such as an expiry and the confirmation of its payment (#158).
+     */
+    public function saveIfStatus(Order $order, OrderStatus $expected): bool
+    {
+        return $this->store($order, fn (): bool => OrderModel::query()->where('business_id', $order->businessId->value)
+            ->whereKey($order->id->value)->where('status', $expected->value)->update($this->changes($order)) === 1);
+    }
+
+    /**
+     * Write the row of the order with $write and then its lines, inside a savepoint; when $write changes nothing, the
+     * lines are not written either.
+     *
+     * @param  Closure(): bool  $write
+     */
+    private function store(Order $order, Closure $write): bool
+    {
         if ($order->businessId->value !== $this->business->current()->value) {
             throw new OrderConflictException('orders.invalid_business');
         }
 
         try {
-            DB::transaction(function () use ($order): void {
-                OrderModel::query()->updateOrCreate(['id' => $order->id->value, 'business_id' => $order->businessId->value], [
-                    'customer_id' => $order->customerId, 'status' => $order->status->value,
-                    'subtotal' => $order->amounts->subtotal, 'due_now' => $order->amounts->dueNow, 'paid' => $order->amounts->paid, 'balance' => $order->amounts->balance,
-                    'deposit_percent' => $order->depositPercent, 'delivery_method' => $order->deliveryMethod, 'expires_at' => $order->expiresAt, 'cancelled_at' => $order->cancelledAt, 'created_at' => $order->createdAt,
-                ]);
+            return DB::transaction(function () use ($order, $write): bool {
+                if (! $write()) {
+                    return false;
+                }
 
                 foreach ($order->lines as $line) {
                     OrderLineModel::query()->updateOrCreate(['id' => $line->id, 'business_id' => $order->businessId->value], [
@@ -87,6 +114,8 @@ final readonly class EloquentOrderRepository implements OrderRepository, OrderSe
                         'ml' => $line->ml, 'quantity' => $line->quantity, 'unit_price' => $line->unitPrice->amount, 'status' => $line->status->value, 'decant_pack_id' => $line->decantPackId, 'purchase_order_line_id' => $line->purchaseOrderLineId,
                     ]);
                 }
+
+                return true;
             });
         } catch (QueryException $exception) {
             if (in_array($exception->getCode(), ['23514', '23503'], true)) {
@@ -95,6 +124,20 @@ final readonly class EloquentOrderRepository implements OrderRepository, OrderSe
 
             throw $exception;
         }
+    }
+
+    /**
+     * The columns that change as the order moves through its statuses; the rest are fixed when it is placed.
+     *
+     * @return array<string, mixed>
+     */
+    private function changes(Order $order): array
+    {
+        return [
+            'status' => $order->status->value,
+            'subtotal' => $order->amounts->subtotal, 'due_now' => $order->amounts->dueNow, 'paid' => $order->amounts->paid, 'balance' => $order->amounts->balance,
+            'cancelled_at' => $order->cancelledAt,
+        ];
     }
 
     /** @return Builder<OrderModel> */

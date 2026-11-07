@@ -9,6 +9,7 @@ use RuntimeException;
 use Src\Sales\Orders\Domain\Contracts\OrderRepository;
 use Src\Sales\Orders\Domain\Entities\Order;
 use Src\Sales\Orders\Domain\ValueObjects\OrderId;
+use Src\Sales\Orders\Domain\ValueObjects\OrderStatus;
 
 /**
  * Makes two operations on the same order compete in a known order, as when a provider's notice confirms a charge while
@@ -64,6 +65,11 @@ final class HoldLockedOrderForCompetingOperation implements OrderRepository
     public function save(Order $order): void
     {
         $this->orders->save($order);
+    }
+
+    public function saveIfStatus(Order $order, OrderStatus $expected): bool
+    {
+        return $this->orders->saveIfStatus($order, $expected);
     }
 
     /** With the order locked, wait until another backend waits for this one. */
