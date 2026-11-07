@@ -25,4 +25,14 @@ final readonly class SanctumTokenRevoker implements TokenRevoker
             ->where('tokenable_id', $userId->value)
             ->delete();
     }
+
+    /** Delete every token whose owner is the account, except the one given. */
+    public function revokeAllExcept(UserId $userId, string $tokenId): void
+    {
+        PersonalAccessToken::query()
+            ->where('tokenable_type', new UserModel()->getMorphClass())
+            ->where('tokenable_id', $userId->value)
+            ->whereKeyNot($tokenId)
+            ->delete();
+    }
 }

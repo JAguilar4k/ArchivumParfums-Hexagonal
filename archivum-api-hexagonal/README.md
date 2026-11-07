@@ -146,6 +146,8 @@ git diff -- openapi/v1.json
 
 Para comprobar que el contrato versionado ya coincide con el generador, usa `git diff --exit-code -- openapi/v1.json` después de exportarlo. Un diff requiere revisar y actualizar el contrato; no significa que se haya ejecutado el comportamiento HTTP.
 
+`archivum-web` genera sus tipos desde este contrato: después de exportarlo, se ejecuta `npm run api:types` en `archivum-web/` y el pull request incluye los dos archivos ([README del cliente](../archivum-web/README.md#tipos-de-la-api)).
+
 Cuando se implemente trabajo en cola, el worker local se ejecuta en otra terminal con `php artisan queue:work --tries=1`; el scheduler usa `php artisan schedule:work`. Son procesos separados de `composer run dev`, y se inician cuando el módulo que se prueba los necesita. Los pagos de Investigación 1 usan peticiones HTTP y consultas explícitas desde la API; no requieren un worker ni un webhook. Los recordatorios y websockets siguen pendientes.
 
 ## Pruebas
@@ -180,6 +182,7 @@ Ayudas para las pruebas de `tests/Feature`:
 
 - `actingAsOwner()`, `actingAsStaff()` y `actingAsCustomer()` crean una tienda con su dueño, un colaborador y un cliente (`StaffedBusiness`, con las fábricas de miembros y clientes), inician sesión como esa persona con `Sanctum::actingAs()` y devuelven la tienda. Si reciben una tienda, la reutilizan. `actingAsRole('dueno')` hace lo mismo con el nombre del rol que usa la API; con `visitante` no inicia sesión.
 - `DemoAccounts::seed()` siembra los datos de demostración y `DemoAccounts::signIn($correo)` ingresa por `POST /api/v1/sesiones`, como lo hace un cliente de la API, y devuelve el encabezado `Authorization`. Sirve a las pruebas que necesitan un token real, como las de `GET /api/v1/cuenta` en `tests/Feature/Accounts/Sessions/CurrentAccountTest.php`.
+- La matriz de permisos de la sección 9 de la especificación (#105) vive en `tests/Datasets/PermissionMatrix.php`: un dataset por fila con cada endpoint, su cuerpo y la respuesta de cada rol del dataset `roles` (dueño, colaborador, cliente y visitante), sobre los datos de los seeders y un pedido de Mariana en ArchivumParfums (`tests/Support/Security/MatrixResources.php`). `tests/Feature/PermissionMatrixTest.php` entra con tokens reales de `POST /api/v1/sesiones` y comprueba el 403 `prohibido` del rol sin permiso y el 401 `no-autenticado` del visitante, sin escribir ninguna fila. También comprueba el 404 `no-encontrado` del dueño de Esencias del Norte, o de una clienta suya en `/cuenta/...`, sobre cada recurso de ArchivumParfums, y el 422 `datos-invalidos` en el campo cuando el cuerpo trae un identificador de otra tienda. La prueba falla si una ruta de `/api/v1/panel` o de `/api/v1/cuenta` no está en ninguna fila, así que cada endpoint nuevo suma su fila. Las filas de citas, paquetes, reportes y el recomendador quedan como `todo` hasta que existan sus endpoints.
 - Los datasets de `tests/Datasets` recorren los roles de la matriz de permisos (`roles`) y el personal de otra tienda (`staff of another business`).
 - `inParallel($tablas, $operacion1, $operacion2)` ejecuta cada operación en su propio proceso, con su propia conexión y fuera de la transacción de la prueba, todas en el mismo instante, y devuelve sus resultados en orden. Lo que las operaciones comparten se inserta antes con `DB::connection('pgsql_admin')`, y las tablas de `$tablas` se vacían al terminar la prueba. Cada operación se escribe en su propia línea y no usa `$this`. Es la ayuda de las pruebas de concurrencia; el ejemplo está en `tests/Feature/Shared/InParallelTest.php`.
 
@@ -210,12 +213,21 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/` | Cualquiera | Redirección temporal (302) a `/api/v1`, para que abrir el servidor en el navegador no dé 404. |
 | GET | `/up` | Cualquiera | Estado de la aplicación, fuera del prefijo `/api/v1`. |
 | GET | `/api/v1` | Cualquiera | Nombre y versión de la API. |
+| POST | `/api/v1/cuentas` | Cualquiera | Registra una cuenta de cliente con `nombre`, `correo`, `contrasena` y `acepta_privacidad: true`; responde 201 con `Location` hacia `/api/v1/cuenta` y los datos públicos de la cuenta, sin iniciar sesión. |
 | POST | `/api/v1/sesiones` | Cualquiera | Ingresa con `correo`, `contrasena` y el nombre del `dispositivo` y devuelve un token Bearer. |
 | DELETE | `/api/v1/sesiones/actual` | Con token | Cierra la sesión: revoca solo el token de la petición y responde 204. |
+| POST | `/api/v1/sesiones/actual/renovacion` | Con token vigente | Cambia el token de la petición por uno nuevo con su `vence_en` y revoca el anterior; responde 201. |
 | GET | `/api/v1/cuenta` | Con token | Nombre, correo y rol de la cuenta (`dueno`, `colaborador` o `cliente`) y, para el personal, su tienda. |
 | GET | `/api/v1/panel/tienda` | Dueño | Perfil y ajustes de la tienda de la sesión: nombre, slug, lugar de la cita, zona horaria y ajustes. |
 | PATCH | `/api/v1/panel/tienda` | Dueño | Cambia solo los campos enviados del perfil y de los ajustes. El slug no cambia. |
 | POST | `/api/v1/panel/tienda/logo` | Dueño | Sube el logo mediante `multipart/form-data`. |
+| PUT | `/api/v1/cuenta/contrasena` | Cualquier rol | Cambia la contraseña con `contrasena_actual` y `contrasena_nueva`. Responde 204 y cierra las demás sesiones de la cuenta. |
+| POST | `/api/v1/recuperaciones-de-contrasena` | Cualquiera | Con `correo`, responde 202 con el mismo cuerpo exista o no la cuenta; solo si existe envía el enlace en cola. |
+| POST | `/api/v1/recuperaciones-de-contrasena/confirmacion` | Cualquiera | Con `correo`, `token` y `contrasena_nueva`, responde 204 y cierra todas las sesiones. Un token vencido, usado o de otro correo responde 422 en `token`. |
+| GET | `/api/v1/panel/personal` | Dueño | Personal de la tienda de la sesión con su rol, si atiende citas y si está activo. |
+| POST | `/api/v1/panel/personal` | Dueño | Agrega a una persona con `nombre`, `correo`, `contrasena` inicial, `rol` (`dueno` o `colaborador`) y `atiende_citas`. Responde 201 con `Location`; un correo ya registrado responde 422 en `correo`. |
+| GET | `/api/v1/panel/personal/{persona}` | Dueño | Una persona de la tienda; la de otra tienda responde 404. |
+| PATCH | `/api/v1/panel/personal/{persona}` | Dueño | Cambia `nombre`, `rol`, `atiende_citas` y `activo`. Cambiar el rol o desactivar revoca sus tokens; quitar al último dueño activo responde 409 `conflicto`. |
 | GET | `/api/v1/panel/perfumes` | Dueño | Lista perfumes de su tienda, incluidos los inactivos, con búsqueda por marca/nombre y paginación. |
 | POST | `/api/v1/panel/perfumes` | Dueño | Crea un perfume con sus notas y etiquetas. |
 | GET | `/api/v1/panel/perfumes/{perfume}` | Dueño | Consulta un perfume de su tienda. |
@@ -296,6 +308,14 @@ Para probar fotos, añade `foto` como archivo en el POST de foto; para el logo, 
 
 Los ejemplos cURL de la sección siguiente usan sintaxis Bash para continuar líneas; en PowerShell puedes crear las mismas solicitudes en Postman o escribir el comando `curl.exe` en una sola línea.
 
+Un visitante crea su cuenta con `POST /api/v1/cuentas` (#101). Solo se piden `nombre` (hasta 120 caracteres), `correo` y `contrasena` (al menos 8 caracteres, `Password::defaults()`), como pide la Ley 8968. La cuenta nueva siempre es de cliente: `rol`, `business_id` o una tienda enviados en el cuerpo se ignoran, no se crea ninguna fila en `members` y tampoco en `customers`, que se crea al operar en una tienda (#62). La respuesta `201` trae el encabezado `Location` hacia `/api/v1/cuenta` y los mismos datos públicos que `GET /api/v1/cuenta`, nunca la contraseña, su hash ni un token: el registro no inicia sesión y el cliente llama después a `POST /api/v1/sesiones`. Un correo ya registrado, aunque cambien las mayúsculas, responde 422 `datos-invalidos` con el error en `errores.correo`; si dos registros simultáneos usan el mismo correo, la llave única de `users.email` deja pasar uno y el otro recibe ese mismo 422, nunca un 500. El límite por IP llega con #108.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/cuentas \
+  -H 'Content-Type: application/json' -H 'Accept: application/json' \
+  -d '{"nombre": "Cliente Ficticia", "correo": "cliente.ficticia@clientes.test", "contrasena": "<una contraseña de 8 o más caracteres>"}'
+```
+
 El token de `POST /api/v1/sesiones` se muestra una sola vez y se envía en cada petición en el encabezado `Authorization: Bearer <token>`; cada ingreso crea un token nuevo con el nombre de su dispositivo, así cada sesión se distingue de las demás, y `DELETE /api/v1/sesiones/actual` borra solo el token de la petición, sin cerrar las demás sesiones de la cuenta. Un correo inexistente y una contraseña incorrecta reciben la misma respuesta 401 `credenciales-invalidas`, sin indicar cuál dato falló, como en el proyecto guía. Los campos ausentes o mal formados responden 422 `datos-invalidos` con sus errores de validación. Sin token, o con uno inválido, las rutas protegidas responden 401 `no-autenticado`. Para ingresar con una cuenta de los [datos de demostración](#datos-de-demostración):
 
 ```bash
@@ -304,7 +324,7 @@ curl -X POST http://localhost:8000/api/v1/sesiones \
   -d '{"correo": "duena@archivumparfums.test", "contrasena": "<ARCHIVUM_DEMO_PASSWORD>", "dispositivo": "Computadora"}'
 ```
 
-La respuesta `201` trae el token en `data.token`. Con él se consulta la cuenta que ingresó:
+La respuesta `201` trae el token en `data.token` y su vencimiento en `data.vence_en`. Con él se consulta la cuenta que ingresó:
 
 ```bash
 curl http://localhost:8000/api/v1/cuenta -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
@@ -316,7 +336,15 @@ Para cerrar esa sesión se envía el mismo token; la respuesta es `204` y las de
 curl -X DELETE http://localhost:8000/api/v1/sesiones/actual -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
 ```
 
-Mientras llegan las abilities y las policies de #102 y #104, el middleware `RequireAccountRole` separa los grupos de rutas según el rol indicado. `role:owner` deja pasar solo a los dueños de la tienda: la configuración (perfil y ajustes, servicios, horarios, bloqueos, perfumes, botellas y proveedores) y las citas que se reservan, reprograman o cancelan en nombre de un cliente. `role:customer` deja pasar solo a las cuentas sin fila en `members`: las reservas, los pedidos y las rutas de `/api/v1/cuenta/...`. Cualquier otra cuenta recibe 403 `prohibido` antes de que la petición escriba algo, y `GET /api/v1/cuenta` sigue abierta a los tres roles. `tests/Feature/Accounts/Sessions/RoleGroupsTest.php` falla si una ruta de esos grupos no lleva su middleware, y cada endpoint nuevo de los dos grupos suma su fila a su dataset, con el estado exacto que recibe el rol permitido.
+Cada token vence a los minutos de `SANCTUM_EXPIRATION` (60 por defecto, en `config/sanctum.php`) y `POST /api/v1/sesiones` lo informa en `vence_en`, en ISO 8601 con el desplazamiento de la zona horaria (#103). Un token vencido responde 401 `no-autenticado` en cualquier ruta protegida. Mientras siga vigente, `POST /api/v1/sesiones/actual/renovacion` lo cambia por uno nuevo para el mismo dispositivo, con su propio `vence_en` y las abilities del rol que la cuenta tiene en ese momento, y responde 201. El token anterior deja de servir: usarlo de nuevo, o renovar con un token vencido o cerrado, responde 401 y hay que ingresar otra vez. `RenewSession` borra el token anterior con un `DELETE` condicionado a que siga vigente y emite el nuevo en la misma transacción, así dos renovaciones simultáneas del mismo token producen un solo token nuevo y la otra recibe 401. Las demás sesiones de la cuenta no cambian. El scheduler ejecuta `sanctum:prune-expired --hours=24` cada día para borrar las filas de los tokens vencidos. Todavía no hay un tiempo máximo de sesión: una sesión que se renueva a tiempo no vence.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/sesiones/actual/renovacion -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
+```
+
+Cada token lleva solo las abilities del rol de la cuenta (#102). El mapa vive en un solo lugar, el enum `Src\Accounts\Sessions\Domain\ValueObjects\Ability`, y sigue la matriz de la sección 9 de la especificación: el dueño recibe `business:configure`, `catalog:manage`, `appointments:view-all`, `appointments:attendance`, `appointments:book-for-customer`, `orders:manage`, `payments:record`, `packs:manage` y `reports:view`; el colaborador, `appointments:view-own` y `appointments:attendance`; el cliente, `customer:own`. `POST /api/v1/sesiones` fija las abilities al emitir el token, así que cambiar el rol o desactivar a una persona revoca sus tokens (#106) y renovar las recalcula (#103). Cada ruta de `/api/v1/panel`, de `/api/v1/cuenta/...` y de las operaciones autenticadas del cliente bajo `/api/v1/tiendas/{tienda}` declara la que exige con los middleware `abilities` (todas) o `ability` (alguna) de Sanctum, justo después de `auth:sanctum`; un token sin ella recibe 403 `prohibido` antes de que la petición escriba algo. `GET /api/v1/cuenta` y `DELETE /api/v1/sesiones/actual` sirven a los tres roles y las rutas públicas no exigen ability. Que el recurso sea de la cuenta (solo sus citas, solo sus pedidos) lo deciden las policies de #104. `tests/Feature/Accounts/Sessions/RoleAbilitiesTest.php` falla si una de esas rutas no declara ability o declara una que no existe, y `RoleGroupsTest` sigue probando los grupos de los dueños y de los clientes con las abilities.
+
+Las abilities deciden el rol; la propiedad la deciden las policies de cada módulo (#104), en su `Infrastructure` y registradas en su provider: `OrderPolicy` (`view`, `cancel`, `pay` y `manage`) y `PaymentPolicy` (`view`). El cliente solo alcanza sus pedidos y sus pagos, y el dueño todo lo de su tienda; el colaborador no tiene pedidos. Los middleware `AuthorizeOrder` y `AuthorizePayment` cargan el `{pedido}` o el `{pago}` de la ruta en la tienda de la petición y preguntan a la policy antes del controlador, así que una petición rechazada no escribe nada. Toda negativa usa `Response::denyAsNotFound()`: un recurso de otro cliente, de otra persona del personal o de otra tienda responde 404 `no-encontrado`, igual que uno inexistente. En `/api/v1/cuenta/...`, un recurso de otro cliente ni siquiera resuelve tienda (`fn_customer_resource_business`) y responde 404 antes de llegar a la policy; los listados de la cuenta filtran por el cliente en la consulta. Las policies de la cita, del paquete comprado y de la entrada de la lista de espera llegan con sus módulos y siguen la misma forma. `tests/Feature/Sales/Orders/OrderPolicyTest.php` y `tests/Feature/Payments/PaymentPolicyTest.php` prueban cada policy con el propietario, otro cliente de la misma tienda, un cliente de otra tienda, el colaborador y el dueño de otra tienda.
 
 La tienda de `/api/v1/panel/tienda` siempre es la de la sesión: un `business_id` o un slug en el cuerpo se ignoran. `PATCH` acepta `nombre`, `lugar_cita` (`null` lo deja sin configurar), `zona_horaria` (identificador IANA) y, dentro de `ajustes`, cualquiera de estos campos; los que no se envían conservan su valor:
 
@@ -370,6 +398,7 @@ Las guías independientes [Demostración de ONVO](../docs/demostracion-onvo.md) 
 | `DB_ADMIN_USERNAME`, `DB_ADMIN_PASSWORD` | Rol dueño del esquema, `archivum_owner`, y su contraseña. Lo usa la conexión `pgsql_admin` para migrar. |
 | `DB_SSLMODE` | Modo SSL de las dos conexiones. Por defecto, `prefer`. |
 | `ARCHIVUM_DEMO_PASSWORD` | Contraseña de las cuentas de los [datos de demostración](#datos-de-demostración). Se deja vacía fuera del desarrollo local. |
+| `SANCTUM_EXPIRATION` | Minutos que dura cada token de `POST /api/v1/sesiones` y de su renovación. Por defecto, `60`. |
 
 El código nunca lee variables de entorno directamente: lo hacen los archivos de `config/`, porque con `php artisan config:cache` en producción `env()` devuelve `null` fuera de ellos. `tests/Architecture/EnvironmentConfigurationTest.php` falla si se llama `env()` fuera de `config/`, si `config/` lee una variable que `.env.example` no lista o si `.env.example` trae el valor de una llave, un secreto, un token o una contraseña. `config/` solo guarda los archivos que cambian algo del framework, y `.env.example` solo las variables que la API usa: el issue que agrega un servicio (correo, colas en Redis, pasarelas, IA) agrega sus variables a `.env.example` y a esta tabla en el mismo pull request. `.env` nunca se versiona, y las credenciales de producción se cargan en la plataforma de despliegue, nunca en el repositorio.
 
