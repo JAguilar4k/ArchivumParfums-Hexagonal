@@ -18,6 +18,7 @@ use Src\Shared\Domain\ValueObjects\Colones;
 use Tests\Support\Catalog\FixedBottleMargin;
 use Tests\Support\Catalog\FixedVariantCost;
 use Tests\Support\Catalog\InMemoryPerfumeRepository;
+use Tests\Support\Shared\RecordingAuditTrail;
 use Tests\Support\Shared\RecordingTransactionRunner;
 
 /**
@@ -34,7 +35,7 @@ function pricingWiring(?int $cost = 80000): array
     $costs = new FixedVariantCost($cost);
     $margin = new FixedBottleMargin(5000);
 
-    return [new AddPerfumeVariant($perfumes, $costs, $margin, $transaction), new EditPerfumeVariant($perfumes, $costs, $margin, $transaction), $perfume];
+    return [new AddPerfumeVariant($perfumes, $costs, $margin, $transaction, new RecordingAuditTrail), new EditPerfumeVariant($perfumes, $costs, $margin, $transaction, new RecordingAuditTrail), $perfume];
 }
 
 it('prices a new presentation with the cost plus the margin, or with its manual price', function () {

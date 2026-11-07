@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use Database\Seeders\Concerns\SeededAuditTrail;
 use Database\Seeders\Concerns\SeededBusinessContext;
 use Illuminate\Database\Seeder;
 use Src\Businesses\Profile\Domain\Contracts\BusinessRepository;
@@ -94,7 +95,7 @@ final class CatalogDemoSeeder extends Seeder
                     $repository,
                     new NoSupplierCost,
                     new BusinessSettingsBottleMargin($context, app(BusinessRepository::class)),
-                    $transaction,
+                    $transaction, new SeededAuditTrail,
                 );
 
                 foreach ($perfumes as [$brand, $name, $concentration, $gender, $family, $notes, $tags, $variants]) {
