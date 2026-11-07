@@ -17,18 +17,24 @@ use Src\Payments\Payments\Domain\ValueObjects\ManualPaymentMethod;
 use Src\Payments\Payments\Domain\ValueObjects\ManualRecord;
 use Src\Payments\Payments\Domain\ValueObjects\Payable;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentPurpose;
+use Src\Shared\Domain\Contracts\AuditTrail;
 use Src\Shared\Domain\Contracts\TransactionRunner;
+use Src\Shared\Domain\ValueObjects\AuditAction;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\Colones;
 use Src\Shared\Domain\ValueObjects\MemberId;
 
 final readonly class RecordManualPayment
 {
-    /** Receive the ports of the order, its payments, the owners who record them and the transaction of the business. */
+    /**
+     * Receive the ports of the order, its payments, the owners who record them, the trail of sensitive changes and the
+     * transaction of the business.
+     */
     public function __construct(
         private PayableReader $orders,
         private PaymentRepository $payments,
         private PaymentRecorders $recorders,
+        private AuditTrail $audit,
         private TransactionRunner $transaction,
     ) {}
 
@@ -36,7 +42,8 @@ final readonly class RecordManualPayment
      * Record the balance that the customer paid the owner on delivery, by SINPE or in cash (R29), as a confirmed
      * payment, and take it off the balance of the order in the same transaction, through the port that a verified
      * notice uses. The order is locked before its balance is read, so two records of the same balance wait for each
-     * other and the second one finds what the first left. Nothing goes through a gateway.
+     * other and the second one finds what the first left. Nothing goes through a gateway. The entry of the trail is
+     * written in the same transaction, so a payment whose entry fails is not kept (#113).
      *
      * @throws PaymentNotFoundException when the order is not one of the business
      * @throws InvalidPaymentTransitionException when the order is not ready or owes nothing, when a refund or an online
@@ -76,6 +83,9 @@ final readonly class RecordManualPayment
             ));
             $this->orders->applyPayment($order->id, $payment->amount->amount);
             $this->payments->save($payment);
+            $this->audit->record($payment->businessId, AuditAction::ManualPaymentRecorded, 'payment', $payment->id->value, null, [
+                'order_id' => $order->id, 'method' => $command->method, 'amount' => $command->amount,
+            ]);
 
             return ManualPaymentResult::from($payment, $recorder);
         });
