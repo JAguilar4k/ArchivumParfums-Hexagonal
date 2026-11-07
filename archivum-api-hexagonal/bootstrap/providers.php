@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Providers\AppServiceProvider;
 use Src\Accounts\Sessions\Infrastructure\SessionsServiceProvider;
+use Src\Accounts\Users\Infrastructure\PasswordsServiceProvider;
 use Src\Accounts\Users\Infrastructure\UsersServiceProvider;
 use Src\Businesses\Logo\Infrastructure\LogoServiceProvider;
 use Src\Businesses\Members\Infrastructure\MembersServiceProvider;
@@ -31,6 +32,7 @@ return [
     ShowcaseServiceProvider::class,
     SessionsServiceProvider::class,
     UsersServiceProvider::class,
+    PasswordsServiceProvider::class,
     BottlesServiceProvider::class,
     OrdersServiceProvider::class,
     PaymentsServiceProvider::class,

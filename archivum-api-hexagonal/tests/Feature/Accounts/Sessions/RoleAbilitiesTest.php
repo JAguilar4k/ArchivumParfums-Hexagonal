@@ -139,7 +139,8 @@ it('declares an ability on every route of the panel, of /cuenta/... and of the a
     foreach (Route::getRoutes()->getRoutes() as $route) {
         $uri = $route->uri();
         $authenticated = in_array('auth:sanctum', $route->gatherMiddleware(), true);
-        $mustDeclare = str_starts_with($uri, 'api/v1/panel/') || str_starts_with($uri, 'api/v1/cuenta/')
+        // Changing the password serves the three roles, as GET /cuenta does (#193).
+        $mustDeclare = str_starts_with($uri, 'api/v1/panel/') || (str_starts_with($uri, 'api/v1/cuenta/') && $uri !== 'api/v1/cuenta/contrasena')
             || (str_starts_with($uri, 'api/v1/tiendas/') && $authenticated);
 
         if ($mustDeclare && abilitiesOfRoute($route) === []) {

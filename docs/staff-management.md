@@ -21,7 +21,7 @@ Se tomó la opción más conservadora en cada caso. Falta que el equipo las conf
 
 | Pendiente | Decisión tomada | Por qué |
 | --- | --- | --- |
-| Cómo recibe sus credenciales la persona agregada | El dueño fija una `contrasena` inicial | El sistema todavía no envía correos ni tiene recuperación de contraseña (#193). |
+| Cómo recibe sus credenciales la persona agregada | El dueño fija una `contrasena` inicial, y la persona la reemplaza con la recuperación por correo (#193) | Sin ella, la persona no podría ingresar antes de recibir el enlace. |
 | Impedir quitar al último dueño activo | Sí, con 409 `conflicto` | Es lo que propone el issue. |
 | Si una cuenta de cliente puede pasar a ser personal | No: cualquier correo ya registrado responde 422 en `correo` | Un tercero no debería cambiar los permisos ni la sesión de una cuenta ajena. |
 | El borrado | No hay `DELETE`: responde 405 | El issue solo pide desactivar y el historial de citas y pedidos apunta a la persona. |

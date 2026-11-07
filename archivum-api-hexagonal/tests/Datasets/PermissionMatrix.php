@@ -102,6 +102,7 @@ function permissionMatrixRows(): array
         ],
         'cuenta propia (sección 8)' => [
             'ver la cuenta' => ['GET', 'api/v1/cuenta', [], anySignedIn(200)],
+            'cambiar la contraseña' => ['PUT', 'api/v1/cuenta/contrasena', [], anySignedIn(422)],
         ],
     ];
 }
