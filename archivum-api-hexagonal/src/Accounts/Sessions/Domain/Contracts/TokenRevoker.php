@@ -13,4 +13,7 @@ interface TokenRevoker
 
     /** Delete every access token of an account, for a change of role, a deactivation or a deleted account. */
     public function revokeAll(UserId $userId): void;
+
+    /** Delete every access token of an account but one, for a change of password from that session. */
+    public function revokeAllExcept(UserId $userId, string $tokenId): void;
 }

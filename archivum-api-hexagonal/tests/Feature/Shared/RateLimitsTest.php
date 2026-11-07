@@ -175,7 +175,11 @@ it('does not stop the normal retries of a gateway with the default webhook limit
 it('reads every limit from config/archivum.php', function (string $limiter) {
     expect(config()->integer("archivum.rate_limits.{$limiter}.attempts"))->toBeGreaterThan(0)
         ->and(config()->integer("archivum.rate_limits.{$limiter}.minutes"))->toBeGreaterThan(0);
-})->with(['sign_in_by_ip', 'sign_in_by_email', 'sign_up_by_ip', 'recommendations_by_ip', 'recommendations_by_account', 'webhooks_by_ip']);
+})->with([
+    'sign_in_by_ip', 'sign_in_by_email', 'sign_up_by_ip', 'recommendations_by_ip', 'recommendations_by_account', 'webhooks_by_ip',
+    'password_change_by_account', 'password_reset_by_ip', 'password_reset_by_email',
+    'password_reset_confirmation_by_ip', 'password_reset_confirmation_by_email',
+]);
 
 // These routes do not exist yet: each issue applies the limiter already named here to its own route.
 it('applies the limiter to POST /api/v1/tiendas/{tienda}/recomendaciones')->todo('#118');
