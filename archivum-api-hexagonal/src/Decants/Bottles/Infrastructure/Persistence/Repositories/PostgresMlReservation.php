@@ -22,9 +22,9 @@ final readonly class PostgresMlReservation implements MlReservation
         $this->change($bottleId, $ml, MovementType::Reservation, $orderLineId, $userId);
     }
 
-    public function release(string $bottleId, int $ml, ?string $orderLineId = null, ?string $userId = null): void
+    public function release(string $bottleId, int $ml, ?string $orderLineId = null, ?string $userId = null, ?string $reason = null): void
     {
-        $this->change($bottleId, $ml, MovementType::Release, $orderLineId, $userId);
+        $this->change($bottleId, $ml, MovementType::Release, $orderLineId, $userId, $reason);
     }
 
     public function consume(string $bottleId, int $ml, ?string $orderLineId = null, ?string $userId = null): void
