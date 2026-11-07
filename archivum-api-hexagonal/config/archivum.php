@@ -33,6 +33,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Privacy notice
+    |--------------------------------------------------------------------------
+    |
+    | Version of the notice that archivum-web shows. POST /api/v1/cuentas keeps
+    | it with the date a customer accepts it (#110). Change it when the text
+    | of the notice changes.
+    |
+    */
+
+    'privacy_notice_version' => env('ARCHIVUM_PRIVACY_NOTICE_VERSION', '2026-10'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Web client
     |--------------------------------------------------------------------------
     |

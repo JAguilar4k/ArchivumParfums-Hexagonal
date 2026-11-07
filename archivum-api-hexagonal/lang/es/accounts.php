@@ -17,5 +17,6 @@ return [
     'password_reset_subject' => 'Recuperar su contraseña',
     'reset_token_invalid' => 'El enlace de recuperación venció, ya se usó o no corresponde a ese correo.',
     'resource_not_found' => 'El recurso solicitado no existe.',
+    'session_not_renewable' => 'La sesión venció o se cerró: hay que ingresar de nuevo.',
 
 ];
