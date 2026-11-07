@@ -552,6 +552,22 @@ Recuperación de contraseña pendiente de cada correo (#193, `docs/password-reco
 | `token` | `varchar(255)` | Solo el hash del token |
 | `created_at` | `timestamptz` | Marca el vencimiento del enlace |
 
+### audit_logs
+
+Bitácora inalterable de cambios sensibles (#113, `docs/audit-log.md`). El rol de la aplicación solo inserta y lee, y `trg_audit_logs_immutable` rechaza `UPDATE`, `DELETE` y `TRUNCATE` desde cualquier rol. Política: `audit_logs_business_isolation`.
+
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Tienda; sin llave foránea |
+| `actor_user_id` | `uuid` | Cuenta autora; nulo es el sistema; sin llave foránea |
+| `action` | `varchar(60)` | Acción, por ejemplo `member.added` |
+| `resource_type` | `varchar(40)` | Tipo de recurso |
+| `resource_id` | `uuid` | Recurso |
+| `before`, `after` | `jsonb` | Valores antes y después, sin datos sensibles |
+| `request_id` | `uuid` | `X-Request-Id` de la solicitud |
+| `created_at` | `timestamptz` | Momento de la entrada |
+
 ## Tablas previstas
 
 Existen en el diagrama, pero su detalle llega en el pull request de la migración que las crea (sección 7 de la especificación).
