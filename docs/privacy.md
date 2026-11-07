@@ -30,9 +30,9 @@ Este documento lista cada dato personal que guarda ArchivumParfums, para qué se
 
 - Exportar y corregir los datos: #111. Eliminar la cuenta: #112.
 - Pulse todavía no está instalado: #180 debe probar que tampoco guarda estos datos. `RedactSensitiveData` no lo cubre.
+- El formulario del recomendador avisa que el texto viaja a un proveedor externo de IA y sugiere no incluir datos personales: es un criterio de aceptación de #128, que lo construye en archivum-web. Julián lo decidió junto con la máscara de #121.
 
 ## Pendiente de definir
 
 - **Texto del aviso.** Falta redactar el responsable, los fines y los destinatarios que pide la Ley 8968.
 - **Quién ve el teléfono.** Se propone que solo el dueño de la tienda, para coordinar la entrega por WhatsApp. Mientras no se confirme, ningún endpoint lo devuelve.
-- **Aviso del recomendador.** Falta decidir si el formulario del recomendador (#128) avisa que el texto viaja a un proveedor externo.
