@@ -46,6 +46,15 @@ final readonly class EloquentPaymentRepository implements PaymentRepository
         return $model === null ? null : $this->restore($model);
     }
 
+    public function findByReference(string $gateway, string $reference): ?Payment
+    {
+        $model = PaymentModel::query()->where('business_id', $this->business->current()->value)->where('gateway', $gateway)
+            ->where(fn ($query) => $query->where('provider_reference', $reference)->orWhere('checkout_reference', $reference)->orWhere('capture_reference', $reference))
+            ->orderBy('id')->first();
+
+        return $model === null ? null : $this->restore($model);
+    }
+
     public function save(Payment $payment): void
     {
         $businessId = $this->business->current()->value;
@@ -69,6 +78,26 @@ final readonly class EloquentPaymentRepository implements PaymentRepository
             'capture_reference' => $payment->captureReference,
             'refunded_amount' => $payment->refundedAmount,
         ]);
+    }
+
+    public function saveIfPending(Payment $payment): bool
+    {
+        $businessId = $this->business->current()->value;
+        if ($payment->businessId->value !== $businessId) {
+            throw new PaymentNotFoundException('payments.not_found');
+        }
+
+        // UPDATE ... WHERE status = 'pending': the database lets only one operation take the payment out of pending.
+        return PaymentModel::query()->where('business_id', $businessId)->whereKey($payment->id->value)->where('status', 'pending')
+            ->update([
+                'status' => $payment->status->value,
+                'charged_currency' => $payment->chargedCurrency,
+                'charged_amount' => $payment->chargedAmount,
+                'provider_reference' => $payment->providerReference,
+                'checkout_reference' => $payment->checkoutReference,
+                'checkout_url' => $payment->checkoutUrl,
+                'capture_reference' => $payment->captureReference,
+            ]) === 1;
     }
 
     private function restore(PaymentModel $model): Payment

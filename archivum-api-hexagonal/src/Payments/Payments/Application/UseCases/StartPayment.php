@@ -83,7 +83,7 @@ final readonly class StartPayment
             if (in_array($result->status, [PaymentStatus::Failed, PaymentStatus::Expired], true)) {
                 $payment->apply($result->status);
             }
-            // Creation alone cannot mark an order paid; ObservePayment makes the authoritative query.
+            // Creation alone cannot mark an order paid; a verified notice (#94) or the reconciliation (#96) asks the provider.
             $this->payments->save($payment);
 
             return PaymentResult::from($payment, true);

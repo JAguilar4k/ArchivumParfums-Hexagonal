@@ -3398,7 +3398,7 @@
         "/cuenta/pagos/{pago}": {
             "get": {
                 "operationId": "payments.show",
-                "summary": "Confirm only by asking the provider from the server; the request carries no status",
+                "summary": "Read the stored payment: this query never asks the provider nor changes the payment, and the request carries no status",
                 "tags": [
                     "Payment"
                 ],
@@ -3414,7 +3414,7 @@
                 ],
                 "responses": {
                     "202": {
-                        "description": "El resultado sigue pendiente de consulta al proveedor.",
+                        "description": "Todav\u00eda no se sabe si el proveedor cre\u00f3 el cobro.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3432,7 +3432,7 @@
                         }
                     },
                     "200": {
-                        "description": "Estado del pago consultado desde el servidor.",
+                        "description": "Estado guardado del pago. Mientras siga pendiente, el cliente muestra \"procesando\".",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3643,6 +3643,144 @@
                         "sanctum": []
                     }
                 ]
+            }
+        },
+        "/webhooks/onvo": {
+            "post": {
+                "operationId": "payments.webhooks.onvo",
+                "summary": "Receive a notice of ONVO Pay, whose origin is the secret ONVO sends in `X-Webhook-Secret`",
+                "tags": [
+                    "PaymentWebhook"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PaymentNoticeResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciales inv\u00e1lidas",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Servicio no disponible",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/webhooks/paypal": {
+            "post": {
+                "operationId": "payments.webhooks.paypal",
+                "summary": "Receive a notice of PayPal, whose signature PayPal's verification API checks",
+                "tags": [
+                    "PaymentWebhook"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PaymentNoticeResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciales inv\u00e1lidas",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Servicio no disponible",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/panel/perfumes": {
@@ -5993,6 +6131,26 @@
                     }
                 },
                 "title": "PatchPerfumeVariant"
+            },
+            "PaymentNoticeResource": {
+                "type": "object",
+                "properties": {
+                    "evento": {
+                        "type": "string"
+                    },
+                    "estado": {
+                        "type": "string",
+                        "enum": [
+                            "repetido",
+                            "recibido"
+                        ]
+                    }
+                },
+                "required": [
+                    "evento",
+                    "estado"
+                ],
+                "title": "PaymentNoticeResource"
             },
             "PaymentResource": {
                 "type": "object",
