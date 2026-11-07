@@ -7,6 +7,7 @@ use Src\Payments\Payments\Infrastructure\Http\Controllers\PaymentController;
 use Src\Payments\Payments\Infrastructure\Http\Controllers\PaymentWebhookController;
 use Src\Payments\Payments\Infrastructure\Http\Middleware\AuthorizePayment;
 use Src\Sales\Orders\Infrastructure\Http\Middleware\AuthorizeOrder;
+use Src\Shared\Infrastructure\RateLimitsServiceProvider;
 
 Route::prefix('cuenta')->middleware(['auth:sanctum', 'abilities:customer:own', 'business:account,context'])->name('payments.')->group(function (): void {
     Route::post('pedidos/{pedido}/pagos', [PaymentController::class, 'store'])->whereUuid('pedido')->middleware(AuthorizeOrder::class.':pay')->name('store');
@@ -16,8 +17,9 @@ Route::prefix('cuenta')->middleware(['auth:sanctum', 'abilities:customer:own', '
 Route::post('panel/pedidos/{pedido}/reembolsos', [PaymentController::class, 'refund'])
     ->middleware(['auth:sanctum', 'abilities:payments:record', 'business:staff,context', AuthorizeOrder::class.':manage'])->whereUuid('pedido')->name('payments.refunds.process');
 
-// A notice of the provider has no session or token: ReceivePaymentEvent verifies its origin before anything else.
-Route::prefix('webhooks')->name('payments.webhooks.')->group(function (): void {
+// A notice of the provider has no session or token: ReceivePaymentEvent verifies its origin before anything else, and
+// the limiter of #108 stops a flood of notices from one address without stopping the normal retries of a gateway.
+Route::prefix('webhooks')->middleware('throttle:'.RateLimitsServiceProvider::WEBHOOKS)->name('payments.webhooks.')->group(function (): void {
     Route::post('onvo', [PaymentWebhookController::class, 'onvo'])->name('onvo');
     Route::post('paypal', [PaymentWebhookController::class, 'paypal'])->name('paypal');
 });
