@@ -432,7 +432,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Confirm only by asking the provider from the server; the request carries no status */
+        /** Read the stored payment: this query never asks the provider nor changes the payment, and the request carries no status */
         get: operations["payments.show"];
         put?: never;
         post?: never;
@@ -3310,7 +3310,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Estado del pago consultado desde el servidor. */
+            /** @description Estado guardado del pago. Mientras siga pendiente, el cliente muestra "procesando". */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3321,7 +3321,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description El resultado sigue pendiente de consulta al proveedor. */
+            /** @description Todavía no se sabe si el proveedor creó el cobro. */
             202: {
                 headers: {
                     [name: string]: unknown;
