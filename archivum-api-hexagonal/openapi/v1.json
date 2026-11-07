@@ -3661,23 +3661,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "evento": {
-                                                    "type": "string"
-                                                },
-                                                "estado": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "procesado",
-                                                        "fallido"
-                                                    ]
-                                                }
-                                            },
-                                            "required": [
-                                                "evento",
-                                                "estado"
-                                            ]
+                                            "$ref": "#/components/schemas/PaymentNoticeResource"
                                         }
                                     },
                                     "required": [
@@ -3746,23 +3730,7 @@
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "type": "object",
-                                            "properties": {
-                                                "evento": {
-                                                    "type": "string"
-                                                },
-                                                "estado": {
-                                                    "type": "string",
-                                                    "enum": [
-                                                        "procesado",
-                                                        "fallido"
-                                                    ]
-                                                }
-                                            },
-                                            "required": [
-                                                "evento",
-                                                "estado"
-                                            ]
+                                            "$ref": "#/components/schemas/PaymentNoticeResource"
                                         }
                                     },
                                     "required": [
@@ -6163,6 +6131,26 @@
                     }
                 },
                 "title": "PatchPerfumeVariant"
+            },
+            "PaymentNoticeResource": {
+                "type": "object",
+                "properties": {
+                    "evento": {
+                        "type": "string"
+                    },
+                    "estado": {
+                        "type": "string",
+                        "enum": [
+                            "procesado",
+                            "fallido"
+                        ]
+                    }
+                },
+                "required": [
+                    "evento",
+                    "estado"
+                ],
+                "title": "PaymentNoticeResource"
             },
             "PaymentResource": {
                 "type": "object",

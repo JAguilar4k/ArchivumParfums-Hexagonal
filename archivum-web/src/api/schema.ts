@@ -885,6 +885,12 @@ export interface components {
             precio_manual?: number | null;
             activa?: boolean;
         };
+        /** PaymentNoticeResource */
+        PaymentNoticeResource: {
+            evento: string;
+            /** @enum {string} */
+            estado: "procesado" | "fallido";
+        };
         /** PaymentResource */
         PaymentResource: {
             id: string;
@@ -3480,11 +3486,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: {
-                            evento: string;
-                            /** @enum {string} */
-                            estado: "procesado" | "fallido";
-                        };
+                        data: components["schemas"]["PaymentNoticeResource"];
                     };
                 };
             };
@@ -3542,11 +3544,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        data: {
-                            evento: string;
-                            /** @enum {string} */
-                            estado: "procesado" | "fallido";
-                        };
+                        data: components["schemas"]["PaymentNoticeResource"];
                     };
                 };
             };
