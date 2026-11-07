@@ -227,7 +227,8 @@ it('puts every registered route of the customers only group behind customer:own'
     $violations = [];
 
     foreach (Route::getRoutes()->getRoutes() as $route) {
-        $underAccount = str_starts_with($route->uri(), 'api/v1/cuenta/');
+        // Changing the password serves the three roles, as GET /cuenta does (#193).
+        $underAccount = str_starts_with($route->uri(), 'api/v1/cuenta/') && $route->uri() !== 'api/v1/cuenta/contrasena';
 
         if (($underAccount || routeFallsUnder($route, customerOnlyRoutes())) && declaredAbilities($route) !== [Ability::CustomerOwn->value]) {
             $violations[] = implode('|', $route->methods())." {$route->uri()} lacks customer:own";
