@@ -6929,7 +6929,7 @@
                 "properties": {
                     "texto": {
                         "type": "string",
-                        "maxLength": 500
+                        "maxLength": 1000
                     }
                 },
                 "required": [
