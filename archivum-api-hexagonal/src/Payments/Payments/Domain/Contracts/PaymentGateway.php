@@ -7,6 +7,7 @@ namespace Src\Payments\Payments\Domain\Contracts;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeReference;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeRequest;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeResult;
+use Src\Payments\Payments\Domain\ValueObjects\PaymentEvent;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentMethod;
 use Src\Payments\Payments\Domain\ValueObjects\RefundRequest;
 use Src\Payments\Payments\Domain\ValueObjects\RefundResult;
@@ -27,4 +28,10 @@ interface PaymentGateway
 
     /** @param array<string, string> $headers */
     public function verifyWebhook(string $body, array $headers): bool;
+
+    /**
+     * Read a notice whose origin verifyWebhook() already accepted; a body that is not a notice of this provider is an
+     * invalid value.
+     */
+    public function parseWebhook(string $body): PaymentEvent;
 }

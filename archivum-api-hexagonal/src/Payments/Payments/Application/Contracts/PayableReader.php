@@ -10,6 +10,9 @@ interface PayableReader
 {
     public function findForPayment(string $orderId, string $userId, bool $startingPayment = true): PayableOrder;
 
+    /** Lock the order a payment pays, with no customer: a verified notice of the provider confirms it, not a person. */
+    public function findForUpdate(string $orderId): PayableOrder;
+
     public function applyPayment(string $orderId, int $amount): void;
 
     public function applyRefund(string $orderId, int $amount): void;

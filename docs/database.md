@@ -134,7 +134,7 @@ Como el dueño de las tablas también está sujeto a las políticas, los sembrad
 
 ### Funciones que leen sin tienda
 
-Hay preguntas que se responden antes de saber la tienda: al ingresar, de qué tienda es una persona del personal; en las rutas del cliente, en qué tiendas es cliente una cuenta y de qué tienda es uno de sus recursos. Las responden tres funciones:
+Hay preguntas que se responden antes de saber la tienda: al ingresar, de qué tienda es una persona del personal; en las rutas del cliente, en qué tiendas es cliente una cuenta y de qué tienda es uno de sus recursos; y al recibir el aviso de una pasarela, de qué tienda es el cobro que nombra. Las responden cuatro funciones:
 
 | Función | Devuelve | La usa |
 |---|---|---|
@@ -142,8 +142,9 @@ Hay preguntas que se responden antes de saber la tienda: al ingresar, de qué ti
 | `fn_member_business(user_id)` | La tienda y el rol de la persona activa del personal | `PostgresMemberships`, al ingresar y en el panel |
 | `fn_customer_businesses(user_id)` | Las tiendas donde la cuenta tiene fila en `customers` | Los listados de `/api/v1/cuenta` |
 | `fn_customer_resource_business(tipo, id, user_id)` | La tienda de un recurso propio, o `NULL` si es de otro cliente o no existe | Las rutas de un recurso de `/api/v1/cuenta` |
+| `fn_payment_business(gateway, referencia)` | La tienda del pago con esa referencia del proveedor (cobro, checkout o captura), o `NULL` si ningún pago la tiene | `PostgresPaymentBusinesses`, para el aviso verificado que no trae la tienda que Archivum envió con el cobro (#94) |
 
-Las tres son `SECURITY DEFINER` con `search_path` vacío y nombres calificados, propiedad de `archivum_owner` y con `EXECUTE` solo para `archivum_app`. Devuelven identificadores y el rol, nunca filas completas. Como `FORCE` también somete a `archivum_owner`, las tablas que consultan agregan la política de solo lectura `<tabla>_definer_read`, `FOR SELECT TO archivum_owner USING (true)`; `archivum_app` sigue sin ver filas sin tienda.
+Las cuatro son `SECURITY DEFINER` con `search_path` vacío y nombres calificados, propiedad de `archivum_owner` y con `EXECUTE` solo para `archivum_app`. Devuelven identificadores y el rol, nunca filas completas. Como `FORCE` también somete a `archivum_owner`, las tablas que consultan agregan la política de solo lectura `<tabla>_definer_read`, `FOR SELECT TO archivum_owner USING (true)`; `archivum_app` sigue sin ver filas sin tienda.
 
 `fn_customer_resource_business` acepta una lista cerrada de tipos y rechaza cualquier otro con el SQLSTATE `22023`. Hoy solo conoce `customer`, la ficha del cliente en una tienda; cada esquema con recursos del cliente agrega el suyo a la función, al enum `CustomerResourceType` y a `CustomerBusinessContext::RESOURCES`: `appointment` con #59 y `order` con #78. El mecanismo está registrado en el [ADR 0011](adr/0011-customer-routes-resolve-the-business-through-definer-functions.md).
 
@@ -156,6 +157,7 @@ Las tres son `SECURITY DEFINER` con `search_path` vacío y nombres calificados, 
 | `users` | No tiene `business_id`: una cuenta puede ser cliente de varias tiendas, y el ingreso la busca por su correo antes de saber la tienda |
 | `businesses` | No tiene `business_id`: cada fila es una tienda, y las rutas públicas la buscan por el slug de la URL |
 | `personal_access_tokens` | No tiene `business_id`: el token pertenece a la cuenta |
+| `webhook_events` | No tiene `business_id`: el aviso de la pasarela llega antes de saber su tienda y se identifica por `(gateway, event_id)`; la tienda sale después del pago que nombra el aviso verificado (#94) |
 
 ### Llaves únicas y foráneas
 

@@ -225,11 +225,13 @@ erDiagram
         varchar event_id
         varchar event_type
         jsonb payload
+        varchar status
+        text error
         timestamptz processed_at
     }
 ```
 
-Las tablas sin columnas en el diagrama están previstas y todavía no existen. `webhook_events` ya tiene esquema, pero su procesamiento llega con los webhooks del Avance 2; aparece sin relaciones porque no pertenece a ninguna tienda (ver [excepciones](#excepciones-deliberadas)). Los pagos actuales pertenecen a pedidos mediante `payments.order_id`; el soporte a paquetes se incorpora en #143 con una relación que conserve la integridad por tienda, sin una relación polimórfica sin llave foránea. Además hay tablas del framework (caché y colas de Laravel) que no pertenecen al negocio y no se documentan aquí.
+Las tablas sin columnas en el diagrama están previstas y todavía no existen. `webhook_events` guarda los avisos verificados de las pasarelas desde #94; aparece sin relaciones porque no pertenece a ninguna tienda (ver [excepciones](#excepciones-deliberadas)). Los pagos actuales pertenecen a pedidos mediante `payments.order_id`; el soporte a paquetes se incorpora en #143 con una relación que conserve la integridad por tienda, sin una relación polimórfica sin llave foránea. Además hay tablas del framework (caché y colas de Laravel) que no pertenecen al negocio y no se documentan aquí.
 
 ## Tablas creadas
 
@@ -488,8 +490,8 @@ Cada fila es un intento de cobro de un pedido. La intención se confirma en una 
 | `order_id` | `uuid` | Obligatoria; llave foránea compuesta a `orders(id, business_id)` |
 | `purpose` | `varchar(16)` | `payments_purpose_check`: `deposit`, `balance` o `full` |
 | `amount` | `integer` | Principal en colones; `payments_amount_check`: mayor que 0 |
-| `gateway` | `varchar(16)` | `payments_gateway_check`: `onvo`, `paypal` o `manual`; el flujo manual queda reservado para #98 |
-| `method` | `varchar(24)` | Por defecto `card`; `payments_method_check`: `card` o `sinpe_mobile` |
+| `gateway` | `varchar(16)` | `payments_gateway_check`: `onvo`, `paypal` o `manual`; `manual` es el pago del saldo que un dueño registra en la entrega (#98) |
+| `method` | `varchar(24)` | Medio del cobro en línea. Por defecto `card`; `payments_method_check`: `card` o `sinpe_mobile` con una pasarela y nulo con `manual`, cuyo medio está en `manual_method` |
 | `status` | `varchar(24)` | Por defecto `pending`; `payments_status_check`: `pending`, `succeeded`, `failed`, `expired`, `refunded` o `partially_refunded` |
 | `charged_currency` | `varchar(3)` | Por defecto `CRC`; `payments_charged_currency_check`: `CRC` o `USD` |
 | `charged_amount` | `integer` | Por defecto 0 mientras no haya respuesta; `payments_charged_amount_check`: no negativo. En CRC guarda colones enteros; en USD guarda centavos |
@@ -497,14 +499,15 @@ Cada fila es un intento de cobro de un pedido. La intención se confirma en una 
 | `provider_reference`, `checkout_reference`, `capture_reference` | `varchar(255)` | Opcionales; identidad principal del proveedor, sesión u orden de checkout, e intención de pago de ONVO o captura de PayPal |
 | `checkout_url` | `text` | Opcional; dirección de aprobación entregada por el proveedor |
 | `refunded_amount` | `integer` | Colones; por defecto 0; `payments_refunded_amount_check`: entre 0 y `amount` |
-| `recorded_by` | `uuid` | Opcional; llave foránea compuesta al miembro `members(id, business_id)` para el pago manual |
-| `manual_method`, `manual_reference` | `varchar(16)`, `varchar(255)` | Opcionales; `payments_manual_reference_check` exige actor, referencia y medio `sinpe` o `cash` cuando la pasarela es `manual` |
+| `recorded_by` | `uuid` | Opcional; llave foránea compuesta al miembro `members(id, business_id)`: el dueño que registró el pago en la entrega |
+| `manual_method`, `manual_reference` | `varchar(16)`, `varchar(255)` | Opcionales; `payments_manual_reference_check` exige actor, referencia y medio `sinpe` o `cash` cuando la pasarela es `manual`. En ese pago, `created_at` es el momento en que el dueño lo registró |
 | `created_at`, `updated_at` | `timestamptz` | |
 
 - Llaves únicas: `id`, `(id, business_id)` y `(business_id, gateway, provider_reference)`; las referencias nulas no impiden guardar una intención todavía sin respuesta.
 - Índice único parcial `payments_one_pending_purpose` sobre `(business_id, order_id, purpose)` cuando `status = 'pending'`: no puede haber dos intentos pendientes del mismo propósito. Índice adicional `(business_id, status)`.
 - Política `payments_business_isolation`, habilitada y forzada, más `payments_definer_read` de solo lectura para el dueño del esquema al resolver recursos del cliente.
-- La consulta autenticada al proveedor es la autoridad en Investigación 1. El pago y el efecto sobre el pedido se guardan en la misma transacción. La confirmación por webhook corresponde a #94 y #95 en Avance 2.
+- La consulta autenticada al proveedor es la autoridad. La piden el cliente (Investigación 1) o un aviso verificado de la pasarela (#94); el pago y el efecto sobre el pedido se guardan en la misma transacción. El registro único de cada aviso y su cola corresponden a #95.
+- `fn_payment_business(gateway, referencia)` responde la tienda de una referencia del proveedor (`provider_reference`, `checkout_reference` o `capture_reference`) antes de fijar una tienda, para el aviso que no trae la que Archivum envió con el cobro. Es `SECURITY DEFINER`, lee por `payments_definer_read` y solo devuelve el identificador de la tienda.
 - ONVO recibe el principal multiplicado por 100 en su API; ese formato de transporte no cambia que `charged_amount` en CRC guarde colones enteros. PayPal recibe texto decimal USD y la base conserva centavos y el tipo de cambio aplicado. Las conversiones viven en los adaptadores.
 
 ### refunds
@@ -528,19 +531,21 @@ Llaves únicas: `id` y `(id, business_id)`. Índice `(business_id, status)`. Pol
 
 ### webhook_events
 
-Tabla global preparada para #94 y #95; todavía no hay un endpoint que procese eventos en Investigación 1.
+Tabla global con cada aviso verificado de una pasarela y su resultado (#94). Un aviso de origen no verificado no se guarda.
 
 | Columna | Tipo | Regla |
 |---|---|---|
 | `id` | `uuid` | Llave primaria |
 | `gateway` | `varchar(16)` | `webhook_events_gateway_check`: `onvo` o `paypal` |
-| `event_id` | `varchar(255)` | Identificador del evento en la pasarela |
+| `event_id` | `varchar(255)` | Identificador del evento en la pasarela; ONVO no envía uno y se usa `tipo:id del objeto` |
 | `event_type` | `varchar(255)` | Tipo recibido del proveedor |
 | `payload` | `jsonb` | Cuerpo del evento |
-| `processed_at` | `timestamptz` | Opcional |
+| `status` | `varchar(16)` | `webhook_events_status_check`: `processed` o `failed` |
+| `error` | `text` | Clave de traducción del error; `webhook_events_error_check`: presente solo si `status` es `failed` |
+| `processed_at` | `timestamptz` | `webhook_events_processed_at_check`: presente solo si `status` es `processed` |
 | `created_at`, `updated_at` | `timestamptz` | |
 
-Llaves únicas: `id` y `(gateway, event_id)`. Sin `business_id`, llave al pago ni política de fila: al recibir un evento todavía hay que resolver su pago y tienda desde una referencia verificada. La llave compuesta proporciona el respaldo de idempotencia para el futuro procesador; crear la tabla no implementa ese procesador.
+Llaves únicas: `id` y `(gateway, event_id)`. Sin `business_id`, llave al pago ni política de fila: al recibir un evento todavía hay que resolver su pago y tienda desde una referencia verificada. Un aviso que la pasarela reenvía actualiza su resultado, salvo que ya esté `processed`. El registro único antes de procesar, con `INSERT ... ON CONFLICT DO NOTHING`, y la cola llegan con #95.
 
 ### password_reset_tokens
 
@@ -601,7 +606,7 @@ Se revisa tabla por tabla. Una dependencia funcional `A → B` significa que A d
 | `order_lines` | Una línea de botella o decant por fila | Llave de una sola columna | Cantidad, tamaño solicitado, estado y precio congelado describen la venta de esa línea; el precio no depende del catálogo actual |
 | `payments` | Un intento de cobro por fila | Llave de una sola columna; el índice parcial limita intentos pendientes del mismo propósito | Proveedor, referencias, principal y conversión describen el intento; `refunded_amount` es un resumen justificado abajo |
 | `refunds` | Una asignación de devolución por fila | Llave de una sola columna | Importe, intento, referencia y resultado pertenecen a la devolución; pago y línea se referencian con su tienda |
-| `webhook_events` | Un evento por fila; `payload` conserva el documento externo como una unidad | Llave de una sola columna y candidata `(gateway, event_id)` | Tipo, cuerpo y fecha de procesamiento describen el evento; su alcance global se justifica abajo |
+| `webhook_events` | Un evento por fila; `payload` conserva el documento externo como una unidad | Llave de una sola columna y candidata `(gateway, event_id)` | Tipo, cuerpo, resultado, error y fecha de procesamiento describen el evento; su alcance global se justifica abajo |
 
 Las tablas previstas se revisan contra esta misma tabla cuando se crean.
 
