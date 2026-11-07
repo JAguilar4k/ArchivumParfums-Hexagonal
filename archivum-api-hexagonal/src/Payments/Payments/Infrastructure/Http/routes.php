@@ -16,7 +16,7 @@ Route::prefix('cuenta')->middleware(['auth:sanctum', 'abilities:customer:own', '
 
 // Nothing leaves for a gateway, so the whole request runs in one transaction of the business.
 Route::post('panel/pedidos/{pedido}/pagos-manuales', [PaymentController::class, 'storeManual'])
-    ->middleware(['auth:sanctum', 'abilities:payments:record', 'business:staff'])->whereUuid('pedido')->name('payments.manual.store');
+    ->middleware(['auth:sanctum', 'abilities:payments:record', 'business:staff', AuthorizeOrder::class.':manage'])->whereUuid('pedido')->name('payments.manual.store');
 
 Route::post('panel/pedidos/{pedido}/reembolsos', [PaymentController::class, 'refund'])
     ->middleware(['auth:sanctum', 'abilities:payments:record', 'business:staff,context', AuthorizeOrder::class.':manage'])->whereUuid('pedido')->name('payments.refunds.process');
