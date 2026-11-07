@@ -564,6 +564,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tiendas/{tienda}/recomendaciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recommend up to five perfumes of the showcase for what the customer describes, by the AI or, if it fails, by the rules */
+        post: operations["recommendations.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sesiones": {
         parameters: {
             query?: never;
@@ -911,6 +928,32 @@ export interface components {
             lugar_cita: string | null;
             zona_horaria: string;
         };
+        /** RecommendationResource */
+        RecommendationResource: {
+            /** @enum {string} */
+            origen: "ia" | "reglas";
+            preferencias: {
+                notas: string[];
+                momento: string | null;
+                clima: string | null;
+                ocasion: string | null;
+                presupuesto: number | null;
+            };
+            perfumes: components["schemas"]["RecommendedPerfumeResource"][];
+        };
+        /** RecommendedPerfumeResource */
+        RecommendedPerfumeResource: {
+            id: string;
+            marca: string;
+            nombre: string;
+            razon: string;
+            presentaciones: components["schemas"]["RecommendedVariantResource"][];
+        };
+        /** RecommendedVariantResource */
+        RecommendedVariantResource: {
+            ml: number;
+            precio_venta: number;
+        };
         /** SessionTokenResource */
         SessionTokenResource: {
             token: string;
@@ -1045,6 +1088,10 @@ export interface components {
         StorePerfumeVariant: {
             ml: number;
             precio_manual?: number | null;
+        };
+        /** StoreRecommendation */
+        StoreRecommendation: {
+            texto: string;
         };
         /** StoreSessionRequest */
         StoreSessionRequest: {
@@ -4022,6 +4069,61 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "recommendations.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tienda: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreRecommendation"];
+            };
+        };
+        responses: {
+            /** @description `RecommendationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RecommendationResource"];
+                    };
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
                 };
             };
             /** @description Error interno */
