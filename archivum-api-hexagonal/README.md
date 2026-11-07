@@ -239,6 +239,7 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/api/v1/tiendas/{tienda}` | Cualquiera | Perfil público de la tienda identificada por su slug. |
 | GET | `/api/v1/tiendas/{tienda}/perfumes` | Cualquiera | Vitrina pública de perfumes activos, con búsqueda, filtros y paginación. |
 | GET | `/api/v1/tiendas/{tienda}/perfumes/{perfume}` | Cualquiera | Detalle público del perfume activo con sus presentaciones activas. |
+| POST | `/api/v1/tiendas/{tienda}/recomendaciones` | Cualquiera | Recomienda hasta 5 perfumes de la vitrina para lo que describe el cliente, con la IA o, si falla, por reglas; `origen` dice cuál respondió. |
 | GET | `/api/v1/panel/botellas` | Dueño | Lista botellas de decants de su tienda. |
 | POST | `/api/v1/panel/botellas` | Dueño | Registra una botella abierta de una presentación. |
 | GET | `/api/v1/panel/botellas/{botella}` | Dueño | Consulta los ml y el estado de una botella. |
@@ -399,6 +400,7 @@ Las guías independientes [Demostración de ONVO](../docs/demostracion-onvo.md) 
 | `DB_SSLMODE` | Modo SSL de las dos conexiones. Por defecto, `prefer`. |
 | `ARCHIVUM_DEMO_PASSWORD` | Contraseña de las cuentas de los [datos de demostración](#datos-de-demostración). Se deja vacía fuera del desarrollo local. |
 | `SANCTUM_EXPIRATION` | Minutos que dura cada token de `POST /api/v1/sesiones` y de su renovación. Por defecto, `60`. |
+| `GEMINI_API_KEY` | Llave de la Gemini Developer API, que se crea gratis en Google AI Studio, para el recomendador con IA ([ADR 0012](../docs/adr/0012-ai-recommender-through-laravel-ai-with-gemini.md)). El proveedor y el modelo están fijos en `config/ai.php`. Sin llave, cada consulta a la IA falla y la recomendación sale por reglas (#120); las pruebas nunca llaman a Gemini. |
 
 El código nunca lee variables de entorno directamente: lo hacen los archivos de `config/`, porque con `php artisan config:cache` en producción `env()` devuelve `null` fuera de ellos. `tests/Architecture/EnvironmentConfigurationTest.php` falla si se llama `env()` fuera de `config/`, si `config/` lee una variable que `.env.example` no lista o si `.env.example` trae el valor de una llave, un secreto, un token o una contraseña. `config/` solo guarda los archivos que cambian algo del framework, y `.env.example` solo las variables que la API usa: el issue que agrega un servicio (correo, colas en Redis, pasarelas, IA) agrega sus variables a `.env.example` y a esta tabla en el mismo pull request. `.env` nunca se versiona, y las credenciales de producción se cargan en la plataforma de despliegue, nunca en el repositorio.
 
