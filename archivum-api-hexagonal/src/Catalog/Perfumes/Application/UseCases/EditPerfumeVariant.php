@@ -15,18 +15,21 @@ use Src\Catalog\Perfumes\Domain\Exceptions\PerfumeVariantNotFoundException;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeId;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeVariantId;
 use Src\Catalog\Perfumes\Domain\ValueObjects\SizeMl;
+use Src\Shared\Domain\Contracts\AuditTrail;
 use Src\Shared\Domain\Contracts\TransactionRunner;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
+use Src\Shared\Domain\ValueObjects\AuditAction;
 use Src\Shared\Domain\ValueObjects\Colones;
 
 final readonly class EditPerfumeVariant
 {
-    /** Receive the repository, which only reaches the business of the session, the costs, the margin and the transaction ports. */
+    /** Receive the repository, which only reaches the business of the session, the costs, the margin, the transaction and the audit ports. */
     public function __construct(
         private PerfumeRepository $perfumes,
         private VariantCost $costs,
         private BottleMargin $margin,
         private TransactionRunner $transaction,
+        private AuditTrail $audit,
     ) {}
 
     /**
@@ -45,7 +48,7 @@ final readonly class EditPerfumeVariant
             $id = $this->variantIdOf($command->variantId);
             $variant = $perfume->variant($id);
             $changes = $command->changes;
-
+            $previousPrice = $variant->manualPrice?->amount;
             $perfume->editVariant(
                 $id,
                 isset($changes['ml']) ? new SizeMl($changes['ml']) : $variant->size,
@@ -57,6 +60,12 @@ final readonly class EditPerfumeVariant
             $perfume->priceVariant($id, $this->costs->costOf($id), $this->margin->current());
 
             $this->perfumes->save($perfume);
+
+            $currentPrice = $perfume->variant($id)->manualPrice?->amount;
+
+            if ($currentPrice !== $previousPrice) {
+                $this->audit->record($perfume->businessId, AuditAction::ManualPriceChanged, 'perfume_variant', $id->value, ['manual_price' => $previousPrice], ['manual_price' => $currentPrice]);
+            }
 
             return $perfume->variant($id);
         });

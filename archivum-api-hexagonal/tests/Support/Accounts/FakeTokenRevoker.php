@@ -15,6 +15,9 @@ final class FakeTokenRevoker implements TokenRevoker
     /** @var list<string> */
     public private(set) array $revokedAccounts = [];
 
+    /** @var list<string> */
+    public private(set) array $kept = [];
+
     /** Record the revoked token. */
     public function revoke(string $tokenId): void
     {
@@ -25,5 +28,12 @@ final class FakeTokenRevoker implements TokenRevoker
     public function revokeAll(UserId $userId): void
     {
         $this->revokedAccounts[] = $userId->value;
+    }
+
+    /** Record the account whose other tokens were revoked, and the token kept. */
+    public function revokeAllExcept(UserId $userId, string $tokenId): void
+    {
+        $this->revokedAccounts[] = $userId->value;
+        $this->kept[] = $tokenId;
     }
 }
