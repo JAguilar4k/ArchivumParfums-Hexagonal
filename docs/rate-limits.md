@@ -28,4 +28,4 @@ Los issues #108 y #193 dejaron los valores sin definir: estos son una propuesta 
 
 ## Lo que falta
 
-`POST /tiendas/{tienda}/recomendaciones` (#118) y `POST /webhooks/onvo` y `/paypal` (#94) todavía no existen en el código. Sus limitadores ya están definidos y probados con rutas de prueba. Cada uno de esos issues debe agregar a su ruta `throttle:recomendaciones` o `throttle:webhooks`; `RateLimitsTest` los deja como `todo`.
+`POST /tiendas/{tienda}/recomendaciones` (#118) todavía no existe en el código. Su limitador ya está definido y probado con una ruta de prueba; #118 debe agregar `throttle:recomendaciones` a su ruta, y `RateLimitsTest` lo deja como `todo`. `POST /webhooks/onvo` y `/paypal` ya aplican `throttle:webhooks` desde #94, y `RateLimitsTest` lo prueba sobre las rutas reales.

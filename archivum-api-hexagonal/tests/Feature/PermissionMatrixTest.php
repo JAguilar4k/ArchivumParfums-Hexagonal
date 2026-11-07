@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
 use Tests\Support\Accounts\DemoAccounts;
@@ -14,6 +15,10 @@ use Tests\Support\Security\MatrixResources;
 use function Pest\Laravel\json;
 
 pest()->use(RefreshDatabaseAsOwner::class);
+
+// A refund leaves its request to the provider in the queue (#97). The matrix checks who reaches each endpoint, not the
+// provider, so the queue keeps its jobs instead of running them.
+beforeEach(fn () => Queue::fake());
 
 /*
  * The permission matrix of section 9, row by row, as the owner, the staff, a customer and a visitor of the seeders

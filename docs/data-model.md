@@ -216,6 +216,7 @@ erDiagram
         integer amount
         varchar status
         varchar provider_reference
+        integer charged_amount
         timestamptz attempted_at
         text reason
     }
@@ -225,11 +226,13 @@ erDiagram
         varchar event_id
         varchar event_type
         jsonb payload
+        varchar status
+        text error
         timestamptz processed_at
     }
 ```
 
-Las tablas sin columnas en el diagrama están previstas y todavía no existen. `webhook_events` ya tiene esquema, pero su procesamiento llega con los webhooks del Avance 2; aparece sin relaciones porque no pertenece a ninguna tienda (ver [excepciones](#excepciones-deliberadas)). Los pagos actuales pertenecen a pedidos mediante `payments.order_id`; el soporte a paquetes se incorpora en #143 con una relación que conserve la integridad por tienda, sin una relación polimórfica sin llave foránea. Además hay tablas del framework (caché y colas de Laravel) que no pertenecen al negocio y no se documentan aquí.
+Las tablas sin columnas en el diagrama están previstas y todavía no existen. `webhook_events` guarda los avisos verificados de las pasarelas desde #94; aparece sin relaciones porque no pertenece a ninguna tienda (ver [excepciones](#excepciones-deliberadas)). Los pagos actuales pertenecen a pedidos mediante `payments.order_id`; el soporte a paquetes se incorpora en #143 con una relación que conserve la integridad por tienda, sin una relación polimórfica sin llave foránea. Además hay tablas del framework (caché y colas de Laravel) que no pertenecen al negocio y no se documentan aquí.
 
 ## Tablas creadas
 
@@ -504,7 +507,8 @@ Cada fila es un intento de cobro de un pedido. La intención se confirma en una 
 - Llaves únicas: `id`, `(id, business_id)` y `(business_id, gateway, provider_reference)`; las referencias nulas no impiden guardar una intención todavía sin respuesta.
 - Índice único parcial `payments_one_pending_purpose` sobre `(business_id, order_id, purpose)` cuando `status = 'pending'`: no puede haber dos intentos pendientes del mismo propósito. Índice adicional `(business_id, status)`.
 - Política `payments_business_isolation`, habilitada y forzada, más `payments_definer_read` de solo lectura para el dueño del esquema al resolver recursos del cliente.
-- La consulta autenticada al proveedor es la autoridad en Investigación 1. El pago y el efecto sobre el pedido se guardan en la misma transacción. La confirmación por webhook corresponde a #94 y #95 en Avance 2.
+- La consulta autenticada al proveedor es la autoridad. La piden un aviso verificado de la pasarela (#94) o la conciliación de los pagos pendientes (#96); la consulta del cliente solo lee el pago guardado. El pago y el efecto sobre el pedido se guardan en la misma transacción. El registro único de cada aviso y su cola corresponden a #95.
+- `fn_payment_business(gateway, referencia)` responde la tienda de una referencia del proveedor (`provider_reference`, `checkout_reference` o `capture_reference`) antes de fijar una tienda, para el aviso que no trae la que Archivum envió con el cobro. Es `SECURITY DEFINER`, lee por `payments_definer_read` y solo devuelve el identificador de la tienda.
 - ONVO recibe el principal multiplicado por 100 en su API; ese formato de transporte no cambia que `charged_amount` en CRC guarde colones enteros. PayPal recibe texto decimal USD y la base conserva centavos y el tipo de cambio aplicado. Las conversiones viven en los adaptadores.
 
 ### refunds
@@ -519,28 +523,33 @@ Cada fila asigna parte de un pago confirmado a una devolución del pedido o de u
 | `order_line_id` | `uuid` | Opcional; llave foránea compuesta a `order_lines(id, business_id)` |
 | `amount` | `integer` | Colones; `refunds_amount_check`: mayor que 0 |
 | `status` | `varchar(16)` | Por defecto `pending`; `refunds_status_check`: `pending`, `succeeded` o `failed` |
-| `provider_reference` | `varchar(255)` | Opcional; se confirma antes de aplicar el efecto final sobre pago y pedido |
-| `attempted_at` | `timestamptz` | Opcional; marca durable de que se intentó enviar la devolución, confirmada antes del HTTP |
+| `provider_reference` | `varchar(255)` | Opcional; se confirma antes de aplicar el efecto final sobre pago y pedido. Queda vacía si la pasarela rechazó la devolución sin crearla |
+| `charged_amount` | `integer` | Opcional; la devolución en la unidad que cobró la pasarela: colones enteros con ONVO y centavos de dólar con PayPal. Se fija junto con `attempted_at`; `refunds_charged_amount_check`: mayor que 0 |
+| `attempted_at` | `timestamptz` | Opcional; marca durable de que se intentó enviar la devolución, confirmada antes del HTTP. `refunds_attempted_at_check`: una devolución intentada tiene `charged_amount` |
 | `reason` | `text` | Opcional |
 | `created_at`, `updated_at` | `timestamptz` | |
 
-Llaves únicas: `id` y `(id, business_id)`. Índice `(business_id, status)`. Política `refunds_business_isolation`, habilitada y forzada. `PaymentRefundRequests` asigna pagos bajo bloqueo para que devoluciones pendientes o confirmadas no superen el principal. `ProcessOrderRefunds` persiste `attempted_at`, realiza el HTTP sin la transacción exterior de la petición, conserva la referencia en una transacción propia y aplica la devolución al pago y al pedido en una última transacción. Una respuesta perdida sin referencia queda pendiente para conciliación; repetir la petición no repite ese POST a ciegas. ONVO tiene implementación; PayPal queda documentado para este corte.
+Llaves únicas: `id` y `(id, business_id)`. Índice `(business_id, status)`. Política `refunds_business_isolation`, habilitada y forzada. `PaymentRefundRequests` asigna pagos bajo bloqueo para que devoluciones pendientes o confirmadas no superen el principal, y `RefundPayment` bloquea el pago antes de contar sus devoluciones pendientes (#97). `RequestRefundJob` persiste `attempted_at` y `charged_amount` antes del HTTP, fuera de la transacción de la operación que registró la devolución, conserva la referencia en una transacción propia y aplica la devolución al pago y al pedido en una última transacción, con un `UPDATE` condicionado a `status = 'pending'`. Una respuesta perdida sin referencia queda pendiente para que una persona la revise; ningún trabajo repite ese POST. Una devolución con referencia que sigue pendiente se confirma con el aviso de PayPal o con la conciliación.
+
+En PayPal, `charged_amount` sale de convertir el total acumulado de las devoluciones del pago con el tipo de cambio del pago original y restar lo que ya salió, así la suma de las devoluciones nunca pasa de `payments.charged_amount`. Por eso se guarda al intentar y no se recalcula después. La migración de #97 llenó la columna de las devoluciones en CRC ya intentadas con su `amount`.
 
 ### webhook_events
 
-Tabla global preparada para #94 y #95; todavía no hay un endpoint que procese eventos en Investigación 1.
+Tabla global con cada aviso verificado de una pasarela y su resultado (#94). Un aviso de origen no verificado no se guarda, y uno verificado se guarda antes de procesarse (#95).
 
 | Columna | Tipo | Regla |
 |---|---|---|
 | `id` | `uuid` | Llave primaria |
 | `gateway` | `varchar(16)` | `webhook_events_gateway_check`: `onvo` o `paypal` |
-| `event_id` | `varchar(255)` | Identificador del evento en la pasarela |
+| `event_id` | `varchar(255)` | Identificador del evento en la pasarela; ONVO no envía uno y se usa `tipo:id del objeto` |
 | `event_type` | `varchar(255)` | Tipo recibido del proveedor |
 | `payload` | `jsonb` | Cuerpo del evento |
-| `processed_at` | `timestamptz` | Opcional |
+| `status` | `varchar(16)` | Por defecto `pending`; `webhook_events_status_check`: `pending`, `processed` o `failed` |
+| `error` | `text` | Clave de traducción del error; `webhook_events_error_check`: presente solo si `status` es `failed` |
+| `processed_at` | `timestamptz` | `webhook_events_processed_at_check`: presente solo si `status` es `processed` |
 | `created_at`, `updated_at` | `timestamptz` | |
 
-Llaves únicas: `id` y `(gateway, event_id)`. Sin `business_id`, llave al pago ni política de fila: al recibir un evento todavía hay que resolver su pago y tienda desde una referencia verificada. La llave compuesta proporciona el respaldo de idempotencia para el futuro procesador; crear la tabla no implementa ese procesador.
+Llaves únicas: `id` y `(gateway, event_id)`. Sin `business_id`, llave al pago ni política de fila: al recibir un evento todavía hay que resolver su pago y tienda desde una referencia verificada. `INSERT ... ON CONFLICT DO NOTHING` guarda solo la primera llegada de cada evento, como `pending`, junto con su trabajo en la cola; un aviso que la pasarela reenvía no cambia nada. El trabajo lo bloquea, lo aplica y lo marca `processed` en una transacción, o lo deja `failed` con la clave de su error (#95).
 
 ### password_reset_tokens
 
@@ -601,7 +610,7 @@ Se revisa tabla por tabla. Una dependencia funcional `A → B` significa que A d
 | `order_lines` | Una línea de botella o decant por fila | Llave de una sola columna | Cantidad, tamaño solicitado, estado y precio congelado describen la venta de esa línea; el precio no depende del catálogo actual |
 | `payments` | Un intento de cobro por fila | Llave de una sola columna; el índice parcial limita intentos pendientes del mismo propósito | Proveedor, referencias, principal y conversión describen el intento; `refunded_amount` es un resumen justificado abajo |
 | `refunds` | Una asignación de devolución por fila | Llave de una sola columna | Importe, intento, referencia y resultado pertenecen a la devolución; pago y línea se referencian con su tienda |
-| `webhook_events` | Un evento por fila; `payload` conserva el documento externo como una unidad | Llave de una sola columna y candidata `(gateway, event_id)` | Tipo, cuerpo y fecha de procesamiento describen el evento; su alcance global se justifica abajo |
+| `webhook_events` | Un evento por fila; `payload` conserva el documento externo como una unidad | Llave de una sola columna y candidata `(gateway, event_id)` | Tipo, cuerpo, resultado, error y fecha de procesamiento describen el evento; su alcance global se justifica abajo |
 
 Las tablas previstas se revisan contra esta misma tabla cuando se crean.
 
@@ -618,6 +627,7 @@ Cada una se aparta de la 3FN o de la regla de llaves con una razón. Las cuatro 
 | `decant_bottles.remaining_ml`, `reserved_ml` | La reserva concurrente de R9 exige decidir con un `UPDATE` condicional y un `CHECK` en la misma fila. La fila conserva el saldo inicial registrado y las operaciones posteriores guardan el cambio y su movimiento de forma atómica |
 | `payments.charged_amount`, `exchange_rate` | Conservan el importe real de aquel cobro y su conversión, aunque cambie después el tipo de cambio de la tienda. CRC se guarda en colones enteros y USD en centavos; los montos enviados por HTTP son responsabilidad del adaptador |
 | `payments.refunded_amount` | Resume el principal devuelto para impedir un exceso al bloquear el pago. Solo crece con un reembolso confirmado y se actualiza junto con el reembolso y su efecto sobre el pedido |
+| `refunds.charged_amount` | Congela lo que se pidió a la pasarela en su unidad. Con PayPal depende del tipo de cambio del pago y de las devoluciones que salieron antes, así que recalcularlo después podría dar otro centavo; también es lo que se compara con la respuesta y el aviso de la pasarela (#97) |
 | `webhook_events` no tiene `business_id` | El evento de la pasarela llega antes de saber a qué tienda pertenece, y se identifica por `(gateway, event_id)` para procesarse una sola vez (R38). La tienda se obtiene después, por el pago que el evento menciona. No tiene política de fila porque no tiene `business_id` |
 | `business_id` se repite en las tablas hijas | Una tabla hija como `appointments` lleva `business_id` aunque su padre ya lo implique. Es lo que permite las llaves foráneas compuestas `(parent_id, business_id)` hacia la llave `(id, business_id)` del padre, que impiden que una fila apunte al recurso de otra tienda (R56), y la política de fila directa. Los dos valores no pueden discrepar: lo garantiza la llave compuesta |
 | `businesses.settings` es un `jsonb` | Guarda los ajustes por tienda (sección 10 de la especificación). Cada ajuste se lee y se escribe entero y ninguno se consulta ni se une con otras tablas; un `CHECK` exige que sea un objeto. Si un ajuste necesitara consultarse o validarse por columna, se promueve a columna |
