@@ -138,6 +138,20 @@ Cada regla debería tener al menos una prueba que la nombre, y cada issue cita e
 - **R34.** Cada canje descuenta 1 decant del paquete y los ml de la botella en la misma transacción. El saldo nunca baja de 0, aunque entren dos canjes a la vez: `UPDATE` condicional y `CHECK` sobre los decants restantes.
 - **R35.** Un paquete vencido o agotado no se puede usar, no se reembolsa ni se cambia por dinero.
 
+Precisiones de los paquetes:
+
+- Los ml por decant de una oferta son uno de los tamaños de decant de la tienda (R4). Una oferta tiene de 1 a 50 decants y de 1 a 365 días de vigencia, con precio y tope enteros positivos hasta ₡2.147.483.647. Si la tienda quita ese tamaño después, la oferta y los paquetes ya comprados conservan sus ml.
+- Una oferta no se borra: se desactiva. Una oferta inactiva no aparece en la lista pública ni se puede comprar, y los paquetes ya comprados no cambian.
+- Cada paquete conserva los decants, los ml y el tope con que se compró, aunque después se edite la oferta. Por eso `decant_packs` guarda también `max_price_per_ml`.
+- La oferta inicial de los datos de demostración cuesta ₡40.000, con un tope de ₡2.500 por ml.
+- La vigencia cuenta desde que se confirma el pago y el paquete se activa, y termina a la misma hora cuando pasan sus días. Mientras espera su pago, el paquete vence a los 30 min (R33).
+- Un canje cubre un decant de exactamente los ml del paquete. Al crear el pedido, el decant se descuenta del paquete en la misma transacción que reserva los ml de la botella; esos ml se consumen al preparar el decant, como los de cualquier decant del pedido (R25 y R26), y el consumo queda en el historial como decant canjeado (R8).
+- Si un pedido se cancela o vence, sus decants canjeados vuelven al paquete en la misma transacción y sus ml se liberan. Un paquete que ese canje había agotado vuelve a `active` mientras siga vigente; si ya venció, el decant vuelve, pero el paquete sigue `expired` y no se reembolsa (R35).
+- Si el paquete vence con un decant canjeado que todavía no se preparó, el canje se mantiene: el vencimiento solo impide canjes nuevos.
+- Si se confirma el cobro de un paquete que venció sin pagar, se registra el importe y se solicita su reembolso completo, como con un pedido vencido, y el paquete sigue `expired`. R35 se refiere a los paquetes que llegaron a estar activos.
+
+Estas precisiones de R32–R35 fueron confirmadas por la persona responsable el 08/11/2026.
+
 ### Pagos
 
 - **R36.** Dos pasarelas intercambiables por configuración, detrás de un mismo puerto: ONVO Pay (tarjeta y SINPE Móvil) y PayPal (tarjeta).
@@ -226,7 +240,7 @@ Líneas: botella `pending` → `ordered` → `received` o `unavailable`; decant 
 | Entidad | Estados |
 |---|---|
 | Pago | `pending` → `succeeded`, `failed` o `expired`; `succeeded` → `refunded` o `partially_refunded`; `partially_refunded` → `refunded` al completar el total |
-| Paquete de decants | `pending_payment` → `active` → `exhausted` o `expired` |
+| Paquete de decants | `pending_payment` → `active` → `exhausted` o `expired`; `exhausted` → `active` cuando un pedido cancelado o vencido devuelve un decant a un paquete vigente |
 | Orden de compra | `draft` → `sent` → `paid` → `received`; `draft` o `sent` → `cancelled` |
 | Entrada de lista de espera | `waiting` → `offered` → `accepted` o `expired`; `waiting` → `cancelled` |
 
