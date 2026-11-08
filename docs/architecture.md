@@ -33,7 +33,7 @@ Las carpetas `app/`, `bootstrap/`, `config/`, `database/`, `lang/` y `routes/` c
 
 ## Contextos
 
-La base compartida y los contextos de cuentas, tiendas y catálogo ya están implementados. Investigación 1 agrega `Decants/Bottles`, `Sales/Orders` y `Payments/Payments`; `Decants/Packs` ya tiene su dominio (#142), y su esquema y sus endpoints llegan con #143 a #148. Cada contexto restante se crea con el primer issue de uno de sus módulos, con estos nombres. Los módulos marcados como extra solo se construyen si el núcleo del corte está completo:
+La base compartida y los contextos de cuentas, tiendas y catálogo ya están implementados. Investigación 1 agrega `Decants/Bottles`, `Sales/Orders` y `Payments/Payments`; `Decants/Packs` ya tiene su dominio (#142) y su esquema (#143), y sus endpoints llegan con #144 a #148. Cada contexto restante se crea con el primer issue de uno de sus módulos, con estos nombres. Los módulos marcados como extra solo se construyen si el núcleo del corte está completo:
 
 | Contexto | Módulos | Qué agrupa |
 |---|---|---|
@@ -100,7 +100,7 @@ Cuando dos contextos necesitan colaborar lo hacen por un puerto o por un evento 
 
 - Una cita solo puede incluir perfumes de botellas con ml disponibles, pero las botellas son de `Decants`. `Scheduling/Appointments` declara el puerto de lectura `TestablePerfumes` y su adaptador consulta `decant_bottles` (#76).
 - `Sales/Orders` necesita reservar ml. Declara `DecantStock` en `Application/Contracts`; `BottleDecantStock` llama a `MlReservation` de `Decants/Bottles`. Los dominios de pedidos y botellas siguen separados y una operación fallida revierte el pedido y sus reservas.
-- `Payments/Payments` referencia lo cobrado con `Payable` y colabora con pedidos por `PayableReader`, implementado por `SalesPayableReader`. La persistencia actual usa una llave foránea `payments.order_id` con `business_id`; los paquetes amplían esa relación en #143. En Investigación 1 confirma una consulta al proveedor; el procesador de webhooks llega con #94 y #95.
+- `Payments/Payments` referencia lo cobrado con `Payable` y colabora con pedidos por `PayableReader`, implementado por `SalesPayableReader`. La persistencia guarda lo pagado en `payments.order_id` o, desde #143, en `payments.decant_pack_id`, cada una con su llave foránea compuesta con `business_id`; el cobro de un paquete llega con #145. En Investigación 1 confirma una consulta al proveedor; el procesador de webhooks llega con #94 y #95.
 - `Sales/Orders` solicita devoluciones por `RefundRequests`. `PaymentRefundRequests` registra asignaciones pendientes de `refunds` en la transacción del cambio del pedido; procesarlas por HTTP es otra operación. Cancelar o marcar una línea como no disponible no declara que el dinero ya se devolvió.
 
 Si mañana uno de los dos contextos cambiara, solo cambiaría el adaptador.

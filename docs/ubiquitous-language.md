@@ -102,7 +102,7 @@ Los ajustes de la tienda son claves de `businesses.settings`: la base guarda sol
 
 Los ml se manejan como enteros. Al registrar una botella, `ml_totales` debe coincidir con la capacidad de la presentación; puede omitirse porque el servidor la obtiene. `ml_restantes` inicial es opcional y no puede superar esa capacidad. Una botella vacía conserva su historial y no admite ajustes. La oferta de decants exige una presentación activa con precio y suficientes ml disponibles.
 
-El depósito usa el porcentaje vigente al crear el pedido y lo congela en `orders.deposit_percent`; el precio de cada línea también queda congelado. Ningún importe de pedido o pago se calcula a partir de un precio recibido del navegador. En Investigación 1 el objeto `Payable` representa un pedido: ampliar el cobro a paquetes en #143 exige conservar una relación con llave foránea y tienda verificable.
+El depósito usa el porcentaje vigente al crear el pedido y lo congela en `orders.deposit_percent`; el precio de cada línea también queda congelado. Ningún importe de pedido o pago se calcula a partir de un precio recibido del navegador. En Investigación 1 el objeto `Payable` representa un pedido; desde #143 un pago también puede pertenecer a un paquete de decants, con su propia llave foránea compuesta con la tienda.
 
 `payments.recorded_by` reserva el actor de un futuro pago manual y referencia a `members(id, business_id)`, no a `users`. El autor de un movimiento de ml sí es una cuenta global porque puede ser personal, cliente o nulo en una operación automática.
 
