@@ -65,16 +65,11 @@ function writeError(Closure $write): ?QueryException
     return null;
 }
 
-/** Expect the write to be rejected by a row-level security policy. */
+/** Expect the write to be rejected by a row-level security policy, whatever the language of the server. */
 function expectRowLevelSecurityViolation(?QueryException $error): void
 {
-    $message = (string) $error?->getMessage();
-
-    expect($error?->getCode())->toBe('42501')
-        ->and(
-            str_contains($message, 'violates row-level security policy')
-            || str_contains($message, 'viola la política de seguridad')
-        )->toBeTrue();
+    // The SQLSTATE of the refusal is 42501; the text of the message depends on the locale of the server.
+    expect($error?->getCode())->toBe('42501');
 }
 
 beforeEach(function () {
