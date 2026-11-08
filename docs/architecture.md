@@ -33,7 +33,7 @@ Las carpetas `app/`, `bootstrap/`, `config/`, `database/`, `lang/` y `routes/` c
 
 ## Contextos
 
-La base compartida y los contextos de cuentas, tiendas y catálogo ya están implementados. Investigación 1 agrega `Decants/Bottles`, `Sales/Orders` y `Payments/Payments`; `Decants/Packs` sigue previsto. Cada contexto restante se crea con el primer issue de uno de sus módulos, con estos nombres. Los módulos marcados como extra solo se construyen si el núcleo del corte está completo:
+La base compartida y los contextos de cuentas, tiendas y catálogo ya están implementados. Investigación 1 agrega `Decants/Bottles`, `Sales/Orders` y `Payments/Payments`; `Decants/Packs` ya tiene su dominio (#142), y su esquema y sus endpoints llegan con #143 a #148. Cada contexto restante se crea con el primer issue de uno de sus módulos, con estos nombres. Los módulos marcados como extra solo se construyen si el núcleo del corte está completo:
 
 | Contexto | Módulos | Qué agrupa |
 |---|---|---|
@@ -112,6 +112,12 @@ Si mañana uno de los dos contextos cambiara, solo cambiaría el adaptador.
 `EloquentDecantBottleRepository` agrega y reconstituye botellas filtradas por `BusinessContext`; la modificación ordinaria cambia únicamente las notas y nunca reescribe los saldos. `PostgresMlReservation` implementa las operaciones de ml con un `UPDATE` condicional y la inserción del movimiento en una sola transacción. La decisión de si alcanza el saldo la toma PostgreSQL; el `CHECK` impide cantidades imposibles y el estado pasa a `empty` dentro del mismo `UPDATE` al llegar a 0. El rol de la aplicación solo puede leer e insertar movimientos: no puede modificarlos, borrarlos ni vaciar la tabla.
 
 `DecantPrice`, del núcleo compartido `Decants/Shared`, calcula el precio proporcional y lo redondea hacia arriba con enteros. La vitrina consulta las botellas elegibles en conjunto, con sus presentaciones y los ajustes de la tienda, sin una consulta por botella. Solo ofrece tamaños que caben en los ml disponibles; las presentaciones inactivas o sin precio y las botellas vacías quedan fuera. El registro toma la capacidad de la presentación y admite un saldo inicial menor; una botella vacía no se reabre por ajuste.
+
+### Paquetes de decants
+
+`Decants/Packs` tiene dos agregados: `DecantPackPlan`, la oferta que define el dueño, y `DecantPack`, el paquete que compra el cliente (R32). Los objetos de valor rechazan cantidades, ml, precios, vigencias y topes que no sean enteros positivos o que pasen sus límites. Desactivar una oferta la saca de la venta sin borrarla, porque los paquetes comprados apuntan a ella. Las excepciones llevan claves de `lang/es/packs.php`.
+
+Un paquete nace `pending_payment` de una oferta a la venta, con el plazo de pago de la tienda en `expires_at`, y copia de la oferta sus decants, sus ml y su tope: editar la oferta después no cambia los paquetes ya comprados. Al confirmarse el pago pasa a `active` y su vigencia cuenta desde ese momento, hasta la misma hora cuando pasan sus días (R33). Cada canje descuenta un decant de un paquete activo y vigente, solo para un decant de exactamente sus ml y, si tiene tope, de una presentación cuyo precio de venta no supere el tope por sus ml; el último decant lo deja `exhausted` (R34). Un paquete vence sin pago al pasar su plazo, o con decants restantes al cumplir su vigencia; desde ese momento `statusAt()` lo muestra vencido y ningún canje lo usa, aunque la cola todavía no lo haya procesado. Un paquete agotado ya no vence. El agregado no ofrece reembolsar un paquete ni cambiarlo por dinero (R35), y una prueba de su lista de operaciones lo protege.
 
 ### Pedidos y precios congelados
 
