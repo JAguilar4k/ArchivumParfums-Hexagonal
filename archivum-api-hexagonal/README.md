@@ -136,7 +136,7 @@ COMMIT;
 | `php artisan queue:work` | Corre el worker de la cola en desarrollo, en otra terminal: aplica los avisos de las pasarelas, envía los reembolsos y vence los pedidos sin pagar. En producción lo supervisa la plataforma de #21. |
 | `php artisan queue:failed` | Lista los trabajos que agotaron sus intentos; `php artisan queue:retry all` los vuelve a encolar. |
 | `php artisan schedule:work` | Ejecuta las tareas programadas en desarrollo; en producción se usa `schedule:run` desde cron, cada minuto. |
-| `php artisan archivum:reconcile-payments` | Consulta a la pasarela los pagos pendientes de todas las tiendas que ya esperaron su aviso (#96), y los reembolsos que la pasarela aceptó y siguen pendientes (#97), y aplica su estado real. Corre sola cada cinco minutos. |
+| `php artisan archivum:reconcile-payments` | Consulta a la pasarela los pagos pendientes de todas las tiendas que ya esperaron su aviso (#96), los pagos que el vencimiento de su pedido cerró en las últimas 24 horas, por si la pasarela los cobró igual (#192), y los reembolsos que la pasarela aceptó y siguen pendientes (#97), y aplica su estado real. Corre sola cada cinco minutos. |
 | `php artisan archivum:create-business` | Da de alta una tienda y la cuenta de su dueño. Ver [Dar de alta una tienda](#dar-de-alta-una-tienda). |
 
 Antes de abrir un pull request deben pasar `composer validate --strict`, `composer lint`, `composer analyse` y `composer test`. La auditoría completa se ejecuta con `composer audit --locked`; CI ejecuta `composer audit --locked --ignore-severity=low --ignore-severity=medium` después de las pruebas, por lo que una ejecución local completa puede informar avisos adicionales.
