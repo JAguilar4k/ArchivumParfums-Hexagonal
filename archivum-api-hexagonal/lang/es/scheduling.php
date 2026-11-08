@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 return [
     'service.name_required' => 'El nombre del servicio es obligatorio.',
+    'schedule_block.not_found' => 'El bloqueo no existe.',
+    'schedule_block.member_not_found' => 'La persona no pertenece al personal de la tienda.',
+    'schedule_block.from_calendar' => 'Ese bloqueo viene del calendario y no se edita ni se borra desde el panel.',
     'service.invalid_duration' => 'La duración del servicio debe ser mayor a cero.',
     'service.invalid_buffer' => 'El margen entre citas no puede ser negativo.',
     'service.invalid_max_perfumes' => 'El máximo de perfumes no puede ser negativo.',
