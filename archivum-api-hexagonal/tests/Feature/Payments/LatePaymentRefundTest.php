@@ -97,6 +97,12 @@ function sendLateOnvoNotice(StaffedBusiness $business, PaymentModel $payment): T
 function reconcileAfterTheLateCharge(): void
 {
     travel(Payment::MINUTES_FOR_THE_NOTICE)->minutes();
+    runTheLateChargeReconciliation();
+}
+
+/** Run the reconciliation of #96 at this moment, as the scheduler does. */
+function runTheLateChargeReconciliation(): void
+{
     $command = artisan('archivum:reconcile-payments');
     assert($command instanceof PendingCommand);
     $command->assertSuccessful();
@@ -403,6 +409,63 @@ it('R40: returns the late charge of an expired order once ONVO confirms its refu
         ->and(DB::table('failed_jobs')->count())->toBe(0);
     Http::assertSent(fn (Request $request): bool => $request->method() === 'POST' && $request->url() === 'https://api.onvopay.com/v1/refunds'
         && $request['paymentIntentId'] === $payment->capture_reference && $request['amount'] === 750_000);
+});
+
+it('R38, R39: leaves one refund when the reconciliation finds the late charge of an expired order before its notice arrives', function (): void {
+    Queue::fake([RequestRefundJob::class]);
+    $business = actingAsCustomer();
+    $order = StoredOrders::create($business)['order'];
+    $payment = StoredPayments::create($business, $order);
+    expireBeforeTheLateCharge($business, $order);
+    fakeLateOnvoCharge($payment);
+
+    // The webhook never told Archivum, but the reconciliation asks ONVO about the payment the expiry closed.
+    reconcileAfterTheLateCharge();
+
+    $rows = fn (): array => app(BusinessTransaction::class)->run($business->business->id, fn (): array => [
+        'payment' => DB::table('payments')->where('id', $payment->id)->value('status'),
+        'paid' => DB::table('orders')->where('id', $order->id)->value('paid'),
+        'refunds' => DB::table('refunds')->get(['payment_id', 'amount', 'status'])->map(fn (object $refund): array => (array) $refund)->all(),
+    ]);
+    $reconciled = ['payment' => 'succeeded', 'paid' => 7500, 'refunds' => [['payment_id' => $payment->id, 'amount' => 7500, 'status' => 'pending']]];
+    expect($rows())->toBe($reconciled);
+    Queue::assertPushed(RequestRefundJob::class, 1);
+    Http::assertSentCount(2);
+
+    // The notice that arrives afterwards finds the payment confirmed and asks the provider nothing.
+    sendLateOnvoNotice($business, $payment)->assertOk()->assertJsonPath('data.estado', 'recibido');
+
+    expect($rows())->toBe($reconciled);
+    Queue::assertPushed(RequestRefundJob::class, 1);
+    Http::assertSentCount(2);
+});
+
+it('R39: asks about the payment the expiry closed for 24 hours, and it stays expired while ONVO reports its checkout expired', function (): void {
+    Queue::fake([RequestRefundJob::class]);
+    $business = actingAsCustomer();
+    $order = StoredOrders::create($business)['order'];
+    $payment = StoredPayments::create($business, $order);
+    expireBeforeTheLateCharge($business, $order);
+    Http::fake(['api.onvopay.com/v1/checkout/sessions/'.$payment->provider_reference => Http::response(['id' => $payment->provider_reference, 'mode' => 'test', 'status' => 'expired'])]);
+
+    // Right after the expiry its notice may still arrive: the reconciliation waits for it, as for a pending payment.
+    runTheLateChargeReconciliation();
+    Http::assertNothingSent();
+
+    // Five minutes after the expiry, ONVO answers that nobody paid the checkout: nothing changes.
+    reconcileAfterTheLateCharge();
+    Http::assertSentCount(1);
+
+    // A day after the expiry, the reconciliation no longer asks about it.
+    travel(Payment::HOURS_FOR_A_LATE_CHARGE)->hours();
+    runTheLateChargeReconciliation();
+
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'expired']);
+    assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'expired', 'paid' => 0]);
+    assertDatabaseCount('refunds', 0);
+    Queue::assertNothingPushed();
+    Http::assertSentCount(1);
 });
 
 it('asks nothing about an expired payment of an order that still waits for its payment, and changes nothing', function (): void {

@@ -21,6 +21,9 @@ final class Payment
     /** Minutes a pending charge waits for the provider's notice before the reconciliation asks the provider itself (#96). */
     public const int MINUTES_FOR_THE_NOTICE = 5;
 
+    /** Hours after the expiry of its order closed it that the reconciliation still asks about an expired payment (#192). */
+    public const int HOURS_FOR_A_LATE_CHARGE = 24;
+
     private function __construct(
         public readonly PaymentId $id,
         public readonly BusinessId $businessId,
