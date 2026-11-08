@@ -6,7 +6,9 @@ use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
+use Src\Payments\Payments\Infrastructure\Jobs\RequestRefundJob;
 use Src\Sales\Orders\Domain\Contracts\OrderRepository;
 use Src\Sales\Orders\Infrastructure\Jobs\ExpireUnpaidOrderJob;
 use Src\Sales\Orders\Infrastructure\Persistence\Repositories\EloquentOrderRepository;
@@ -15,7 +17,7 @@ use Tests\Support\Sales\HoldLockedOrderForCompetingOperation;
 
 pest()->use(RefreshDatabaseAsOwner::class);
 
-it('R25: ends with only one of an expiry and the confirmation of its payment that arrive at the same time', function (string $first, array $outcome): void {
+it('R25, R38: ends an expiry and the confirmation of its payment that arrive at the same time in only one of two outcomes', function (string $first, array $outcome): void {
     $owner = DB::connection('pgsql_admin');
     $businessId = (string) Str::uuid7();
     $userId = (string) Str::uuid7();
@@ -63,7 +65,8 @@ it('R25: ends with only one of an expiry and the confirmation of its payment tha
         return ['overlap' => app(HoldLockedOrderForCompetingOperation::class)->observedOverlap];
     };
 
-    // ONVO's notice of the paid checkout, applied by the sync queue inside its request.
+    // ONVO's notice of the paid checkout, applied by the sync queue inside its request; only the request of a refund to
+    // ONVO is faked.
     $notify = function () use ($notice, $session, $intent, $signal, $first): array {
         config(['payments.onvo.secret_key' => 'onvo_test_fake', 'payments.onvo.webhook_secret' => 'webhook_secret_fictitious']);
         Http::preventStrayRequests();
@@ -71,6 +74,7 @@ it('R25: ends with only one of an expiry and the confirmation of its payment tha
             'api.onvopay.com/v1/checkout/sessions/'.$session => Http::response(['id' => $session, 'mode' => 'test', 'status' => 'complete', 'paymentIntentId' => $intent]),
             'api.onvopay.com/v1/payment-intents/'.$intent => Http::response(['id' => $intent, 'mode' => 'test', 'amount' => 80_000, 'currency' => 'CRC', 'status' => 'succeeded']),
         ]);
+        $queue = Queue::fake([RequestRefundJob::class]);
         app()->singleton(HoldLockedOrderForCompetingOperation::class, fn (): HoldLockedOrderForCompetingOperation => new HoldLockedOrderForCompetingOperation(app(EloquentOrderRepository::class), $first === 'notice' ? $signal : null));
         app()->bind(OrderRepository::class, fn (): HoldLockedOrderForCompetingOperation => app(HoldLockedOrderForCompetingOperation::class));
         if ($first !== 'notice') {
@@ -86,11 +90,13 @@ it('R25: ends with only one of an expiry and the confirmation of its payment tha
             'status' => $response->getStatusCode(),
             'overlap' => app(HoldLockedOrderForCompetingOperation::class)->observedOverlap,
             'queries' => Http::recorded()->count(),
+            'queued' => $queue->pushed(RequestRefundJob::class)->count(),
         ];
     };
 
+    // audit_logs is left out of the tables to empty: nobody can change it, and its entries name a store only this test has.
     try {
-        [$expired, $notified] = inParallel(['webhook_events', 'payments', 'decant_movements', 'order_lines', 'orders', 'decant_bottles', 'perfume_variants', 'perfumes', 'customers', 'users', 'businesses'], $expire, $notify);
+        [$expired, $notified] = inParallel(['refunds', 'webhook_events', 'payments', 'decant_movements', 'order_lines', 'orders', 'decant_bottles', 'perfume_variants', 'perfumes', 'customers', 'users', 'businesses'], $expire, $notify);
     } finally {
         if (file_exists($signal)) {
             unlink($signal);
@@ -98,9 +104,9 @@ it('R25: ends with only one of an expiry and the confirmation of its payment tha
     }
 
     // The second one waited for the lock of the order and then saw what the first one committed. A notice that finds
-    // the payment closed does not ask ONVO.
+    // the payment closed by the expiry still asks ONVO, which charged it: the charge is kept and its refund requested.
     expect($expired)->toBe(['overlap' => $first === 'expiry'])
-        ->and($notified)->toBe(['status' => 200, 'overlap' => $first === 'notice', 'queries' => $first === 'notice' ? 2 : 0]);
+        ->and($notified)->toBe(['status' => 200, 'overlap' => $first === 'notice', 'queries' => 2, 'queued' => $first === 'expiry' ? 1 : 0]);
 
     $state = $owner->transaction(function () use ($owner, $businessId, $orderId, $lineId, $paymentId, $bottleId): array {
         $owner->statement("select set_config('app.business_id', ?, true)", [$businessId]);
@@ -112,15 +118,16 @@ it('R25: ends with only one of an expiry and the confirmation of its payment tha
             'payment' => (string) $owner->table('payments')->where('id', $paymentId)->value('status'),
             'reserved_ml' => (int) $owner->table('decant_bottles')->where('id', $bottleId)->value('reserved_ml'),
             'releases' => $owner->table('decant_movements')->where('type', 'release')->count(),
+            'refunds' => $owner->table('refunds')->get(['payment_id', 'amount', 'status'])->map(fn (object $refund): array => (array) $refund)->all(),
             'notice' => (string) $owner->table('webhook_events')->value('status'),
         ];
     });
 
-    // Never an expired order with a confirmed payment, or a confirmed order whose ml went back to the bottle.
-    expect($state)->toBe([...$outcome, 'notice' => 'processed']);
+    // Never an expired order whose charge nobody refunds, or a confirmed order whose ml went back to the bottle (#192).
+    expect($state)->toBe([...$outcome, 'refunds' => $first === 'expiry' ? [['payment_id' => $paymentId, 'amount' => 800, 'status' => 'pending']] : [], 'notice' => 'processed']);
 })->with([
-    // The notice finds the payment closed and changes nothing.
-    'the expiry locks the order first' => ['expiry', ['order' => 'expired', 'paid' => 0, 'line' => 'released', 'payment' => 'expired', 'reserved_ml' => 0, 'releases' => 1]],
+    // The notice finds the payment closed by the expiry: ONVO charged it, so the order keeps it until its refund.
+    'the expiry locks the order first' => ['expiry', ['order' => 'expired', 'paid' => 800, 'line' => 'released', 'payment' => 'succeeded', 'reserved_ml' => 0, 'releases' => 1]],
     // The expiry finds the order paid and releases nothing.
     'the notice locks the order first' => ['notice', ['order' => 'confirmed', 'paid' => 800, 'line' => 'reserved', 'payment' => 'succeeded', 'reserved_ml' => 5, 'releases' => 0]],
 ]);

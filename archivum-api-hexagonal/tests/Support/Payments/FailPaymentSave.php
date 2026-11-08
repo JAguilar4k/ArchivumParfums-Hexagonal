@@ -54,4 +54,13 @@ final readonly class FailPaymentSave implements PaymentRepository
 
         return $this->repository->saveIfPending($payment);
     }
+
+    public function saveIfPendingOrExpired(Payment $payment): bool
+    {
+        if ($payment->status === PaymentStatus::Succeeded || ($this->afterReference && $payment->providerReference !== null)) {
+            throw new RuntimeException('Injected payment persistence failure.');
+        }
+
+        return $this->repository->saveIfPendingOrExpired($payment);
+    }
 }
