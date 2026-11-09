@@ -15,15 +15,21 @@ use Src\Payments\Payments\Domain\Exceptions\GatewayUnavailableException;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeReference;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeRequest;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeResult;
+use Src\Payments\Payments\Domain\ValueObjects\PaymentEvent;
+use Src\Payments\Payments\Domain\ValueObjects\PaymentId;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentMethod;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentStatus;
 use Src\Payments\Payments\Domain\ValueObjects\RefundRequest;
 use Src\Payments\Payments\Domain\ValueObjects\RefundResult;
 use Src\Payments\Payments\Infrastructure\Gateways\GatewayMoney;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
+use Src\Shared\Domain\ValueObjects\BusinessId;
 
 final readonly class PayPalGateway implements PaymentGateway
 {
+    /** Notices about the capture of an order; refunds join with #97 and the rest change no payment. */
+    private const array CAPTURE_EVENTS = ['PAYMENT.CAPTURE.COMPLETED', 'PAYMENT.CAPTURE.PENDING', 'PAYMENT.CAPTURE.DENIED', 'PAYMENT.CAPTURE.DECLINED'];
+
     public function __construct(
         private string $clientId,
         private string $clientSecret,
@@ -168,13 +174,80 @@ final readonly class PayPalGateway implements PaymentGateway
             'webhook_id' => $this->webhookId,
         ], JSON_THROW_ON_ERROR);
         $payload = substr($verification, 0, -1).',"webhook_event":'.$body.'}';
-        $response = $this->send(fn (PendingRequest $http): Response => $http->withBody($payload, 'application/json')->post('/v1/notifications/verify-webhook-signature'));
+        // PayPal refusing to verify what the notice brings (400 or 422) means its origin is not verified, as a FAILURE
+        // does; its 401, a 5xx or a lost connection mean PayPal could not check it, and the notice must come again.
+        $response = $this->send(fn (PendingRequest $http): Response => $http->withBody($payload, 'application/json')->post('/v1/notifications/verify-webhook-signature'), answers: [400, 422]);
 
-        return $response->json('verification_status') === 'SUCCESS';
+        return $response->successful() && $response->json('verification_status') === 'SUCCESS';
     }
 
-    /** @param Closure(PendingRequest): Response $request */
-    private function send(Closure $request): Response
+    /**
+     * A PayPal notice has its own `id` and `event_type`. An approved order is not a payment: it names the order, and
+     * the authoritative query then captures it. A capture names its order in `supplementary_data`. Both bring back
+     * the `custom_id` Archivum sent, `businessId:paymentId`, and an amount in dollars that the payment keeps in cents.
+     */
+    public function parseWebhook(string $body): PaymentEvent
+    {
+        $event = json_decode($body, true);
+        $id = is_array($event) ? ($event['id'] ?? null) : null;
+        $type = is_array($event) ? ($event['event_type'] ?? null) : null;
+        $resource = is_array($event) ? ($event['resource'] ?? null) : null;
+
+        if (! is_string($id) || ! is_string($type) || ! is_array($resource)) {
+            throw new InvalidValueException('payments.invalid_webhook');
+        }
+
+        if ($type === 'CHECKOUT.ORDER.APPROVED') {
+            $unit = $resource['purchase_units'][0] ?? null;
+
+            return $this->chargeEvent($id, $type, $resource['id'] ?? null, is_array($unit) ? $unit : []);
+        }
+
+        if (in_array($type, self::CAPTURE_EVENTS, true)) {
+            return $this->chargeEvent($id, $type, $resource['supplementary_data']['related_ids']['order_id'] ?? null, $resource);
+        }
+
+        return new PaymentEvent('paypal', $id, $type);
+    }
+
+    /**
+     * A notice about the charge of an order, read from the purchase unit or the capture that carries its amount.
+     *
+     * @param  array<mixed>  $charge
+     */
+    private function chargeEvent(string $id, string $type, mixed $orderId, array $charge): PaymentEvent
+    {
+        if (! is_string($orderId)) {
+            throw new InvalidValueException('payments.invalid_webhook');
+        }
+
+        $parts = is_string($charge['custom_id'] ?? null) ? explode(':', $charge['custom_id']) : [];
+        [$businessId, $paymentId] = $this->ownReferences(count($parts) === 2 ? $parts[0] : null, count($parts) === 2 ? $parts[1] : null);
+        $amount = is_array($charge['amount'] ?? null) ? $charge['amount'] : [];
+        $currency = $amount['currency_code'] ?? null;
+
+        return new PaymentEvent('paypal', $id, $type, $orderId, $businessId, $paymentId, is_string($currency) ? $currency : null, GatewayMoney::cents($amount['value'] ?? null));
+    }
+
+    /**
+     * The identifiers Archivum sent in the custom_id of the purchase unit; both must be valid or neither is used.
+     *
+     * @return array{?BusinessId, ?PaymentId}
+     */
+    private function ownReferences(?string $businessId, ?string $paymentId): array
+    {
+        try {
+            return [new BusinessId($businessId ?? ''), new PaymentId($paymentId ?? '')];
+        } catch (InvalidValueException) {
+            return [null, null];
+        }
+    }
+
+    /**
+     * @param  Closure(PendingRequest): Response  $request
+     * @param  list<int>  $answers  error statuses that answer the request instead of showing PayPal unavailable
+     */
+    private function send(Closure $request, array $answers = []): Response
     {
         try {
             $token = Http::baseUrl($this->baseUrl)->withBasicAuth($this->clientId, $this->clientSecret)->acceptJson()->asForm()->timeout($this->timeout)->connectTimeout($this->connectTimeout)->withoutRedirecting()->post('/v1/oauth2/token', ['grant_type' => 'client_credentials']);
@@ -188,7 +261,7 @@ final readonly class PayPalGateway implements PaymentGateway
             throw new GatewayUnavailableException('payments.unavailable');
         }
 
-        if (! $response->successful() && ! $this->declined($response)) {
+        if (! $response->successful() && ! $this->declined($response) && ! in_array($response->status(), $answers, true)) {
             throw new GatewayUnavailableException('payments.unavailable');
         }
 
