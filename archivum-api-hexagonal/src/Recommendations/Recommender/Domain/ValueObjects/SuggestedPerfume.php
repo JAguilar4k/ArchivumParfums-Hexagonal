@@ -8,7 +8,7 @@ final readonly class SuggestedPerfume
 {
     /**
      * A perfume the recommender suggests, by the identifier it has in the catalog, with a short reason in Spanish.
-     * Until it is checked against the catalog (#119), the identifier is only what the recommender answered.
+     * In what the AI answers, the identifier is only what it answered until SuggestionValidator finds it in the catalog.
      */
     public function __construct(
         public string $perfumeId,

@@ -103,6 +103,8 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Preferencias del cliente | `CustomerPreferences` | — | `preferencias` |
 | Perfume sugerido | `SuggestedPerfume` | — | `perfumes`, cada uno con su `razon` |
 | Origen de la recomendación | `RecommendationOrigin` | — | `origen` |
+| Validación de la sugerencia | `SuggestionValidator`, `SuggestionValidation` | — | No viaja: decide qué parte de la salida de la IA se usa |
+| Causa de descarte | `DiscardCause` | — | No viaja: el log cuenta los descartes por causa |
 
 El dueño y el colaborador son los dos roles del personal: en la base son los valores `owner` y `staff` de `members.role`. Una cuenta que no está en el personal de ninguna tienda es cliente. En la API, `rol` vale `dueno`, `colaborador` o `cliente`.
 

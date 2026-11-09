@@ -55,7 +55,7 @@ final readonly class LaravelAiRecommender implements AiRecommender
     /**
      * Translate the answer to the domain, when it has the shape and the types of the schema: an object with the
      * preferences and a list of at most five perfumes. Anything else is discarded whole, before any value is used.
-     * The values themselves, such as an identifier that is not in the catalog, are checked later (#119).
+     * The values themselves, such as an identifier that is not in the catalog, are checked by SuggestionValidator.
      *
      * @param  array<mixed>  $answer
      */
