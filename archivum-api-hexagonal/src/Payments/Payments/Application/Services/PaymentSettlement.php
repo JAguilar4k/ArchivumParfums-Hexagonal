@@ -14,7 +14,7 @@ use Src\Payments\Payments\Domain\Exceptions\InvalidPaymentTransitionException;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeReference;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentStatus;
 
-/** What follows the provider's answer about a pending charge, whoever asked: the customer's query or a verified notice. */
+/** What follows the provider's answer about a pending charge, whoever asked: a verified notice (#94) or the reconciliation (#96). */
 final readonly class PaymentSettlement
 {
     /** Receive the ports a settled charge touches. */
