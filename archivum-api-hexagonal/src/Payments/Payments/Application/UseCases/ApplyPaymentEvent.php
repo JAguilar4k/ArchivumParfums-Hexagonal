@@ -34,10 +34,10 @@ final readonly class ApplyPaymentEvent
      * Apply a verified notice to the payment it names, in one transaction of the business pinned for it. The notice
      * must name this payment's charge with its currency and exact amount, which only a notice of a failure may leave
      * out; then, while the payment is pending, it changes with what the provider answers to the server's own query,
-     * together with its order or its decant pack. A payment that the expiry of its cancelled or expired order closed
-     * changes only if the provider answers that the charge succeeded, which registers its refund (#192). A notice about
-     * any other payment that is no longer pending changes nothing. A notice about a refund (#97) is applied to that
-     * refund the same way.
+     * together with its order or its decant pack. A payment that the expiry of its cancelled or expired order, or of
+     * its expired pack, closed changes only if the provider answers that the charge succeeded, which registers its
+     * refund (#192). A notice about any other payment that is no longer pending changes nothing. A notice about a
+     * refund (#97) is applied to that refund the same way.
      *
      * @throws PaymentNotFoundException when no payment of the business has the notice's references
      * @throws PaymentEventMismatchException when the notice names another charge, amount or currency
@@ -71,7 +71,7 @@ final readonly class ApplyPaymentEvent
             if ($payment->status === PaymentStatus::Pending) {
                 $this->settlement->settle($payment, $payable);
             } elseif ($payment->status === PaymentStatus::Expired) {
-                // The expiry of its order closed the payment, but the provider may still have charged it (#192).
+                // The expiry of its order or pack closed the payment, but the provider may have charged it (#192).
                 $this->settlement->settleLate($payment, $payable);
             }
         });

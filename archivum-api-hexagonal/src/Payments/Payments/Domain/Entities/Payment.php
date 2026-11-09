@@ -21,7 +21,10 @@ final class Payment
     /** Minutes a pending charge waits for the provider's notice before the reconciliation asks the provider itself (#96). */
     public const int MINUTES_FOR_THE_NOTICE = 5;
 
-    /** Hours after the expiry of its order closed it that the reconciliation still asks about an expired payment (#192). */
+    /**
+     * Hours after the expiry of its order or its pack closed it that the reconciliation still asks about an expired
+     * payment (#192).
+     */
     public const int HOURS_FOR_A_LATE_CHARGE = 24;
 
     private function __construct(
@@ -76,9 +79,9 @@ final class Payment
     }
 
     /**
-     * The provider confirmed the charge after the expiry of its order closed the payment (#192): the payment becomes
-     * succeeded, so that it matches the provider (R39) and its refund can be requested. This is the only way out of
-     * expired, and only for a success; apply() keeps refusing it.
+     * The provider confirmed the charge after the expiry of its order or its pack closed the payment (#192): the
+     * payment becomes succeeded, so that it matches the provider (R39) and its refund can be requested. This is the
+     * only way out of expired, and only for a success; apply() keeps refusing it.
      */
     public function confirmLate(ChargeResult $result): void
     {

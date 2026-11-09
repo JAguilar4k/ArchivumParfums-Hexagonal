@@ -7,6 +7,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Illuminate\Testing\PendingCommand;
 use Illuminate\Testing\TestResponse;
@@ -18,6 +19,7 @@ use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackPlanModel;
 use Src\Payments\Payments\Domain\Entities\Payment;
+use Src\Payments\Payments\Infrastructure\Jobs\RequestRefundJob;
 use Src\Payments\Payments\Infrastructure\Persistence\Models\PaymentModel;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
@@ -353,10 +355,11 @@ it('starts another attempt when the purchase comes again with its key after its 
         ->and(array_column($payments, 'status'))->toEqualCanonicalizing(['failed', 'pending']);
 });
 
-it('P11: keeps a charge confirmed for a pack that no longer waits for it, without activating the pack', function () {
+it('P11: keeps a charge confirmed for a pack that expired and requests its full refund, without activating the pack', function () {
     $business = actingAsCustomer();
     $offer = packOfferOf($business);
     fakeOnvoForPacks();
+    Queue::fake([RequestRefundJob::class]);
     $bought = buyPack($business, $offer->id)->assertCreated();
     app(BusinessTransaction::class)->run($business->business->id, fn (): int => DB::table('decant_packs')->where('id', $bought->json('data.id'))->update(['status' => 'expired']));
 
@@ -365,5 +368,8 @@ it('P11: keeps a charge confirmed for a pack that no longer waits for it, withou
     app(BusinessTransaction::class)->scope($business->business->id);
     assertDatabaseHas('payments', ['id' => $bought->json('data.pago.id'), 'status' => 'succeeded']);
     assertDatabaseHas('decant_packs', ['id' => $bought->json('data.id'), 'status' => 'expired']);
+    assertDatabaseHas('refunds', ['payment_id' => $bought->json('data.pago.id'), 'amount' => 40000, 'status' => 'pending']);
     expect(PaymentModel::query()->count())->toBe(1);
+    // The refund leaves for ONVO from the queue (#97), after the transaction that registered it.
+    Queue::assertPushed(RequestRefundJob::class, 1);
 });
