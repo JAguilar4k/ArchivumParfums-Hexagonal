@@ -166,6 +166,7 @@ El dominio y la base guardan el estado en inglés. La API lo muestra en español
 - Los estados del reembolso no estaban en la sección 6 inicial de la especificación; esta tabla es su definición y `refunds_status_check` ya los protege. Una solicitud pendiente no reduce el importe pagado hasta que el proveedor confirma la devolución.
 - Investigación 1 confirma por consulta autenticada del servidor al proveedor. La vuelta del navegador y una orden PayPal `APPROVED` no equivalen a un pago `succeeded`: debe comprobarse el resultado de la captura. Los webhooks verificados corresponden a #94 y #95 en Avance 2.
 - La vigencia de un paquete comprado cuenta desde que se confirma su pago y pasa a `active`, no desde la compra. Un paquete vence sin pago al pasar el plazo de la tienda, o al cumplir su vigencia aunque le queden decants; uno `exhausted` ya no vence.
+- Una oferta de paquetes no se borra: se desactiva y deja de aparecer en la lista pública de la tienda. Sus ml por decant son uno de los tamaños de decant de la tienda cuando se define o se cambian, y los conserva si la tienda deja de vender ese tamaño.
 - Las transiciones permitidas están en la sección 6 de [la especificación](especificacion.md#6-estados). Solo `held` y `confirmed` cuentan para la restricción de traslape de las citas.
 
 Los valores cerrados adicionales se traducen en la frontera HTTP:

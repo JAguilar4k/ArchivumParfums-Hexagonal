@@ -33,7 +33,7 @@ Las carpetas `app/`, `bootstrap/`, `config/`, `database/`, `lang/` y `routes/` c
 
 ## Contextos
 
-La base compartida y los contextos de cuentas, tiendas y catálogo ya están implementados. Investigación 1 agrega `Decants/Bottles`, `Sales/Orders` y `Payments/Payments`; `Decants/Packs` ya tiene su dominio (#142) y su esquema (#143), y sus endpoints llegan con #144 a #148. Cada contexto restante se crea con el primer issue de uno de sus módulos, con estos nombres. Los módulos marcados como extra solo se construyen si el núcleo del corte está completo:
+La base compartida y los contextos de cuentas, tiendas y catálogo ya están implementados. Investigación 1 agrega `Decants/Bottles`, `Sales/Orders` y `Payments/Payments`; `Decants/Packs` ya tiene su dominio (#142), su esquema (#143) y las ofertas del panel y de la tienda (#144); la compra, los canjes y las consultas llegan con #145 a #148. Cada contexto restante se crea con el primer issue de uno de sus módulos, con estos nombres. Los módulos marcados como extra solo se construyen si el núcleo del corte está completo:
 
 | Contexto | Módulos | Qué agrupa |
 |---|---|---|
@@ -116,6 +116,8 @@ Si mañana uno de los dos contextos cambiara, solo cambiaría el adaptador.
 ### Paquetes de decants
 
 `Decants/Packs` tiene dos agregados: `DecantPackPlan`, la oferta que define el dueño, y `DecantPack`, el paquete que compra el cliente (R32). Los objetos de valor rechazan cantidades, ml, precios, vigencias y topes que no sean enteros positivos o que pasen sus límites. Desactivar una oferta la saca de la venta sin borrarla, porque los paquetes comprados apuntan a ella. Las excepciones llevan claves de `lang/es/packs.php`.
+
+El dueño define las ofertas en `/api/v1/panel/paquetes`, con la ability `packs:manage` que solo tiene su rol (#144). `CreateDecantPackPlan` y `UpdateDecantPackPlan` construyen los ml con `MlPerDecant::soldBy()`, que exige uno de los tamaños de decant de la tienda (R4), leídos por el puerto `DecantSizes` de los ajustes de la tienda; el controlador informa ese error en el campo `ml_por_decant`, como hace el catálogo con los ml repetidos. Una oferta guardada se reconstituye con el constructor, así que conserva sus ml aunque la tienda deje de vender ese tamaño, y editar otro campo no obliga a cambiarlos. Editar una oferta no toca los paquetes ya comprados, que guardan su propia copia. La lista pública de `/api/v1/tiendas/{tienda}/paquetes` es una lectura sin dominio, como la vitrina: `PublicPackPlanReader` responde solo las ofertas a la venta de la tienda de la dirección.
 
 Un paquete nace `pending_payment` de una oferta a la venta, con el plazo de pago de la tienda en `expires_at`, y copia de la oferta sus decants, sus ml y su tope: editar la oferta después no cambia los paquetes ya comprados. Al confirmarse el pago pasa a `active` y su vigencia cuenta desde ese momento, hasta la misma hora cuando pasan sus días (R33). Cada canje descuenta un decant de un paquete activo y vigente, solo para un decant de exactamente sus ml y, si tiene tope, de una presentación cuyo precio de venta no supere el tope por sus ml; el último decant lo deja `exhausted` (R34). Un paquete vence sin pago al pasar su plazo, o con decants restantes al cumplir su vigencia; desde ese momento `statusAt()` lo muestra vencido y ningún canje lo usa, aunque la cola todavía no lo haya procesado. Un paquete agotado ya no vence. El agregado no ofrece reembolsar un paquete ni cambiarlo por dinero (R35), y una prueba de su lista de operaciones lo protege.
 
