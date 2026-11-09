@@ -67,11 +67,13 @@ final readonly class PostgresBottleReader implements BottleReader
             ->select(['b.*', 'v.size_ml as variant_ml', 'p.id as perfume_id', 'p.brand', 'p.name as perfume_name']);
     }
 
+    /** A movement of a decant line of an order says whether a pack paid that decant (R8, #146). */
     private function movementQuery(): Builder
     {
         return DB::table('decant_movements as m')->leftJoin('users as u', 'u.id', '=', 'm.user_id')
+            ->leftJoin('order_lines as l', fn ($join) => $join->on('l.id', '=', 'm.order_line_id')->on('l.business_id', '=', 'm.business_id'))
             ->where('m.business_id', $this->context->current()->value)
-            ->select(['m.*', 'u.name as author']);
+            ->select(['m.*', 'u.name as author', DB::raw('l.decant_pack_id IS NOT NULL AS redeemed')]);
     }
 
     private function toBottle(stdClass $row): BottleView
@@ -84,6 +86,7 @@ final readonly class PostgresBottleReader implements BottleReader
     private function toMovement(stdClass $row): MovementView
     {
         return new MovementView((string) $row->id, (string) $row->type, (int) $row->ml, $row->reason === null ? null : (string) $row->reason,
-            (string) $row->created_at, $row->author === null ? null : (string) $row->author, $row->order_line_id === null ? null : (string) $row->order_line_id);
+            (string) $row->created_at, $row->author === null ? null : (string) $row->author, $row->order_line_id === null ? null : (string) $row->order_line_id,
+            (bool) $row->redeemed);
     }
 }

@@ -841,6 +841,7 @@ export interface components {
             presentacion_ml: number | null;
             cantidad: number;
             precio_unitario: number;
+            paquete_id: string | null;
             /** @enum {string} */
             estado: "pendiente" | "encargada" | "recibida" | "no_disponible" | "reservada" | "preparada" | "liberada";
         };
@@ -909,6 +910,7 @@ export interface components {
             fecha: string;
             hecho_por: string | null;
             linea_pedido_id: string | null;
+            canjeado: boolean;
         };
         /** PanelPerfume */
         PanelPerfume: {
@@ -1186,6 +1188,8 @@ export interface components {
                 botella_id?: string;
                 cantidad?: number;
                 ml?: number;
+                /** Format: uuid */
+                paquete_id?: string | null;
             }[];
         };
         /** StorePackPurchase */
@@ -2886,6 +2890,7 @@ export interface operations {
                                 fecha: string;
                                 hecho_por: string | null;
                                 linea_pedido_id: string | null;
+                                canjeado: boolean;
                             };
                             botella: {
                                 id: string;

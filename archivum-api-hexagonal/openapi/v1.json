@@ -2570,6 +2570,9 @@
                                                                 "string",
                                                                 "null"
                                                             ]
+                                                        },
+                                                        "canjeado": {
+                                                            "type": "boolean"
                                                         }
                                                     },
                                                     "required": [
@@ -2579,7 +2582,8 @@
                                                         "motivo",
                                                         "fecha",
                                                         "hecho_por",
-                                                        "linea_pedido_id"
+                                                        "linea_pedido_id",
+                                                        "canjeado"
                                                     ]
                                                 },
                                                 "botella": {
@@ -6042,6 +6046,12 @@
                     "precio_unitario": {
                         "type": "integer"
                     },
+                    "paquete_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "estado": {
                         "type": "string",
                         "enum": [
@@ -6065,6 +6075,7 @@
                     "presentacion_ml",
                     "cantidad",
                     "precio_unitario",
+                    "paquete_id",
                     "estado"
                 ],
                 "title": "OrderLineResource"
@@ -6341,6 +6352,9 @@
                             "string",
                             "null"
                         ]
+                    },
+                    "canjeado": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -6350,7 +6364,8 @@
                     "motivo",
                     "fecha",
                     "hecho_por",
-                    "linea_pedido_id"
+                    "linea_pedido_id",
+                    "canjeado"
                 ],
                 "title": "PanelMovement"
             },
@@ -7456,6 +7471,13 @@
                                     "type": "integer",
                                     "minimum": 1,
                                     "maximum": 2147483647
+                                },
+                                "paquete_id": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "format": "uuid"
                                 }
                             }
                         },
