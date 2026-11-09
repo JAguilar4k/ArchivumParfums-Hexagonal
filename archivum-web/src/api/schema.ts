@@ -963,6 +963,7 @@ export interface components {
             monto: number;
             /** @enum {string} */
             estado: "confirmado" | "fallido" | "pendiente";
+            consulta_pendiente: boolean;
         };
         /** SessionTokenResource */
         SessionTokenResource: {

@@ -237,7 +237,8 @@ it('R40: leaves the refund failed, visible to the owner, and the payment unchang
     assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'cancelled', 'paid' => 7500]);
     actingAsOwner($business);
     postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.estado', 'fallido')->assertJsonPath('data.0.monto', 7500)->assertJsonPath('data.0.pago', $payment->id);
+        ->assertJsonPath('data.0.estado', 'fallido')->assertJsonPath('data.0.monto', 7500)->assertJsonPath('data.0.pago', $payment->id)
+        ->assertJsonPath('data.0.consulta_pendiente', false);
     // A rejected refund is not sent again by itself.
     expect(DB::table('jobs')->count())->toBe(0)
         ->and(DB::table('failed_jobs')->count())->toBe(0);
@@ -265,6 +266,10 @@ it('R40: confirms with the reconciliation a refund the provider still processes'
     app(BusinessTransaction::class)->scope($business->business->id);
     assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'pending', 'provider_reference' => 'refund-later']);
     assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded', 'refunded_amount' => 0]);
+    // ONVO answered with its reference, so the owner sees it in process, not waiting for someone to check it.
+    actingAsOwner($business);
+    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()
+        ->assertJsonPath('data.0.estado', 'pendiente')->assertJsonPath('data.0.consulta_pendiente', false);
     // The reconciliation leaves a refund alone while it still waits for its confirmation.
     reconcileRefundsNow()->expectsOutputToContain('Ningún reembolso pendiente cambió de estado.')->assertSuccessful();
     Http::assertSentCount(2);
@@ -421,11 +426,13 @@ it('R40: keeps an uncertain refund pending without sending it again or counting 
     expect(DB::table('refunds')->where('payment_id', $payment->id)->value('attempted_at'))->not->toBeNull();
     assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded', 'refunded_amount' => 0]);
     assertDatabaseHas('orders', ['id' => $order->id, 'paid' => 7500]);
-    // Neither the queue, the owner's list nor the reconciliation sends it again: a person checks it in the provider.
+    // Neither the queue, the owner's list nor the reconciliation sends it again: the owner sees that ONVO did not
+    // answer, and a person checks it in the provider.
     expect(DB::table('jobs')->count())->toBe(0)
         ->and(DB::table('failed_jobs')->count())->toBe(0);
     actingAsOwner($business);
-    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonPath('data.0.estado', 'pendiente');
+    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()
+        ->assertJsonPath('data.0.estado', 'pendiente')->assertJsonPath('data.0.consulta_pendiente', true);
     travel(Payment::MINUTES_FOR_THE_NOTICE + 1)->minutes();
     reconcileRefundsNow()->expectsOutputToContain('Ningún reembolso pendiente cambió de estado.')->assertSuccessful();
     expect(DB::table('jobs')->count())->toBe(0);
@@ -452,11 +459,13 @@ it('R40: asks PayPal again through the queue for a refund whose answer was lost,
 
     workNextRefundJob();
 
-    // The refund left without an answer: its job waits in the queue for its next attempt.
+    // The refund left without an answer: its job waits in the queue for its next attempt, and the owner sees it.
     app(BusinessTransaction::class)->scope($business->business->id);
     assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'pending', 'provider_reference' => null, 'charged_amount' => 1500]);
     expect(DB::table('jobs')->count())->toBe(1)
         ->and(DB::table('failed_jobs')->count())->toBe(0);
+    actingAsOwner($business);
+    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonPath('data.0.consulta_pendiente', true);
 
     travel(11)->seconds();
     workNextRefundJob();

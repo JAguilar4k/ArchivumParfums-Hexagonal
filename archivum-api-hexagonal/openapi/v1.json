@@ -6338,6 +6338,9 @@
                             "fallido",
                             "pendiente"
                         ]
+                    },
+                    "consulta_pendiente": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
@@ -6345,7 +6348,8 @@
                     "pago",
                     "linea",
                     "monto",
-                    "estado"
+                    "estado",
+                    "consulta_pendiente"
                 ],
                 "title": "RefundResource"
             },
