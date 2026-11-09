@@ -365,3 +365,72 @@ it('accepts only the configured webhook secret regardless of header casing', fun
     expect($gateway->verifyWebhook('{}', []))->toBeFalse();
     Http::assertNothingSent();
 });
+
+it('reads a paid checkout notice with the identifiers Archivum sent and the total in whole colones', function (): void {
+    $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'type' => 'checkout-session.succeeded',
+        'data' => ['id' => 'session-1', 'mode' => 'test', 'status' => 'complete', 'currency' => 'CRC', 'amountTotal' => 750_000,
+            'metadata' => ['businessId' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'paymentId' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a61']],
+    ]));
+
+    expect($event->gateway)->toBe('onvo')
+        ->and($event->eventId)->toBe('checkout-session.succeeded:session-1')
+        ->and($event->aboutCharge())->toBeTrue()
+        ->and($event->reference)->toBe('session-1')
+        ->and($event->businessId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62')
+        ->and($event->paymentId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a61')
+        ->and($event->currency)->toBe('CRC')
+        ->and($event->amount)->toBe(7_500)
+        ->and($event->reportsFailure)->toBeFalse();
+    Http::assertNothingSent();
+});
+
+it('reads the notice ONVO documents for a failed intent as a failure without amount', function (): void {
+    $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'type' => 'payment-intent.failed',
+        'data' => ['id' => 'intent-1', 'accountId' => 'account-fictitious', 'currency' => 'CRC', 'capturableAmount' => 0, 'status' => 'requires_payment_method', 'metadata' => ['orderId' => 'order-fictitious']],
+    ]));
+
+    expect($event->eventId)->toBe('payment-intent.failed:intent-1')
+        ->and($event->reference)->toBe('intent-1')
+        ->and($event->currency)->toBe('CRC')
+        ->and($event->amount)->toBeNull()
+        ->and($event->reportsFailure)->toBeTrue();
+    Http::assertNothingSent();
+});
+
+it('reads an intent notice by its own amount and ignores metadata that is not Archivum\'s', function (mixed $metadata, mixed $amount, ?int $colones): void {
+    $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'type' => 'payment-intent.failed', 'data' => ['id' => 'intent-1', 'mode' => 'test', 'currency' => 'CRC', 'amount' => $amount, 'metadata' => $metadata],
+    ]));
+
+    expect($event->reference)->toBe('intent-1')
+        ->and($event->businessId)->toBeNull()
+        ->and($event->paymentId)->toBeNull()
+        ->and($event->amount)->toBe($colones);
+})->with([
+    'no metadata' => [null, 750_000, 7_500],
+    'another integration' => [['orderId' => '42'], 750_000, 7_500],
+    'only one identifier' => [['businessId' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'paymentId' => 'not-a-uuid'], 750_000, 7_500],
+    'a fraction of a colón' => [null, 750_050, null],
+    'a decimal amount' => [null, 7500.5, null],
+]);
+
+it('reads a notice that is not about a charge by its type and object only', function (): void {
+    $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook('{"type":"subscription.renewal.succeeded","data":{"id":"subscription-1","mode":"test","amount":1}}');
+
+    expect($event->eventId)->toBe('subscription.renewal.succeeded:subscription-1')
+        ->and($event->aboutCharge())->toBeFalse()
+        ->and($event->amount)->toBeNull();
+});
+
+it('refuses a body that is not a test notice of ONVO', function (string $body): void {
+    expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook($body))
+        ->toThrow(InvalidValueException::class, 'payments.invalid_webhook');
+})->with([
+    'not JSON' => ['not-json'],
+    'without type' => ['{"data":{"id":"session-1"}}'],
+    'without object' => ['{"type":"checkout-session.succeeded"}'],
+    'an object without id' => ['{"type":"checkout-session.succeeded","data":{"amountTotal":750000}}'],
+    'live mode' => ['{"type":"checkout-session.succeeded","data":{"id":"session-1","mode":"live"}}'],
+]);
