@@ -78,6 +78,10 @@ final class ProblemResponses implements DocumentTransformer
             $types[] = ProblemType::Forbidden;
         }
 
+        if ($this->isCustomerPacksRoute($path)) {
+            $types[] = ProblemType::Forbidden;
+        }
+
         if ($this->isOrderOrPaymentRoute($path)) {
             $types[] = ProblemType::Forbidden;
             $types[] = ProblemType::Conflict;
@@ -164,6 +168,12 @@ final class ProblemResponses implements DocumentTransformer
     private function isPanelRoute(string $path): bool
     {
         return str_starts_with(ltrim($path, '/'), 'panel');
+    }
+
+    /** The packs of the account are only for a customer: the staff, without customer:own, gets a 403 (#148). */
+    private function isCustomerPacksRoute(string $path): bool
+    {
+        return str_starts_with(ltrim($path, '/'), 'cuenta/paquetes-comprados');
     }
 
     /** These operations also check the role, ownership and the current business state; buying a pack starts its payment. */

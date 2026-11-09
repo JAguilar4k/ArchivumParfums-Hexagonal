@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Decants\Bottles\Infrastructure\Persistence\Models\DecantBottleModel;
+use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackPlanModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
 use Src\Shared\Domain\Contracts\BusinessContext;
@@ -37,6 +38,7 @@ function panelListings(): array
         'list the bottles' => ['/api/v1/panel/botellas', exampleBottle(...)],
         'list the orders' => ['/api/v1/panel/pedidos', exampleOrder(...)],
         'list the offers of decant packs' => ['/api/v1/panel/paquetes', examplePackPlan(...)],
+        'list the sold decant packs' => ['/api/v1/panel/paquetes-vendidos', exampleSoldPack(...)],
     ];
 }
 
@@ -127,6 +129,11 @@ function exampleOrder(string $businessId): string
 function examplePackPlan(string $businessId): string
 {
     return DecantPackPlanModel::factory()->create(['business_id' => $businessId])->id;
+}
+
+function exampleSoldPack(string $businessId): string
+{
+    return DecantPackModel::factory()->create(['business_id' => $businessId])->id;
 }
 
 function panelResourcePath(string $path, string $id): string

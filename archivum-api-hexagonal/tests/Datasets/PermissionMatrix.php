@@ -101,8 +101,10 @@ function permissionMatrixRows(): array
             'listar las ofertas de paquetes' => ['GET', 'api/v1/panel/paquetes', [], ownerOnly(200)],
             'definir una oferta de paquetes' => ['POST', 'api/v1/panel/paquetes', [], ownerOnly(422)],
             'editar una oferta de paquetes' => ['PATCH', 'api/v1/panel/paquetes/{paquete}', [], ownerOnly(200)],
+            'listar los paquetes vendidos' => ['GET', 'api/v1/panel/paquetes-vendidos', [], ownerOnly(200)],
             // An unknown method stops the customer at the validation, before the purchase saves a pack or asks the gateway.
             'comprar un paquete' => ['POST', 'api/v1/tiendas/{tienda}/paquetes/{paquete}/compra', ['medio' => 'efectivo'], customerOnly(422)],
+            'listar mis paquetes' => ['GET', 'api/v1/cuenta/paquetes-comprados', [], customerOnly(200)],
         ],
         'registrar pagos en la entrega y reembolsos' => [
             'procesar los reembolsos de un pedido' => ['POST', 'api/v1/panel/pedidos/{pedido}/reembolsos', [], ownerOnly(200)],

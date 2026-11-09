@@ -123,6 +123,5 @@ it('puts every route of /api/v1/panel and /api/v1/cuenta in a row of the matrix'
 it('answers each role what section 9 allows in the row «ver citas»')->todo('#137: GET /api/v1/panel/citas y GET /api/v1/cuenta/citas');
 it('answers each role what section 9 allows in the row «marcar atendida o no asistió»')->todo('#138: POST /api/v1/panel/citas/{cita}/asistencia');
 it('answers each role what section 9 allows in the row «reservar, reprogramar o cancelar citas»')->todo('#62, #65, #66 y #67: /api/v1/tiendas/{tienda}/citas, /api/v1/cuenta/citas y /api/v1/panel/citas');
-it('answers each role what section 9 allows for reading the packs bought')->todo('#148: GET /api/v1/cuenta/paquetes-comprados y GET /api/v1/panel/paquetes-vendidos');
 it('answers each role what section 9 allows in the row «reportes e ingresos»')->todo('/api/v1/panel/reportes/ingresos y /api/v1/panel/reportes/mas-vendidos');
 it('lets every role and the visitor use the recommender, without 401 or 403')->todo('#118: POST /api/v1/tiendas/{tienda}/recomendaciones');
