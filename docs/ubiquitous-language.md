@@ -93,6 +93,8 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Paquete comprado | `DecantPack` | `decant_packs` | `paquetes-comprados` |
 | Compra de un paquete | `PurchaseDecantPack`, `PurchasedPack` | Una fila de `decant_packs` y su pago en `payments.decant_pack_id` | `POST /api/v1/tiendas/{tienda}/paquetes/{paquete}/compra` |
 | Clave de idempotencia de la compra | `IdempotencyKey` | `decant_packs.idempotency_key`, única por cliente y tienda | encabezado `Idempotency-Key`, opcional |
+| Canje de un decant del paquete | `RedeemPackDecant`, `RecordPackRedemption`, `DecantPackRedemption` | `decant_pack_redemptions` y `order_lines.decant_pack_id` | `paquete_id` de una línea de decant del pedido; `canjeado` en los movimientos de la botella |
+| Devolución de un decant al paquete | `ReturnPackDecant`, `DecantPack::returnDecant` | Borra la fila de `decant_pack_redemptions` y suma el decant a `remaining_decants` | Al cancelar el pedido: `POST /api/v1/cuenta/pedidos/{pedido}/cancelacion` |
 | Proveedor | `Supplier` | `suppliers` | `proveedores` |
 | Costo del proveedor | `SupplierPrice` | `supplier_prices` | `costos` |
 | Importación del catálogo | `CatalogImport` | `catalog_imports` | `importaciones` |
@@ -170,6 +172,7 @@ El dominio y la base guardan el estado en inglés. La API lo muestra en español
 - Los estados del reembolso no estaban en la sección 6 inicial de la especificación; esta tabla es su definición y `refunds_status_check` ya los protege. Una solicitud pendiente no reduce el importe pagado hasta que el proveedor confirma la devolución.
 - El pago se confirma por consulta autenticada del servidor al proveedor, que piden un aviso de origen verificado (#94) o la conciliación de los pagos pendientes (#96); la consulta del cliente solo lee el pago guardado. La vuelta del navegador y una orden PayPal `APPROVED` no equivalen a un pago `succeeded`: debe comprobarse el resultado de la captura. El registro único de cada aviso llega con #95.
 - La vigencia de un paquete comprado cuenta desde que se confirma su pago y pasa a `active`, no desde la compra. Un paquete vence sin pago al pasar el plazo de la tienda, o al cumplir su vigencia aunque le queden decants; uno `exhausted` ya no vence.
+- Un canje descuenta el decant del paquete al crear el pedido, pero sus ml se reservan y se consumen al preparar el decant, como los de cualquier decant. Un decant devuelto deja `active` el paquete que su canje había agotado, salvo que la vigencia ya terminara: entonces el paquete queda `expired` (R35).
 - Una oferta de paquetes no se borra: se desactiva y deja de aparecer en la lista pública de la tienda. Sus ml por decant son uno de los tamaños de decant de la tienda cuando se define o se cambian, y los conserva si la tienda deja de vender ese tamaño.
 - Las transiciones permitidas están en la sección 6 de [la especificación](especificacion.md#6-estados). Solo `held` y `confirmed` cuentan para la restricción de traslape de las citas.
 

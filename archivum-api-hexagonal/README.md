@@ -245,17 +245,17 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | POST | `/api/v1/panel/botellas` | Dueño | Registra una botella abierta de una presentación. |
 | GET | `/api/v1/panel/botellas/{botella}` | Dueño | Consulta los ml y el estado de una botella. |
 | PATCH | `/api/v1/panel/botellas/{botella}` | Dueño | Edita los datos permitidos de una botella. |
-| GET | `/api/v1/panel/botellas/{botella}/movimientos` | Dueño | Historial inmutable de reservas, consumo, liberación y ajustes. |
+| GET | `/api/v1/panel/botellas/{botella}/movimientos` | Dueño | Historial inmutable de reservas, consumo, liberación y ajustes; `canjeado` marca los movimientos de un decant pagado con un paquete. |
 | POST | `/api/v1/panel/botellas/{botella}/ajustes` | Dueño | Ajusta ml con motivo, respetando lo reservado y el bloqueo de botellas vacías. |
 | GET | `/api/v1/panel/paquetes` | Dueño | Lista las ofertas de paquetes de decants de su tienda, a la venta o no, por nombre. |
 | POST | `/api/v1/panel/paquetes` | Dueño | Define una oferta con `nombre`, `cantidad_decants`, `ml_por_decant`, `precio`, `vigencia_dias` y, opcional, `precio_maximo_por_ml`. Los ml deben ser uno de los tamaños de decant de la tienda; si no, responde 422 en `ml_por_decant`. Responde 201 con `Location`. |
 | PATCH | `/api/v1/panel/paquetes/{paquete}` | Dueño | Edita los campos enviados; `activo=false` la saca de la venta sin borrarla y `precio_maximo_por_ml: null` le quita el tope. Los paquetes ya comprados conservan sus decants, sus ml y su tope. |
 | GET | `/api/v1/tiendas/{tienda}/paquetes` | Cualquiera | Paquetes de decants a la venta en la tienda, con sus decants, ml por decant, precio, vigencia y tope. |
 | POST | `/api/v1/tiendas/{tienda}/paquetes/{paquete}/compra` | Cliente | Compra un paquete de una oferta a la venta y empieza su pago completo con `medio`, `tarjeta` o `sinpe_movil` (por defecto, `tarjeta`); el monto es el precio de la oferta guardada y se ignora el que envíe el navegador. Si la cuenta todavía no es cliente de la tienda, queda registrada. Responde 201 con el paquete `pendiente_de_pago` y su `pago` con `url_pago`, o 202 con `Retry-After` si todavía no se sabe si la pasarela creó el cobro. Con el encabezado opcional `Idempotency-Key`, repetir la compra con la misma llave responde 200 con el mismo paquete y su pago, sin un segundo cobro; la misma llave para otra oferta responde 409. El paquete se activa solo con el pago confirmado por el aviso o la conciliación. |
-| POST | `/api/v1/tiendas/{tienda}/pedidos` | Cliente | Crea un pedido con precios y depósito calculados por el servidor. |
+| POST | `/api/v1/tiendas/{tienda}/pedidos` | Cliente | Crea un pedido con precios y depósito calculados por el servidor. Una línea de decant con `paquete_id` se paga con un paquete activo del cliente en esa tienda: descuenta un decant, reserva sus ml y no se cobra. Un paquete ajeno, otros ml o una presentación sobre el tope responden 422 en el campo de esa línea; un paquete pendiente de pago, vencido o agotado responde 409 y no guarda nada. |
 | GET | `/api/v1/cuenta/pedidos` | Cliente | Lista sus pedidos, también si pertenece a varias tiendas. |
 | GET | `/api/v1/cuenta/pedidos/{pedido}` | Cliente propietario | Consulta el pedido y sus importes. |
-| POST | `/api/v1/cuenta/pedidos/{pedido}/cancelacion` | Cliente propietario | Cancela cuando las reglas lo permiten y registra los reembolsos pendientes. |
+| POST | `/api/v1/cuenta/pedidos/{pedido}/cancelacion` | Cliente propietario | Cancela cuando las reglas lo permiten, devuelve a su paquete los decants canjeados y registra los reembolsos pendientes. |
 | GET | `/api/v1/panel/pedidos` | Dueño | Lista pedidos de su tienda. |
 | GET | `/api/v1/panel/pedidos/{pedido}` | Dueño | Consulta un pedido de su tienda. |
 | POST | `/api/v1/panel/pedidos/{pedido}/preparacion` | Dueño | Consume los ml reservados al preparar los decants. |
