@@ -92,13 +92,30 @@ final readonly class EloquentPaymentRepository implements PaymentRepository
 
     public function saveIfPending(Payment $payment): bool
     {
+        // UPDATE ... WHERE status = 'pending': the database lets only one operation take the payment out of pending.
+        return $this->saveIfStatusIn($payment, ['pending']);
+    }
+
+    public function saveIfPendingOrExpired(Payment $payment): bool
+    {
+        // UPDATE ... WHERE status IN ('pending', 'expired'): only one operation records a late charge (#192).
+        return $this->saveIfStatusIn($payment, ['pending', 'expired']);
+    }
+
+    /**
+     * Save what a settlement changed in the payment, only while its row still has one of these statuses; answer whether
+     * it did.
+     *
+     * @param  list<string>  $statuses
+     */
+    private function saveIfStatusIn(Payment $payment, array $statuses): bool
+    {
         $businessId = $this->business->current()->value;
         if ($payment->businessId->value !== $businessId) {
             throw new PaymentNotFoundException('payments.not_found');
         }
 
-        // UPDATE ... WHERE status = 'pending': the database lets only one operation take the payment out of pending.
-        return PaymentModel::query()->where('business_id', $businessId)->whereKey($payment->id->value)->where('status', 'pending')
+        return PaymentModel::query()->where('business_id', $businessId)->whereKey($payment->id->value)->whereIn('status', $statuses)
             ->update([
                 'status' => $payment->status->value,
                 'charged_currency' => $payment->chargedCurrency,

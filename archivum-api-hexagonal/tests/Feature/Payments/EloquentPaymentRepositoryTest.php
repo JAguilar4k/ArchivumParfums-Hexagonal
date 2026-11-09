@@ -10,6 +10,7 @@ use Src\Payments\Payments\Domain\ValueObjects\PaymentId;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentMethod;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentPurpose;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentStatus;
+use Src\Payments\Payments\Infrastructure\Persistence\Models\PaymentModel;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymentRepository;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\ValueObjects\BusinessId;
@@ -89,3 +90,25 @@ it('answers the last attempt to pay a pack or an order, whatever its status', fu
         ->and($repository->last(new Payable('order', $order->id))?->id->value)->toBe($orderPayment->id)
         ->and($repository->last(new Payable('decant_pack', (string) Str::uuid7())))->toBeNull();
 });
+
+it('R38: records a charge confirmed after the expiry closed its payment only once, and never over a settled payment', function (string $status, bool $saved): void {
+    $business = StaffedBusiness::create();
+    $stored = StoredPayments::create($business, StoredOrders::create($business, 'expired')['order'], status: 'expired');
+    app()->instance(BusinessContext::class, new FixedBusinessContext(new BusinessId($business->business->id)));
+    app(BusinessTransaction::class)->scope($business->business->id);
+    $payment = app(EloquentPaymentRepository::class)->find(new PaymentId($stored->id)) ?? throw new LogicException('The payment was not stored.');
+    $payment->confirmLate(new ChargeResult((string) $stored->provider_reference, PaymentStatus::Succeeded, 'CRC', 7500, captureReference: 'intent-late'));
+    // Another operation may have settled the row after this copy was read.
+    PaymentModel::query()->whereKey($stored->id)->update(['status' => $status]);
+
+    expect(app(EloquentPaymentRepository::class)->saveIfPendingOrExpired($payment))->toBe($saved)
+        ->and(app(EloquentPaymentRepository::class)->saveIfPendingOrExpired($payment))->toBeFalse();
+
+    assertDatabaseHas('payments', ['id' => $stored->id, 'status' => $saved ? 'succeeded' : $status, 'capture_reference' => $saved ? 'intent-late' : $stored->capture_reference]);
+})->with([
+    'still expired' => ['expired', true],
+    'still pending' => ['pending', true],
+    'confirmed' => ['succeeded', false],
+    'failed' => ['failed', false],
+    'refunded' => ['refunded', false],
+]);

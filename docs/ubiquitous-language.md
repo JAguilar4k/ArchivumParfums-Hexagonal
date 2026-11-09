@@ -183,6 +183,7 @@ El dominio y la base guardan el estado en inglés. La API lo muestra en español
 - Un canje descuenta el decant del paquete al crear el pedido, pero sus ml se reservan y se consumen al preparar el decant, como los de cualquier decant. Un decant devuelto deja `active` el paquete que su canje había agotado, salvo que la vigencia ya terminara: entonces el paquete queda `expired` (R35).
 - Una oferta de paquetes no se borra: se desactiva y deja de aparecer en la lista pública de la tienda. Sus ml por decant son uno de los tamaños de decant de la tienda cuando se define o se cambian, y los conserva si la tienda deja de vender ese tamaño.
 - Las transiciones permitidas están en la sección 6 de [la especificación](especificacion.md#6-estados). Solo `held` y `confirmed` cuentan para la restricción de traslape de las citas.
+- La sección 6 no tiene `expired` → `succeeded` para un pago: #192 la suma solo para un cobro que la pasarela confirma después de que el vencimiento del pedido cerró su pago, para que el pago coincida con la pasarela (R39). Ese cobro se reembolsa completo y el pedido sigue vencido.
 
 Los valores cerrados adicionales se traducen en la frontera HTTP:
 
