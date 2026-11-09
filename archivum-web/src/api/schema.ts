@@ -395,6 +395,27 @@ export interface paths {
         patch: operations["businesses.members.update"];
         trace?: never;
     };
+    "/tiendas/{tienda}/paquetes/{paquete}/compra": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Buy a decant pack on sale in the store of the address for the account of the session, and start its payment
+         * @description The pack waits for its payment and becomes active only when a verified notice of the gateway or the
+         *     reconciliation confirms it, never with this answer or the return address of the gateway.
+         */
+        post: operations["decants.packs.purchases.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cuenta/contrasena": {
         parameters: {
             query?: never;
@@ -1040,6 +1061,31 @@ export interface components {
             vigencia_dias: number;
             precio_maximo_por_ml: number | null;
         };
+        /** PurchasedPackResource */
+        PurchasedPackResource: {
+            id: string;
+            paquete_id: string;
+            /** @enum {string} */
+            estado: "pendiente_de_pago" | "activo" | "agotado" | "vencido";
+            decants_totales: number;
+            decants_restantes: number;
+            ml_por_decant: number;
+            precio_maximo_por_ml: number | null;
+            vence_en: string;
+            pago: {
+                id: string;
+                monto: number;
+                moneda_cobrada: string;
+                monto_cobrado: number;
+                pasarela: string;
+                /** @enum {string} */
+                estado: "confirmado" | "fallido" | "vencido" | "reembolsado" | "reembolsado_parcialmente" | "pendiente";
+                url_pago: string | null;
+                /** @enum {string} */
+                medio: "sinpe_movil" | "tarjeta";
+                consulta_pendiente: boolean;
+            } | null;
+        };
         /** SessionTokenResource */
         SessionTokenResource: {
             token: string;
@@ -1141,6 +1187,11 @@ export interface components {
                 cantidad?: number;
                 ml?: number;
             }[];
+        };
+        /** StorePackPurchase */
+        StorePackPurchase: {
+            /** @enum {string} */
+            medio?: "tarjeta" | "sinpe_movil";
         };
         /** StorePasswordReset */
         StorePasswordReset: {
@@ -3318,6 +3369,123 @@ export interface operations {
             };
             /** @description Recurso no encontrado */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "decants.packs.purchases.store": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Llave de 1 a 100 caracteres que el cliente elige para cada intento de compra. Repetir la compra con la misma llave responde 200 con el mismo paquete y su pago, sin un segundo cobro; la misma llave para otra oferta responde 409. Sin ella, cada solicitud es una compra nueva; vacía o más larga responde 400. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                tienda: string;
+                paquete: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StorePackPurchase"];
+            };
+        };
+        responses: {
+            /** @description Se repitió la compra con la misma llave: se devuelve el mismo paquete y su pago. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PurchasedPackResource"];
+                    };
+                };
+            };
+            /** @description Se compra el paquete y se inicia su pago. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PurchasedPackResource"];
+                    };
+                };
+            };
+            /** @description Se compra el paquete, pero todavía no se sabe si la pasarela creó el cobro. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PurchasedPackResource"];
+                    };
+                };
+            };
+            /** @description Solicitud inválida */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Conflicto */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

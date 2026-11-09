@@ -101,6 +101,8 @@ function permissionMatrixRows(): array
             'listar las ofertas de paquetes' => ['GET', 'api/v1/panel/paquetes', [], ownerOnly(200)],
             'definir una oferta de paquetes' => ['POST', 'api/v1/panel/paquetes', [], ownerOnly(422)],
             'editar una oferta de paquetes' => ['PATCH', 'api/v1/panel/paquetes/{paquete}', [], ownerOnly(200)],
+            // An unknown method stops the customer at the validation, before the purchase saves a pack or asks the gateway.
+            'comprar un paquete' => ['POST', 'api/v1/tiendas/{tienda}/paquetes/{paquete}/compra', ['medio' => 'efectivo'], customerOnly(422)],
         ],
         'registrar pagos en la entrega y reembolsos' => [
             'procesar los reembolsos de un pedido' => ['POST', 'api/v1/panel/pedidos/{pedido}/reembolsos', [], ownerOnly(200)],
@@ -127,7 +129,9 @@ function permissionMatrix(): array
 
 /**
  * Endpoints whose URI names a resource of ArchivumParfums, with the account of another business that tries them:
- * the owner of the second business on the panel and a customer of it on the account.
+ * the owner of the second business on the panel and a customer of it on the account. A route of /tiendas/{tienda}
+ * is left out: any account may buy in any store, so the attempt from another store there is an offer of another
+ * store under the address of this one, which the tests of each endpoint try.
  *
  * @return array<string, array{string, string, array<string, mixed>|Closure(): array<string, mixed>, string}>
  */
@@ -140,7 +144,7 @@ function permissionMatrixFromAnotherBusiness(string $row): array
         $payload = $endpoint[4] ?? $payload;
         $names = preg_match_all('/\{(?!tienda\})\w+\}/', $uri);
 
-        if ($names > 0) {
+        if ($names > 0 && ! str_starts_with($uri, 'api/v1/tiendas/')) {
             $endpoints[$name] = [$method, $uri, $payload, str_starts_with($uri, 'api/v1/panel/') ? 'otra tienda' : 'cliente de otra tienda'];
         }
     }
