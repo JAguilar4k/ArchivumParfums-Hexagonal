@@ -473,7 +473,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Confirm only by asking the provider from the server; the request carries no status */
+        /** Read the stored payment: this query never asks the provider nor changes the payment, and the request carries no status */
         get: operations["payments.show"];
         put?: never;
         post?: never;
@@ -494,6 +494,40 @@ export interface paths {
         put?: never;
         /** Process only refund amounts already registered by cancellation or an unavailable line */
         post: operations["payments.refunds.process"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/onvo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive a notice of ONVO Pay, whose origin is the secret ONVO sends in `X-Webhook-Secret` */
+        post: operations["payments.webhooks.onvo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/paypal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive a notice of PayPal, whose signature PayPal's verification API checks */
+        post: operations["payments.webhooks.paypal"];
         delete?: never;
         options?: never;
         head?: never;
@@ -929,6 +963,12 @@ export interface components {
             ml?: number;
             precio_manual?: number | null;
             activa?: boolean;
+        };
+        /** PaymentNoticeResource */
+        PaymentNoticeResource: {
+            evento: string;
+            /** @enum {string} */
+            estado: "repetido" | "recibido";
         };
         /** PaymentResource */
         PaymentResource: {
@@ -3553,7 +3593,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Estado del pago consultado desde el servidor. */
+            /** @description Estado guardado del pago. Mientras siga pendiente, el cliente muestra "procesando". */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3564,7 +3604,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description El resultado sigue pendiente de consulta al proveedor. */
+            /** @description Todavía no se sabe si el proveedor creó el cobro. */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -3704,6 +3744,122 @@ export interface operations {
             };
             /** @description Error interno */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "payments.webhooks.onvo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PaymentNoticeResource"];
+                    };
+                };
+            };
+            /** @description Credenciales inválidas */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Servicio no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "payments.webhooks.paypal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PaymentNoticeResource"];
+                    };
+                };
+            };
+            /** @description Credenciales inválidas */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Servicio no disponible */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

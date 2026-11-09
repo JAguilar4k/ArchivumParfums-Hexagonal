@@ -29,9 +29,9 @@ final readonly class PaymentController
         return $this->respond($result, $request, $result->created ? 201 : 200);
     }
 
-    /** Confirm only by asking the provider from the server; the request carries no status. */
-    #[Response(200, 'Estado del pago consultado desde el servidor.', type: PaymentResource::class)]
-    #[Response(202, 'El resultado sigue pendiente de consulta al proveedor.', type: PaymentResource::class)]
+    /** Read the stored payment: this query never asks the provider nor changes the payment, and the request carries no status. */
+    #[Response(200, 'Estado guardado del pago. Mientras siga pendiente, el cliente muestra "procesando".', type: PaymentResource::class)]
+    #[Response(202, 'Todavía no se sabe si el proveedor creó el cobro.', type: PaymentResource::class)]
     public function show(Request $request, string $pago, ObservePayment $observe): JsonResponse
     {
         return $this->respond($observe->execute($pago, (string) $request->user()?->getAuthIdentifier()), $request);
