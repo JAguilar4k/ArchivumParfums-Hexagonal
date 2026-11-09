@@ -76,7 +76,10 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Pago | `Payment` | `payments` | `pagos` |
 | Recurso que se cobra | `Payable` | Actualmente `payments.order_id` con llave foránea compuesta | El pedido `{pedido}` de la ruta |
 | Propósito del pago | `PaymentPurpose` | `payments.purpose` | `proposito`: `deposito`, `saldo` o `total` |
-| Medio de pago | `PaymentMethod` | `payments.method` | `medio`: `tarjeta` o `sinpe_movil` |
+| Medio de pago | `PaymentMethod` | `payments.method` | `medio`: `tarjeta` o `sinpe_movil`; nulo en un pago en la entrega |
+| Pago en la entrega | `Payment::recordManually()`, pasarela `manual` | `payments` con `gateway = 'manual'`, ya `succeeded` y con propósito `balance` | `POST /api/v1/panel/pedidos/{pedido}/pagos-manuales`; `pasarela`: `manual` |
+| Registro del pago en la entrega | `ManualRecord` | `payments.recorded_by`, `manual_method`, `manual_reference` y `created_at` | `registrado_por` (`id` y `nombre`), `metodo`, `referencia` y `registrado_en` |
+| Medio del pago en la entrega | `ManualPaymentMethod` | `payments.manual_method`: `sinpe` o `cash` | `metodo`: `sinpe` o `efectivo` |
 | Principal del pago | `amount` | `payments.amount`, colones enteros | `monto` |
 | Moneda del cobro externo | `chargedCurrency` | `payments.charged_currency` | `moneda_cobrada`: `CRC` o `USD` |
 | Importe del cobro externo | `chargedAmount` | `payments.charged_amount` | `monto_cobrado`: colones enteros en CRC; centavos en USD |
@@ -106,7 +109,7 @@ Los ml se manejan como enteros. Al registrar una botella, `ml_totales` debe coin
 
 El depósito usa el porcentaje vigente al crear el pedido y lo congela en `orders.deposit_percent`; el precio de cada línea también queda congelado. Ningún importe de pedido o pago se calcula a partir de un precio recibido del navegador. En Investigación 1 el objeto `Payable` representa un pedido: ampliar el cobro a paquetes en #143 exige conservar una relación con llave foránea y tienda verificable.
 
-`payments.recorded_by` reserva el actor de un futuro pago manual y referencia a `members(id, business_id)`, no a `users`. El autor de un movimiento de ml sí es una cuenta global porque puede ser personal, cliente o nulo en una operación automática.
+`payments.recorded_by` guarda al dueño que registró un pago en la entrega (#98) y referencia a `members(id, business_id)`, no a `users`: solo un dueño de la tienda registra ese pago. El autor de un movimiento de ml sí es una cuenta global porque puede ser personal, cliente o nulo en una operación automática.
 
 ## Estados
 
