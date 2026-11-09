@@ -6,6 +6,9 @@ namespace Src\Recommendations\Recommender\Domain\ValueObjects;
 
 final readonly class Recommendation
 {
+    /** The most perfumes a recommendation suggests (R48). */
+    public const int MAX_PERFUMES = 5;
+
     /**
      * The preferences read from the customer's text and the perfumes suggested for them, best first, with who
      * produced them (R48, R50).

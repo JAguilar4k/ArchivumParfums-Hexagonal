@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Src\Recommendations\Recommender\Infrastructure\Ai;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Src\Recommendations\Recommender\Domain\Contracts\AiRecommender;
 use Src\Recommendations\Recommender\Domain\Exceptions\AiUnavailableException;
+use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogPerfume;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CustomerPreferences;
 use Src\Recommendations\Recommender\Domain\ValueObjects\Recommendation;
 use Src\Recommendations\Recommender\Domain\ValueObjects\RecommendationOrigin;
@@ -20,9 +22,6 @@ use Throwable;
  */
 final readonly class LaravelAiRecommender implements AiRecommender
 {
-    /** The most perfumes a recommendation suggests (R48). */
-    public const int MAX_PERFUMES = 5;
-
     /** Receive the seconds the recommendation waits for the provider, fixed in config/archivum.php (R50). */
     public function __construct(private int $timeoutSeconds) {}
 
@@ -30,6 +29,26 @@ final readonly class LaravelAiRecommender implements AiRecommender
     {
         $startedAt = Carbon::now();
 
+        try {
+            return $this->ask($text, $catalog, $startedAt);
+        } catch (AiUnavailableException $exception) {
+            // The log keeps the cause and the duration of the failure, never the customer's text (R51).
+            Log::warning('The AI recommender is unavailable.', [
+                'cause' => $exception->translationKey(),
+                'duration_ms' => (int) round($startedAt->diffInMilliseconds(Carbon::now())),
+            ]);
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * Prompt the agent and translate its answer to the domain.
+     *
+     * @param  list<CatalogPerfume>  $catalog
+     */
+    private function ask(string $text, array $catalog, Carbon $startedAt): Recommendation
+    {
         try {
             $response = (new RecommendationAgent($catalog))->prompt($text, timeout: $this->timeoutSeconds);
         } catch (Throwable) {
@@ -64,7 +83,7 @@ final readonly class LaravelAiRecommender implements AiRecommender
         $preferences = $answer['preferences'] ?? null;
         $perfumes = $answer['perfumes'] ?? null;
 
-        if (! is_array($preferences) || ! is_array($perfumes) || ! array_is_list($perfumes) || count($perfumes) > self::MAX_PERFUMES) {
+        if (! is_array($preferences) || ! is_array($perfumes) || ! array_is_list($perfumes) || count($perfumes) > Recommendation::MAX_PERFUMES) {
             throw new AiUnavailableException('recommendations.ai_invalid_output');
         }
 

@@ -13,4 +13,19 @@ enum TimeOfDay: string
     case Day = 'day';
     case Afternoon = 'afternoon';
     case Night = 'night';
+
+    /**
+     * The words that name this time of day in a customer's text, in lowercase and without accents, as the rules
+     * recommender compares them (#120).
+     *
+     * @return list<string>
+     */
+    public function words(): array
+    {
+        return match ($this) {
+            self::Day => ['dia', 'diurno', 'diurna', 'manana', 'mediodia'],
+            self::Afternoon => ['tarde', 'atardecer'],
+            self::Night => ['noche', 'nocturno', 'nocturna'],
+        };
+    }
 }
