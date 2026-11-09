@@ -76,7 +76,10 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Pago | `Payment` | `payments` | `pagos` |
 | Recurso que se cobra | `Payable` | Actualmente `payments.order_id` con llave foránea compuesta | El pedido `{pedido}` de la ruta |
 | Propósito del pago | `PaymentPurpose` | `payments.purpose` | `proposito`: `deposito`, `saldo` o `total` |
-| Medio de pago | `PaymentMethod` | `payments.method` | `medio`: `tarjeta` o `sinpe_movil` |
+| Medio de pago | `PaymentMethod` | `payments.method` | `medio`: `tarjeta` o `sinpe_movil`; nulo en un pago en la entrega |
+| Pago en la entrega | `Payment::recordManually()`, pasarela `manual` | `payments` con `gateway = 'manual'`, ya `succeeded` y con propósito `balance` | `POST /api/v1/panel/pedidos/{pedido}/pagos-manuales`; `pasarela`: `manual` |
+| Registro del pago en la entrega | `ManualRecord` | `payments.recorded_by`, `manual_method`, `manual_reference` y `created_at` | `registrado_por` (`id` y `nombre`), `metodo`, `referencia` y `registrado_en` |
+| Medio del pago en la entrega | `ManualPaymentMethod` | `payments.manual_method`: `sinpe` o `cash` | `metodo`: `sinpe` o `efectivo` |
 | Principal del pago | `amount` | `payments.amount`, colones enteros | `monto` |
 | Moneda del cobro externo | `chargedCurrency` | `payments.charged_currency` | `moneda_cobrada`: `CRC` o `USD` |
 | Importe del cobro externo | `chargedAmount` | `payments.charged_amount` | `monto_cobrado`: colones enteros en CRC; centavos en USD |
@@ -86,7 +89,9 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Reembolso | `Refund` | `refunds` | `reembolsos` |
 | Intento de reembolso enviado | `attempted` | `refunds.attempted_at` | La devolución sigue `pendiente` si falta una respuesta verificable |
 | Principal reembolsado | `refundedAmount` | `payments.refunded_amount`, colones enteros | Se refleja en el estado del pago y en `pagado` del pedido después de confirmarse |
-| Evento de webhook | — | `webhook_events`, global | Recepción prevista para Avance 2; no hay endpoint en Investigación 1 |
+| Aviso de la pasarela (evento de webhook) | `PaymentEvent` | `webhook_events`, global, `pending` hasta procesarse y luego `processed` o `failed` con su error | `POST /api/v1/webhooks/onvo` y `/paypal`; responde `evento` y `estado`: `recibido` o `repetido` |
+| Procesamiento del aviso en la cola | `ProcessPaymentEventJob`, `ProcessPaymentEvent` | La fila del aviso en `webhook_events` y su trabajo en `jobs` | — |
+| Conciliación de los pagos pendientes | `ReconcilePayment`, `PendingPayments` | Los pagos `pending` con referencia del proveedor que ya esperaron su aviso | `php artisan archivum:reconcile-payments`, cada cinco minutos |
 | Paquete de decants (oferta) | `DecantPackPlan` | `decant_pack_plans` | `paquetes` |
 | Paquete comprado | `DecantPack` | `decant_packs` | `paquetes-comprados` |
 | Proveedor | `Supplier` | `suppliers` | `proveedores` |
@@ -107,7 +112,7 @@ Los ml se manejan como enteros. Al registrar una botella, `ml_totales` debe coin
 
 El depósito usa el porcentaje vigente al crear el pedido y lo congela en `orders.deposit_percent`; el precio de cada línea también queda congelado. Ningún importe de pedido o pago se calcula a partir de un precio recibido del navegador. En Investigación 1 el objeto `Payable` representa un pedido: ampliar el cobro a paquetes en #143 exige conservar una relación con llave foránea y tienda verificable.
 
-`payments.recorded_by` reserva el actor de un futuro pago manual y referencia a `members(id, business_id)`, no a `users`. El autor de un movimiento de ml sí es una cuenta global porque puede ser personal, cliente o nulo en una operación automática.
+`payments.recorded_by` guarda al dueño que registró un pago en la entrega (#98) y referencia a `members(id, business_id)`, no a `users`: solo un dueño de la tienda registra ese pago. El autor de un movimiento de ml sí es una cuenta global porque puede ser personal, cliente o nulo en una operación automática.
 
 ## Estados
 
@@ -167,7 +172,7 @@ El dominio y la base guardan el estado en inglés. La API lo muestra en español
 
 - Un pago confirmado viaja como `confirmado`, nunca como `pagado`, para no chocar con el monto `pagado` del pedido.
 - Los estados del reembolso no estaban en la sección 6 inicial de la especificación; esta tabla es su definición y `refunds_status_check` ya los protege. Una solicitud pendiente no reduce el importe pagado hasta que el proveedor confirma la devolución.
-- Investigación 1 confirma por consulta autenticada del servidor al proveedor. La vuelta del navegador y una orden PayPal `APPROVED` no equivalen a un pago `succeeded`: debe comprobarse el resultado de la captura. Los webhooks verificados corresponden a #94 y #95 en Avance 2.
+- El pago se confirma por consulta autenticada del servidor al proveedor, que piden un aviso de origen verificado (#94) o la conciliación de los pagos pendientes (#96); la consulta del cliente solo lee el pago guardado. La vuelta del navegador y una orden PayPal `APPROVED` no equivalen a un pago `succeeded`: debe comprobarse el resultado de la captura. El registro único de cada aviso llega con #95.
 - Las transiciones permitidas están en la sección 6 de [la especificación](especificacion.md#6-estados). Solo `held` y `confirmed` cuentan para la restricción de traslape de las citas.
 
 Los valores cerrados adicionales se traducen en la frontera HTTP:
