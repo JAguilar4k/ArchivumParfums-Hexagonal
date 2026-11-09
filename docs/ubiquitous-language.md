@@ -106,6 +106,7 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Origen de la recomendación | `RecommendationOrigin` | — | `origen` |
 | Validación de la sugerencia | `SuggestionValidator`, `SuggestionValidation` | — | No viaja: decide qué parte de la salida de la IA se usa |
 | Causa de descarte | `DiscardCause` | — | No viaja: el log cuenta los descartes por causa |
+| Máscara de datos personales | `PersonalDataMask` | — | No viaja: cambia los correos y teléfonos del texto por `[correo]` y `[teléfono]` antes de que llegue a un recomendador |
 | Recomendador por reglas | `RuleBasedRecommender` | — | Su respuesta lleva `origen: "reglas"` |
 | Coincidencia con el texto | `RuleMatch` | — | No viaja: da el puntaje y la razón del perfume |
 

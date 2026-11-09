@@ -7,16 +7,19 @@ use Src\Recommendations\Recommender\Application\DTOs\RecommendationResult;
 use Src\Recommendations\Recommender\Application\DTOs\RecommendedPerfume;
 use Src\Recommendations\Recommender\Application\DTOs\RecommendedVariant;
 use Src\Recommendations\Recommender\Application\UseCases\RecommendPerfumes;
+use Src\Recommendations\Recommender\Domain\Services\PersonalDataMask;
 use Src\Recommendations\Recommender\Domain\Services\RuleBasedRecommender;
 use Src\Recommendations\Recommender\Domain\Services\SuggestionValidator;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogPerfume;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogVariant;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CustomerPreferences;
+use Src\Recommendations\Recommender\Domain\ValueObjects\DiscardCause;
 use Src\Recommendations\Recommender\Domain\ValueObjects\Recommendation;
 use Src\Recommendations\Recommender\Domain\ValueObjects\RecommendationOrigin;
 use Src\Recommendations\Recommender\Domain\ValueObjects\SuggestedPerfume;
 use Tests\Support\Recommendations\FakeAiRecommender;
 use Tests\Support\Recommendations\FakeRuleReasons;
+use Tests\Support\Recommendations\RecordingDiscardedSuggestions;
 
 const AMBER_PERFUME = '019a1f2e-7c3b-7d4e-9a10-2b3c4d5e6f71';
 
@@ -38,11 +41,12 @@ function useCaseCatalog(): array
 }
 
 /**
- * The use case with a fixed showcase, the AI of the tests and the real validator and rules recommender.
+ * The use case with a fixed showcase, the AI of the tests, the record of discards of the tests and the real mask,
+ * validator and rules recommender.
  *
  * @param  list<CatalogPerfume>  $catalog
  */
-function recommendPerfumes(FakeAiRecommender $ai, ?array $catalog = null): RecommendPerfumes
+function recommendPerfumes(FakeAiRecommender $ai, ?array $catalog = null, ?RecordingDiscardedSuggestions $discarded = null): RecommendPerfumes
 {
     $showcase = new class($catalog ?? useCaseCatalog()) implements RecommendableCatalog
     {
@@ -55,7 +59,14 @@ function recommendPerfumes(FakeAiRecommender $ai, ?array $catalog = null): Recom
         }
     };
 
-    return new RecommendPerfumes($showcase, $ai, new SuggestionValidator, new RuleBasedRecommender(new FakeRuleReasons));
+    return new RecommendPerfumes(
+        $showcase,
+        new PersonalDataMask,
+        $ai,
+        new SuggestionValidator,
+        $discarded ?? new RecordingDiscardedSuggestions,
+        new RuleBasedRecommender(new FakeRuleReasons),
+    );
 }
 
 it('R48: answers what the AI suggests, with the brand, the name and the presentations of the catalog', function () {
@@ -110,14 +121,65 @@ it('R50: answers with the rules when the AI fails, runs out of time or suggests 
     'nothing valid' => [fn () => FakeAiRecommender::answeringInvalidData()],
 ]);
 
-// R51 stays pending for #121, which also inspects the request to the provider with a signed-in customer.
-it('sends the AI only the text of the customer and the catalog of the showcase', function () {
+it('R51: sends the AI only the text of the customer and the catalog of the showcase', function () {
     $ai = FakeAiRecommender::failing();
 
     recommendPerfumes($ai)->execute('Algo con limón para la playa.');
 
     expect($ai->received)->toEqual([['text' => 'Algo con limón para la playa.', 'catalog' => useCaseCatalog()]]);
 });
+
+it('R51: hides the emails and phones of the text from the AI and from the rules', function () {
+    $ai = FakeAiRecommender::failing();
+
+    // A phone of eight digits would also read as a budget of millions of colones if the rules saw it.
+    $result = recommendPerfumes($ai)->execute('Algo con vainilla. Escríbame a cliente.ficticia@clientes.test o al 88887777.');
+
+    expect($ai->received[0]['text'])->toBe('Algo con vainilla. Escríbame a [correo] o al [teléfono].')
+        ->and($result->origin)->toBe('rules')
+        ->and($result->budget)->toBeNull();
+});
+
+it('records what the validation discards from the suggestion of the AI, also when nothing valid is left', function (Recommendation $suggestion, string $origin, array $causes) {
+    $discarded = new RecordingDiscardedSuggestions;
+
+    $result = recommendPerfumes(FakeAiRecommender::answering($suggestion), discarded: $discarded)->execute('Algo para la noche.');
+
+    expect($result->origin)->toBe($origin)
+        ->and($discarded->recorded)->toBe([$causes]);
+})->with([
+    'part of it' => [
+        new Recommendation(RecommendationOrigin::Ai, new CustomerPreferences([], 'madrugada', null, null, null), [
+            new SuggestedPerfume(AMBER_PERFUME, 'Cálido para la noche.'),
+            new SuggestedPerfume(FakeAiRecommender::UNKNOWN_PERFUME, 'Un perfume de otra tienda.'),
+        ]),
+        'ai',
+        [DiscardCause::InvalidTimeOfDay, DiscardCause::NotInCatalog],
+    ],
+    'all of it' => [
+        new Recommendation(RecommendationOrigin::Ai, new CustomerPreferences([], null, null, null, null), [
+            new SuggestedPerfume(FakeAiRecommender::UNKNOWN_PERFUME, 'Un perfume de otra tienda.'),
+            new SuggestedPerfume(AMBER_PERFUME, ''),
+        ]),
+        'rules',
+        [DiscardCause::NotInCatalog, DiscardCause::EmptyReason],
+    ],
+]);
+
+it('records nothing when the suggestion of the AI is valid or the AI does not answer', function (FakeAiRecommender $ai) {
+    $discarded = new RecordingDiscardedSuggestions;
+
+    recommendPerfumes($ai, discarded: $discarded)->execute('Algo con vainilla para la noche.');
+
+    expect($discarded->recorded)->toBe([]);
+})->with([
+    'valid suggestion' => [fn () => FakeAiRecommender::answering(new Recommendation(
+        RecommendationOrigin::Ai,
+        new CustomerPreferences(['Vainilla'], 'night', null, null, null),
+        [new SuggestedPerfume(AMBER_PERFUME, 'Su vainilla abriga la noche.')],
+    ))],
+    'provider error' => [fn () => FakeAiRecommender::failing()],
+]);
 
 it('does not ask the AI when the showcase is empty, and recommends nothing', function () {
     $ai = FakeAiRecommender::answering(new Recommendation(
