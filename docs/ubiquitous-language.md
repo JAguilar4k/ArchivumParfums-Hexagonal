@@ -96,6 +96,9 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Canje de un decant del paquete | `RedeemPackDecant`, `RecordPackRedemption`, `DecantPackRedemption` | `decant_pack_redemptions` y `order_lines.decant_pack_id` | `paquete_id` de una línea de decant del pedido; `canjeado` en los movimientos de la botella |
 | Saldo del paquete | `DecantPackBalance`, `DecantPack::remainingDecants` | `decant_packs.remaining_decants`, que descuenta un `UPDATE` condicional | `decants_restantes` |
 | Devolución de un decant al paquete | `ReturnPackDecant`, `DecantPack::returnDecant` | Borra la fila de `decant_pack_redemptions` y suma el decant a `remaining_decants` | Al cancelar el pedido: `POST /api/v1/cuenta/pedidos/{pedido}/cancelacion` |
+| Estado del paquete en un momento | `DecantPack::statusAt` y la misma expresión en `PostgresDecantPackReader` | Un paquete `pending_payment` o `active` cuyo `expires_at` ya pasó se lee `expired`, aunque la cola todavía no lo haya cambiado | `estado` de las consultas de paquetes |
+| Mis paquetes | `ListMyDecantPacks`, `PurchasedPackView` | Los `decant_packs` de la cuenta en cada tienda donde es cliente, con su oferta y su tienda | `GET /api/v1/cuenta/paquetes-comprados` |
+| Paquetes vendidos | `ListSoldDecantPacks`, `SoldPackView`, `SoldPackPage` | Los `decant_packs` de la tienda, con el nombre del cliente y su oferta | `GET /api/v1/panel/paquetes-vendidos`, con `estado`, `pagina` y `por_pagina` |
 | Proveedor | `Supplier` | `suppliers` | `proveedores` |
 | Costo del proveedor | `SupplierPrice` | `supplier_prices` | `costos` |
 | Importación del catálogo | `CatalogImport` | `catalog_imports` | `importaciones` |
