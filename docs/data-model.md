@@ -182,6 +182,7 @@ erDiagram
         integer max_price_per_ml
         varchar status
         timestamptz expires_at
+        varchar idempotency_key
     }
     decant_pack_redemptions {
         uuid id PK
@@ -504,9 +505,10 @@ Cada fila es un paquete que compró un cliente (R33). Copia de la oferta lo que 
 | `max_price_per_ml` | `integer` | Opcional; el tope de la oferta al comprar; `decant_packs_max_price_per_ml_check`: mayor que 0 |
 | `status` | `varchar(20)` | Por defecto `pending_payment`; `decant_packs_status_check`: `pending_payment` con todos sus decants, `active` con al menos uno, `exhausted` sin ninguno o `expired` |
 | `expires_at` | `timestamptz` | El plazo de pago mientras espera su pago y el fin de su vigencia desde que se activa |
+| `idempotency_key` | `varchar(100)` | Opcional; la clave que el cliente envió con la compra en el encabezado `Idempotency-Key` (#145) |
 | `created_at`, `updated_at` | `timestamptz` | |
 
-- Llaves únicas: `id` y `(id, business_id)`.
+- Llaves únicas: `id`, `(id, business_id)` y `(business_id, customer_id, idempotency_key)`, que impide que una clave compre dos paquetes, también con dos compras simultáneas (#145). PostgreSQL no compara los `NULL`, así que las compras sin clave no chocan entre sí.
 - Índices `(business_id, customer_id, status)` para los paquetes del cliente y `(business_id, status, expires_at)` para los vencimientos (#159).
 - Política `decant_packs_business_isolation`, habilitada y forzada.
 - El canje de #147 descuenta un decant con un `UPDATE` condicional sobre esta fila, y el `CHECK` impide un saldo negativo aunque un camino se salte esa condición.
@@ -580,7 +582,7 @@ Cada fila es un intento de cobro de un pedido o de un paquete de decants. La int
 | `id` | `uuid` | Llave primaria y clave del intento usada por el adaptador |
 | `business_id` | `uuid` | Llave foránea a `businesses` |
 | `order_id` | `uuid` | Opcional; llave foránea compuesta a `orders(id, business_id)`; `payments_payable_check` exige exactamente uno entre `order_id` y `decant_pack_id` |
-| `decant_pack_id` | `uuid` | Opcional; llave foránea compuesta a `decant_packs(id, business_id)`, incorporada con #143 |
+| `decant_pack_id` | `uuid` | Opcional; llave foránea compuesta a `decant_packs(id, business_id)`, incorporada con #143; el pago de la compra de un paquete la usa desde #145 |
 | `purpose` | `varchar(16)` | `payments_purpose_check`: `deposit`, `balance` o `full` |
 | `amount` | `integer` | Principal en colones; `payments_amount_check`: mayor que 0 |
 | `gateway` | `varchar(16)` | `payments_gateway_check`: `onvo`, `paypal` o `manual`; el flujo manual queda reservado para #98 |

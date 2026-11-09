@@ -91,6 +91,8 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Conciliación de los pagos pendientes | `ReconcilePayment`, `PendingPayments` | Los pagos `pending` con referencia del proveedor que ya esperaron su aviso | `php artisan archivum:reconcile-payments`, cada cinco minutos |
 | Paquete de decants (oferta) | `DecantPackPlan` | `decant_pack_plans` | `paquetes` |
 | Paquete comprado | `DecantPack` | `decant_packs` | `paquetes-comprados` |
+| Compra de un paquete | `PurchaseDecantPack`, `PurchasedPack` | Una fila de `decant_packs` y su pago en `payments.decant_pack_id` | `POST /api/v1/tiendas/{tienda}/paquetes/{paquete}/compra` |
+| Clave de idempotencia de la compra | `IdempotencyKey` | `decant_packs.idempotency_key`, única por cliente y tienda | encabezado `Idempotency-Key`, opcional |
 | Proveedor | `Supplier` | `suppliers` | `proveedores` |
 | Costo del proveedor | `SupplierPrice` | `supplier_prices` | `costos` |
 | Importación del catálogo | `CatalogImport` | `catalog_imports` | `importaciones` |
@@ -104,7 +106,7 @@ Los ajustes de la tienda son claves de `businesses.settings`: la base guarda sol
 
 Los ml se manejan como enteros. Al registrar una botella, `ml_totales` debe coincidir con la capacidad de la presentación; puede omitirse porque el servidor la obtiene. `ml_restantes` inicial es opcional y no puede superar esa capacidad. Una botella vacía conserva su historial y no admite ajustes. La oferta de decants exige una presentación activa con precio y suficientes ml disponibles.
 
-El depósito usa el porcentaje vigente al crear el pedido y lo congela en `orders.deposit_percent`; el precio de cada línea también queda congelado. Ningún importe de pedido o pago se calcula a partir de un precio recibido del navegador. En Investigación 1 el objeto `Payable` representa un pedido; desde #143 un pago también puede pertenecer a un paquete de decants, con su propia llave foránea compuesta con la tienda.
+El depósito usa el porcentaje vigente al crear el pedido y lo congela en `orders.deposit_percent`; el precio de cada línea también queda congelado. Ningún importe de pedido o pago se calcula a partir de un precio recibido del navegador. En Investigación 1 el objeto `Payable` representa un pedido; desde #143 un pago también puede pertenecer a un paquete de decants, con su propia llave foránea compuesta con la tienda, y desde #145 un `Payable` de tipo `decant_pack` cobra completo el precio de la oferta guardada del paquete.
 
 `payments.recorded_by` reserva el actor de un futuro pago manual y referencia a `members(id, business_id)`, no a `users`. El autor de un movimiento de ml sí es una cuenta global porque puede ser personal, cliente o nulo en una operación automática.
 
