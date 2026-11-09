@@ -169,14 +169,47 @@ it('R35: expires an active pack at the end of its validity, even with decants le
         ->and(fn () => $exhausted->expire($end->modify('+1 day')))->toThrow(DecantPackConflictException::class, 'packs.transition');
 });
 
+it('takes back the decant of a cancelled or expired order, and an exhausted pack is active again while it is valid', function () {
+    $exhausted = storedPack(DecantPackStatus::Exhausted, 0);
+    $active = storedPack(DecantPackStatus::Active, 3);
+
+    $exhausted->returnDecant(new DateTimeImmutable('2027-05-09T15:04:59-06:00'));
+    $active->returnDecant(new DateTimeImmutable('2026-12-01T10:00:00-06:00'));
+
+    expect($exhausted->remainingDecants)->toBe(1)
+        ->and($exhausted->status)->toBe(DecantPackStatus::Active)
+        ->and($active->remainingDecants)->toBe(4)
+        ->and($active->status)->toBe(DecantPackStatus::Active);
+
+    $exhausted->redeem(5, 98000, 50, new DateTimeImmutable('2027-05-09T15:04:59-06:00'));
+
+    expect($exhausted->status)->toBe(DecantPackStatus::Exhausted);
+});
+
+it('R35: takes back a decant into a pack whose validity ended, which stays expired and is never used again', function () {
+    $end = new DateTimeImmutable('2027-05-09T15:05:00-06:00');
+    $exhausted = storedPack(DecantPackStatus::Exhausted, 0);
+    $expired = storedPack(DecantPackStatus::Expired, 2);
+
+    $exhausted->returnDecant($end);
+    $expired->returnDecant($end->modify('+1 day'));
+
+    expect($exhausted->remainingDecants)->toBe(1)
+        ->and($exhausted->status)->toBe(DecantPackStatus::Expired)
+        ->and($expired->remainingDecants)->toBe(3)
+        ->and($expired->status)->toBe(DecantPackStatus::Expired)
+        ->and(fn () => $expired->redeem(5, 98000, 50, $end->modify('+1 day')))->toThrow(DecantPackConflictException::class, 'packs.expired');
+});
+
 it('R35: offers no operation to refund a pack or to change it for money', function () {
     $operations = array_map(
         fn (ReflectionMethod $method): string => $method->getName(),
         new ReflectionClass(DecantPack::class)->getMethods(ReflectionMethod::IS_PUBLIC),
     );
 
-    // repeatsPurchase only compares a key (#145): it changes nothing of the pack.
-    expect($operations)->toEqualCanonicalizing(['create', 'reconstitute', 'repeatsPurchase', 'activate', 'isOverdueAt', 'expire', 'statusAt', 'redeem']);
+    // repeatsPurchase only compares a key (#145): it changes nothing of the pack. returnDecant gives a decant back to
+    // the pack, never money (#146).
+    expect($operations)->toEqualCanonicalizing(['create', 'reconstitute', 'repeatsPurchase', 'activate', 'isOverdueAt', 'expire', 'statusAt', 'redeem', 'returnDecant']);
 });
 
 it('keeps the key of its purchase and tells it apart from the key of another purchase or another offer', function () {
@@ -213,6 +246,9 @@ it('refuses the transitions that section 6 does not have', function (Closure $tr
     'activate an expired pack' => [fn () => storedPack(DecantPackStatus::Expired, 5)->activate(new DateTimeImmutable('2026-11-10T15:06:00-06:00'), new ValidityDays(180))],
     'expire an active pack within its validity' => [fn () => storedPack(DecantPackStatus::Active, 5)->expire(new DateTimeImmutable('2027-05-09T15:04:59-06:00'))],
     'expire an expired pack' => [fn () => storedPack(DecantPackStatus::Expired, 5, '2026-11-10T15:30:00-06:00')->expire(new DateTimeImmutable('2026-11-11T15:30:00-06:00'))],
+    'give a decant back to a pack that waits for its payment' => [fn () => boughtPack()->returnDecant(new DateTimeImmutable('2026-11-10T15:10:00-06:00'))],
+    'give a decant back to a pack that has every decant it bought' => [fn () => storedPack(DecantPackStatus::Active, 5)->returnDecant(new DateTimeImmutable('2026-12-01T10:00:00-06:00'))],
+    'give a decant back to an expired pack that has every decant it bought' => [fn () => storedPack(DecantPackStatus::Expired, 5)->returnDecant(new DateTimeImmutable('2027-05-10T10:00:00-06:00'))],
 ]);
 
 it('refuses a stored pack whose decants left contradict its status', function (DecantPackStatus $status, int $remaining, int $total, int $ml) {

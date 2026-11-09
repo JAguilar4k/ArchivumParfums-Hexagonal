@@ -49,4 +49,14 @@ final class LatePackKeyLookup implements DecantPackRepository
     {
         $this->inner->save($pack);
     }
+
+    public function addRedemption(DecantPackId $packId, string $orderLineId): void
+    {
+        $this->inner->addRedemption($packId, $orderLineId);
+    }
+
+    public function removeRedemption(DecantPackId $packId, string $orderLineId): bool
+    {
+        return $this->inner->removeRedemption($packId, $orderLineId);
+    }
 }

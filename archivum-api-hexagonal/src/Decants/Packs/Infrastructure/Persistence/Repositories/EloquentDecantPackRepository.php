@@ -17,6 +17,7 @@ use Src\Decants\Packs\Domain\ValueObjects\DecantPackStatus;
 use Src\Decants\Packs\Domain\ValueObjects\IdempotencyKey;
 use Src\Decants\Packs\Domain\ValueObjects\MaxPricePerMl;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackModel;
+use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackRedemptionModel;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 
@@ -81,6 +82,25 @@ final readonly class EloquentDecantPackRepository implements DecantPackRepositor
             ->where('business_id', $pack->businessId->value)
             ->whereKey($pack->id->value)
             ->update($this->stateOf($pack));
+    }
+
+    /** The unique key of the business and the line keeps one redemption per line of an order. */
+    public function addRedemption(DecantPackId $packId, string $orderLineId): void
+    {
+        DecantPackRedemptionModel::query()->create([
+            'business_id' => $this->context->current()->value,
+            'decant_pack_id' => $packId->value,
+            'order_line_id' => $orderLineId,
+        ]);
+    }
+
+    public function removeRedemption(DecantPackId $packId, string $orderLineId): bool
+    {
+        return DecantPackRedemptionModel::query()
+            ->where('business_id', $this->context->current()->value)
+            ->where('decant_pack_id', $packId->value)
+            ->where('order_line_id', $orderLineId)
+            ->delete() === 1;
     }
 
     /** A pack of another business is not one of this one. */

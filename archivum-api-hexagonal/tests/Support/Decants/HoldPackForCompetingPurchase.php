@@ -62,4 +62,14 @@ final class HoldPackForCompetingPurchase implements DecantPackRepository
     {
         $this->repository->save($pack);
     }
+
+    public function addRedemption(DecantPackId $packId, string $orderLineId): void
+    {
+        $this->repository->addRedemption($packId, $orderLineId);
+    }
+
+    public function removeRedemption(DecantPackId $packId, string $orderLineId): bool
+    {
+        return $this->repository->removeRedemption($packId, $orderLineId);
+    }
 }
