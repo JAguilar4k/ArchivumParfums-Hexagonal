@@ -511,7 +511,7 @@ Cada fila es un paquete que compró un cliente (R33). Copia de la oferta lo que 
 - Llaves únicas: `id`, `(id, business_id)` y `(business_id, customer_id, idempotency_key)`, que impide que una clave compre dos paquetes, también con dos compras simultáneas (#145). PostgreSQL no compara los `NULL`, así que las compras sin clave no chocan entre sí.
 - Índices `(business_id, customer_id, status)` para los paquetes del cliente y `(business_id, status, expires_at)` para los vencimientos (#159).
 - Política `decant_packs_business_isolation`, habilitada y forzada.
-- El canje de #147 descuenta un decant con un `UPDATE` condicional sobre esta fila, y el `CHECK` impide un saldo negativo aunque un camino se salte esa condición.
+- El canje descuenta un decant con un `UPDATE` condicional sobre esta fila, que exige `active`, vigencia y decants restantes y pasa el paquete a `exhausted` al llegar a 0 en la misma sentencia (#147). Los `CHECK` impiden un saldo negativo aunque un camino se salte esa condición.
 
 ### decant_pack_redemptions
 
