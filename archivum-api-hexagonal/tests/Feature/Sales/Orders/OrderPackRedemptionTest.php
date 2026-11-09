@@ -263,3 +263,60 @@ it('prepares a redeemed decant whose pack expired before it was prepared, and ke
     assertDatabaseHas('decant_packs', ['id' => $store['pack'], 'remaining_decants' => 4, 'status' => 'expired']);
     assertDatabaseHas('decant_bottles', ['id' => $store['bottle'], 'remaining_ml' => 95, 'reserved_ml' => 0]);
 });
+
+/**
+ * The packs and bottles an operation writes, in the order it first writes their rows, by the name the test gives them.
+ *
+ * @param  array<string, string>  $rows  identifier of each pack and bottle, by its name
+ * @return list<string>
+ */
+function rowsWrittenBy(Closure $operation, array $rows): array
+{
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    $operation();
+    $queries = DB::getQueryLog();
+    DB::disableQueryLog();
+
+    $written = [];
+    foreach ($queries as $query) {
+        if (preg_match('/^update "?decant_(packs|bottles)"?\s/i', $query['query']) !== 1) {
+            continue;
+        }
+
+        foreach ($rows as $name => $id) {
+            if (in_array($id, $query['bindings'], true) && ! in_array($name, $written, true)) {
+                $written[] = $name;
+            }
+        }
+    }
+
+    return $written;
+}
+
+it('locks the packs and then the bottles of an order in the order of their identifiers when it is placed, cancelled or prepared', function () {
+    $store = storeWithAPack();
+    $packs = [$store['pack'], StoredPacks::create($store['business'], ['status' => 'active', 'expires_at' => now()->addDays(180)])['pack_id']];
+    $bottles = [$store['bottle'], DecantBottleModel::factory()->forPresentation($store['business']->business->id, $store['variant'], 100)->create()->id];
+    sort($packs, SORT_STRING);
+    sort($bottles, SORT_STRING);
+    $rows = ['first pack' => $packs[0], 'last pack' => $packs[1], 'first bottle' => $bottles[0], 'last bottle' => $bottles[1]];
+    // The cart names the last bottle with the last pack first.
+    $cart = ['lineas' => [
+        ['botella_id' => $bottles[1], 'ml' => 5, 'paquete_id' => $packs[1]],
+        ['botella_id' => $bottles[0], 'ml' => 5, 'paquete_id' => $packs[0]],
+    ]];
+    $placed = [];
+
+    expect(rowsWrittenBy(function () use ($store, $cart, &$placed): void {
+        $placed[] = postJson($store['url'], $cart)->assertCreated()->json('data.id');
+    }, $rows))->toBe(['first pack', 'last pack', 'first bottle', 'last bottle']);
+
+    $placed[] = postJson($store['url'], $cart)->assertCreated()->json('data.id');
+    expect(rowsWrittenBy(fn () => postJson('/api/v1/cuenta/pedidos/'.$placed[1].'/cancelacion')->assertOk(), $rows))
+        ->toBe(['first pack', 'last pack', 'first bottle', 'last bottle']);
+
+    actingAsOwner($store['business']);
+    expect(rowsWrittenBy(fn () => postJson('/api/v1/panel/pedidos/'.$placed[0].'/preparacion')->assertOk(), $rows))
+        ->toBe(['first bottle', 'last bottle']);
+});
