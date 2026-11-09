@@ -10,6 +10,7 @@ use Illuminate\Support\ServiceProvider;
 use Src\Payments\Payments\Application\Contracts\BusinessScope;
 use Src\Payments\Payments\Application\Contracts\PayableReader;
 use Src\Payments\Payments\Application\Contracts\PaymentBusinesses;
+use Src\Payments\Payments\Application\Contracts\PendingPaymentEvents;
 use Src\Payments\Payments\Application\Contracts\WebhookEventLog;
 use Src\Payments\Payments\Application\UseCases\ApplyPaymentEvent;
 use Src\Payments\Payments\Application\UseCases\ObservePayment;
@@ -30,6 +31,7 @@ use Src\Payments\Payments\Infrastructure\Persistence\Repositories\DatabaseRefund
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\DatabaseWebhookEventLog;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymentRepository;
 use Src\Payments\Payments\Infrastructure\Policies\PaymentPolicy;
+use Src\Payments\Payments\Infrastructure\Queue\QueuedPendingPaymentEvents;
 use Src\Payments\Payments\Infrastructure\Sales\PaymentRefundRequests;
 use Src\Payments\Payments\Infrastructure\Sales\SalesPayableReader;
 use Src\Payments\Payments\Infrastructure\Tenancy\PaymentEventBusinessContext;
@@ -47,6 +49,7 @@ final class PaymentsServiceProvider extends ServiceProvider
         RefundRepository::class => DatabaseRefundRepository::class,
         RefundRequests::class => PaymentRefundRequests::class,
         WebhookEventLog::class => DatabaseWebhookEventLog::class,
+        PendingPaymentEvents::class => QueuedPendingPaymentEvents::class,
         PaymentBusinesses::class => PostgresPaymentBusinesses::class,
         BusinessScope::class => PaymentEventBusinessContext::class,
     ];
@@ -61,7 +64,8 @@ final class PaymentsServiceProvider extends ServiceProvider
     {
         $this->app->when([StartPayment::class, ObservePayment::class, ProcessOrderRefunds::class, ApplyPaymentEvent::class])
             ->needs(TransactionRunner::class)->give(PaymentTransactionRunner::class);
-        // One per request: the webhook binds it as the BusinessContext of the notice and pins it through BusinessScope.
+        // One per request or job: ProcessPaymentEventJob binds it as the BusinessContext of the notice, and
+        // ProcessPaymentEvent pins the business of the notice through BusinessScope.
         $this->app->scoped(PaymentEventBusinessContext::class);
         $this->app->bind(OnvoGateway::class, fn (Application $app): OnvoGateway => new OnvoGateway(
             (string) config('payments.onvo.secret_key'),

@@ -80,6 +80,26 @@ final readonly class EloquentPaymentRepository implements PaymentRepository
         ]);
     }
 
+    public function saveIfPending(Payment $payment): bool
+    {
+        $businessId = $this->business->current()->value;
+        if ($payment->businessId->value !== $businessId) {
+            throw new PaymentNotFoundException('payments.not_found');
+        }
+
+        // UPDATE ... WHERE status = 'pending': the database lets only one operation take the payment out of pending.
+        return PaymentModel::query()->where('business_id', $businessId)->whereKey($payment->id->value)->where('status', 'pending')
+            ->update([
+                'status' => $payment->status->value,
+                'charged_currency' => $payment->chargedCurrency,
+                'charged_amount' => $payment->chargedAmount,
+                'provider_reference' => $payment->providerReference,
+                'checkout_reference' => $payment->checkoutReference,
+                'checkout_url' => $payment->checkoutUrl,
+                'capture_reference' => $payment->captureReference,
+            ]) === 1;
+    }
+
     private function restore(PaymentModel $model): Payment
     {
         return Payment::reconstitute(new PaymentId($model->id), new BusinessId($model->business_id), new Payable('order', $model->order_id), PaymentPurpose::from($model->purpose), new Colones($model->amount), $model->gateway, PaymentMethod::from($model->method), $model->exchange_rate, PaymentStatus::from($model->status), $model->provider_reference, $model->checkout_url, $model->checkout_reference, $model->capture_reference, $model->charged_currency, $model->charged_amount, $model->refunded_amount);

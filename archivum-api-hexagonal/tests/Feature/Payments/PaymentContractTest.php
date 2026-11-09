@@ -93,7 +93,7 @@ it('keeps the order JSON and its unwrapped line list unchanged while clamping th
     ]]);
 })->with([[OrderStatus::PendingPayment, 0, 7500], [OrderStatus::PendingPayment, 8000, 0], [OrderStatus::Confirmed, 7500, 0]]);
 
-it('documents the notices of the providers as public operations with their outcome and their problems', function (): void {
+it('documents the notices of the providers as public operations with their receipt and their problems', function (): void {
     $document = paymentApiContract();
 
     foreach (['/webhooks/onvo', '/webhooks/paypal'] as $path) {
@@ -108,6 +108,6 @@ it('documents the notices of the providers as public operations with their outco
     // The answer names only the event and its outcome, never the payment or the order.
     expect($document['components']['schemas']['PaymentNoticeResource']['properties'])->toBe([
         'evento' => ['type' => 'string'],
-        'estado' => ['type' => 'string', 'enum' => ['procesado', 'fallido']],
+        'estado' => ['type' => 'string', 'enum' => ['repetido', 'recibido']],
     ]);
 });

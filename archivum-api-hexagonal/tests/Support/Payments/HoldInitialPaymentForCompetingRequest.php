@@ -60,4 +60,9 @@ final class HoldInitialPaymentForCompetingRequest implements PaymentRepository
             }
         } while (! $this->observedOverlap);
     }
+
+    public function saveIfPending(Payment $payment): bool
+    {
+        return $this->repository->saveIfPending($payment);
+    }
 }

@@ -3654,7 +3654,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Aviso verificado y registrado con su resultado.",
+                        "description": "Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3723,7 +3723,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Aviso verificado y registrado con su resultado.",
+                        "description": "Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -6141,8 +6141,8 @@
                     "estado": {
                         "type": "string",
                         "enum": [
-                            "procesado",
-                            "fallido"
+                            "repetido",
+                            "recibido"
                         ]
                     }
                 },

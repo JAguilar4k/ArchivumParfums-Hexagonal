@@ -889,7 +889,7 @@ export interface components {
         PaymentNoticeResource: {
             evento: string;
             /** @enum {string} */
-            estado: "procesado" | "fallido";
+            estado: "repetido" | "recibido";
         };
         /** PaymentResource */
         PaymentResource: {
@@ -3479,7 +3479,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Aviso verificado y registrado con su resultado. */
+            /** @description Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3537,7 +3537,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Aviso verificado y registrado con su resultado. */
+            /** @description Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada. */
             200: {
                 headers: {
                     [name: string]: unknown;

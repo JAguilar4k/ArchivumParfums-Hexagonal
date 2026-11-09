@@ -128,7 +128,17 @@ it('keeps the outcome of each webhook event with the named PostgreSQL checks', f
     'a processed event with an error' => [['status' => 'processed', 'processed_at' => now(), 'error' => 'payments.not_found'], 'webhook_events_error_check'],
     'a processed event without its moment' => [['status' => 'processed'], 'webhook_events_processed_at_check'],
     'a failure with a moment of processing' => [['status' => 'failed', 'error' => 'payments.not_found', 'processed_at' => now()], 'webhook_events_processed_at_check'],
+    'a pending event with an error' => [['status' => 'pending', 'error' => 'payments.not_found'], 'webhook_events_error_check'],
+    'a pending event with a moment of processing' => [['status' => 'pending', 'processed_at' => now()], 'webhook_events_processed_at_check'],
 ]);
+
+it('keeps a new webhook event pending until it is processed', function (): void {
+    $id = (string) Str::uuid7();
+    DB::table('webhook_events')->insert(['id' => $id, 'gateway' => 'onvo', 'event_id' => 'fictitious-event-1', 'event_type' => 'checkout-session.succeeded', 'payload' => '{}']);
+
+    expect(DB::table('webhook_events')->where('id', $id)->first(['status', 'error', 'processed_at']))
+        ->toEqual((object) ['status' => 'pending', 'error' => null, 'processed_at' => null]);
+});
 
 it('finds the business of any reference of a payment only through fn_payment_business', function (): void {
     $business = StaffedBusiness::create();
