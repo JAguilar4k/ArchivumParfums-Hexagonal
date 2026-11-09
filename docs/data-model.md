@@ -506,7 +506,7 @@ Cada fila es un intento de cobro de un pedido. La intención se confirma en una 
 - Llaves únicas: `id`, `(id, business_id)` y `(business_id, gateway, provider_reference)`; las referencias nulas no impiden guardar una intención todavía sin respuesta.
 - Índice único parcial `payments_one_pending_purpose` sobre `(business_id, order_id, purpose)` cuando `status = 'pending'`: no puede haber dos intentos pendientes del mismo propósito. Índice adicional `(business_id, status)`.
 - Política `payments_business_isolation`, habilitada y forzada, más `payments_definer_read` de solo lectura para el dueño del esquema al resolver recursos del cliente.
-- La consulta autenticada al proveedor es la autoridad. La piden el cliente (Investigación 1) o un aviso verificado de la pasarela (#94); el pago y el efecto sobre el pedido se guardan en la misma transacción. El registro único de cada aviso y su cola corresponden a #95.
+- La consulta autenticada al proveedor es la autoridad. La piden un aviso verificado de la pasarela (#94) o la conciliación de los pagos pendientes (#96); la consulta del cliente solo lee el pago guardado. El pago y el efecto sobre el pedido se guardan en la misma transacción. El registro único de cada aviso y su cola corresponden a #95.
 - `fn_payment_business(gateway, referencia)` responde la tienda de una referencia del proveedor (`provider_reference`, `checkout_reference` o `capture_reference`) antes de fijar una tienda, para el aviso que no trae la que Archivum envió con el cobro. Es `SECURITY DEFINER`, lee por `payments_definer_read` y solo devuelve el identificador de la tienda.
 - ONVO recibe el principal multiplicado por 100 en su API; ese formato de transporte no cambia que `charged_amount` en CRC guarde colones enteros. PayPal recibe texto decimal USD y la base conserva centavos y el tipo de cambio aplicado. Las conversiones viven en los adaptadores.
 
@@ -531,7 +531,7 @@ Llaves únicas: `id` y `(id, business_id)`. Índice `(business_id, status)`. Pol
 
 ### webhook_events
 
-Tabla global con cada aviso verificado de una pasarela y su resultado (#94). Un aviso de origen no verificado no se guarda.
+Tabla global con cada aviso verificado de una pasarela y su resultado (#94). Un aviso de origen no verificado no se guarda, y uno verificado se guarda antes de procesarse (#95).
 
 | Columna | Tipo | Regla |
 |---|---|---|
@@ -540,12 +540,12 @@ Tabla global con cada aviso verificado de una pasarela y su resultado (#94). Un 
 | `event_id` | `varchar(255)` | Identificador del evento en la pasarela; ONVO no envía uno y se usa `tipo:id del objeto` |
 | `event_type` | `varchar(255)` | Tipo recibido del proveedor |
 | `payload` | `jsonb` | Cuerpo del evento |
-| `status` | `varchar(16)` | `webhook_events_status_check`: `processed` o `failed` |
+| `status` | `varchar(16)` | Por defecto `pending`; `webhook_events_status_check`: `pending`, `processed` o `failed` |
 | `error` | `text` | Clave de traducción del error; `webhook_events_error_check`: presente solo si `status` es `failed` |
 | `processed_at` | `timestamptz` | `webhook_events_processed_at_check`: presente solo si `status` es `processed` |
 | `created_at`, `updated_at` | `timestamptz` | |
 
-Llaves únicas: `id` y `(gateway, event_id)`. Sin `business_id`, llave al pago ni política de fila: al recibir un evento todavía hay que resolver su pago y tienda desde una referencia verificada. Un aviso que la pasarela reenvía actualiza su resultado, salvo que ya esté `processed`. El registro único antes de procesar, con `INSERT ... ON CONFLICT DO NOTHING`, y la cola llegan con #95.
+Llaves únicas: `id` y `(gateway, event_id)`. Sin `business_id`, llave al pago ni política de fila: al recibir un evento todavía hay que resolver su pago y tienda desde una referencia verificada. `INSERT ... ON CONFLICT DO NOTHING` guarda solo la primera llegada de cada evento, como `pending`, junto con su trabajo en la cola; un aviso que la pasarela reenvía no cambia nada. El trabajo lo bloquea, lo aplica y lo marca `processed` en una transacción, o lo deja `failed` con la clave de su error (#95).
 
 ### password_reset_tokens
 

@@ -3398,7 +3398,7 @@
         "/cuenta/pagos/{pago}": {
             "get": {
                 "operationId": "payments.show",
-                "summary": "Confirm only by asking the provider from the server; the request carries no status",
+                "summary": "Read the stored payment: this query never asks the provider nor changes the payment, and the request carries no status",
                 "tags": [
                     "Payment"
                 ],
@@ -3414,7 +3414,7 @@
                 ],
                 "responses": {
                     "202": {
-                        "description": "El resultado sigue pendiente de consulta al proveedor.",
+                        "description": "Todav\u00eda no se sabe si el proveedor cre\u00f3 el cobro.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3432,7 +3432,7 @@
                         }
                     },
                     "200": {
-                        "description": "Estado del pago consultado desde el servidor.",
+                        "description": "Estado guardado del pago. Mientras siga pendiente, el cliente muestra \"procesando\".",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3768,7 +3768,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Aviso verificado y registrado con su resultado.",
+                        "description": "Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3837,7 +3837,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Aviso verificado y registrado con su resultado.",
+                        "description": "Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -6327,8 +6327,8 @@
                     "estado": {
                         "type": "string",
                         "enum": [
-                            "procesado",
-                            "fallido"
+                            "repetido",
+                            "recibido"
                         ]
                     }
                 },

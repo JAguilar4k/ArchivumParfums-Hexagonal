@@ -157,7 +157,7 @@ Las cuatro son `SECURITY DEFINER` con `search_path` vacío y nombres calificados
 | `users` | No tiene `business_id`: una cuenta puede ser cliente de varias tiendas, y el ingreso la busca por su correo antes de saber la tienda |
 | `businesses` | No tiene `business_id`: cada fila es una tienda, y las rutas públicas la buscan por el slug de la URL |
 | `personal_access_tokens` | No tiene `business_id`: el token pertenece a la cuenta |
-| `webhook_events` | No tiene `business_id`: el aviso de la pasarela llega antes de saber su tienda y se identifica por `(gateway, event_id)`; la tienda sale después del pago que nombra el aviso verificado (#94) |
+| `webhook_events` | No tiene `business_id`: el aviso de la pasarela llega antes de saber su tienda y se identifica por `(gateway, event_id)`, que lo guarda una sola vez (#95); la tienda sale después del pago que nombra el aviso verificado (#94) |
 
 ### Llaves únicas y foráneas
 

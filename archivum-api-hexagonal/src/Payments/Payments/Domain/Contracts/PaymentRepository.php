@@ -21,4 +21,10 @@ interface PaymentRepository
     public function findByReference(string $gateway, string $reference): ?Payment;
 
     public function save(Payment $payment): void;
+
+    /**
+     * Save a payment whose charge was settled, only while its row is still pending: two operations that settle the
+     * same payment change it once. Answer false when the row was no longer pending, and then nothing changes.
+     */
+    public function saveIfPending(Payment $payment): bool;
 }

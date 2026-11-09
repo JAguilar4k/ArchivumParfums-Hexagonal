@@ -4,7 +4,7 @@ API REST de ArchivumParfums. Laravel 13, PHP 8.4 y PostgreSQL 18.
 
 ## Alcance integrado
 
-La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Avance 2 suma la confirmación de pagos por aviso verificado de ONVO y PayPal (#94) y el registro del saldo pagado en la entrega (#98). Los servicios y horarios, la disponibilidad, las citas y el cliente Vue siguen pendientes de integración. Los escenarios externos ONVO y PayPal ya tienen [evidencia sandbox](../docs/evidencia-investigacion-1/README.md); el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
+La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Avance 2 suma la confirmación de pagos por aviso verificado de ONVO y PayPal (#94), procesado una sola vez en la cola (#95), la conciliación de los pagos pendientes cuyo aviso no llegó (#96) y el registro del saldo pagado en la entrega (#98); desde #96, la consulta del cliente solo lee el pago guardado. Los servicios y horarios, la disponibilidad, las citas y el cliente Vue siguen pendientes de integración. Los escenarios externos ONVO y PayPal ya tienen [evidencia sandbox](../docs/evidencia-investigacion-1/README.md); el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
 
 ## Requisitos
 
@@ -133,6 +133,8 @@ COMMIT;
 | `php artisan storage:link` | Hace accesibles los logos y fotos guardados en el disco público. Se ejecuta una vez por instalación. |
 | `php artisan migrate --database=pgsql_admin` | Aplica migraciones pendientes con el rol dueño del esquema, sin volver a sembrar. |
 | `php artisan route:list --path=api --except-vendor` | Muestra las rutas realmente cargadas de la API. Añade `-vv` para consultar sus middleware. |
+| `php artisan schedule:work` | Ejecuta las tareas programadas en desarrollo; en producción se usa `schedule:run` desde cron, cada minuto. |
+| `php artisan archivum:reconcile-payments` | Consulta a la pasarela los pagos pendientes de todas las tiendas que ya esperaron su aviso y aplica su estado real (#96). Corre sola cada cinco minutos. |
 | `php artisan archivum:create-business` | Da de alta una tienda y la cuenta de su dueño. Ver [Dar de alta una tienda](#dar-de-alta-una-tienda). |
 
 Antes de abrir un pull request deben pasar `composer validate --strict`, `composer lint`, `composer analyse` y `composer test`. La auditoría completa se ejecuta con `composer audit --locked`; CI ejecuta `composer audit --locked --ignore-severity=low --ignore-severity=medium` después de las pruebas, por lo que una ejecución local completa puede informar avisos adicionales.
@@ -148,7 +150,7 @@ Para comprobar que el contrato versionado ya coincide con el generador, usa `git
 
 `archivum-web` genera sus tipos desde este contrato: después de exportarlo, se ejecuta `npm run api:types` en `archivum-web/` y el pull request incluye los dos archivos ([README del cliente](../archivum-web/README.md#tipos-de-la-api)).
 
-Cuando se implemente trabajo en cola, el worker local se ejecuta en otra terminal con `php artisan queue:work --tries=1`; el scheduler usa `php artisan schedule:work`. Son procesos separados de `composer run dev`, y se inician cuando el módulo que se prueba los necesita. Los pagos de Investigación 1 usan peticiones HTTP y consultas explícitas desde la API; no requieren un worker ni un webhook. Los recordatorios y websockets siguen pendientes.
+Los avisos de las pasarelas se procesan en la cola (#95): con `QUEUE_CONNECTION=database`, el worker local corre en otra terminal con `php artisan queue:work`, y cada aviso guardado espera en la tabla `jobs` hasta que el worker lo aplica. El trabajo declara sus propios reintentos (cinco intentos, con esperas de 10, 60 y 300 segundos), y uno que los agota queda en `failed_jobs`, desde donde `php artisan queue:retry` lo vuelve a encolar. El scheduler usa `php artisan schedule:work` y concilia cada cinco minutos los pagos pendientes cuyo aviso no llegó (#96). Son procesos separados de `composer run dev`. El cobro y su consulta desde la API no necesitan el worker. En local, sin dirección pública, los avisos no llegan: ahí confirma los pagos la conciliación. Los recordatorios y websockets siguen pendientes.
 
 ## Pruebas
 
@@ -256,11 +258,11 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | POST | `/api/v1/panel/pedidos/{pedido}/entrega` | Dueño | Entrega un pedido listo y pagado, sin reembolsos sin resolver. |
 | POST | `/api/v1/panel/pedidos/{pedido}/lineas/{linea}/no-disponible` | Dueño | Marca una botella encargada como no disponible y calcula la devolución correspondiente. |
 | POST | `/api/v1/cuenta/pedidos/{pedido}/pagos` | Cliente propietario | Inicia el cobro calculado o devuelve su intento pendiente existente. |
-| GET | `/api/v1/cuenta/pagos/{pago}` | Cliente propietario | Consulta el proveedor y confirma el resultado; en PayPal captura tras la aprobación. |
+| GET | `/api/v1/cuenta/pagos/{pago}` | Cliente propietario | Lee el pago guardado, sin consultar al proveedor ni cambiarlo; mientras siga `pendiente`, el cliente muestra "procesando". Lo confirman el aviso o la conciliación. |
 | POST | `/api/v1/panel/pedidos/{pedido}/pagos-manuales` | Dueño | Registra el saldo que el cliente pagó en la entrega por SINPE o en efectivo, con `metodo`, `monto` y `referencia`; el pago queda confirmado y el saldo baja en la misma transacción, sin pasar por la pasarela. |
 | POST | `/api/v1/panel/pedidos/{pedido}/reembolsos` | Dueño | Procesa los importes de devolución ya registrados; ONVO ejecuta y consulta el reembolso. |
-| POST | `/api/v1/webhooks/onvo` | ONVO Pay | Recibe un aviso con `X-Webhook-Secret`; consulta al proveedor y confirma el pago y su pedido, o registra el aviso con su error. Un origen no verificado responde 401. |
-| POST | `/api/v1/webhooks/paypal` | PayPal | Recibe un aviso cuya firma verifica la API de PayPal; la orden aprobada se captura y el pago se confirma con la captura completada. Un origen no verificado responde 401. |
+| POST | `/api/v1/webhooks/onvo` | ONVO Pay | Recibe un aviso con `X-Webhook-Secret`, guarda solo la primera llegada de cada evento y responde de inmediato `recibido`, o `repetido` sin cambiar nada. En la cola, el worker consulta al proveedor y confirma el pago y su pedido, o deja el aviso con su error. Un origen no verificado responde 401. |
+| POST | `/api/v1/webhooks/paypal` | PayPal | Recibe un aviso cuya firma verifica la API de PayPal y lo guarda y procesa igual que el de ONVO; en la cola, la orden aprobada se captura y el pago se confirma con la captura completada. Un origen no verificado responde 401. |
 | GET | `/docs/api` | Desarrollo local | Documentación interactiva de Scramble; el gate la deniega en producción. |
 | GET | `/docs/api.json` | Desarrollo local | Contrato OpenAPI generado de las rutas. |
 
@@ -272,7 +274,7 @@ Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista p
 
 La colección y el entorno se incluyen en [`tests/Postman/`](tests/Postman/README.md), con 35 peticiones ordenadas, datos ficticios y captura de variables desde las respuestas. Al clonar el repositorio, importa ambos JSON y ajusta `base_url` a la dirección real de tu API. La carpeta contiene las instrucciones y el alcance; las pruebas HTTP no añaden dependencias a las capas del producto.
 
-Para los pagos de Investigación 1 hay [dos colecciones adicionales y sus entornos](tests/Postman/README.md#investigación-1-archivos-y-nombres-del-recorrido): ONVO con 24 peticiones y PayPal con 21. Con sesión preparan el recorrido, capturan referencias y comprueban el resultado después del checkout manual del navegador. Sin cuenta, el mismo README explica cómo enviar las peticiones y copiar las referencias a mano, como en Avance 1.
+Para los pagos de Investigación 1 hay [dos colecciones adicionales y sus entornos](tests/Postman/README.md#investigación-1-archivos-y-nombres-del-recorrido): ONVO con 24 peticiones y PayPal con 21. Con sesión preparan el recorrido, capturan referencias y comprueban el resultado después del checkout manual del navegador y de la conciliación (#96). Sin cuenta, el mismo README explica cómo enviar las peticiones y copiar las referencias a mano, como en Avance 1.
 
 Realiza este recorrido con las cuentas ficticias de una instalación local. Configura **Accept: application/json**. En los POST y PATCH con JSON, usa **Body → raw → JSON**; en archivos, usa **Body → form-data** y deja que Postman genere `Content-Type` con su boundary.
 
@@ -389,7 +391,7 @@ Para Investigación 1, el [recorrido de pagos del README raíz](../README.md#inv
 
 Las guías independientes [Demostración de ONVO](../docs/demostracion-onvo.md) y [Demostración de PayPal](../docs/demostracion-paypal.md) incluyen el recorrido completo en Postman, los resultados esperados y los archivos que se modifican para configurar o ampliar cada pasarela. La colección de Postman existente cubre el recorrido básico; las peticiones adicionales de pagos se crean siguiendo esas guías.
 
-`config/payments.php` lee `ONVO_SECRET_KEY`, `ONVO_PUBLISHABLE_KEY`, `ONVO_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYMENTS_RETURN_URL` y `PAYMENTS_CANCEL_URL`. `.env.example` las declara; todas las credenciales quedan vacías. El cobro usa checkout hospedado y se confirma con la consulta del servidor, que pide el cliente o un aviso verificado. Para recibir avisos, `ONVO_WEBHOOK_SECRET` lleva el secreto del webhook que muestra el panel de ONVO (empieza por `webhook_secret_`) y `PAYPAL_WEBHOOK_ID` el identificador del webhook registrado en el sandbox de PayPal; vacíos, toda notificación responde 401. La pasarela solo alcanza esas rutas en una dirección pública con HTTPS (#21). PayPal solo admite el host sandbox fijado en configuración. La pasarela y el tipo CRC/USD se eligen en los ajustes existentes de la tienda.
+`config/payments.php` lee `ONVO_SECRET_KEY`, `ONVO_PUBLISHABLE_KEY`, `ONVO_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYMENTS_RETURN_URL` y `PAYMENTS_CANCEL_URL`. `.env.example` las declara; todas las credenciales quedan vacías. El cobro usa checkout hospedado y se confirma con la consulta del servidor, que piden un aviso verificado o la conciliación (#96); la consulta del cliente solo lee el pago guardado. Para recibir avisos, `ONVO_WEBHOOK_SECRET` lleva el secreto del webhook que muestra el panel de ONVO (empieza por `webhook_secret_`) y `PAYPAL_WEBHOOK_ID` el identificador del webhook registrado en el sandbox de PayPal; vacíos, toda notificación responde 401. La pasarela solo alcanza esas rutas en una dirección pública con HTTPS (#21). PayPal solo admite el host sandbox fijado en configuración. La pasarela y el tipo CRC/USD se eligen en los ajustes existentes de la tienda.
 
 `.env.example` lista todas las variables que lee la aplicación. Las propias del producto:
 

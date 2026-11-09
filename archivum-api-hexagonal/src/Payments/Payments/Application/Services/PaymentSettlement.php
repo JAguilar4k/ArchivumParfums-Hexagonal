@@ -14,7 +14,7 @@ use Src\Payments\Payments\Domain\Exceptions\InvalidPaymentTransitionException;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeReference;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentStatus;
 
-/** What follows the provider's answer about a pending charge, whoever asked: the customer's query or a verified notice. */
+/** What follows the provider's answer about a pending charge, whoever asked: a verified notice (#94) or the reconciliation (#96). */
 final readonly class PaymentSettlement
 {
     /** Receive the ports a settled charge touches. */
@@ -48,13 +48,24 @@ final readonly class PaymentSettlement
         $payment->apply($result->status);
         if ($result->status === PaymentStatus::Succeeded && in_array($order->status, ['cancelled', 'expired'], true)) {
             // Save the confirmed principal first so its refund can reference it in this same transaction.
-            $this->payments->save($payment);
+            $this->saveSettled($payment);
             $this->orders->applyLatePayment($payment->payable->id, $payment->amount->amount);
         } elseif ($result->status === PaymentStatus::Succeeded) {
             $this->orders->applyPayment($payment->payable->id, $payment->amount->amount);
-            $this->payments->save($payment);
+            $this->saveSettled($payment);
         } else {
-            $this->payments->save($payment);
+            $this->saveSettled($payment);
+        }
+    }
+
+    /**
+     * Besides the locks, the row changes only while it is still pending (#95). If another operation settled the payment
+     * first, the transaction is undone, together with what this one changed in the order.
+     */
+    private function saveSettled(Payment $payment): void
+    {
+        if (! $this->payments->saveIfPending($payment)) {
+            throw new InvalidPaymentTransitionException('payments.invalid_transition');
         }
     }
 }

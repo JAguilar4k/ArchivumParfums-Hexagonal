@@ -6,21 +6,22 @@ namespace Src\Payments\Payments\Infrastructure\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Src\Payments\Payments\Domain\ValueObjects\PaymentEvent;
+use Src\Payments\Payments\Application\DTOs\ReceivedPaymentEvent;
 
 /**
- * @property-read PaymentEvent $resource
+ * @property-read ReceivedPaymentEvent $resource
  */
 final class PaymentNoticeResource extends JsonResource
 {
-    /** Wrap the event of a verified notice and whether it was processed. */
-    public function __construct(private readonly PaymentEvent $event, private readonly bool $processed)
+    /** Wrap the event of a verified notice. */
+    public function __construct(private readonly ReceivedPaymentEvent $event)
     {
         parent::__construct($event);
     }
 
     /**
-     * Expose only the identifier of the event and what became of it, never the payment or the order it names.
+     * Expose only the identifier of the event and whether it was kept now or had already arrived, never the payment or
+     * the order it names.
      *
      * @return array<string, mixed>
      */
@@ -28,7 +29,7 @@ final class PaymentNoticeResource extends JsonResource
     {
         return [
             'evento' => $this->event->eventId,
-            'estado' => $this->processed ? 'procesado' : 'fallido',
+            'estado' => $this->event->repeated ? 'repetido' : 'recibido',
         ];
     }
 }

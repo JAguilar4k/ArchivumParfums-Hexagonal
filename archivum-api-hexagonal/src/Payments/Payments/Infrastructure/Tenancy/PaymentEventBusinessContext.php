@@ -13,7 +13,9 @@ use Src\Shared\Domain\ValueObjects\BusinessId;
 /**
  * The business of a notice of the provider. The notice arrives with no session, so no business is known until the
  * verified event names its payment; ProcessPaymentEvent then runs the operation with that business pinned, and every
- * repository and transaction of the operation asks this context. The container keeps one per request.
+ * repository and transaction of the operation asks this context. The reconciliation of pending payments (#96) has no
+ * session either, and ReconcilePayment pins the business of each payment the same way. The container keeps one per
+ * request, job or command.
  */
 final class PaymentEventBusinessContext implements BusinessContext, BusinessScope
 {
