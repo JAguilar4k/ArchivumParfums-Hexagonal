@@ -10,6 +10,7 @@ use Src\Decants\Packs\Domain\Exceptions\DecantPackPlanNotFoundException;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackId;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackPlanId;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackStatus;
+use Src\Decants\Packs\Domain\ValueObjects\IdempotencyKey;
 use Src\Decants\Packs\Domain\ValueObjects\MaxPricePerMl;
 use Src\Decants\Packs\Domain\ValueObjects\ValidityDays;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
@@ -34,6 +35,7 @@ final class DecantPack
         public readonly ?MaxPricePerMl $maxPricePerMl,
         public private(set) DecantPackStatus $status,
         public private(set) DateTimeImmutable $expiresAt,
+        public readonly ?IdempotencyKey $idempotencyKey,
     ) {
         if ($totalDecants < 1 || $mlPerDecant < 1 || $remainingDecants < 0 || $remainingDecants > $totalDecants
             || ($status === DecantPackStatus::PendingPayment && $remainingDecants !== $totalDecants)
@@ -45,24 +47,31 @@ final class DecantPack
 
     /**
      * Buy a pack from an offer on sale: it waits for its payment until the deadline of the store, and it copies the
-     * decants, their ml and the cap of the offer, so that editing the offer later does not change it.
+     * decants, their ml and the cap of the offer, so that editing the offer later does not change it. The key the
+     * customer sent with the purchase, if any, lets the same purchase sent again find this pack (#145).
      *
      * @throws DecantPackPlanNotFoundException when the offer is no longer on sale
      */
-    public static function create(DecantPackId $id, string $customerId, DecantPackPlan $plan, DateTimeImmutable $paymentDeadline): self
+    public static function create(DecantPackId $id, string $customerId, DecantPackPlan $plan, DateTimeImmutable $paymentDeadline, ?IdempotencyKey $idempotencyKey = null): self
     {
         if (! $plan->isActive) {
             throw new DecantPackPlanNotFoundException('packs.plan_not_found');
         }
 
         return new self($id, $plan->businessId, $customerId, $plan->id, $plan->decants->value, $plan->decants->value,
-            $plan->mlPerDecant->value, $plan->maxPricePerMl, DecantPackStatus::PendingPayment, $paymentDeadline);
+            $plan->mlPerDecant->value, $plan->maxPricePerMl, DecantPackStatus::PendingPayment, $paymentDeadline, $idempotencyKey);
     }
 
     /** Rebuild a pack from its stored state. */
-    public static function reconstitute(DecantPackId $id, BusinessId $businessId, string $customerId, DecantPackPlanId $planId, int $totalDecants, int $remainingDecants, int $mlPerDecant, ?MaxPricePerMl $maxPricePerMl, DecantPackStatus $status, DateTimeImmutable $expiresAt): self
+    public static function reconstitute(DecantPackId $id, BusinessId $businessId, string $customerId, DecantPackPlanId $planId, int $totalDecants, int $remainingDecants, int $mlPerDecant, ?MaxPricePerMl $maxPricePerMl, DecantPackStatus $status, DateTimeImmutable $expiresAt, ?IdempotencyKey $idempotencyKey = null): self
     {
-        return new self($id, $businessId, $customerId, $planId, $totalDecants, $remainingDecants, $mlPerDecant, $maxPricePerMl, $status, $expiresAt);
+        return new self($id, $businessId, $customerId, $planId, $totalDecants, $remainingDecants, $mlPerDecant, $maxPricePerMl, $status, $expiresAt, $idempotencyKey);
+    }
+
+    /** Whether a purchase of an offer with this key is the purchase of this pack sent again: the same key and the same offer. */
+    public function repeatsPurchase(IdempotencyKey $key, DecantPackPlanId $planId): bool
+    {
+        return $this->idempotencyKey?->value === $key->value && $this->planId->value === $planId->value;
     }
 
     /**
