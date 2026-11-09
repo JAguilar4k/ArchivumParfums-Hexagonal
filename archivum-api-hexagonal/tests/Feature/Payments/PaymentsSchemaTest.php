@@ -108,7 +108,12 @@ it('rejects invalid refund values with the named database checks', function (str
         'id' => (string) Str::uuid7(), 'business_id' => $business->business->id, 'payment_id' => $payment->id,
         'amount' => 7500, 'status' => 'pending', $field => $value,
     ])))->toThrow(QueryException::class, $constraint);
-})->with([['amount', 0, 'refunds_amount_check'], ['amount', -1, 'refunds_amount_check'], ['status', 'approved', 'refunds_status_check']]);
+})->with([
+    ['amount', 0, 'refunds_amount_check'], ['amount', -1, 'refunds_amount_check'], ['status', 'approved', 'refunds_status_check'],
+    ['charged_amount', 0, 'refunds_charged_amount_check'], ['charged_amount', -1, 'refunds_charged_amount_check'],
+    // A refund that left for the provider keeps the amount it asked of it.
+    ['attempted_at', '2026-11-02 12:00:00+00', 'refunds_attempted_at_check'],
+]);
 
 it('prevents a refund from referencing another tenant payment', function (): void {
     $first = StaffedBusiness::create();

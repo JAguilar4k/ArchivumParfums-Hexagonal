@@ -534,7 +534,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Process only refund amounts already registered by cancellation or an unavailable line */
+        /**
+         * List the refunds of an order with their state and ask the provider again for those that never left
+         * @description Only a cancellation, an unavailable line (R30, R31) or a charge confirmed after the order closed registers a
+         *     refund, with the amount the server calculates.
+         */
         post: operations["payments.refunds.process"];
         delete?: never;
         options?: never;
@@ -1163,6 +1167,15 @@ export interface components {
                 medio: "sinpe_movil" | "tarjeta";
                 consulta_pendiente: boolean;
             } | null;
+        };
+        /** RefundResource */
+        RefundResource: {
+            id: string;
+            pago: string;
+            linea: string | null;
+            monto: number;
+            /** @enum {string} */
+            estado: "confirmado" | "fallido" | "pendiente";
         };
         /** SessionTokenResource */
         SessionTokenResource: {
@@ -3980,18 +3993,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Array of `RefundResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: {
-                            id: string;
-                            monto: number;
-                            /** @enum {string} */
-                            estado: "confirmado" | "fallido" | "pendiente";
-                        }[];
+                        data: components["schemas"]["RefundResource"][];
                     };
                 };
             };
