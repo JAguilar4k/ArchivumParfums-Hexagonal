@@ -10,6 +10,7 @@ use Src\Decants\Packs\Domain\Exceptions\DecantPackConflictException;
 use Src\Decants\Packs\Domain\Exceptions\DecantPackNotFoundException;
 use Src\Decants\Packs\Domain\ValueObjects\DecantCount;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackStatus;
+use Src\Decants\Packs\Domain\ValueObjects\ExpiryReason;
 use Src\Decants\Packs\Domain\ValueObjects\MaxPricePerMl;
 use Src\Decants\Packs\Domain\ValueObjects\MlPerDecant;
 use Src\Decants\Packs\Domain\ValueObjects\PackPrice;
@@ -19,6 +20,7 @@ use Src\Shared\Domain\ValueObjects\BusinessId;
 use Tests\Support\Catalog\FixedBusinessContext;
 use Tests\Support\Decants\InMemoryDecantPackPlanRepository;
 use Tests\Support\Decants\InMemoryDecantPackRepository;
+use Tests\Support\Decants\RecordingPackDeadlines;
 use Tests\Support\Shared\RecordingTransactionRunner;
 
 const ACTIVATE_PACK_BUSINESS = '0192f0c4-ffff-7000-9000-000000000001';
@@ -27,7 +29,7 @@ const ACTIVATE_PACK_BUSINESS = '0192f0c4-ffff-7000-9000-000000000001';
  * Wire the use case to in-memory adapters that hold a pack of a 180-day offer, bought at 15:00 of 10/11/2026 and
  * waiting for its payment until 15:30.
  *
- * @return array{ActivateDecantPack, DecantPack, FixedBusinessContext, InMemoryDecantPackRepository, RecordingTransactionRunner}
+ * @return array{ActivateDecantPack, DecantPack, FixedBusinessContext, InMemoryDecantPackRepository, RecordingTransactionRunner, RecordingPackDeadlines}
  */
 function activationWiring(): array
 {
@@ -40,12 +42,13 @@ function activationWiring(): array
     $pack = DecantPack::create($packs->nextId(), '0192f0c4-ffff-7000-9000-000000000301', $plan, new DateTimeImmutable('2026-11-10T15:30:00-06:00'));
     $packs->add($pack);
     $transaction = new RecordingTransactionRunner;
+    $deadlines = new RecordingPackDeadlines;
 
-    return [new ActivateDecantPack($packs, $plans, $transaction), $pack, $context, $packs, $transaction];
+    return [new ActivateDecantPack($packs, $plans, $deadlines, $transaction), $pack, $context, $packs, $transaction, $deadlines];
 }
 
 it('R33: activates the pack when its payment is confirmed, valid until the same hour once the days of its offer pass', function () {
-    [$activate, $pack, , $packs, $transaction] = activationWiring();
+    [$activate, $pack, , $packs, $transaction, $deadlines] = activationWiring();
 
     $activated = $activate->execute(new ActivateDecantPackCommand($pack->id->value, '2026-11-10T15:05:00-06:00'));
 
@@ -55,26 +58,32 @@ it('R33: activates the pack when its payment is confirmed, valid until the same 
         ->and($packs->find($pack->id)?->status)->toBe(DecantPackStatus::Active)
         // The pack is locked before it changes, so a second confirmation waits and then finds it active.
         ->and($packs->lockedIds)->toBe([$pack->id->value])
+        // The queue checks the pack again when its validity ends, and expires it then even with decants left (#159).
+        ->and($deadlines->checks)->toBe([[
+            'pack' => $pack->id->value, 'business' => ACTIVATE_PACK_BUSINESS, 'at' => '2027-05-09T15:05:00-06:00', 'reason' => ExpiryReason::ValidityEnded,
+        ]])
         ->and($transaction->committed())->toBe(1);
 });
 
 it('refuses to activate a pack that no longer waits for its payment', function () {
-    [$activate, $pack] = activationWiring();
+    [$activate, $pack, , , , $deadlines] = activationWiring();
     $activate->execute(new ActivateDecantPackCommand($pack->id->value, '2026-11-10T15:05:00-06:00'));
 
     expect(fn () => $activate->execute(new ActivateDecantPackCommand($pack->id->value, '2026-11-10T15:06:00-06:00')))
         ->toThrow(DecantPackConflictException::class, 'packs.transition')
-        ->and($pack->expiresAt)->toEqual(new DateTimeImmutable('2027-05-09T15:05:00-06:00'));
+        ->and($pack->expiresAt)->toEqual(new DateTimeImmutable('2027-05-09T15:05:00-06:00'))
+        ->and($deadlines->checks)->toHaveCount(1);
 });
 
 it('undoes the activation when the row of the pack stopped waiting for its payment after it was read', function () {
-    [$activate, $pack, , $packs, $transaction] = activationWiring();
+    [$activate, $pack, , $packs, $transaction, $deadlines] = activationWiring();
     // The expiry of the pack committed after this operation read it.
     $packs->changeStoredStatus($pack->id, DecantPackStatus::Expired);
 
     expect(fn () => $activate->execute(new ActivateDecantPackCommand($pack->id->value, '2026-11-10T15:05:00-06:00')))
         ->toThrow(DecantPackConflictException::class, 'packs.transition')
-        ->and($transaction->rolledBack())->toBe(1);
+        ->and($transaction->rolledBack())->toBe(1)
+        ->and($deadlines->checks)->toBe([]);
 });
 
 it('finds no pack of another business or with an identifier that is not one of a pack', function (Closure $packOf) {

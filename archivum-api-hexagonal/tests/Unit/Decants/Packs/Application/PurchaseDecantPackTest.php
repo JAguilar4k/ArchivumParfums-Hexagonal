@@ -9,6 +9,7 @@ use Src\Decants\Packs\Domain\Exceptions\DecantPackPlanNotFoundException;
 use Src\Decants\Packs\Domain\Exceptions\IdempotencyKeyReusedException;
 use Src\Decants\Packs\Domain\ValueObjects\DecantCount;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackStatus;
+use Src\Decants\Packs\Domain\ValueObjects\ExpiryReason;
 use Src\Decants\Packs\Domain\ValueObjects\MlPerDecant;
 use Src\Decants\Packs\Domain\ValueObjects\PackPrice;
 use Src\Decants\Packs\Domain\ValueObjects\PlanName;
@@ -44,6 +45,10 @@ it('R33: buys a pack of an offer on sale that waits for its payment, and then st
         ->and($purchased->payment?->checkoutUrl)->toBe('https://checkout.onvopay.com/pay/'.$purchased->pack->id->value)
         ->and($wiring->packs->all())->toBe([$purchased->pack])
         ->and($wiring->payments->started)->toBe([['pack' => $purchased->pack->id->value, 'user' => PURCHASE_PACK_USER, 'method' => 'sinpe_mobile']])
+        // The queue checks the pack again at its deadline, and expires it if it still waits for its payment (#159).
+        ->and($wiring->deadlines->checks)->toBe([[
+            'pack' => $purchased->pack->id->value, 'business' => PackPurchaseWiring::BUSINESS, 'at' => '2026-11-10T15:30:00-06:00', 'reason' => ExpiryReason::Unpaid,
+        ]])
         // The pack commits in its own transaction; the payment then opens its own ones, outside of it.
         ->and($wiring->transaction->runs())->toBe(1)
         ->and($wiring->transaction->committed())->toBe(1);
@@ -54,7 +59,8 @@ it('R33: lets the pack wait for its payment as many minutes as the store gives a
 
     $purchased = $wiring->purchase->execute(purchaseOf($wiring->plan->id->value));
 
-    expect($purchased->pack->expiresAt)->toEqual(new DateTimeImmutable($deadline));
+    expect($purchased->pack->expiresAt)->toEqual(new DateTimeImmutable($deadline))
+        ->and(array_column($wiring->deadlines->checks, 'at'))->toBe([$deadline]);
 })->with([
     'the 30 minutes of every store' => [30, '2026-11-10T15:30:00-06:00'],
     'the 45 minutes of a store that changed them' => [45, '2026-11-10T15:45:00-06:00'],
@@ -79,7 +85,8 @@ it('answers the same pack and its payment when the purchase is sent again with t
     expect($again->created)->toBeFalse()
         ->and($again->pack->id->value)->toBe($first->pack->id->value)
         ->and($again->payment)->toBe($first->payment)
-        ->and($wiring->packs->added)->toBe(1);
+        ->and($wiring->packs->added)->toBe(1)
+        ->and($wiring->deadlines->checks)->toHaveCount(1);
 });
 
 it('answers the pack of the request that won the race when two purchases with the same key arrive at once', function () {
@@ -93,7 +100,8 @@ it('answers the pack of the request that won the race when two purchases with th
         ->and($loser->pack->id->value)->toBe($winner->pack->id->value)
         ->and($loser->payment)->toBe($winner->payment)
         ->and($wiring->packs->added)->toBe(1)
-        // The insert of the loser rolled back its transaction; the winner was read in a new one.
+        // The insert of the loser rolled back its transaction before it asked for a check; the winner was read in a new one.
+        ->and(array_column($wiring->deadlines->checks, 'pack'))->toBe([$winner->pack->id->value])
         ->and($wiring->transaction->rolledBack())->toBe(1)
         ->and($wiring->transaction->runs())->toBe(3);
 });
@@ -108,6 +116,7 @@ it('refuses the same key for another offer, and buys nothing', function () {
     expect(fn () => $wiring->purchase->execute(purchaseOf($other->id->value, 'compra-1')))
         ->toThrow(IdempotencyKeyReusedException::class, 'packs.idempotency_key_reused')
         ->and($wiring->packs->added)->toBe(1)
+        ->and($wiring->deadlines->checks)->toHaveCount(1)
         ->and($wiring->payments->started)->toHaveCount(1);
 });
 
@@ -158,6 +167,7 @@ it('R32: buys only an offer on sale of the store of the address', function (Clos
     expect(fn () => $wiring->purchase->execute(purchaseOf($planOf($wiring))))
         ->toThrow(DecantPackPlanNotFoundException::class, 'packs.plan_not_found')
         ->and($wiring->packs->added)->toBe(0)
+        ->and($wiring->deadlines->checks)->toBe([])
         ->and($wiring->payments->started)->toBe([]);
 })->with([
     'an offer taken off sale' => [function (PackPurchaseWiring $wiring): string {
