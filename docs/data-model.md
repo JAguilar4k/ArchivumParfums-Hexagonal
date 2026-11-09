@@ -491,8 +491,8 @@ Cada fila es un intento de cobro de un pedido. La intención se confirma en una 
 | `order_id` | `uuid` | Obligatoria; llave foránea compuesta a `orders(id, business_id)` |
 | `purpose` | `varchar(16)` | `payments_purpose_check`: `deposit`, `balance` o `full` |
 | `amount` | `integer` | Principal en colones; `payments_amount_check`: mayor que 0 |
-| `gateway` | `varchar(16)` | `payments_gateway_check`: `onvo`, `paypal` o `manual`; el flujo manual queda reservado para #98 |
-| `method` | `varchar(24)` | Por defecto `card`; `payments_method_check`: `card` o `sinpe_mobile` |
+| `gateway` | `varchar(16)` | `payments_gateway_check`: `onvo`, `paypal` o `manual`; `manual` es el pago del saldo que un dueño registra en la entrega (#98) |
+| `method` | `varchar(24)` | Medio del cobro en línea. Por defecto `card`; `payments_method_check`: `card` o `sinpe_mobile` con una pasarela y nulo con `manual`, cuyo medio está en `manual_method` |
 | `status` | `varchar(24)` | Por defecto `pending`; `payments_status_check`: `pending`, `succeeded`, `failed`, `expired`, `refunded` o `partially_refunded` |
 | `charged_currency` | `varchar(3)` | Por defecto `CRC`; `payments_charged_currency_check`: `CRC` o `USD` |
 | `charged_amount` | `integer` | Por defecto 0 mientras no haya respuesta; `payments_charged_amount_check`: no negativo. En CRC guarda colones enteros; en USD guarda centavos |
@@ -500,8 +500,8 @@ Cada fila es un intento de cobro de un pedido. La intención se confirma en una 
 | `provider_reference`, `checkout_reference`, `capture_reference` | `varchar(255)` | Opcionales; identidad principal del proveedor, sesión u orden de checkout, e intención de pago de ONVO o captura de PayPal |
 | `checkout_url` | `text` | Opcional; dirección de aprobación entregada por el proveedor |
 | `refunded_amount` | `integer` | Colones; por defecto 0; `payments_refunded_amount_check`: entre 0 y `amount` |
-| `recorded_by` | `uuid` | Opcional; llave foránea compuesta al miembro `members(id, business_id)` para el pago manual |
-| `manual_method`, `manual_reference` | `varchar(16)`, `varchar(255)` | Opcionales; `payments_manual_reference_check` exige actor, referencia y medio `sinpe` o `cash` cuando la pasarela es `manual` |
+| `recorded_by` | `uuid` | Opcional; llave foránea compuesta al miembro `members(id, business_id)`: el dueño que registró el pago en la entrega |
+| `manual_method`, `manual_reference` | `varchar(16)`, `varchar(255)` | Opcionales; `payments_manual_reference_check` exige actor, referencia y medio `sinpe` o `cash` cuando la pasarela es `manual`. En ese pago, `created_at` es el momento en que el dueño lo registró |
 | `created_at`, `updated_at` | `timestamptz` | |
 
 - Llaves únicas: `id`, `(id, business_id)` y `(business_id, gateway, provider_reference)`; las referencias nulas no impiden guardar una intención todavía sin respuesta.

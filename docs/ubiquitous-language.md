@@ -76,7 +76,10 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Pago | `Payment` | `payments` | `pagos` |
 | Recurso que se cobra | `Payable` | Actualmente `payments.order_id` con llave foránea compuesta | El pedido `{pedido}` de la ruta |
 | Propósito del pago | `PaymentPurpose` | `payments.purpose` | `proposito`: `deposito`, `saldo` o `total` |
-| Medio de pago | `PaymentMethod` | `payments.method` | `medio`: `tarjeta` o `sinpe_movil` |
+| Medio de pago | `PaymentMethod` | `payments.method` | `medio`: `tarjeta` o `sinpe_movil`; nulo en un pago en la entrega |
+| Pago en la entrega | `Payment::recordManually()`, pasarela `manual` | `payments` con `gateway = 'manual'`, ya `succeeded` y con propósito `balance` | `POST /api/v1/panel/pedidos/{pedido}/pagos-manuales`; `pasarela`: `manual` |
+| Registro del pago en la entrega | `ManualRecord` | `payments.recorded_by`, `manual_method`, `manual_reference` y `created_at` | `registrado_por` (`id` y `nombre`), `metodo`, `referencia` y `registrado_en` |
+| Medio del pago en la entrega | `ManualPaymentMethod` | `payments.manual_method`: `sinpe` o `cash` | `metodo`: `sinpe` o `efectivo` |
 | Principal del pago | `amount` | `payments.amount`, colones enteros | `monto` |
 | Moneda del cobro externo | `chargedCurrency` | `payments.charged_currency` | `moneda_cobrada`: `CRC` o `USD` |
 | Importe del cobro externo | `chargedAmount` | `payments.charged_amount` | `monto_cobrado`: colones enteros en CRC; centavos en USD |
@@ -101,6 +104,15 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Orden de compra | `PurchaseOrder` | `purchase_orders` | `ordenes-de-compra` |
 | Línea de la orden de compra | `PurchaseOrderLine` | `purchase_order_lines` | `lineas` |
 | Recomendación | `Recommendation` | — | `recomendaciones` |
+| Catálogo del recomendador | `RecommendableCatalog`, `CatalogPerfume` | — | No viaja: es la vitrina de la tienda que recibe la IA y contra la que se valida su sugerencia |
+| Preferencias del cliente | `CustomerPreferences` | — | `preferencias` |
+| Perfume sugerido | `SuggestedPerfume` | — | `perfumes`, cada uno con su `razon` |
+| Origen de la recomendación | `RecommendationOrigin` | — | `origen` |
+| Validación de la sugerencia | `SuggestionValidator`, `SuggestionValidation` | — | No viaja: decide qué parte de la salida de la IA se usa |
+| Causa de descarte | `DiscardCause` | — | No viaja: el log cuenta los descartes por causa |
+| Máscara de datos personales | `PersonalDataMask` | — | No viaja: cambia los correos y teléfonos del texto por `[correo]` y `[teléfono]` antes de que llegue a un recomendador |
+| Recomendador por reglas | `RuleBasedRecommender` | — | Su respuesta lleva `origen: "reglas"` |
+| Coincidencia con el texto | `RuleMatch` | — | No viaja: da el puntaje y la razón del perfume |
 
 El dueño y el colaborador son los dos roles del personal: en la base son los valores `owner` y `staff` de `members.role`. Una cuenta que no está en el personal de ninguna tienda es cliente. En la API, `rol` vale `dueno`, `colaborador` o `cliente`.
 
@@ -110,7 +122,7 @@ Los ml se manejan como enteros. Al registrar una botella, `ml_totales` debe coin
 
 El depósito usa el porcentaje vigente al crear el pedido y lo congela en `orders.deposit_percent`; el precio de cada línea también queda congelado. Ningún importe de pedido o pago se calcula a partir de un precio recibido del navegador. En Investigación 1 el objeto `Payable` representa un pedido: ampliar el cobro a paquetes en #143 exige conservar una relación con llave foránea y tienda verificable.
 
-`payments.recorded_by` reserva el actor de un futuro pago manual y referencia a `members(id, business_id)`, no a `users`. El autor de un movimiento de ml sí es una cuenta global porque puede ser personal, cliente o nulo en una operación automática.
+`payments.recorded_by` guarda al dueño que registró un pago en la entrega (#98) y referencia a `members(id, business_id)`, no a `users`: solo un dueño de la tienda registra ese pago. El autor de un movimiento de ml sí es una cuenta global porque puede ser personal, cliente o nulo en una operación automática.
 
 ## Estados
 
@@ -180,6 +192,7 @@ Los valores cerrados adicionales se traducen en la frontera HTTP:
 | Tipo de línea | `bottle`, `decant` | `botella`, `decant` |
 | Propósito del pago | `deposit`, `balance`, `full` | `deposito`, `saldo`, `total` |
 | Medio del pago | `card`, `sinpe_mobile` | `tarjeta`, `sinpe_movil` |
+| Origen de la recomendación | `ai`, `rules` | `ia`, `reglas` |
 
 ## Valores en la API
 
