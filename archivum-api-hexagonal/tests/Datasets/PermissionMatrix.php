@@ -97,6 +97,11 @@ function permissionMatrixRows(): array
             'pagar mi pedido' => ['POST', 'api/v1/cuenta/pedidos/{pedido}/pagos', [], customerOnly(409)],
             'ver mi pago' => ['GET', 'api/v1/cuenta/pagos/{pago}', [], customerOnly(200)],
         ],
+        'paquetes de decants' => [
+            'listar las ofertas de paquetes' => ['GET', 'api/v1/panel/paquetes', [], ownerOnly(200)],
+            'definir una oferta de paquetes' => ['POST', 'api/v1/panel/paquetes', [], ownerOnly(422)],
+            'editar una oferta de paquetes' => ['PATCH', 'api/v1/panel/paquetes/{paquete}', [], ownerOnly(200)],
+        ],
         'registrar pagos en la entrega y reembolsos' => [
             'procesar los reembolsos de un pedido' => ['POST', 'api/v1/panel/pedidos/{pedido}/reembolsos', [], ownerOnly(200)],
         ],

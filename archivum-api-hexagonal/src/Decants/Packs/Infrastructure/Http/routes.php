@@ -1,0 +1,24 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\Route;
+use Src\Decants\Packs\Infrastructure\Http\Controllers\DecantPackPlanController;
+use Src\Decants\Packs\Infrastructure\Http\Controllers\PublicPackPlanController;
+
+// Only the owner defines the offers (section 9): the staff and the customers lack packs:manage and get a 403.
+Route::prefix('panel/paquetes')
+    ->middleware(['auth:sanctum', 'abilities:packs:manage', 'business:staff'])
+    ->name('decants.packs.plans.')
+    ->controller(DecantPackPlanController::class)
+    ->group(function (): void {
+        Route::get('/', 'index')->name('index');
+        Route::post('/', 'store')->name('store');
+        Route::patch('/{paquete}', 'update')->whereUuid('paquete')->name('update');
+    });
+
+// No authentication: any visitor may see the packs on sale. The store comes from the slug of the address and only serves
+// to read its own offers; business:route resolves it and pins the transaction to it for the row-level policies.
+Route::get('tiendas/{tienda}/paquetes', [PublicPackPlanController::class, 'index'])
+    ->middleware('business:route')
+    ->name('decants.packs.on-sale.index');

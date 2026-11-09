@@ -2750,6 +2750,260 @@
                 ]
             }
         },
+        "/panel/paquetes": {
+            "get": {
+                "operationId": "decants.packs.plans.index",
+                "summary": "List the offers of decant packs of the business of the session, on sale or not, by name",
+                "tags": [
+                    "DecantPackPlan"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PanelDecantPackPlan`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PanelDecantPackPlan"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "decants.packs.plans.store",
+                "description": "Ml that the store does not sell as decants are reported on the field ml_por_decant.",
+                "summary": "Define an offer of decant packs in the business of the session",
+                "tags": [
+                    "DecantPackPlan"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreDecantPackPlan"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`PanelDecantPackPlan`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelDecantPackPlan"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/panel/paquetes/{paquete}": {
+            "patch": {
+                "operationId": "decants.packs.plans.update",
+                "description": "The packs already bought keep the decants, the ml and the cap they were bought with.",
+                "summary": "Change the fields sent of an offer of the business of the session, also to take it off sale or put it back",
+                "tags": [
+                    "DecantPackPlan"
+                ],
+                "parameters": [
+                    {
+                        "name": "paquete",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchDecantPackPlan"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PanelDecantPackPlan`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelDecantPackPlan"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/panel/personal": {
             "get": {
                 "operationId": "businesses.members.index",
@@ -4609,6 +4863,68 @@
                 }
             }
         },
+        "/tiendas/{tienda}/paquetes": {
+            "get": {
+                "operationId": "decants.packs.on-sale.index",
+                "summary": "List the decant packs on sale in the store of the address, by name, to any visitor",
+                "tags": [
+                    "PublicPackPlan"
+                ],
+                "parameters": [
+                    {
+                        "name": "tienda",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PublicPackPlan`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PublicPackPlan"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/sesiones": {
             "post": {
                 "operationId": "accounts.sessions.store",
@@ -5630,6 +5946,49 @@
                 ],
                 "title": "PanelBottle"
             },
+            "PanelDecantPackPlan": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "cantidad_decants": {
+                        "type": "integer"
+                    },
+                    "ml_por_decant": {
+                        "type": "integer"
+                    },
+                    "precio": {
+                        "type": "integer"
+                    },
+                    "vigencia_dias": {
+                        "type": "integer"
+                    },
+                    "precio_maximo_por_ml": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "activo": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "cantidad_decants",
+                    "ml_por_decant",
+                    "precio",
+                    "vigencia_dias",
+                    "precio_maximo_por_ml",
+                    "activo"
+                ],
+                "title": "PanelDecantPackPlan"
+            },
             "PanelMovement": {
                 "type": "object",
                 "properties": {
@@ -5842,6 +6201,47 @@
                     }
                 },
                 "title": "PatchDecantBottle"
+            },
+            "PatchDecantPackPlan": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "cantidad_decants": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 50
+                    },
+                    "ml_por_decant": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 32767
+                    },
+                    "precio": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2147483647
+                    },
+                    "vigencia_dias": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 365
+                    },
+                    "precio_maximo_por_ml": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 1,
+                        "maximum": 2147483647
+                    },
+                    "activo": {
+                        "type": "boolean"
+                    }
+                },
+                "title": "PatchDecantPackPlan"
             },
             "PatchPerfume": {
                 "type": "object",
@@ -6175,6 +6575,45 @@
                 ],
                 "title": "PublicBusiness"
             },
+            "PublicPackPlan": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "cantidad_decants": {
+                        "type": "integer"
+                    },
+                    "ml_por_decant": {
+                        "type": "integer"
+                    },
+                    "precio": {
+                        "type": "integer"
+                    },
+                    "vigencia_dias": {
+                        "type": "integer"
+                    },
+                    "precio_maximo_por_ml": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "cantidad_decants",
+                    "ml_por_decant",
+                    "precio",
+                    "vigencia_dias",
+                    "precio_maximo_por_ml"
+                ],
+                "title": "PublicPackPlan"
+            },
             "SessionTokenResource": {
                 "type": "object",
                 "properties": {
@@ -6468,6 +6907,54 @@
                     "abierta_en"
                 ],
                 "title": "StoreDecantBottle"
+            },
+            "StoreDecantPackPlan": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "cantidad_decants": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 50
+                    },
+                    "ml_por_decant": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 32767
+                    },
+                    "precio": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2147483647
+                    },
+                    "vigencia_dias": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 365
+                    },
+                    "precio_maximo_por_ml": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "minimum": 1,
+                        "maximum": 2147483647
+                    },
+                    "activo": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "nombre",
+                    "cantidad_decants",
+                    "ml_por_decant",
+                    "precio",
+                    "vigencia_dias"
+                ],
+                "title": "StoreDecantPackPlan"
             },
             "StoreMemberRequest": {
                 "type": "object",
