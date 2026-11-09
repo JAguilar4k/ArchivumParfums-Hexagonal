@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Src\Decants\Packs\Infrastructure\Persistence\Models;
 
 use Carbon\CarbonImmutable;
+use Database\Factories\DecantPackFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -25,9 +28,11 @@ use Illuminate\Database\Eloquent\Model;
  */
 #[Table('decant_packs')]
 #[Fillable(['id', 'business_id', 'customer_id', 'decant_pack_plan_id', 'total_decants', 'remaining_decants', 'ml_per_decant', 'max_price_per_ml', 'status', 'expires_at', 'idempotency_key'])]
+#[UseFactory(DecantPackFactory::class)]
 final class DecantPackModel extends Model
 {
-    use HasUuids;
+    /** @use HasFactory<DecantPackFactory> */
+    use HasFactory, HasUuids;
 
     /** @return array<string, string> */
     protected function casts(): array

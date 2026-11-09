@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Src\Decants\Packs\Infrastructure;
 
 use Illuminate\Support\ServiceProvider;
+use Src\Decants\Packs\Application\Contracts\DecantPackReader;
 use Src\Decants\Packs\Application\Contracts\DecantSizes;
 use Src\Decants\Packs\Application\Contracts\PackCustomers;
 use Src\Decants\Packs\Application\Contracts\PaymentDeadline;
@@ -17,6 +18,7 @@ use Src\Decants\Packs\Infrastructure\Accounts\AccountsPackCustomers;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\EloquentDecantPackPlanRepository;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\EloquentDecantPackRepository;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\PostgresDecantPackBalance;
+use Src\Decants\Packs\Infrastructure\Persistence\Repositories\PostgresDecantPackReader;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\PostgresPublicPackPlanReader;
 use Src\Decants\Packs\Infrastructure\Settings\BusinessSettingsDecantSizes;
 use Src\Decants\Packs\Infrastructure\Settings\BusinessSettingsPaymentDeadline;
@@ -31,6 +33,7 @@ final class PacksServiceProvider extends ServiceProvider
         DecantPackRepository::class => EloquentDecantPackRepository::class,
         DecantPackBalance::class => PostgresDecantPackBalance::class,
         PublicPackPlanReader::class => PostgresPublicPackPlanReader::class,
+        DecantPackReader::class => PostgresDecantPackReader::class,
         DecantSizes::class => BusinessSettingsDecantSizes::class,
         PackCustomers::class => AccountsPackCustomers::class,
         PaymentDeadline::class => BusinessSettingsPaymentDeadline::class,

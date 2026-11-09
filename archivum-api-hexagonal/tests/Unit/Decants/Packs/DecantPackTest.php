@@ -267,3 +267,9 @@ it('speaks the Spanish vocabulary of the API for each status', function () {
     expect(array_map(fn (DecantPackStatus $status): string => $status->spanish(), DecantPackStatus::cases()))
         ->toBe(['pendiente_de_pago', 'activo', 'agotado', 'vencido']);
 });
+
+it('reads each status back from its word of the API, and none from a word the API does not use', function () {
+    expect(array_map(DecantPackStatus::fromSpanish(...), ['pendiente_de_pago', 'activo', 'agotado', 'vencido']))->toBe(DecantPackStatus::cases())
+        ->and(DecantPackStatus::fromSpanish('expired'))->toBeNull()
+        ->and(DecantPackStatus::fromSpanish(''))->toBeNull();
+});
