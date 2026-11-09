@@ -18,6 +18,7 @@ use Src\Decants\Packs\Domain\ValueObjects\ValidityDays;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Tests\Support\Catalog\FixedBusinessContext;
+use Tests\Support\Decants\FakeDecantPackBalance;
 use Tests\Support\Decants\InMemoryDecantPackPlanRepository;
 use Tests\Support\Decants\InMemoryDecantPackRepository;
 use Tests\Support\Shared\RecordingTransactionRunner;
@@ -27,11 +28,12 @@ const REDEEM_PACK_CUSTOMER = '0192f0c4-aaaa-7000-9000-000000000301';
 
 /**
  * Wire the use case to in-memory adapters that hold a pack of 2 decants of 5 ml with a cap of ₡2 500 per ml, paid at
- * 15:05 of 10/11/2026 and valid for 180 days, or one that still waits for its payment.
+ * 15:05 of 10/11/2026 and valid for 180 days, or one that still waits for its payment. The database has the same
+ * decants left as the pack, unless the test says how many it can still take.
  *
- * @return array{RedeemPackDecant, DecantPack, FixedBusinessContext, InMemoryDecantPackRepository, RecordingTransactionRunner}
+ * @return array{RedeemPackDecant, DecantPack, FixedBusinessContext, InMemoryDecantPackRepository, RecordingTransactionRunner, FakeDecantPackBalance}
  */
-function redemptionWiring(bool $paid = true): array
+function redemptionWiring(bool $paid = true, ?int $leftInTheDatabase = null): array
 {
     $context = new FixedBusinessContext(new BusinessId(REDEEM_PACK_BUSINESS));
     $plans = new InMemoryDecantPackPlanRepository($context);
@@ -43,9 +45,10 @@ function redemptionWiring(bool $paid = true): array
         $pack->activate(new DateTimeImmutable('2026-11-10T15:05:00-06:00'), new ValidityDays(180));
     }
     $packs->add($pack);
+    $balance = new FakeDecantPackBalance([$pack->id->value => $leftInTheDatabase ?? $pack->remainingDecants]);
     $transaction = new RecordingTransactionRunner;
 
-    return [new RedeemPackDecant($packs, $transaction), $pack, $context, $packs, $transaction];
+    return [new RedeemPackDecant($packs, $balance, $transaction), $pack, $context, $packs, $transaction, $balance];
 }
 
 /** A decant of 5 ml of a 100 ml presentation sold at ₡120 000 (₡1 200 per ml), redeemed on 01/12/2026. */
@@ -54,30 +57,51 @@ function redemptionOf(string $packId, int $ml = 5, int $salePrice = 120000, stri
     return new RedeemPackDecantCommand($packId, $customerId, $ml, $salePrice, 100, $at);
 }
 
-it('R34: takes one decant of an active pack of the customer, locked until the transaction of the order ends', function () {
-    [$redeem, $pack, , $packs, $transaction] = redemptionWiring();
+it('R34: takes one decant of an active pack of the customer from its balance in the database', function () {
+    [$redeem, $pack, , , $transaction, $balance] = redemptionWiring();
 
     $redeem->execute(redemptionOf($pack->id->value));
 
-    expect($packs->find($pack->id)?->remainingDecants)->toBe(1)
-        ->and($pack->status)->toBe(DecantPackStatus::Active)
-        // The pack is locked before it changes, so a second redemption waits and then sees the decant this one left.
-        ->and($packs->lockedIds)->toBe([$pack->id->value])
+    expect($balance->taken)->toBe([$pack->id->value])
         ->and($transaction->committed())->toBe(1);
 
     $redeem->execute(redemptionOf($pack->id->value));
 
-    expect($pack->remainingDecants)->toBe(0)
+    expect($balance->taken)->toBe([$pack->id->value, $pack->id->value])
         ->and($pack->status)->toBe(DecantPackStatus::Exhausted)
+        // A pack read without decants left refuses the decant before the database is asked.
         ->and(fn () => $redeem->execute(redemptionOf($pack->id->value)))->toThrow(DecantPackConflictException::class, 'packs.exhausted')
-        ->and($pack->remainingDecants)->toBe(0);
+        ->and($balance->taken)->toHaveCount(2);
+});
+
+it('R34: answers that no decant is left when another order took the last one after the pack was read', function () {
+    [$redeem, $pack, , , $transaction, $balance] = redemptionWiring(leftInTheDatabase: 0);
+
+    expect(fn () => $redeem->execute(redemptionOf($pack->id->value)))->toThrow(DecantPackConflictException::class, 'packs.exhausted')
+        ->and($balance->taken)->toBe([])
+        ->and($transaction->rolledBack())->toBe(1);
+});
+
+it('R35: answers that the pack expired when it was expired after it was read', function () {
+    [$redeem, $pack, , $packs, $transaction, $balance] = redemptionWiring(leftInTheDatabase: 0);
+    // The queue expires its own copy of the pack and saves it while the order waits for the row.
+    $balance->meanwhile = function () use ($pack, $packs): void {
+        $expired = clone $pack;
+        $expired->expire($pack->expiresAt);
+        $packs->save($expired);
+    };
+
+    expect(fn () => $redeem->execute(redemptionOf($pack->id->value)))->toThrow(DecantPackConflictException::class, 'packs.expired')
+        ->and($balance->taken)->toBe([])
+        ->and($transaction->rolledBack())->toBe(1);
 });
 
 it('R34: refuses a decant the pack does not cover and leaves the pack as it was', function (int $ml, int $salePrice, string $key) {
-    [$redeem, $pack, , , $transaction] = redemptionWiring();
+    [$redeem, $pack, , , $transaction, $balance] = redemptionWiring();
 
     expect(fn () => $redeem->execute(redemptionOf($pack->id->value, $ml, $salePrice)))->toThrow(InvalidValueException::class, $key)
         ->and($pack->remainingDecants)->toBe(2)
+        ->and($balance->taken)->toBe([])
         ->and($transaction->rolledBack())->toBe(1);
 })->with([
     'fewer ml than the pack' => [2, 120000, 'packs.ml_mismatch'],
@@ -86,23 +110,25 @@ it('R34: refuses a decant the pack does not cover and leaves the pack as it was'
 ]);
 
 it('R35: refuses a pack that waits for its payment or whose validity ended', function () {
-    [$redeem, $pack] = redemptionWiring(paid: false);
-    [$redeemActive, $active] = redemptionWiring();
+    [$redeem, $pack, , , , $balance] = redemptionWiring(paid: false);
+    [$redeemActive, $active, , , , $activeBalance] = redemptionWiring();
 
     expect(fn () => $redeem->execute(redemptionOf($pack->id->value, at: '2026-11-10T15:10:00-06:00')))
         ->toThrow(DecantPackConflictException::class, 'packs.not_active')
         ->and(fn () => $redeemActive->execute(redemptionOf($active->id->value, at: '2027-05-09T15:05:00-06:00')))
         ->toThrow(DecantPackConflictException::class, 'packs.expired')
         ->and($pack->remainingDecants)->toBe(2)
-        ->and($active->remainingDecants)->toBe(2);
+        ->and($active->remainingDecants)->toBe(2)
+        ->and([...$balance->taken, ...$activeBalance->taken])->toBe([]);
 });
 
 it('finds no pack of another customer, of another business or with an identifier that is not one of a pack', function (Closure $commandFor) {
-    [$redeem, $pack, $context] = redemptionWiring();
+    [$redeem, $pack, $context, , , $balance] = redemptionWiring();
 
     expect(fn () => $redeem->execute($commandFor($pack, $context)))
         ->toThrow(DecantPackNotFoundException::class, 'packs.pack_not_found')
-        ->and($pack->remainingDecants)->toBe(2);
+        ->and($pack->remainingDecants)->toBe(2)
+        ->and($balance->taken)->toBe([]);
 })->with([
     'a pack of another customer' => [fn (DecantPack $pack): RedeemPackDecantCommand => redemptionOf($pack->id->value, customerId: '0192f0c4-aaaa-7000-9000-000000000302')],
     'a pack of another business' => [function (DecantPack $pack, FixedBusinessContext $context): RedeemPackDecantCommand {
