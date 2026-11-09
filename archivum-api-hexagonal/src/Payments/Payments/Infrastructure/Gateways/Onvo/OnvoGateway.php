@@ -233,6 +233,15 @@ final readonly class OnvoGateway implements PaymentGateway
         });
     }
 
+    /**
+     * ONVO documents no idempotency key for its requests (docs/payment-gateways.md): a refund whose answer was lost may
+     * exist, so it is never sent again and a person checks it in ONVO.
+     */
+    public function resendsRefunds(): bool
+    {
+        return false;
+    }
+
     public function verifyWebhook(string $body, array $headers): bool
     {
         $headers = array_change_key_case($headers, CASE_LOWER);

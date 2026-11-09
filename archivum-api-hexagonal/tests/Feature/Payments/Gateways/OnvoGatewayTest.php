@@ -398,6 +398,10 @@ it('reports a refund request whose outcome ONVO does not say as unavailable, nev
     'a lost connection' => [fn () => Http::failedConnection()],
 ]);
 
+it('never sends a refund whose answer was lost again, because ONVO documents no idempotency key', function (): void {
+    expect((new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->resendsRefunds())->toBeFalse();
+});
+
 it('accepts only the configured webhook secret regardless of header casing', function (): void {
     $gateway = new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c', 'webhook_secret_fake');
 

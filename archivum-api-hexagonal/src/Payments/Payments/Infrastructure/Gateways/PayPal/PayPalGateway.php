@@ -201,6 +201,15 @@ final readonly class PayPalGateway implements PaymentGateway
         return $this->refundResult($refund, $request);
     }
 
+    /**
+     * PayPal keeps the PayPal-Request-Id of a refund and answers the same refund when the request comes again, so a
+     * refund whose answer was lost is asked again by the retries of the queue.
+     */
+    public function resendsRefunds(): bool
+    {
+        return true;
+    }
+
     /** Check that PayPal answers about this refund, in dollars and for its exact cents, and read its state. */
     private function refundResult(Response $response, RefundRequest $request, ?string $expectedReference = null): RefundResult
     {

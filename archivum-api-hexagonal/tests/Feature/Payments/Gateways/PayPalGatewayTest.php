@@ -229,7 +229,7 @@ it('reports a refusal of PayPal as a failed refund, not as an unavailable provid
     'an amount above what is left of the capture' => [422, 'UNPROCESSABLE_ENTITY'],
 ]);
 
-it('reports a refund request whose outcome PayPal does not say as unavailable, never as failed', function (int $status): void {
+it('reports a refund request whose outcome PayPal does not say as unavailable, so the queue can send it again', function (int $status): void {
     Http::fake([
         'api-m.sandbox.paypal.com/v1/oauth2/token' => Http::response(['access_token' => 'fake-token']),
         'api-m.sandbox.paypal.com/v2/payments/captures/capture-1/refund' => Http::response(['name' => 'ERROR'], $status),
@@ -237,7 +237,9 @@ it('reports a refund request whose outcome PayPal does not say as unavailable, n
     $gateway = new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c');
 
     expect(fn () => $gateway->refund(new RefundRequest('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'order-1', 1_491, 'capture-1')))
-        ->toThrow(GatewayUnavailableException::class);
+        ->toThrow(GatewayUnavailableException::class)
+        // The same PayPal-Request-Id makes PayPal answer the refund it may have created instead of a second one.
+        ->and($gateway->resendsRefunds())->toBeTrue();
 })->with(['an expired token' => [401], 'a request still in progress' => [409], 'too many requests' => [429], 'an error of its server' => [500]]);
 
 it('asks only for the state of a refund PayPal already accepted', function (): void {
