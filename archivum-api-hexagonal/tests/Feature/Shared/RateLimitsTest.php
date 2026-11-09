@@ -184,6 +184,17 @@ it('reads every limit from config/archivum.php', function (string $limiter) {
     'password_reset_confirmation_by_ip', 'password_reset_confirmation_by_email',
 ]);
 
+it('applies the limiter to POST /api/v1/webhooks/onvo and POST /api/v1/webhooks/paypal', function (string $uri) {
+    limitTo('webhooks_by_ip', 1);
+
+    // A notice without its secret or its signature is rejected before any provider is asked.
+    postFrom('10.0.0.1', $uri)->assertUnauthorized();
+
+    expectTooManyRequests(postFrom('10.0.0.1', $uri));
+
+    postFrom('10.0.0.2', $uri)->assertUnauthorized();
+})->with(['/api/v1/webhooks/onvo', '/api/v1/webhooks/paypal']);
+
 it('applies the limiter to POST /api/v1/tiendas/{tienda}/recomendaciones', function () {
     limitTo('recommendations_by_ip', 1);
     // The AI of the tests, so the request never reaches a provider; the store has an empty showcase anyway.
@@ -196,6 +207,3 @@ it('applies the limiter to POST /api/v1/tiendas/{tienda}/recomendaciones', funct
 
     postFrom('10.0.0.2', $uri, ['texto' => 'Algo fresco para el día.'])->assertOk();
 });
-
-// This route does not exist yet: its issue applies the limiter already named here to it.
-it('applies the limiter to POST /api/v1/webhooks/onvo and POST /api/v1/webhooks/paypal')->todo('#94');

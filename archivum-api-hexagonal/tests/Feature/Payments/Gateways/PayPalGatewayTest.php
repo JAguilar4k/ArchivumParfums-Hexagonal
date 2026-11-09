@@ -212,3 +212,53 @@ it('does not treat an OAuth or upstream failure as a payment decline', function 
 
     Http::assertSentCount(1);
 })->with([401, 503]);
+
+it('reads an approved order notice from its purchase unit, in cents', function (): void {
+    $event = (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'id' => 'WH-1', 'event_type' => 'CHECKOUT.ORDER.APPROVED',
+        'resource' => ['id' => 'order-1', 'status' => 'APPROVED', 'purchase_units' => [[
+            'custom_id' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62:0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a61', 'amount' => ['currency_code' => 'USD', 'value' => '15.63'],
+        ]]],
+    ]));
+
+    expect($event->gateway)->toBe('paypal')
+        ->and($event->eventId)->toBe('WH-1')
+        ->and($event->reference)->toBe('order-1')
+        ->and($event->businessId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62')
+        ->and($event->paymentId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a61')
+        ->and($event->currency)->toBe('USD')
+        ->and($event->amount)->toBe(1_563);
+    Http::assertNothingSent();
+});
+
+it('reads a capture notice by the order it belongs to', function (): void {
+    $event = (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'id' => 'WH-2', 'event_type' => 'PAYMENT.CAPTURE.COMPLETED',
+        'resource' => ['id' => 'capture-1', 'status' => 'COMPLETED', 'custom_id' => 'not-ours', 'amount' => ['currency_code' => 'USD', 'value' => '30.00'],
+            'supplementary_data' => ['related_ids' => ['order_id' => 'order-1']]],
+    ]));
+
+    expect($event->reference)->toBe('order-1')
+        ->and($event->businessId)->toBeNull()
+        ->and($event->paymentId)->toBeNull()
+        ->and($event->amount)->toBe(3_000);
+});
+
+it('reads refunds and other notices without a charge until refunds join with #97', function (string $type): void {
+    $event = (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'id' => 'WH-3', 'event_type' => $type, 'resource' => ['id' => 'refund-1', 'amount' => ['currency_code' => 'USD', 'value' => '30.00']],
+    ]));
+
+    expect($event->aboutCharge())->toBeFalse()->and($event->eventId)->toBe('WH-3');
+})->with(['PAYMENT.CAPTURE.REFUNDED', 'CUSTOMER.DISPUTE.CREATED']);
+
+it('refuses a body that is not a notice of PayPal', function (string $body): void {
+    expect(fn () => (new PayPalGateway('fake-client', 'fake-secret', 'https://example.test/r', 'https://example.test/c'))->parseWebhook($body))
+        ->toThrow(InvalidValueException::class, 'payments.invalid_webhook');
+})->with([
+    'not JSON' => ['not-json'],
+    'without id' => ['{"event_type":"CHECKOUT.ORDER.APPROVED","resource":{"id":"order-1"}}'],
+    'without resource' => ['{"id":"WH-1","event_type":"CHECKOUT.ORDER.APPROVED"}'],
+    'an approval without order' => ['{"id":"WH-1","event_type":"CHECKOUT.ORDER.APPROVED","resource":{"purchase_units":[]}}'],
+    'a capture without order' => ['{"id":"WH-1","event_type":"PAYMENT.CAPTURE.COMPLETED","resource":{"id":"capture-1"}}'],
+]);
