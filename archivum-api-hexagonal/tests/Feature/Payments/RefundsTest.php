@@ -218,12 +218,12 @@ it('R40: rejects with a conflict a refund above what is left of its payment, cou
     Http::assertNothingSent();
 });
 
-it('R40: leaves the refund failed, visible to the owner, and the payment unchanged when the gateway rejects it', function (string $rejection, ?string $reference): void {
+it('R40: leaves the refund failed, visible to the owner, and the payment unchanged when the gateway rejects it', function (?int $refusal, ?string $reference): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business, 'confirmed')['order'];
     $payment = StoredPayments::create($business, $order, 'succeeded');
-    if ($rejection === 'refused') {
-        Http::fake(['api.onvopay.com/v1/refunds' => Http::response(['code' => 'refund_declined'], 402)]);
+    if ($refusal !== null) {
+        Http::fake(['api.onvopay.com/v1/refunds' => Http::response(['code' => 'refused'], $refusal)]);
     } else {
         fakeOnvoRefund($payment, 'refund-failed', 750_000, 'failed');
     }
@@ -239,11 +239,14 @@ it('R40: leaves the refund failed, visible to the owner, and the payment unchang
     postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.estado', 'fallido')->assertJsonPath('data.0.monto', 7500)->assertJsonPath('data.0.pago', $payment->id);
     // A rejected refund is not sent again by itself.
-    expect(DB::table('jobs')->count())->toBe(0);
-    Http::assertSentCount($rejection === 'refused' ? 1 : 2);
+    expect(DB::table('jobs')->count())->toBe(0)
+        ->and(DB::table('failed_jobs')->count())->toBe(0);
+    Http::assertSentCount($refusal !== null ? 1 : 2);
 })->with([
-    'a refusal of the request' => ['refused', null],
-    'a refund the provider failed' => ['failed', 'refund-failed'],
+    'a declined refund' => [402, null],
+    'a key ONVO does not accept' => [401, null],
+    'an intent ONVO does not know' => [404, null],
+    'a refund the provider failed' => [null, 'refund-failed'],
 ]);
 
 it('R40: confirms with the reconciliation a refund the provider still processes', function (): void {

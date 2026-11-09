@@ -357,15 +357,46 @@ it('preserves the refund reference when its subsequent query cannot communicate'
     Http::assertSentCount(2);
 });
 
-it('reports a refusal of ONVO as a failed refund without a reference and without asking for it', function (): void {
-    Http::fake(['api.onvopay.com/v1/refunds' => Http::response(['code' => 'refund_declined'], 402)]);
+it('reports a refusal of ONVO as a failed refund without a reference and without asking for it', function (int $status): void {
+    Http::fake(['api.onvopay.com/v1/refunds' => Http::response(['code' => 'refused'], $status)]);
 
     $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1'));
 
     // ONVO created no refund, so there is no reference of the provider to keep or to query.
     expect($result->status)->toBe('failed')->and($result->providerReference)->toBeNull();
     Http::assertSentCount(1);
+})->with([
+    'a declined refund' => [402],
+    'an invalid request' => [400],
+    'a key ONVO does not accept' => [401],
+    'a request ONVO does not allow' => [403],
+    'an intent ONVO does not know' => [404],
+    'a refund ONVO cannot process' => [422],
+]);
+
+it('reports a refusal of ONVO to find the intent of a checkout as a failed refund, without requesting it', function (): void {
+    Http::fake(['api.onvopay.com/v1/checkout/sessions/session-1' => Http::response(['code' => 'not_found'], 404)]);
+
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500));
+
+    expect($result->status)->toBe('failed')->and($result->providerReference)->toBeNull();
+    Http::assertSentCount(1);
 });
+
+it('reports a refund request whose outcome ONVO does not say as unavailable, never as failed', function (Closure $answer): void {
+    Http::fake(['api.onvopay.com/v1/refunds' => $answer()]);
+
+    expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1')))
+        ->toThrow(GatewayUnavailableException::class);
+
+    Http::assertSentCount(1);
+})->with([
+    'a timeout' => [fn () => Http::response(['code' => 'timeout'], 408)],
+    'a conflict' => [fn () => Http::response(['code' => 'conflict'], 409)],
+    'too many requests' => [fn () => Http::response(['code' => 'rate_limited'], 429)],
+    'an error of its server' => [fn () => Http::response(['code' => 'server_error'], 500)],
+    'a lost connection' => [fn () => Http::failedConnection()],
+]);
 
 it('accepts only the configured webhook secret regardless of header casing', function (): void {
     $gateway = new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c', 'webhook_secret_fake');
