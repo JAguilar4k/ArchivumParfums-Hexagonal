@@ -432,10 +432,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Confirm only by asking the provider from the server; the request carries no status */
+        /** Read the stored payment: this query never asks the provider nor changes the payment, and the request carries no status */
         get: operations["payments.show"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/panel/pedidos/{pedido}/pagos-manuales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record the balance that the customer paid the owner on delivery, by SINPE or in cash; no gateway takes part */
+        post: operations["payments.manual.store"];
         delete?: never;
         options?: never;
         head?: never;
@@ -453,6 +470,40 @@ export interface paths {
         put?: never;
         /** Process only refund amounts already registered by cancellation or an unavailable line */
         post: operations["payments.refunds.process"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/onvo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive a notice of ONVO Pay, whose origin is the secret ONVO sends in `X-Webhook-Secret` */
+        post: operations["payments.webhooks.onvo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/paypal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive a notice of PayPal, whose signature PayPal's verification API checks */
+        post: operations["payments.webhooks.paypal"];
         delete?: never;
         options?: never;
         head?: never;
@@ -718,6 +769,25 @@ export interface components {
                 slug: string;
             } | null;
         };
+        /** ManualPaymentResource */
+        ManualPaymentResource: {
+            id: string;
+            /** @enum {string} */
+            proposito: "deposito" | "saldo" | "total";
+            monto: number;
+            /** @constant */
+            pasarela: "manual";
+            /** @enum {string} */
+            estado: "confirmado" | "reembolsado" | "reembolsado_parcialmente" | "pendiente";
+            /** @enum {string} */
+            metodo: "efectivo" | "sinpe";
+            referencia: string;
+            registrado_por: {
+                id: string;
+                nombre: string;
+            };
+            registrado_en: string;
+        };
         /** MemberResource */
         MemberResource: {
             id: string;
@@ -868,6 +938,12 @@ export interface components {
             precio_manual?: number | null;
             activa?: boolean;
         };
+        /** PaymentNoticeResource */
+        PaymentNoticeResource: {
+            evento: string;
+            /** @enum {string} */
+            estado: "repetido" | "recibido";
+        };
         /** PaymentResource */
         PaymentResource: {
             id: string;
@@ -880,8 +956,11 @@ export interface components {
             /** @enum {string} */
             estado: "confirmado" | "fallido" | "vencido" | "reembolsado" | "reembolsado_parcialmente" | "pendiente";
             url_pago: string | null;
-            /** @enum {string} */
-            medio: "sinpe_movil" | "tarjeta";
+            /**
+             * @description Medio del cobro en línea; es nulo en un pago registrado en la entrega.
+             * @enum {string|null}
+             */
+            medio: "tarjeta" | "sinpe_movil" | null;
             consulta_pendiente: boolean;
         };
         /** Problema */
@@ -1025,6 +1104,18 @@ export interface components {
             /** Format: date-time */
             abierta_en: string;
             notas?: string | null;
+        };
+        /** StoreManualPayment */
+        StoreManualPayment: {
+            /**
+             * @description Cómo pagó el cliente al recibir el pedido: `sinpe` o `efectivo`.
+             * @enum {string}
+             */
+            metodo: "sinpe" | "efectivo";
+            /** @description Colones enteros recibidos. No puede superar el saldo del pedido. */
+            monto: number;
+            /** @description Referencia de la transferencia SINPE o del recibo del pago en efectivo. */
+            referencia: string;
         };
         /** StoreMemberRequest */
         StoreMemberRequest: {
@@ -3317,7 +3408,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Estado del pago consultado desde el servidor. */
+            /** @description Estado guardado del pago. Mientras siga pendiente, el cliente muestra "procesando". */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -3328,7 +3419,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description El resultado sigue pendiente de consulta al proveedor. */
+            /** @description Todavía no se sabe si el proveedor creó el cobro. */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -3336,6 +3427,88 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["PaymentResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Conflicto */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "payments.manual.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pedido: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreManualPayment"];
+            };
+        };
+        responses: {
+            /** @description Se registra el pago del saldo, ya confirmado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ManualPaymentResource"];
                     };
                 };
             };
@@ -3468,6 +3641,122 @@ export interface operations {
             };
             /** @description Error interno */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "payments.webhooks.onvo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PaymentNoticeResource"];
+                    };
+                };
+            };
+            /** @description Credenciales inválidas */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Servicio no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "payments.webhooks.paypal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PaymentNoticeResource"];
+                    };
+                };
+            };
+            /** @description Credenciales inválidas */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Servicio no disponible */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

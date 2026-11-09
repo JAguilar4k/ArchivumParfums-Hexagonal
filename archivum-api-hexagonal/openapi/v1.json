@@ -3398,7 +3398,7 @@
         "/cuenta/pagos/{pago}": {
             "get": {
                 "operationId": "payments.show",
-                "summary": "Confirm only by asking the provider from the server; the request carries no status",
+                "summary": "Read the stored payment: this query never asks the provider nor changes the payment, and the request carries no status",
                 "tags": [
                     "Payment"
                 ],
@@ -3414,7 +3414,7 @@
                 ],
                 "responses": {
                     "202": {
-                        "description": "El resultado sigue pendiente de consulta al proveedor.",
+                        "description": "Todav\u00eda no se sabe si el proveedor cre\u00f3 el cobro.",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3432,7 +3432,7 @@
                         }
                     },
                     "200": {
-                        "description": "Estado del pago consultado desde el servidor.",
+                        "description": "Estado guardado del pago. Mientras siga pendiente, el cliente muestra \"procesando\".",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -3440,6 +3440,120 @@
                                     "properties": {
                                         "data": {
                                             "$ref": "#/components/schemas/PaymentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflicto",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/panel/pedidos/{pedido}/pagos-manuales": {
+            "post": {
+                "operationId": "payments.manual.store",
+                "summary": "Record the balance that the customer paid the owner on delivery, by SINPE or in cash; no gateway takes part",
+                "tags": [
+                    "Payment"
+                ],
+                "parameters": [
+                    {
+                        "name": "pedido",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreManualPayment"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Se registra el pago del saldo, ya confirmado.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/ManualPaymentResource"
                                         }
                                     },
                                     "required": [
@@ -3643,6 +3757,144 @@
                         "sanctum": []
                     }
                 ]
+            }
+        },
+        "/webhooks/onvo": {
+            "post": {
+                "operationId": "payments.webhooks.onvo",
+                "summary": "Receive a notice of ONVO Pay, whose origin is the secret ONVO sends in `X-Webhook-Secret`",
+                "tags": [
+                    "PaymentWebhook"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PaymentNoticeResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciales inv\u00e1lidas",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Servicio no disponible",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/webhooks/paypal": {
+            "post": {
+                "operationId": "payments.webhooks.paypal",
+                "summary": "Receive a notice of PayPal, whose signature PayPal's verification API checks",
+                "tags": [
+                    "PaymentWebhook"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PaymentNoticeResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Credenciales inv\u00e1lidas",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "Servicio no disponible",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         "/panel/perfumes": {
@@ -5401,6 +5653,78 @@
                 ],
                 "title": "CurrentAccountResource"
             },
+            "ManualPaymentResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "proposito": {
+                        "type": "string",
+                        "enum": [
+                            "deposito",
+                            "saldo",
+                            "total"
+                        ]
+                    },
+                    "monto": {
+                        "type": "integer"
+                    },
+                    "pasarela": {
+                        "type": "string",
+                        "const": "manual"
+                    },
+                    "estado": {
+                        "type": "string",
+                        "enum": [
+                            "confirmado",
+                            "reembolsado",
+                            "reembolsado_parcialmente",
+                            "pendiente"
+                        ]
+                    },
+                    "metodo": {
+                        "type": "string",
+                        "enum": [
+                            "efectivo",
+                            "sinpe"
+                        ]
+                    },
+                    "referencia": {
+                        "type": "string"
+                    },
+                    "registrado_por": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre"
+                        ]
+                    },
+                    "registrado_en": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "proposito",
+                    "monto",
+                    "pasarela",
+                    "estado",
+                    "metodo",
+                    "referencia",
+                    "registrado_por",
+                    "registrado_en"
+                ],
+                "title": "ManualPaymentResource"
+            },
             "MemberResource": {
                 "type": "object",
                 "properties": {
@@ -6073,6 +6397,26 @@
                 },
                 "title": "PatchPerfumeVariant"
             },
+            "PaymentNoticeResource": {
+                "type": "object",
+                "properties": {
+                    "evento": {
+                        "type": "string"
+                    },
+                    "estado": {
+                        "type": "string",
+                        "enum": [
+                            "repetido",
+                            "recibido"
+                        ]
+                    }
+                },
+                "required": [
+                    "evento",
+                    "estado"
+                ],
+                "title": "PaymentNoticeResource"
+            },
             "PaymentResource": {
                 "type": "object",
                 "properties": {
@@ -6117,10 +6461,15 @@
                         ]
                     },
                     "medio": {
-                        "type": "string",
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Medio del cobro en l\u00ednea; es nulo en un pago registrado en la entrega.",
                         "enum": [
+                            "tarjeta",
                             "sinpe_movil",
-                            "tarjeta"
+                            null
                         ]
                     },
                     "consulta_pendiente": {
@@ -6660,6 +7009,36 @@
                     "abierta_en"
                 ],
                 "title": "StoreDecantBottle"
+            },
+            "StoreManualPayment": {
+                "type": "object",
+                "properties": {
+                    "metodo": {
+                        "type": "string",
+                        "description": "C\u00f3mo pag\u00f3 el cliente al recibir el pedido: `sinpe` o `efectivo`.",
+                        "enum": [
+                            "sinpe",
+                            "efectivo"
+                        ]
+                    },
+                    "monto": {
+                        "type": "integer",
+                        "description": "Colones enteros recibidos. No puede superar el saldo del pedido.",
+                        "minimum": 1,
+                        "maximum": 2147483647
+                    },
+                    "referencia": {
+                        "type": "string",
+                        "description": "Referencia de la transferencia SINPE o del recibo del pago en efectivo.",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "metodo",
+                    "monto",
+                    "referencia"
+                ],
+                "title": "StoreManualPayment"
             },
             "StoreMemberRequest": {
                 "type": "object",
