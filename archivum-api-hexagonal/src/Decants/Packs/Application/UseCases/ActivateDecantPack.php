@@ -12,6 +12,7 @@ use Src\Decants\Packs\Domain\Entities\DecantPack;
 use Src\Decants\Packs\Domain\Exceptions\DecantPackConflictException;
 use Src\Decants\Packs\Domain\Exceptions\DecantPackNotFoundException;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackId;
+use Src\Decants\Packs\Domain\ValueObjects\DecantPackStatus;
 use Src\Shared\Domain\Contracts\TransactionRunner;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 
@@ -41,7 +42,12 @@ final readonly class ActivateDecantPack
             $plan = $this->plans->find($pack->planId) ?? throw new DecantPackNotFoundException('packs.pack_not_found');
 
             $pack->activate(new DateTimeImmutable($command->activatedAt), $plan->validity);
-            $this->packs->save($pack);
+
+            // Besides the lock, the row changes only while it still waits for its payment, so the activation and the
+            // expiry of the pack that arrive at the same time end with only one of the two (#159).
+            if (! $this->packs->saveIfStatus($pack, DecantPackStatus::PendingPayment)) {
+                throw new DecantPackConflictException('packs.transition');
+            }
 
             return $pack;
         });

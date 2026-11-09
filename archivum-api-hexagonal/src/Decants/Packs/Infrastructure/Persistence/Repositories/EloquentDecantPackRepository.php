@@ -84,6 +84,21 @@ final readonly class EloquentDecantPackRepository implements DecantPackRepositor
             ->update($this->stateOf($pack));
     }
 
+    /**
+     * Besides the lock of the row, UPDATE ... WHERE status = the one it was read with: the database lets only one
+     * operation take the pack out of that status, such as its expiry and the confirmation of its payment (#159).
+     */
+    public function saveIfStatus(DecantPack $pack, DecantPackStatus $expected): bool
+    {
+        $this->assertOfTheBusiness($pack);
+
+        return DecantPackModel::query()
+            ->where('business_id', $pack->businessId->value)
+            ->whereKey($pack->id->value)
+            ->where('status', $expected->value)
+            ->update($this->stateOf($pack)) === 1;
+    }
+
     /** The unique key of the business and the line keeps one redemption per line of an order. */
     public function addRedemption(DecantPackId $packId, string $orderLineId): void
     {

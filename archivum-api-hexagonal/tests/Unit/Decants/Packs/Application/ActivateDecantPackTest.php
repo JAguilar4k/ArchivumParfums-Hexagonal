@@ -67,6 +67,16 @@ it('refuses to activate a pack that no longer waits for its payment', function (
         ->and($pack->expiresAt)->toEqual(new DateTimeImmutable('2027-05-09T15:05:00-06:00'));
 });
 
+it('undoes the activation when the row of the pack stopped waiting for its payment after it was read', function () {
+    [$activate, $pack, , $packs, $transaction] = activationWiring();
+    // The expiry of the pack committed after this operation read it.
+    $packs->changeStoredStatus($pack->id, DecantPackStatus::Expired);
+
+    expect(fn () => $activate->execute(new ActivateDecantPackCommand($pack->id->value, '2026-11-10T15:05:00-06:00')))
+        ->toThrow(DecantPackConflictException::class, 'packs.transition')
+        ->and($transaction->rolledBack())->toBe(1);
+});
+
 it('finds no pack of another business or with an identifier that is not one of a pack', function (Closure $packOf) {
     [$activate, $pack, $context] = activationWiring();
 

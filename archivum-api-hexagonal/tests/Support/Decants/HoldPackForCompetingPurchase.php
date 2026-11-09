@@ -9,6 +9,7 @@ use RuntimeException;
 use Src\Decants\Packs\Domain\Contracts\DecantPackRepository;
 use Src\Decants\Packs\Domain\Entities\DecantPack;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackId;
+use Src\Decants\Packs\Domain\ValueObjects\DecantPackStatus;
 use Src\Decants\Packs\Domain\ValueObjects\IdempotencyKey;
 
 /**
@@ -61,6 +62,11 @@ final class HoldPackForCompetingPurchase implements DecantPackRepository
     public function save(DecantPack $pack): void
     {
         $this->repository->save($pack);
+    }
+
+    public function saveIfStatus(DecantPack $pack, DecantPackStatus $expected): bool
+    {
+        return $this->repository->saveIfStatus($pack, $expected);
     }
 
     public function addRedemption(DecantPackId $packId, string $orderLineId): void
