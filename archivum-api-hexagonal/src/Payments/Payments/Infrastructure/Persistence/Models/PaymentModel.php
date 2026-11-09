@@ -15,7 +15,8 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * @property string $id
  * @property string $business_id
- * @property string $order_id
+ * @property string|null $order_id
+ * @property string|null $decant_pack_id
  * @property string $purpose
  * @property int $amount
  * @property string $gateway
@@ -31,7 +32,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $refunded_amount
  */
 #[Table('payments')]
-#[Fillable(['id', 'business_id', 'order_id', 'purpose', 'amount', 'gateway', 'method', 'status', 'charged_currency', 'charged_amount', 'exchange_rate', 'provider_reference', 'checkout_reference', 'checkout_url', 'capture_reference', 'refunded_amount'])]
+#[Fillable(['id', 'business_id', 'order_id', 'decant_pack_id', 'purpose', 'amount', 'gateway', 'method', 'status', 'charged_currency', 'charged_amount', 'exchange_rate', 'provider_reference', 'checkout_reference', 'checkout_url', 'capture_reference', 'refunded_amount'])]
 #[UseFactory(PaymentFactory::class)]
 final class PaymentModel extends Model
 {

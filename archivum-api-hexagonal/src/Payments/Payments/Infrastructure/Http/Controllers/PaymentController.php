@@ -11,6 +11,7 @@ use Src\Payments\Payments\Application\DTOs\PaymentResult;
 use Src\Payments\Payments\Application\UseCases\ObservePayment;
 use Src\Payments\Payments\Application\UseCases\ProcessOrderRefunds;
 use Src\Payments\Payments\Application\UseCases\StartPayment;
+use Src\Payments\Payments\Domain\ValueObjects\Payable;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentMethod;
 use Src\Payments\Payments\Infrastructure\Http\Requests\StorePayment;
 use Src\Payments\Payments\Infrastructure\Http\Resources\PaymentResource;
@@ -24,7 +25,7 @@ final readonly class PaymentController
     public function store(StorePayment $request, string $pedido, StartPayment $start): JsonResponse
     {
         $method = $request->validated('medio') === 'sinpe_movil' ? PaymentMethod::SinpeMobile : PaymentMethod::Card;
-        $result = $start->execute($pedido, (string) $request->user()?->getAuthIdentifier(), $method);
+        $result = $start->execute(new Payable('order', $pedido), (string) $request->user()?->getAuthIdentifier(), $method);
 
         return $this->respond($result, $request, $result->created ? 201 : 200);
     }

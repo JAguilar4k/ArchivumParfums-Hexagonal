@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Src\Payments\Payments\Application\UseCases\StartPayment;
 use Src\Payments\Payments\Domain\Contracts\PaymentRepository;
+use Src\Payments\Payments\Domain\ValueObjects\Payable;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymentRepository;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\ValueObjects\BusinessId;
@@ -55,7 +56,7 @@ it('creates one remote charge and returns one durable payment to simultaneous Po
         app()->instance(BusinessContext::class, new FixedBusinessContext(new BusinessId($businessId)));
         app()->singleton(HoldInitialPaymentForCompetingRequest::class, fn (): HoldInitialPaymentForCompetingRequest => new HoldInitialPaymentForCompetingRequest(app(EloquentPaymentRepository::class)));
         app()->bind(PaymentRepository::class, fn (): HoldInitialPaymentForCompetingRequest => app(HoldInitialPaymentForCompetingRequest::class));
-        $result = app(StartPayment::class)->execute($orderId, $userId);
+        $result = app(StartPayment::class)->execute(new Payable('order', $orderId), $userId);
 
         return ['id' => $result->id, 'created' => $result->created, 'requests' => Http::recorded()->count(), 'committed_before_post' => $committedAttemptVisible, 'overlap' => app(HoldInitialPaymentForCompetingRequest::class)->observedOverlap];
     };
