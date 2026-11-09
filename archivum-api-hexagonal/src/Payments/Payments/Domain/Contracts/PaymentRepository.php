@@ -17,5 +17,8 @@ interface PaymentRepository
 
     public function pending(Payable $payable, PaymentPurpose $purpose): ?Payment;
 
+    /** Find the payment of the business that a reference of the provider names: its charge, checkout or capture. */
+    public function findByReference(string $gateway, string $reference): ?Payment;
+
     public function save(Payment $payment): void;
 }
