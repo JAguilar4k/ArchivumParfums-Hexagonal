@@ -8,7 +8,7 @@ interface MlReservation
 {
     public function reserve(string $bottleId, int $ml, ?string $orderLineId = null, ?string $userId = null): void;
 
-    public function release(string $bottleId, int $ml, ?string $orderLineId = null, ?string $userId = null): void;
+    public function release(string $bottleId, int $ml, ?string $orderLineId = null, ?string $userId = null, ?string $reason = null): void;
 
     public function consume(string $bottleId, int $ml, ?string $orderLineId = null, ?string $userId = null): void;
 

@@ -6,6 +6,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\PendingCommand;
 use Illuminate\Testing\TestResponse;
 use Src\Payments\Payments\Domain\Contracts\PaymentRepository;
@@ -28,8 +29,8 @@ use function Pest\Laravel\travelTo;
 
 pest()->use(RefreshDatabaseAsOwner::class);
 
-// These tests use the sync queue, so the job of each kept notice runs inside its request; PaymentEventQueueTest
-// sends them through the database queue of production.
+// Most of these tests use the sync queue, so the job of each kept notice runs inside its request; the ones that set
+// queue.default to database send it through the database queue of production, and a worker runs it.
 beforeEach(function (): void {
     config([
         'payments.onvo.secret_key' => 'onvo_test_fake',
@@ -115,6 +116,12 @@ function workOnePaymentEvent(): void
     $worker = artisan('queue:work', ['connection' => 'database', '--once' => true]);
     assert($worker instanceof PendingCommand);
     $worker->assertSuccessful();
+}
+
+/** Leave one more copy of a job in the database queue without its unique key, as php artisan queue:retry does. */
+function pushAnotherPaymentEventJob(ProcessPaymentEventJob $job): void
+{
+    Queue::connection('database')->push($job);
 }
 
 /**
@@ -529,7 +536,7 @@ it('R38: leaves one job for an event sent twice', function (): void {
     Http::assertSentCount(2);
 });
 
-it('R46: never applies a kept notice twice, even when a second job processes it', function (): void {
+it('R46: keeps one job when the kept notice is dispatched again while its job waits', function (): void {
     config(['queue.default' => 'database']);
     $business = StaffedBusiness::create();
     $order = StoredOrders::create($business)['order'];
@@ -538,6 +545,19 @@ it('R46: never applies a kept notice twice, even when a second job processes it'
 
     postOnvoNotice(paidOnvoCheckout($business, $payment))->assertOk();
     ProcessPaymentEventJob::dispatch((string) DB::table('webhook_events')->value('id'));
+
+    expect(DB::table('jobs')->count())->toBe(1);
+});
+
+it('R46: never applies a kept notice twice, even when a second copy of its job runs', function (): void {
+    config(['queue.default' => 'database']);
+    $business = StaffedBusiness::create();
+    $order = StoredOrders::create($business)['order'];
+    $payment = StoredPayments::create($business, $order);
+    fakeOnvoCheckout($payment);
+
+    postOnvoNotice(paidOnvoCheckout($business, $payment))->assertOk();
+    pushAnotherPaymentEventJob(new ProcessPaymentEventJob((string) DB::table('webhook_events')->value('id')));
     expect(DB::table('jobs')->count())->toBe(2);
     workOnePaymentEvent();
     workOnePaymentEvent();
@@ -572,6 +592,48 @@ it('marks the notice failed while the provider cannot be asked and applies it on
         ->and(DB::table('jobs')->value('available_at'))->toBe(now()->addSeconds(10)->getTimestamp());
 
     travel(10)->seconds();
+    workOnePaymentEvent();
+
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded']);
+    assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'confirmed', 'paid' => 7500]);
+    assertDatabaseHas('webhook_events', ['event_id' => $eventId, 'status' => 'processed', 'error' => null]);
+    expect(DB::table('jobs')->count())->toBe(0)
+        ->and(DB::table('failed_jobs')->count())->toBe(0);
+});
+
+it('R46: keeps the job of a notice in failed_jobs while ONVO never answers, and php artisan queue:retry applies it once', function (): void {
+    config(['queue.default' => 'database']);
+    travelTo('2026-11-08 12:00:00');
+    $business = StaffedBusiness::create();
+    $order = StoredOrders::create($business)['order'];
+    $payment = StoredPayments::create($business, $order);
+    $session = Http::sequence();
+    foreach (range(1, 5) as $attempt) {
+        $session->push(['message' => 'unavailable'], 503);
+    }
+    $session->push(['id' => $payment->provider_reference, 'mode' => 'test', 'status' => 'complete', 'paymentIntentId' => $payment->capture_reference]);
+    Http::fake([
+        'api.onvopay.com/v1/checkout/sessions/'.$payment->provider_reference => $session,
+        'api.onvopay.com/v1/payment-intents/'.$payment->capture_reference => Http::response(['id' => $payment->capture_reference, 'mode' => 'test', 'amount' => 750_000, 'currency' => 'CRC', 'status' => 'succeeded']),
+    ]);
+    $eventId = 'checkout-session.succeeded:'.$payment->provider_reference;
+
+    postOnvoNotice(paidOnvoCheckout($business, $payment))->assertOk()->assertJsonPath('data.estado', 'recibido');
+    foreach ([10, 60, 300, 300, 0] as $wait) {
+        workOnePaymentEvent();
+        travel($wait)->seconds();
+    }
+
+    $failed = DB::table('failed_jobs')->sole();
+    expect($failed->payload)->toContain('ProcessPaymentEventJob')
+        ->and($failed->exception)->toContain('GatewayUnavailableException: payments.unavailable')
+        ->and(DB::table('jobs')->count())->toBe(0);
+    assertDatabaseHas('webhook_events', ['event_id' => $eventId, 'status' => 'failed', 'error' => 'payments.unavailable']);
+
+    $retry = artisan('queue:retry', ['id' => [$failed->uuid]]);
+    assert($retry instanceof PendingCommand);
+    $retry->assertSuccessful()->run();
     workOnePaymentEvent();
 
     app(BusinessTransaction::class)->scope($business->business->id);

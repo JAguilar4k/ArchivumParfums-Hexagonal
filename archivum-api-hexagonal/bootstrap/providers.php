@@ -16,6 +16,7 @@ use Src\Catalog\Showcase\Infrastructure\ShowcaseServiceProvider;
 use Src\Decants\Bottles\Infrastructure\BottlesServiceProvider;
 use Src\Decants\Packs\Infrastructure\PacksServiceProvider;
 use Src\Payments\Payments\Infrastructure\PaymentsServiceProvider;
+use Src\Recommendations\Recommender\Infrastructure\RecommenderServiceProvider;
 use Src\Sales\Orders\Infrastructure\OrdersServiceProvider;
 use Src\Shared\Infrastructure\RateLimitsServiceProvider;
 use Src\Shared\Infrastructure\SharedServiceProvider;
@@ -38,4 +39,5 @@ return [
     PacksServiceProvider::class,
     OrdersServiceProvider::class,
     PaymentsServiceProvider::class,
+    RecommenderServiceProvider::class,
 ];
