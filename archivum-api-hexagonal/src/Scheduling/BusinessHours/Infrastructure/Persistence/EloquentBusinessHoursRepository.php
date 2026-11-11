@@ -10,6 +10,7 @@ use Src\Scheduling\BusinessHours\Domain\Contracts\BusinessHoursRepository;
 use Src\Scheduling\BusinessHours\Domain\Entities\BusinessHours;
 use Src\Scheduling\BusinessHours\Domain\ValueObjects\BusinessHoursId;
 use Src\Scheduling\BusinessHours\Infrastructure\Persistence\Models\BusinessHoursModel;
+use Src\Scheduling\Shared\Domain\ValueObjects\TimeOfDay;
 use Src\Scheduling\Shared\Domain\ValueObjects\TimeRange;
 use Src\Shared\Domain\Contracts\BusinessContext;
 
@@ -41,8 +42,8 @@ final readonly class EloquentBusinessHoursRepository implements BusinessHoursRep
                         'id' => (string) Str::uuid7(),
                         'business_id' => $business->value,
                         'weekday' => $weekday,
-                        'opens_at' => $range->start,
-                        'closes_at' => $range->end,
+                        'opens_at' => $this->asClock($range->start),
+                        'closes_at' => $this->asClock($range->end),
                     ]);
                 }
             }
@@ -70,5 +71,11 @@ final readonly class EloquentBusinessHoursRepository implements BusinessHoursRep
         }
 
         return BusinessHours::reconstitute($this->nextId(), $business, $slots);
+    }
+
+    /** Write a time of day as the HH:MM text the column stores; the value object keeps only its minutes. */
+    private function asClock(TimeOfDay $time): string
+    {
+        return sprintf('%02d:%02d', intdiv($time->minutes, 60), $time->minutes % 60);
     }
 }

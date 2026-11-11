@@ -7,6 +7,7 @@ namespace Src\Scheduling\BusinessHours\Infrastructure\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Src\Scheduling\BusinessHours\Domain\Entities\BusinessHours;
+use Src\Scheduling\Shared\Domain\ValueObjects\TimeOfDay;
 
 /**
  * @property-read BusinessHours $resource
@@ -32,12 +33,18 @@ final class PanelBusinessHours extends JsonResource
             foreach ($ranges as $range) {
                 $tramos[] = [
                     'dia_semana' => $weekday,
-                    'inicio' => $range->start,
-                    'fin' => $range->end,
+                    'inicio' => $this->asClock($range->start),
+                    'fin' => $this->asClock($range->end),
                 ];
             }
         }
 
         return ['tramos' => $tramos];
+    }
+
+    /** Write a time of day as HH:MM, the vocabulary of the panel; the value object keeps only its minutes. */
+    private function asClock(TimeOfDay $time): string
+    {
+        return sprintf('%02d:%02d', intdiv($time->minutes, 60), $time->minutes % 60);
     }
 }
