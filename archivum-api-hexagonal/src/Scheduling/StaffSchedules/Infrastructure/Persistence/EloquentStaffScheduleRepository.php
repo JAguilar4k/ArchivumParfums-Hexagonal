@@ -7,6 +7,7 @@ namespace Src\Scheduling\StaffSchedules\Infrastructure\Persistence;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
+use Src\Scheduling\Shared\Domain\ValueObjects\TimeOfDay;
 use Src\Scheduling\Shared\Domain\ValueObjects\TimeRange;
 use Src\Scheduling\StaffSchedules\Domain\Contracts\StaffScheduleRepository;
 use Src\Scheduling\StaffSchedules\Domain\Entities\StaffSchedule;
@@ -48,8 +49,8 @@ final readonly class EloquentStaffScheduleRepository implements StaffScheduleRep
                         'business_id' => $business->value,
                         'member_id' => $member,
                         'weekday' => $weekday,
-                        'starts_at' => $range->start,
-                        'ends_at' => $range->end,
+                        'starts_at' => $this->asClock($range->start),
+                        'ends_at' => $this->asClock($range->end),
                     ]);
                 }
             }
@@ -89,5 +90,11 @@ final readonly class EloquentStaffScheduleRepository implements StaffScheduleRep
             ->first(['attends_appointments']);
 
         return $row === null ? null : (bool) $row->attends_appointments;
+    }
+
+    /** Write a time of day as the HH:MM text the column stores; the value object keeps only its minutes. */
+    private function asClock(TimeOfDay $time): string
+    {
+        return sprintf('%02d:%02d', intdiv($time->minutes, 60), $time->minutes % 60);
     }
 }
