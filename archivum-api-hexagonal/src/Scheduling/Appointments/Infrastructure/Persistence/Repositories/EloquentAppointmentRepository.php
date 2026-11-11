@@ -34,6 +34,9 @@ final readonly class EloquentAppointmentRepository implements AppointmentReposit
     /** SQLSTATE PostgreSQL answers when the exclusion constraint of the slot rejects the row. */
     private const string EXCLUSION_VIOLATION = '23P01';
 
+    /** SQLSTATE PostgreSQL answers when two concurrent inserts of the same slot deadlock instead of excluding each other. */
+    private const string DEADLOCK_DETECTED = '40P01';
+
     /** Receive the business of the request the appointment belongs to. */
     public function __construct(private BusinessContext $business) {}
 
@@ -146,10 +149,15 @@ final readonly class EloquentAppointmentRepository implements AppointmentReposit
         );
     }
 
-    /** Whether PostgreSQL rejected the row because the slot of that person is already blocked. */
+    /**
+     * Whether PostgreSQL rejected the row because the slot of that person is already blocked, or because two bookings
+     * of the same slot deadlocked while the constraint decided which one kept it: both mean the slot is no longer free.
+     */
     private function isExclusionViolation(QueryException $exception): bool
     {
-        return $exception->getCode() === self::EXCLUSION_VIOLATION
-            || $exception->getPrevious()?->getCode() === self::EXCLUSION_VIOLATION;
+        $violations = [self::EXCLUSION_VIOLATION, self::DEADLOCK_DETECTED];
+
+        return in_array($exception->getCode(), $violations, true)
+            || in_array($exception->getPrevious()?->getCode(), $violations, true);
     }
 }
