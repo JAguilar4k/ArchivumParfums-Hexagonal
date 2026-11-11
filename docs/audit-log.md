@@ -11,12 +11,12 @@
 | Desactivar o reactivar a una persona | `member.deactivated`, `member.activated` | `UpdateMember` |
 | Ajuste de una botella | `bottle.adjusted` | `AdjustDecantBottle` |
 | Precio manual de una presentación | `variant.manual_price_changed` | `AddPerfumeVariant`, `EditPerfumeVariant` |
-| Reembolso solicitado | `refund.requested`, una entrada por cada reembolso | `PaymentRefundRequests` |
+| Reembolso solicitado | `refund.requested`, una entrada por cada reembolso | `RefundPayment` |
 | Pago del saldo registrado en la entrega | `payment.manual_recorded` | `RecordManualPayment` |
 
 Un `PATCH` que desactiva y además cambia el rol deja una sola entrada, `member.deactivated`, con los dos valores antes y después. Cambiar solo el nombre o si atiende citas no deja entrada.
 
-El reembolso se registra en el adaptador porque ahí nace cada fila de `refunds` con su identificador; un pedido cancelado puede repartir el importe entre varios pagos. Queda con el cliente como autor si canceló, con el dueño si marcó una línea no disponible, y con el sistema cuando no hay sesión.
+El reembolso se registra en `RefundPayment`, el caso de uso que crea cada fila de `refunds` con su identificador y deja su solicitud a la pasarela en la cola (#97); un pedido cancelado puede repartir el importe entre varios pagos, y cada parte deja su entrada. Queda con el cliente como autor si canceló, con el dueño si marcó una línea no disponible, y con el sistema cuando no hay sesión.
 
 El pago registrado en la entrega deja una entrada por cada registro, con el dueño como autor: el pago es el recurso, y `after` guarda el pedido, el método (`sinpe` o `cash`) y el monto. La referencia que escribe el dueño queda solo en la fila de `payments`: es texto libre, y la bitácora no se puede corregir después.
 
@@ -33,7 +33,6 @@ El pago registrado en la entrega deja una entrada por cada registro, con el due�
 
 ## Lo que falta
 
-- **Reembolsos en cola.** #97 (PR #279) reescribe el flujo de reembolsos. Al integrar, hay que conservar la llamada a `AuditTrail` donde se crea la fila de `refunds`.
 - **Alta por consola.** El dueño que se crea al dar de alta una tienda con `CreateBusinessConsoleCommand` no deja entrada, porque esa tienda todavía no tiene operación que aclarar.
 
 ## Pendiente de definir

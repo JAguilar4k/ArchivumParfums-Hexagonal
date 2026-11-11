@@ -88,6 +88,10 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Resultado externo pendiente de consultar | `communicationError` | Mantiene el pago `pending` | `consulta_pendiente: true`; no es un estado financiero nuevo |
 | Reembolso | `Refund` | `refunds` | `reembolsos` |
 | Intento de reembolso enviado | `attempted` | `refunds.attempted_at` | La devolución sigue `pendiente` si falta una respuesta verificable |
+| Importe pedido a la pasarela | `chargedAmount` de `Refund` | `refunds.charged_amount`: colones enteros con ONVO, centavos con PayPal | Se fija al enviar la devolución y se compara con la respuesta y el aviso de la pasarela |
+| Envío del reembolso en la cola | `RequestRefundJob`, `RequestRefund` | La fila del reembolso y su trabajo en `jobs` | Un trabajo por reembolso; uno que ya salió solo se vuelve a pedir a PayPal, con el mismo `PayPal-Request-Id`, mientras no tenga respuesta |
+| Reembolso sin respuesta de la pasarela | `awaitsAnswer` de `OrderRefund` | Reembolso `pending` con `refunds.attempted_at` y sin `provider_reference` | `consulta_pendiente: true` en la lista del dueño; con ONVO, o con PayPal después de los reintentos, lo revisa una persona en la pasarela |
+| Conciliación de los reembolsos pendientes | `ReconcileRefund`, `PendingRefunds` | Los reembolsos `pending` con referencia del proveedor que ya esperaron su confirmación | La misma corrida de `archivum:reconcile-payments` |
 | Principal reembolsado | `refundedAmount` | `payments.refunded_amount`, colones enteros | Se refleja en el estado del pago y en `pagado` del pedido después de confirmarse |
 | Aviso de la pasarela (evento de webhook) | `PaymentEvent` | `webhook_events`, global, `pending` hasta procesarse y luego `processed` o `failed` con su error | `POST /api/v1/webhooks/onvo` y `/paypal`; responde `evento` y `estado`: `recibido` o `repetido` |
 | Procesamiento del aviso en la cola | `ProcessPaymentEventJob`, `ProcessPaymentEvent` | La fila del aviso en `webhook_events` y su trabajo en `jobs` | — |

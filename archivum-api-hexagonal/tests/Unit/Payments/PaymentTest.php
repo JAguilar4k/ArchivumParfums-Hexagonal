@@ -132,6 +132,54 @@ it('matches nothing before the provider reports what it charged', function () {
         ->and(requestedPayment()->matchesCharge('CRC', null, true))->toBeFalse();
 });
 
+it('R40: registers a pending refund tied to the confirmed payment, counting what it already returned and the pending refunds', function () {
+    $payment = requestedPayment();
+    $payment->apply(PaymentStatus::Succeeded);
+    $payment->refund(2000);
+
+    $refund = $payment->requestRefund('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', 2500, 3000, '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a65');
+
+    expect($refund->paymentId)->toBe($payment->id->value)->and($refund->businessId)->toBe($payment->businessId->value)
+        ->and($refund->amount)->toBe(2500)->and($refund->orderLineId)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a65')
+        ->and($refund->status)->toBe('pending')->and($refund->attempted)->toBeFalse()->and($refund->chargedAmount)->toBeNull();
+    // Registering a refund returns nothing yet: only its confirmation does.
+    expect($payment->refundedAmount)->toBe(2000)->and($payment->status)->toBe(PaymentStatus::PartiallyRefunded);
+});
+
+it('R40: refuses a refund above what the payment paid and has not returned or promised yet', function (int $amount, int $pending) {
+    $payment = requestedPayment();
+    $payment->apply(PaymentStatus::Succeeded);
+    $payment->refund(2000);
+
+    expect(fn () => $payment->requestRefund('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', $amount, $pending))
+        ->toThrow(InvalidPaymentTransitionException::class, 'payments.invalid_refund');
+})->with([
+    'more than what is left' => [5501, 0],
+    'more than what the pending refunds leave' => [2501, 3000],
+    'nothing' => [0, 0],
+    'a negative amount' => [-1, 0],
+    'a negative pending amount' => [100, -1],
+]);
+
+it('R40: refuses a refund of a payment with no confirmed money left', function (PaymentStatus $status) {
+    $payment = requestedPayment();
+    if ($status !== PaymentStatus::Pending) {
+        $payment->apply($status);
+    }
+
+    expect(fn () => $payment->requestRefund('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', 100, 0))
+        ->toThrow(InvalidPaymentTransitionException::class, 'payments.not_refundable');
+})->with([PaymentStatus::Pending, PaymentStatus::Failed, PaymentStatus::Expired]);
+
+it('R40: refuses another refund once the payment returned everything', function () {
+    $payment = requestedPayment();
+    $payment->apply(PaymentStatus::Succeeded);
+    $payment->refund(7500);
+
+    expect(fn () => $payment->requestRefund('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', 1, 0))
+        ->toThrow(InvalidPaymentTransitionException::class, 'payments.not_refundable');
+});
+
 it('R29: records a balance received on delivery as a confirmed payment in colones with no online method', function () {
     $payment = paymentReceivedOnDelivery(5000);
 
