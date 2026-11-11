@@ -40,6 +40,12 @@ interface PaymentGateway
      */
     public function refund(RefundRequest $request): RefundResult;
 
+    /**
+     * Whether a refund request that got no answer can be sent again without returning the money twice, because the
+     * provider recognizes the same request by a key Archivum sends with it and answers the refund it already created.
+     */
+    public function resendsRefunds(): bool;
+
     /** @param array<string, string> $headers */
     public function verifyWebhook(string $body, array $headers): bool;
 
