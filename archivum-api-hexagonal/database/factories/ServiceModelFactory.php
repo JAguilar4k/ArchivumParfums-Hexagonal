@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use Database\Factories\Concerns\CreatesRowsOfABusiness;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Src\Scheduling\Services\Infrastructure\Persistence\Models\ServiceModel;
 
@@ -12,6 +13,9 @@ use Src\Scheduling\Services\Infrastructure\Persistence\Models\ServiceModel;
  */
 class ServiceModelFactory extends Factory
 {
+    /** Pin the transaction to the business of the row, as the row-level policy of services demands. */
+    use CreatesRowsOfABusiness;
+
     protected $model = ServiceModel::class;
 
     /**
