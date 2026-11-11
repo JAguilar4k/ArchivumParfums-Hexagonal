@@ -6,6 +6,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Src\Shared\Domain\Contracts\AuditTrail;
 use Src\Shared\Domain\ValueObjects\AuditAction;
@@ -195,6 +196,8 @@ it('leaves no entry when a presentation changes without touching its manual pric
 });
 
 it('leaves one entry per refund, with the customer who cancelled as its author', function () {
+    // The request to the provider waits in the queue (#97); the entry is written with the refund, before it.
+    Queue::fake();
     $resources = MatrixResources::create();
 
     $response = auditedRequest('cliente', 'POST', "api/v1/cuenta/pedidos/{$resources['pedido']}/cancelacion")->assertOk();
@@ -325,4 +328,44 @@ it('makes UPDATE, DELETE and TRUNCATE fail for the owner of the table too, throu
 ]);
 
 // The endpoint does not exist in this branch: #98 calls the trail with AuditAction::ManualPaymentRecorded in its use case.
-it('leaves one entry for each manual payment')->todo('#98: POST /api/v1/panel/pedidos/{pedido}/pagos-manuales');
+/**
+ * Leave the order of MatrixResources ready, as the owner finds it when the customer pays its balance on delivery.
+ *
+ * @param  array<string, string>  $resources
+ */
+function readyForDelivery(array $resources): void
+{
+    app(BusinessTransaction::class)->run(MatrixResources::BUSINESS, fn (): int => DB::table('orders')->where('id', $resources['pedido'])->update(['status' => 'ready']));
+}
+
+it('leaves one entry for each manual payment, with its order, its method and its amount', function () {
+    $resources = MatrixResources::create();
+    readyForDelivery($resources);
+    $uri = "api/v1/panel/pedidos/{$resources['pedido']}/pagos-manuales";
+
+    $response = auditedRequest('dueno', 'POST', $uri, ['metodo' => 'efectivo', 'monto' => 5000, 'referencia' => 'Recibo 0001'])->assertCreated();
+
+    $entry = expectOneEntry($response, AuditAction::ManualPaymentRecorded, 'dueno', 'payment');
+
+    expect($entry->resource_id)->toBe($response->json('data.id'))
+        ->and($entry->before)->toBeNull()
+        ->and(json_decode((string) $entry->after, true))->toEqual(['order_id' => $resources['pedido'], 'method' => 'cash', 'amount' => 5000]);
+
+    auditedRequest('dueno', 'POST', $uri, ['metodo' => 'sinpe', 'monto' => 2500, 'referencia' => 'SINPE 0002'])->assertCreated();
+
+    expect(array_column(auditEntries(), 'action'))->toBe([AuditAction::ManualPaymentRecorded->value, AuditAction::ManualPaymentRecorded->value]);
+});
+
+it('does not keep a manual payment when its entry fails', function () {
+    $resources = MatrixResources::create();
+    readyForDelivery($resources);
+    breakAuditTrail();
+
+    auditedRequest('dueno', 'POST', "api/v1/panel/pedidos/{$resources['pedido']}/pagos-manuales", ['metodo' => 'sinpe', 'monto' => 7500, 'referencia' => 'SINPE 0001'])->assertStatus(500);
+
+    app(BusinessTransaction::class)->run(MatrixResources::BUSINESS, function () use ($resources): void {
+        expect(DB::table('payments')->where('order_id', $resources['pedido'])->where('gateway', 'manual')->count())->toBe(0)
+            ->and((array) DB::table('orders')->where('id', $resources['pedido'])->first(['paid', 'balance']))->toEqual(['paid' => 7500, 'balance' => 7500]);
+    });
+    expect(auditEntries())->toBe([]);
+});

@@ -15,15 +15,31 @@ use Src\Payments\Payments\Domain\Exceptions\GatewayUnavailableException;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeReference;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeRequest;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeResult;
+use Src\Payments\Payments\Domain\ValueObjects\PaymentEvent;
+use Src\Payments\Payments\Domain\ValueObjects\PaymentId;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentMethod;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentStatus;
+use Src\Payments\Payments\Domain\ValueObjects\RefundId;
 use Src\Payments\Payments\Domain\ValueObjects\RefundRequest;
 use Src\Payments\Payments\Domain\ValueObjects\RefundResult;
 use Src\Payments\Payments\Infrastructure\Gateways\GatewayMoney;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
+use Src\Shared\Domain\ValueObjects\BusinessId;
 
 final readonly class PayPalGateway implements PaymentGateway
 {
+    /** Notices about the capture of an order; the refund of a capture has its own notice and the rest change no payment. */
+    private const array CAPTURE_EVENTS = ['PAYMENT.CAPTURE.COMPLETED', 'PAYMENT.CAPTURE.PENDING', 'PAYMENT.CAPTURE.DENIED', 'PAYMENT.CAPTURE.DECLINED'];
+
+    /**
+     * Answers to a refund request that refuse it: an invalid request (400), a capture that may not be refunded (403) or
+     * that PayPal does not know (404), and one it cannot process (422). Any other error says nothing about the refund.
+     */
+    private const array REFUND_REFUSALS = [400, 403, 404, 422];
+
+    /** The notice PayPal sends when a merchant refunds a capture (#97); its resource is the refund. */
+    private const string REFUND_EVENT = 'PAYMENT.CAPTURE.REFUNDED';
+
     public function __construct(
         private string $clientId,
         private string $clientSecret,
@@ -134,9 +150,83 @@ final readonly class PayPalGateway implements PaymentGateway
         return new ChargeResult($reference->providerReference, $status, 'USD', $reference->chargedAmount, checkoutReference: $reference->providerReference);
     }
 
+    /**
+     * Each refund converts the running total of the payment's refunds at the exchange rate of the original payment and
+     * returns the difference, so the refunds of a payment add up to exactly the cents PayPal captured when they return
+     * all of it, however each conversion rounds (R37).
+     */
+    public function refundAmount(int $amount, int $refundedBefore, ?string $exchangeRate): int
+    {
+        $before = $refundedBefore > 0 ? GatewayMoney::dollarsFromColones($refundedBefore, $exchangeRate) : 0;
+        $cents = GatewayMoney::dollarsFromColones($refundedBefore + $amount, $exchangeRate) - $before;
+
+        if ($cents <= 0) {
+            throw new InvalidValueException('payments.invalid_amount');
+        }
+
+        return $cents;
+    }
+
+    /**
+     * Refund the capture of the payment with the cents fixed when the refund started, under an idempotency key of the
+     * refund, so PayPal never creates the same refund twice. The custom_id carries `businessId:refundId`, which the
+     * notice of the refund brings back. A refusal of PayPal (REFUND_REFUSALS, such as an amount above what is left of
+     * the capture) leaves the refund failed. With the reference of a refund PayPal already accepted, only its state is
+     * asked.
+     */
     public function refund(RefundRequest $request): RefundResult
     {
-        throw new InvalidValueException('payments.refund_not_supported');
+        if ($request->providerRefundReference !== null) {
+            $reference = $request->providerRefundReference;
+            $refund = $this->send(fn (PendingRequest $http): Response => $http->get('/v2/payments/refunds/'.rawurlencode($reference)));
+
+            return $this->refundResult($refund, $request, $reference);
+        }
+
+        $capture = $request->captureReference ?? throw new InvalidValueException('payments.invalid_refund');
+        $refund = $this->send(fn (PendingRequest $http): Response => $http->withHeaders([
+            'PayPal-Request-Id' => $this->idempotencyKey($request->refundId, 'refund'),
+            'Prefer' => 'return=representation',
+        ])->post('/v2/payments/captures/'.rawurlencode($capture).'/refund', [
+            'amount' => ['currency_code' => 'USD', 'value' => GatewayMoney::decimal($request->chargedAmount)],
+            'custom_id' => $request->businessId.':'.$request->refundId,
+        ]), answers: self::REFUND_REFUSALS);
+
+        // PayPal refused the request and created no refund: a request it finds invalid, a capture it does not let
+        // refund or does not know, or one it cannot process does not change by sending it again, so the refund fails.
+        if (in_array($refund->status(), self::REFUND_REFUSALS, true)) {
+            return new RefundResult(null, 'failed');
+        }
+
+        return $this->refundResult($refund, $request);
+    }
+
+    /**
+     * PayPal keeps the PayPal-Request-Id of a refund and answers the same refund when the request comes again, so a
+     * refund whose answer was lost is asked again by the retries of the queue.
+     */
+    public function resendsRefunds(): bool
+    {
+        return true;
+    }
+
+    /** Check that PayPal answers about this refund, in dollars and for its exact cents, and read its state. */
+    private function refundResult(Response $response, RefundRequest $request, ?string $expectedReference = null): RefundResult
+    {
+        $reference = $this->string($response->json('id'));
+
+        if ($expectedReference !== null && $reference !== $expectedReference) {
+            throw new GatewayUnavailableException('payments.unavailable');
+        }
+
+        $this->validateAmount($response->json('amount'), $request->chargedAmount);
+
+        return new RefundResult($reference, match ($response->json('status')) {
+            'COMPLETED' => 'succeeded',
+            'FAILED', 'CANCELLED' => 'failed',
+            'PENDING' => 'pending',
+            default => $this->unknownRefundStatus($request->refundId),
+        });
     }
 
     public function verifyWebhook(string $body, array $headers): bool
@@ -168,13 +258,138 @@ final readonly class PayPalGateway implements PaymentGateway
             'webhook_id' => $this->webhookId,
         ], JSON_THROW_ON_ERROR);
         $payload = substr($verification, 0, -1).',"webhook_event":'.$body.'}';
-        $response = $this->send(fn (PendingRequest $http): Response => $http->withBody($payload, 'application/json')->post('/v1/notifications/verify-webhook-signature'));
+        // PayPal refusing to verify what the notice brings (400 or 422) means its origin is not verified, as a FAILURE
+        // does; its 401, a 5xx or a lost connection mean PayPal could not check it, and the notice must come again.
+        $response = $this->send(fn (PendingRequest $http): Response => $http->withBody($payload, 'application/json')->post('/v1/notifications/verify-webhook-signature'), answers: [400, 422]);
 
-        return $response->json('verification_status') === 'SUCCESS';
+        return $response->successful() && $response->json('verification_status') === 'SUCCESS';
     }
 
-    /** @param Closure(PendingRequest): Response $request */
-    private function send(Closure $request): Response
+    /**
+     * A PayPal notice has its own `id` and `event_type`. An approved order is not a payment: it names the order, and
+     * the authoritative query then captures it. A capture names its order in `supplementary_data`. Both bring back
+     * the `custom_id` Archivum sent, `businessId:paymentId`, and an amount in dollars that the payment keeps in cents.
+     */
+    public function parseWebhook(string $body): PaymentEvent
+    {
+        $event = json_decode($body, true);
+        $id = is_array($event) ? ($event['id'] ?? null) : null;
+        $type = is_array($event) ? ($event['event_type'] ?? null) : null;
+        $resource = is_array($event) ? ($event['resource'] ?? null) : null;
+
+        if (! is_string($id) || ! is_string($type) || ! is_array($resource)) {
+            throw new InvalidValueException('payments.invalid_webhook');
+        }
+
+        if ($type === 'CHECKOUT.ORDER.APPROVED') {
+            $unit = $resource['purchase_units'][0] ?? null;
+
+            return $this->chargeEvent($id, $type, $resource['id'] ?? null, is_array($unit) ? $unit : []);
+        }
+
+        if (in_array($type, self::CAPTURE_EVENTS, true)) {
+            return $this->chargeEvent($id, $type, $resource['supplementary_data']['related_ids']['order_id'] ?? null, $resource);
+        }
+
+        if ($type === self::REFUND_EVENT) {
+            return $this->refundEvent($id, $type, $resource);
+        }
+
+        return new PaymentEvent('paypal', $id, $type);
+    }
+
+    /**
+     * A notice about a refund: its resource is the refund, with its own `id` and amount. It names the capture it returns
+     * in its link `up` and brings back the custom_id Archivum sent with it, `businessId:refundId`.
+     *
+     * @param  array<mixed>  $refund
+     */
+    private function refundEvent(string $id, string $type, array $refund): PaymentEvent
+    {
+        if (! is_string($refund['id'] ?? null)) {
+            throw new InvalidValueException('payments.invalid_webhook');
+        }
+
+        $parts = is_string($refund['custom_id'] ?? null) ? explode(':', $refund['custom_id']) : [];
+        [$businessId, $refundId] = $this->ownRefundReferences(count($parts) === 2 ? $parts[0] : null, count($parts) === 2 ? $parts[1] : null);
+        $amount = is_array($refund['amount'] ?? null) ? $refund['amount'] : [];
+        $currency = $amount['currency_code'] ?? null;
+
+        return new PaymentEvent('paypal', $id, $type, $this->captureOf($refund), $businessId, null, is_string($currency) ? $currency : null,
+            GatewayMoney::cents($amount['value'] ?? null), $refund['id'], $refundId);
+    }
+
+    /**
+     * The capture a refund returns, from its link `up` to /v2/payments/captures/{id}.
+     *
+     * @param  array<mixed>  $refund
+     */
+    private function captureOf(array $refund): ?string
+    {
+        $links = is_array($refund['links'] ?? null) ? $refund['links'] : [];
+
+        foreach ($links as $link) {
+            if (is_array($link) && ($link['rel'] ?? null) === 'up' && is_string($link['href'] ?? null)
+                && preg_match('#/v2/payments/captures/([^/?\#]+)$#', $link['href'], $matches) === 1) {
+                return rawurldecode($matches[1]);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * The identifiers Archivum sent in the custom_id of a refund; both must be valid or neither is used.
+     *
+     * @return array{?BusinessId, ?RefundId}
+     */
+    private function ownRefundReferences(?string $businessId, ?string $refundId): array
+    {
+        try {
+            return [new BusinessId($businessId ?? ''), new RefundId($refundId ?? '')];
+        } catch (InvalidValueException) {
+            return [null, null];
+        }
+    }
+
+    /**
+     * A notice about the charge of an order, read from the purchase unit or the capture that carries its amount.
+     *
+     * @param  array<mixed>  $charge
+     */
+    private function chargeEvent(string $id, string $type, mixed $orderId, array $charge): PaymentEvent
+    {
+        if (! is_string($orderId)) {
+            throw new InvalidValueException('payments.invalid_webhook');
+        }
+
+        $parts = is_string($charge['custom_id'] ?? null) ? explode(':', $charge['custom_id']) : [];
+        [$businessId, $paymentId] = $this->ownReferences(count($parts) === 2 ? $parts[0] : null, count($parts) === 2 ? $parts[1] : null);
+        $amount = is_array($charge['amount'] ?? null) ? $charge['amount'] : [];
+        $currency = $amount['currency_code'] ?? null;
+
+        return new PaymentEvent('paypal', $id, $type, $orderId, $businessId, $paymentId, is_string($currency) ? $currency : null, GatewayMoney::cents($amount['value'] ?? null));
+    }
+
+    /**
+     * The identifiers Archivum sent in the custom_id of the purchase unit; both must be valid or neither is used.
+     *
+     * @return array{?BusinessId, ?PaymentId}
+     */
+    private function ownReferences(?string $businessId, ?string $paymentId): array
+    {
+        try {
+            return [new BusinessId($businessId ?? ''), new PaymentId($paymentId ?? '')];
+        } catch (InvalidValueException) {
+            return [null, null];
+        }
+    }
+
+    /**
+     * @param  Closure(PendingRequest): Response  $request
+     * @param  list<int>  $answers  error statuses that answer the request instead of showing PayPal unavailable
+     */
+    private function send(Closure $request, array $answers = []): Response
     {
         try {
             $token = Http::baseUrl($this->baseUrl)->withBasicAuth($this->clientId, $this->clientSecret)->acceptJson()->asForm()->timeout($this->timeout)->connectTimeout($this->connectTimeout)->withoutRedirecting()->post('/v1/oauth2/token', ['grant_type' => 'client_credentials']);
@@ -188,7 +403,7 @@ final readonly class PayPalGateway implements PaymentGateway
             throw new GatewayUnavailableException('payments.unavailable');
         }
 
-        if (! $response->successful() && ! $this->declined($response)) {
+        if (! $response->successful() && ! $this->declined($response) && ! in_array($response->status(), $answers, true)) {
             throw new GatewayUnavailableException('payments.unavailable');
         }
 
@@ -251,9 +466,9 @@ final readonly class PayPalGateway implements PaymentGateway
         return $value;
     }
 
-    private function idempotencyKey(string $paymentId, string $operation): string
+    private function idempotencyKey(string $id, string $operation): string
     {
-        return substr(hash('sha256', $paymentId.':'.$operation), 0, 32);
+        return substr(hash('sha256', $id.':'.$operation), 0, 32);
     }
 
     private function unknownStatus(string $paymentId): PaymentStatus
@@ -261,5 +476,12 @@ final readonly class PayPalGateway implements PaymentGateway
         Log::warning('Unknown payment status received from gateway.', ['gateway' => 'paypal', 'payment_id' => $paymentId]);
 
         return PaymentStatus::Pending;
+    }
+
+    private function unknownRefundStatus(string $refundId): string
+    {
+        Log::warning('Unknown refund status received from gateway.', ['gateway' => 'paypal', 'refund_id' => $refundId]);
+
+        return 'pending';
     }
 }
