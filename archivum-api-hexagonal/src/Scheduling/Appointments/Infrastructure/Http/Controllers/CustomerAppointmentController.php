@@ -11,10 +11,12 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Src\Accounts\Users\Infrastructure\Tenancy\CustomerBusinessContext;
 use Src\Scheduling\Appointments\Application\DTOs\AppointmentView;
 use Src\Scheduling\Appointments\Application\UseCases\BookAppointment;
+use Src\Scheduling\Appointments\Application\UseCases\CancelAppointment;
 use Src\Scheduling\Appointments\Application\UseCases\GetMyAppointment;
 use Src\Scheduling\Appointments\Application\UseCases\ListMyAppointments;
 use Src\Scheduling\Appointments\Application\UseCases\RescheduleAppointment;
 use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentPeriod;
+use Src\Scheduling\Appointments\Infrastructure\Http\Requests\CancelAppointmentRequest;
 use Src\Scheduling\Appointments\Infrastructure\Http\Requests\IndexAppointments;
 use Src\Scheduling\Appointments\Infrastructure\Http\Requests\RescheduleAppointmentRequest;
 use Src\Scheduling\Appointments\Infrastructure\Http\Requests\StoreAppointment;
@@ -73,5 +75,11 @@ final readonly class CustomerAppointmentController
     public function reschedule(RescheduleAppointmentRequest $request, string $cita, RescheduleAppointment $reschedule): CustomerAppointmentResource
     {
         return new CustomerAppointmentResource($reschedule->execute($request->toCommand($cita)));
+    }
+
+    /** Cancel one appointment of the customer before the deadline the store gives. */
+    public function cancel(CancelAppointmentRequest $request, string $cita, CancelAppointment $cancel): CustomerAppointmentResource
+    {
+        return new CustomerAppointmentResource($cancel->execute($request->toCommand($cita, customerDeadline: true)));
     }
 }
