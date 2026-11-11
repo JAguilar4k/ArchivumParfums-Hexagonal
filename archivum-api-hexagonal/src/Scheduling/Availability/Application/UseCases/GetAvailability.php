@@ -32,13 +32,14 @@ final readonly class GetAvailability
     public function __construct(private AvailabilityReader $reader) {}
 
     /**
-     * The free slots of the day, ordered from the earliest; a day outside the booking window has none.
+     * The free slots of the day, ordered from the earliest; a day outside the booking window has none. The appointment
+     * being moved is left out of the calculation, so its own range does not block the new one (#65).
      *
      * @return list<AvailableSlot>
      *
      * @throws ValidationException when the service is not bookable or the person does not attend appointments here
      */
-    public function execute(string $serviceId, string $date, ?string $memberId = null): array
+    public function execute(string $serviceId, string $date, ?string $memberId = null, ?string $exceptAppointment = null): array
     {
         $store = $this->reader->store();
         $timezone = new DateTimeZone($store->timezone);
@@ -64,7 +65,7 @@ final readonly class GetAvailability
         }
 
         $only = $memberId === null ? null : $this->memberId($memberId);
-        $people = $this->reader->people($weekday, $day, $day->modify('+1 day'), $only);
+        $people = $this->reader->people($weekday, $day, $day->modify('+1 day'), $only, $exceptAppointment);
 
         if ($only !== null && $people === []) {
             throw ValidationException::withMessages(['persona' => __('scheduling.availability.person_not_available')]);
