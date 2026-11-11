@@ -65,4 +65,9 @@ final class HoldInitialPaymentForCompetingRequest implements PaymentRepository
     {
         return $this->repository->saveIfPending($payment);
     }
+
+    public function saveIfPendingOrExpired(Payment $payment): bool
+    {
+        return $this->repository->saveIfPendingOrExpired($payment);
+    }
 }

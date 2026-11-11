@@ -221,3 +221,37 @@ it('keeps a reference of exactly 255 characters', function () {
 
     expect(deliveryRecord($reference)->reference)->toBe($reference);
 });
+
+it('R39: confirms a charge the provider reports after the expiry closed the payment, keeping what it charged and its capture', function () {
+    $payment = requestedPayment();
+    $payment->attach(new ChargeResult('session', PaymentStatus::Pending, 'CRC', 7500, 'https://checkout.onvopay.com/pay/session', 'session'));
+    $payment->apply(PaymentStatus::Expired);
+
+    $payment->confirmLate(new ChargeResult('session', PaymentStatus::Succeeded, 'CRC', 7500, checkoutReference: 'session', captureReference: 'intent'));
+
+    expect($payment->status)->toBe(PaymentStatus::Succeeded)
+        ->and($payment->captureReference)->toBe('intent')
+        ->and($payment->checkoutUrl)->toBe('https://checkout.onvopay.com/pay/session')
+        ->and($payment->chargedAmount)->toBe(7500);
+    // Once confirmed, the payment returns its money as any other confirmed payment does.
+    expect($payment->requestRefund('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', 7500, 0)->amount)->toBe(7500);
+});
+
+it('confirms late only an expired payment, and only with a success', function (PaymentStatus $current, PaymentStatus $answer) {
+    $payment = requestedPayment();
+    $payment->attach(new ChargeResult('session', PaymentStatus::Pending, 'CRC', 7500));
+    if ($current !== PaymentStatus::Pending) {
+        $payment->apply($current);
+    }
+
+    expect(fn () => $payment->confirmLate(new ChargeResult('session', $answer, 'CRC', 7500)))
+        ->toThrow(InvalidPaymentTransitionException::class, 'payments.invalid_transition');
+    expect($payment->status)->toBe($current);
+})->with([
+    'a pending payment' => [PaymentStatus::Pending, PaymentStatus::Succeeded],
+    'a failed payment' => [PaymentStatus::Failed, PaymentStatus::Succeeded],
+    'a confirmed payment' => [PaymentStatus::Succeeded, PaymentStatus::Succeeded],
+    'an expired payment the provider reports expired' => [PaymentStatus::Expired, PaymentStatus::Expired],
+    'an expired payment the provider reports failed' => [PaymentStatus::Expired, PaymentStatus::Failed],
+    'an expired payment still waiting at the provider' => [PaymentStatus::Expired, PaymentStatus::Pending],
+]);
