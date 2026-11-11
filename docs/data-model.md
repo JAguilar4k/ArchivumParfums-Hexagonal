@@ -427,6 +427,84 @@ Cada fila es una presentación de un perfume: un tamaño en ml y su precio de ve
 - `sale_price` guarda un valor calculable; la [excepción](#excepciones-deliberadas) está justificada abajo.
 - Política de fila: `perfume_variants_business_isolation`.
 
+### services
+
+Cada fila es un servicio que la tienda ofrece agendar, con su duración, su precio, el margen entre citas y el máximo de perfumes (R11). Es la tabla que el panel del dueño administra (#53) y la que la vitrina pública lista (#54).
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Llave foránea a `businesses` (`services_business_id_foreign`), borrado en cascada |
+| `name` | `varchar(120)` | Obligatoria; `services_name_check`: no vacía |
+| `duration_minutes` | `integer` | `services_duration_minutes_check`: mayor que 0 |
+| `price` | `integer` | Colones enteros; `services_price_check`: no negativo |
+| `buffer_minutes` | `integer` | Margen entre citas; `services_buffer_minutes_check`: no negativo |
+| `max_perfumes` | `integer` | `services_max_perfumes_check`: no negativo |
+| `is_active` | `boolean` | Por defecto `true`; desactivar no borra el servicio (#53) |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+- Llaves candidatas: `id` y `(id, business_id)` (`services_id_business_id_unique`), que es el destino de las llaves foráneas compuestas de `appointments` (#59).
+- Índice `services_business_id_is_active_index` sobre `(business_id, is_active)`: el panel lista activos e inactivos de una tienda.
+- Política de fila: `services_business_isolation`, igual que `members`; la habilita `enable_row_level_security_on_scheduling_tables`.
+- El servicio inicial es «Prueba de olores»: 45 min, ₡0, 15 min de margen y hasta 5 perfumes (R11). Los sembradores lo crean en cada tienda de demostración.
+
+### business_hours
+
+Cada fila es un tramo de atención de la tienda: un día de la semana y una hora local de apertura y de cierre (R13). Una tienda tiene varios tramos por día.
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Llave foránea a `businesses` (`business_hours_business_id_foreign`), borrado en cascada |
+| `weekday` | `integer` | `business_hours_weekday_check`: de 1 (lunes) a 7 (domingo) |
+| `opens_at` | `time` | Hora local de apertura |
+| `closes_at` | `time` | Hora local de cierre; `business_hours_opens_at_check`: posterior a `opens_at` |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+- Índice `business_hours_business_id_weekday_index` sobre `(business_id, weekday)`: la disponibilidad lee los tramos de un día.
+- Restricción de exclusión `business_hours_no_overlap_excl`: `EXCLUDE USING gist (business_id WITH =, weekday WITH =, timerange(opens_at, closes_at) WITH &&)`. Dos tramos del mismo día no se traslapan y dos contiguos sí se aceptan, porque el rango `timerange` es `[)`. El detalle del tipo y de la extensión está en [database.md](database.md#restricciones-de-exclusión).
+- Política de fila: `business_hours_business_isolation`.
+
+### staff_schedules
+
+Cada fila es un tramo de atención de una persona del personal: el día y la hora en que atiende citas (R13).
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Llave foránea a `businesses` (`staff_schedules_business_id_foreign`), borrado en cascada |
+| `member_id` | `uuid` | Llave foránea compuesta `(member_id, business_id)` a `members(id, business_id)` (`staff_schedules_member_id_business_id_foreign`), borrado en cascada: una persona de otra tienda nunca se agenda aquí |
+| `weekday` | `integer` | `staff_schedules_weekday_check`: de 1 a 7 |
+| `starts_at` | `time` | Hora local de inicio |
+| `ends_at` | `time` | Hora local de fin; `staff_schedules_starts_at_check`: posterior a `starts_at` |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+- Índice `staff_schedules_business_id_member_id_weekday_index` sobre `(business_id, member_id, weekday)`.
+- Restricción de exclusión `staff_schedules_no_overlap_excl`: `EXCLUDE USING gist (business_id WITH =, member_id WITH =, weekday WITH =, timerange(starts_at, ends_at) WITH &&)`. Una persona no tiene dos tramos traslapados del mismo día y sí puede tener tramos contiguos.
+- Política de fila: `staff_schedules_business_isolation`.
+
+### schedule_blocks
+
+Cada fila bloquea un rango de horas de una persona o de toda la tienda, con su motivo (R13 y #57).
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Llave foránea a `businesses` (`schedule_blocks_business_id_foreign`), borrado en cascada |
+| `member_id` | `uuid` | Opcional: nulo bloquea a toda la tienda. Llave foránea compuesta `(member_id, business_id)` a `members(id, business_id)` (`schedule_blocks_member_id_business_id_foreign`), borrado en cascada |
+| `starts_at` | `timestamptz` | Inicio del bloqueo, en instantes |
+| `ends_at` | `timestamptz` | Fin del bloqueo; `schedule_blocks_starts_at_check`: posterior a `starts_at` |
+| `reason` | `varchar(255)` | Motivo del bloqueo |
+| `source` | `varchar(10)` | Por defecto `manual`; `schedule_blocks_source_check`: `manual` o `google` (#183) |
+| `external_id` | `varchar(255)` | Opcional; el identificador del evento de Google Calendar, nulo mientras el bloqueo se crea en el panel |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+- Índice `schedule_blocks_business_id_starts_at_ends_at_index` sobre `(business_id, starts_at, ends_at)`: la disponibilidad pide los bloqueos que se cruzan con un rango.
+- Los tramos de estas cuatro tablas guardan la hora local en `time` (`opens_at`, `closes_at`, `starts_at`, `ends_at`) y los bloqueos, que son instantes, en `timestamptz`.
+- Solo los bloqueos con `source` `manual` se editan o se borran desde el panel; uno de `google` responde 409 `conflicto` (#57).
+- Política de fila: `schedule_blocks_business_isolation`.
+
+
 ### decant_bottles
 
 Cada fila es una botella abierta de una presentación. Los ml son enteros. La capacidad se toma de la presentación al abrirla y el saldo inicial puede ser menor, según la decisión del equipo para #68 y #71.

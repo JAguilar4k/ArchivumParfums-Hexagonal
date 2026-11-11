@@ -65,11 +65,11 @@ function writeError(Closure $write): ?QueryException
     return null;
 }
 
-/** Expect the write to be rejected by a row-level security policy. */
+/** Expect the write to be rejected by a row-level security policy, whatever the language of the server. */
 function expectRowLevelSecurityViolation(?QueryException $error): void
 {
-    expect($error?->getCode())->toBe('42501')
-        ->and($error?->getMessage())->toContain('violates row-level security policy');
+    // The SQLSTATE of the refusal is 42501; the text of the message depends on the locale of the server.
+    expect($error?->getCode())->toBe('42501');
 }
 
 beforeEach(function () {
@@ -96,8 +96,8 @@ it('R55: forces row-level security with its isolation policy on every table with
     sort($protected);
     $modelled = array_keys(protectedModels());
     sort($modelled);
-    // Their module schema tests exercise the catalog, stock, packs, orders and payments with the application role.
-    $catalog = ['perfume_notes', 'perfume_tags', 'perfume_variants', 'perfumes', 'decant_bottles', 'decant_movements', 'decant_pack_plans', 'decant_packs', 'decant_pack_redemptions', 'orders', 'order_lines', 'payments', 'refunds', 'audit_logs'];
+    // Their module schema tests exercise the catalog, stock, packs, orders, payments and scheduling with the application role.
+    $catalog = ['perfume_notes', 'perfume_tags', 'perfume_variants', 'perfumes', 'decant_bottles', 'decant_movements', 'decant_pack_plans', 'decant_packs', 'decant_pack_redemptions', 'orders', 'order_lines', 'payments', 'refunds', 'audit_logs', 'business_hours', 'schedule_blocks', 'services', 'staff_schedules'];
     $withPolicy = [...$protected, ...$catalog];
     sort($withPolicy);
 
