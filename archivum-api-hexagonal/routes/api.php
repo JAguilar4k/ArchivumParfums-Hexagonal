@@ -14,6 +14,7 @@ require base_path('src/Catalog/Showcase/Infrastructure/Http/routes.php');
 require base_path('src/Scheduling/Services/Infrastructure/Http/routes.php');
 require base_path('src/Scheduling/BusinessHours/Infrastructure/Http/routes.php');
 require base_path('src/Scheduling/StaffSchedules/Infrastructure/Http/routes.php');
+require base_path('src/Scheduling/ScheduleBlocks/Infrastructure/Http/routes.php');
 require base_path('src/Decants/Bottles/Infrastructure/Http/routes.php');
 require base_path('src/Sales/Orders/Infrastructure/Http/routes.php');
 require base_path('src/Payments/Payments/Infrastructure/Http/routes.php');
