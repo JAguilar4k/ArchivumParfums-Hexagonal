@@ -43,7 +43,9 @@ final readonly class ScopeRequestToBusiness
         $businessId = $context->current();
 
         if ($transactionMode === 'context') {
-            // Payment use cases commit their intent before making a non-idempotent external request.
+            // The use cases that wait for an external provider run their own short transactions: payments commit their
+            // intent before a non-idempotent external request, and the recommender reads the catalog before it waits
+            // for the AI.
             return $next($request);
         }
 
