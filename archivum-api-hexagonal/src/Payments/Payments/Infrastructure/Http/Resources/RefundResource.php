@@ -22,6 +22,7 @@ final class RefundResource extends JsonResource
             'estado' => match ($this->status) {
                 'succeeded' => 'confirmado', 'failed' => 'fallido', default => 'pendiente',
             },
+            'consulta_pendiente' => $this->awaitsAnswer,
         ];
     }
 }

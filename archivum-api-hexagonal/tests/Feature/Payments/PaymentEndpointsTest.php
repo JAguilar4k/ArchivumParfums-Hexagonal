@@ -437,7 +437,7 @@ it('retains the committed attempt if saving its external reference fails', funct
     Http::assertSentCount(1);
 });
 
-it('R40: lists every refund of the order to the owner with its payment, line, amount and state', function (): void {
+it('R40: lists every refund of the order to the owner with its payment, line, amount, state and whether it waits for an answer', function (): void {
     $business = actingAsOwner();
     $order = StoredOrders::create($business, 'cancelled')['order'];
     $payment = StoredPayments::create($business, $order, 'partially_refunded');
@@ -451,9 +451,10 @@ it('R40: lists every refund of the order to the owner with its payment, line, am
     }
 
     postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonCount(3, 'data')
-        ->assertJsonPath('data.0', ['id' => $ids[0], 'pago' => $payment->id, 'linea' => null, 'monto' => 2000, 'estado' => 'confirmado'])
-        ->assertJsonPath('data.1', ['id' => $ids[1], 'pago' => $payment->id, 'linea' => null, 'monto' => 1500, 'estado' => 'fallido'])
-        ->assertJsonPath('data.2', ['id' => $ids[2], 'pago' => $payment->id, 'linea' => $line, 'monto' => 4000, 'estado' => 'pendiente']);
+        ->assertJsonPath('data.0', ['id' => $ids[0], 'pago' => $payment->id, 'linea' => null, 'monto' => 2000, 'estado' => 'confirmado', 'consulta_pendiente' => false])
+        ->assertJsonPath('data.1', ['id' => $ids[1], 'pago' => $payment->id, 'linea' => null, 'monto' => 1500, 'estado' => 'fallido', 'consulta_pendiente' => false])
+        // The provider already answered this one with its reference: its notice or the reconciliation confirms it.
+        ->assertJsonPath('data.2', ['id' => $ids[2], 'pago' => $payment->id, 'linea' => $line, 'monto' => 4000, 'estado' => 'pendiente', 'consulta_pendiente' => false]);
 
     Http::assertNothingSent();
 });
@@ -468,7 +469,7 @@ it('R40: queues again only the refunds that never left for the provider', functi
     $rows = [
         // Its job ran out of attempts before the refund started.
         ['amount' => 3000, 'status' => 'pending', 'charged_amount' => null, 'attempted_at' => null, 'provider_reference' => null],
-        // It already left: its notice or the reconciliation confirms it.
+        // It already left without an answer of ONVO: the owner sees it, and a person checks it in the provider.
         ['amount' => 2500, 'status' => 'pending', 'charged_amount' => 2500, 'attempted_at' => now(), 'provider_reference' => null],
         ['amount' => 2000, 'status' => 'failed', 'charged_amount' => 2000, 'attempted_at' => now(), 'provider_reference' => 'refund-rejected'],
     ];
@@ -477,7 +478,8 @@ it('R40: queues again only the refunds that never left for the provider', functi
     }
 
     postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonCount(3, 'data')
-        ->assertJsonPath('data.0.estado', 'pendiente')->assertJsonPath('data.1.estado', 'pendiente')->assertJsonPath('data.2.estado', 'fallido');
+        ->assertJsonPath('data.0.estado', 'pendiente')->assertJsonPath('data.1.estado', 'pendiente')->assertJsonPath('data.2.estado', 'fallido')
+        ->assertJsonPath('data.0.consulta_pendiente', false)->assertJsonPath('data.1.consulta_pendiente', true)->assertJsonPath('data.2.consulta_pendiente', false);
 
     Queue::assertPushed(RequestRefundJob::class, 1);
     Queue::assertPushed(RequestRefundJob::class, fn (RequestRefundJob $job): bool => $job->refundId === $ids[0] && $job->businessId === $business->business->id);

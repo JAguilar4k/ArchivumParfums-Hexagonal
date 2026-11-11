@@ -331,7 +331,7 @@ Estas pruebas usan la base `archivum_hexagonal_testing`, aplican las migraciones
 
 ## 12. Reembolso de PayPal: documentación y límite de este corte
 
-> Actualización de #97 (Avance 2): el adaptador ya implementa el reembolso. `PayPalGateway::refund()` envía `POST /v2/payments/captures/{capture_id}/refund` con `PayPal-Request-Id`, en dólares con el tipo de cambio del pago original, desde el trabajo en cola de cada reembolso; el aviso `PAYMENT.CAPTURE.REFUNDED` o `php artisan archivum:reconcile-payments` lo confirman. Lo que sigue describe el límite de Investigación 1, el corte en que se ejecutó esta guía.
+> Actualización de #97 (Avance 2): el adaptador ya implementa el reembolso. `PayPalGateway::refund()` envía `POST /v2/payments/captures/{capture_id}/refund` con `PayPal-Request-Id`, en dólares con el tipo de cambio del pago original, desde el trabajo en cola de cada reembolso; el aviso `PAYMENT.CAPTURE.REFUNDED` o `php artisan archivum:reconcile-payments` lo confirman. Si PayPal no responde, los reintentos del trabajo envían la misma petición con el mismo `PayPal-Request-Id`, y PayPal responde la devolución que ya creó en lugar de crear otra. Lo que sigue describe el límite de Investigación 1, el corte en que se ejecutó esta guía.
 
 PayPal ofrece `POST /v2/payments/captures/{capture_id}/refund` y la consulta de su resultado. Esto es la capacidad documentada del proveedor. [Referencia oficial de Payments v2](https://developer.paypal.com/api/payments/v2).
 
