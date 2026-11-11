@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
+use Src\Recommendations\Recommender\Domain\Contracts\AiRecommender;
 use Tests\Support\Accounts\DemoAccounts;
+use Tests\Support\Recommendations\FakeAiRecommender;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Security\MatrixResources;
 
@@ -124,10 +126,19 @@ it('puts every route of /api/v1/panel and /api/v1/cuenta in a row of the matrix'
     expect($missing)->toBe([], 'Add these endpoints to their row in tests/Datasets/PermissionMatrix.php.');
 });
 
+it('lets every role and the visitor use the recommender, without 401 or 403', function (string $role) {
+    // The AI of the tests fails, so the rules answer and no request leaves for a provider.
+    app()->instance(AiRecommender::class, FakeAiRecommender::failing());
+
+    [$response, $writtenBefore] = requestAsMatrixActor($role, 'POST', 'api/v1/tiendas/{tienda}/recomendaciones', ['texto' => 'Algo con vainilla para la noche.'], MatrixResources::create());
+
+    $response->assertOk()->assertJsonPath('data.origen', 'reglas');
+    expect(matrixRowsWritten())->toBe($writtenBefore, "The recommender wrote rows for {$role}.");
+})->with('roles');
+
 // Rows of section 9 whose endpoints do not exist yet: each one is completed by the issue that creates them.
 it('answers each role what section 9 allows in the row «ver citas»')->todo('#137: GET /api/v1/panel/citas y GET /api/v1/cuenta/citas');
 it('answers each role what section 9 allows in the row «marcar atendida o no asistió»')->todo('#138: POST /api/v1/panel/citas/{cita}/asistencia');
 it('answers each role what section 9 allows in the row «reservar, reprogramar o cancelar citas»')->todo('#62, #65, #66 y #67: /api/v1/tiendas/{tienda}/citas, /api/v1/cuenta/citas y /api/v1/panel/citas');
 it('answers each role what section 9 allows in the row «paquetes de decants»')->todo('#148: /api/v1/panel/paquetes y /api/v1/cuenta/paquetes-comprados');
 it('answers each role what section 9 allows in the row «reportes e ingresos»')->todo('/api/v1/panel/reportes/ingresos y /api/v1/panel/reportes/mas-vendidos');
-it('lets every role and the visitor use the recommender, without 401 or 403')->todo('#118: POST /api/v1/tiendas/{tienda}/recomendaciones');

@@ -22,6 +22,7 @@ dataset('attackers', [
 dataset('functions of the owner', [
     'configure the business' => ['PATCH', 'api/v1/panel/tienda', ['nombre' => 'Tienda tomada']],
     'refund an order' => ['POST', 'api/v1/panel/pedidos/{pedido}/reembolsos', []],
+    'register a manual payment' => ['POST', 'api/v1/panel/pedidos/{pedido}/pagos-manuales', ['metodo' => 'efectivo', 'monto' => 7500, 'referencia' => 'Intruso']],
     'mark an order as delivered' => ['POST', 'api/v1/panel/pedidos/{pedido}/entrega', []],
     'mark an order as ready' => ['POST', 'api/v1/panel/pedidos/{pedido}/listo', []],
     'create a perfume' => ['POST', 'api/v1/panel/perfumes', ['marca' => 'Marca', 'nombre' => 'Intruso']],
@@ -55,6 +56,3 @@ it('API5: answers 401 to a visitor on a function of the owner', function () {
 
     Attack::as(null, 'POST', "api/v1/panel/pedidos/{$resources['pedido']}/entrega")->assertUnauthorized();
 });
-
-// The endpoint does not exist yet: its issue adds this attempt when it creates it.
-it('API5: answers 403 when a staff member or a customer registers a manual payment')->todo('POST /api/v1/panel/pedidos/{pedido}/pagos-manuales');

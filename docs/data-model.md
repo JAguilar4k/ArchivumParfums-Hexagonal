@@ -491,8 +491,8 @@ Cada fila es un intento de cobro de un pedido. La intención se confirma en una 
 | `order_id` | `uuid` | Obligatoria; llave foránea compuesta a `orders(id, business_id)` |
 | `purpose` | `varchar(16)` | `payments_purpose_check`: `deposit`, `balance` o `full` |
 | `amount` | `integer` | Principal en colones; `payments_amount_check`: mayor que 0 |
-| `gateway` | `varchar(16)` | `payments_gateway_check`: `onvo`, `paypal` o `manual`; el flujo manual queda reservado para #98 |
-| `method` | `varchar(24)` | Por defecto `card`; `payments_method_check`: `card` o `sinpe_mobile` |
+| `gateway` | `varchar(16)` | `payments_gateway_check`: `onvo`, `paypal` o `manual`; `manual` es el pago del saldo que un dueño registra en la entrega (#98) |
+| `method` | `varchar(24)` | Medio del cobro en línea. Por defecto `card`; `payments_method_check`: `card` o `sinpe_mobile` con una pasarela y nulo con `manual`, cuyo medio está en `manual_method` |
 | `status` | `varchar(24)` | Por defecto `pending`; `payments_status_check`: `pending`, `succeeded`, `failed`, `expired`, `refunded` o `partially_refunded` |
 | `charged_currency` | `varchar(3)` | Por defecto `CRC`; `payments_charged_currency_check`: `CRC` o `USD` |
 | `charged_amount` | `integer` | Por defecto 0 mientras no haya respuesta; `payments_charged_amount_check`: no negativo. En CRC guarda colones enteros; en USD guarda centavos |
@@ -500,8 +500,8 @@ Cada fila es un intento de cobro de un pedido. La intención se confirma en una 
 | `provider_reference`, `checkout_reference`, `capture_reference` | `varchar(255)` | Opcionales; identidad principal del proveedor, sesión u orden de checkout, e intención de pago de ONVO o captura de PayPal |
 | `checkout_url` | `text` | Opcional; dirección de aprobación entregada por el proveedor |
 | `refunded_amount` | `integer` | Colones; por defecto 0; `payments_refunded_amount_check`: entre 0 y `amount` |
-| `recorded_by` | `uuid` | Opcional; llave foránea compuesta al miembro `members(id, business_id)` para el pago manual |
-| `manual_method`, `manual_reference` | `varchar(16)`, `varchar(255)` | Opcionales; `payments_manual_reference_check` exige actor, referencia y medio `sinpe` o `cash` cuando la pasarela es `manual` |
+| `recorded_by` | `uuid` | Opcional; llave foránea compuesta al miembro `members(id, business_id)`: el dueño que registró el pago en la entrega |
+| `manual_method`, `manual_reference` | `varchar(16)`, `varchar(255)` | Opcionales; `payments_manual_reference_check` exige actor, referencia y medio `sinpe` o `cash` cuando la pasarela es `manual`. En ese pago, `created_at` es el momento en que el dueño lo registró |
 | `created_at`, `updated_at` | `timestamptz` | |
 
 - Llaves únicas: `id`, `(id, business_id)` y `(business_id, gateway, provider_reference)`; las referencias nulas no impiden guardar una intención todavía sin respuesta.
@@ -529,7 +529,7 @@ Cada fila asigna parte de un pago confirmado a una devolución del pedido o de u
 | `reason` | `text` | Opcional |
 | `created_at`, `updated_at` | `timestamptz` | |
 
-Llaves únicas: `id` y `(id, business_id)`. Índice `(business_id, status)`. Política `refunds_business_isolation`, habilitada y forzada. `PaymentRefundRequests` asigna pagos bajo bloqueo para que devoluciones pendientes o confirmadas no superen el principal, y `RefundPayment` bloquea el pago antes de contar sus devoluciones pendientes (#97). `RequestRefundJob` persiste `attempted_at` y `charged_amount` antes del HTTP, fuera de la transacción de la operación que registró la devolución, conserva la referencia en una transacción propia y aplica la devolución al pago y al pedido en una última transacción, con un `UPDATE` condicionado a `status = 'pending'`. Una respuesta perdida sin referencia queda pendiente para que una persona la revise; ningún trabajo repite ese POST. Una devolución con referencia que sigue pendiente se confirma con el aviso de PayPal o con la conciliación.
+Llaves únicas: `id` y `(id, business_id)`. Índice `(business_id, status)`. Política `refunds_business_isolation`, habilitada y forzada. `PaymentRefundRequests` asigna pagos bajo bloqueo para que devoluciones pendientes o confirmadas no superen el principal, y `RefundPayment` bloquea el pago antes de contar sus devoluciones pendientes (#97). `RequestRefundJob` persiste `attempted_at` y `charged_amount` antes del HTTP, fuera de la transacción de la operación que registró la devolución, conserva la referencia en una transacción propia y aplica la devolución al pago y al pedido en una última transacción, con un `UPDATE` condicionado a `status = 'pending'`. Con ONVO, una respuesta perdida sin referencia queda pendiente para que una persona la revise y ningún trabajo repite ese POST; con PayPal, los reintentos del trabajo lo repiten con el mismo `PayPal-Request-Id`, y PayPal responde la devolución que ya creó. Una devolución con referencia que sigue pendiente se confirma con el aviso de PayPal o con la conciliación.
 
 En PayPal, `charged_amount` sale de convertir el total acumulado de las devoluciones del pago con el tipo de cambio del pago original y restar lo que ya salió, así la suma de las devoluciones nunca pasa de `payments.charged_amount`. Por eso se guarda al intentar y no se recalcula después. La migración de #97 llenó la columna de las devoluciones en CRC ya intentadas con su `amount`.
 

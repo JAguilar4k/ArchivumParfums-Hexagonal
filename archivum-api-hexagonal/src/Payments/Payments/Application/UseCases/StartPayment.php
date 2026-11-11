@@ -72,7 +72,7 @@ final readonly class StartPayment
 
         // The attempt is committed before the remote POST: losing its response cannot enable a second charge.
         try {
-            $result = $this->gateways->for($attempt->gateway)->create(new ChargeRequest($attempt->id->value, $attempt->businessId->value, $attempt->amount->amount, $attempt->method, $attempt->exchangeRate));
+            $result = $this->gateways->for($attempt->gateway)->create(new ChargeRequest($attempt->id->value, $attempt->businessId->value, $attempt->amount->amount, $method, $attempt->exchangeRate));
         } catch (GatewayUnavailableException) {
             return PaymentResult::from($attempt, true, true);
         }
