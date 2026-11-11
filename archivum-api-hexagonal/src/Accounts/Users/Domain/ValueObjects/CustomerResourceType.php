@@ -13,4 +13,5 @@ enum CustomerResourceType: string
     case Customer = 'customer';
     case Order = 'order';
     case Payment = 'payment';
+    case Appointment = 'appointment';
 }
