@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Src\Scheduling\Appointments\Domain\Entities;
 
 use DateTimeImmutable;
-use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeId;
 use Src\Scheduling\Appointments\Domain\Exceptions\AppointmentChangeNotAllowedException;
 use Src\Scheduling\Appointments\Domain\Exceptions\InvalidAppointmentTransitionException;
 use Src\Scheduling\Appointments\Domain\Exceptions\TooManyPerfumesException;
 use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentId;
 use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentStatus;
 use Src\Scheduling\Appointments\Domain\ValueObjects\CustomerId;
-use Src\Scheduling\Services\Domain\ValueObjects\ServiceId;
+use Src\Scheduling\Appointments\Domain\ValueObjects\PerfumeId;
+use Src\Scheduling\Appointments\Domain\ValueObjects\ServiceId;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\MemberId;
