@@ -179,6 +179,7 @@ El dominio y la base guardan el estado en inglés. La API lo muestra en español
 - Un pago confirmado viaja como `confirmado`, nunca como `pagado`, para no chocar con el monto `pagado` del pedido.
 - Los estados del reembolso no estaban en la sección 6 inicial de la especificación; esta tabla es su definición y `refunds_status_check` ya los protege. Una solicitud pendiente no reduce el importe pagado hasta que el proveedor confirma la devolución.
 - El pago se confirma por consulta autenticada del servidor al proveedor, que piden un aviso de origen verificado (#94) o la conciliación de los pagos pendientes (#96); la consulta del cliente solo lee el pago guardado. La vuelta del navegador y una orden PayPal `APPROVED` no equivalen a un pago `succeeded`: debe comprobarse el resultado de la captura. El registro único de cada aviso llega con #95.
+- La vigencia de un paquete comprado cuenta desde que se confirma su pago y pasa a `active`, no desde la compra. Un paquete vence sin pago al pasar el plazo de la tienda, o al cumplir su vigencia aunque le queden decants; uno `exhausted` ya no vence.
 - Las transiciones permitidas están en la sección 6 de [la especificación](especificacion.md#6-estados). Solo `held` y `confirmed` cuentan para la restricción de traslape de las citas.
 
 Los valores cerrados adicionales se traducen en la frontera HTTP:
