@@ -18,4 +18,8 @@ return [
     'schedule_block.invalid_order' => 'Error: orden inválida. La hora de fin debe ser posterior a la hora de inicio.',
     'staff_schedule.member_not_found' => 'La persona no pertenece al personal de la tienda.',
     'staff_schedule.member_not_attending' => 'Esa persona todavía no atiende citas.',
+    'availability.service_not_bookable' => 'El servicio no está disponible para reservar en esta tienda.',
+    'availability.person_not_available' => 'Esa persona no atiende citas en esta tienda.',
+    'availability.invalid_date' => 'La fecha debe tener el formato AAAA-MM-DD.',
+    'availability.invalid_range' => 'El tramo de disponibilidad no puede terminar antes de empezar.',
 ];
