@@ -248,6 +248,7 @@ erDiagram
         integer amount
         varchar status
         varchar provider_reference
+        integer charged_amount
         timestamptz attempted_at
         text reason
     }
@@ -585,8 +586,8 @@ Cada fila es un intento de cobro de un pedido o de un paquete de decants. La int
 | `decant_pack_id` | `uuid` | Opcional; llave foránea compuesta a `decant_packs(id, business_id)`, incorporada con #143; el pago de la compra de un paquete la usa desde #145 |
 | `purpose` | `varchar(16)` | `payments_purpose_check`: `deposit`, `balance` o `full` |
 | `amount` | `integer` | Principal en colones; `payments_amount_check`: mayor que 0 |
-| `gateway` | `varchar(16)` | `payments_gateway_check`: `onvo`, `paypal` o `manual`; el flujo manual queda reservado para #98 |
-| `method` | `varchar(24)` | Por defecto `card`; `payments_method_check`: `card` o `sinpe_mobile` |
+| `gateway` | `varchar(16)` | `payments_gateway_check`: `onvo`, `paypal` o `manual`; `manual` es el pago del saldo que un dueño registra en la entrega (#98) |
+| `method` | `varchar(24)` | Medio del cobro en línea. Por defecto `card`; `payments_method_check`: `card` o `sinpe_mobile` con una pasarela y nulo con `manual`, cuyo medio está en `manual_method` |
 | `status` | `varchar(24)` | Por defecto `pending`; `payments_status_check`: `pending`, `succeeded`, `failed`, `expired`, `refunded` o `partially_refunded` |
 | `charged_currency` | `varchar(3)` | Por defecto `CRC`; `payments_charged_currency_check`: `CRC` o `USD` |
 | `charged_amount` | `integer` | Por defecto 0 mientras no haya respuesta; `payments_charged_amount_check`: no negativo. En CRC guarda colones enteros; en USD guarda centavos |
@@ -594,8 +595,8 @@ Cada fila es un intento de cobro de un pedido o de un paquete de decants. La int
 | `provider_reference`, `checkout_reference`, `capture_reference` | `varchar(255)` | Opcionales; identidad principal del proveedor, sesión u orden de checkout, e intención de pago de ONVO o captura de PayPal |
 | `checkout_url` | `text` | Opcional; dirección de aprobación entregada por el proveedor |
 | `refunded_amount` | `integer` | Colones; por defecto 0; `payments_refunded_amount_check`: entre 0 y `amount` |
-| `recorded_by` | `uuid` | Opcional; llave foránea compuesta al miembro `members(id, business_id)` para el pago manual |
-| `manual_method`, `manual_reference` | `varchar(16)`, `varchar(255)` | Opcionales; `payments_manual_reference_check` exige actor, referencia y medio `sinpe` o `cash` cuando la pasarela es `manual` |
+| `recorded_by` | `uuid` | Opcional; llave foránea compuesta al miembro `members(id, business_id)`: el dueño que registró el pago en la entrega |
+| `manual_method`, `manual_reference` | `varchar(16)`, `varchar(255)` | Opcionales; `payments_manual_reference_check` exige actor, referencia y medio `sinpe` o `cash` cuando la pasarela es `manual`. En ese pago, `created_at` es el momento en que el dueño lo registró |
 | `created_at`, `updated_at` | `timestamptz` | |
 
 - Llaves únicas: `id`, `(id, business_id)` y `(business_id, gateway, provider_reference)`; las referencias nulas no impiden guardar una intención todavía sin respuesta.
@@ -617,12 +618,15 @@ Cada fila asigna parte de un pago confirmado a una devolución del pedido o de u
 | `order_line_id` | `uuid` | Opcional; llave foránea compuesta a `order_lines(id, business_id)` |
 | `amount` | `integer` | Colones; `refunds_amount_check`: mayor que 0 |
 | `status` | `varchar(16)` | Por defecto `pending`; `refunds_status_check`: `pending`, `succeeded` o `failed` |
-| `provider_reference` | `varchar(255)` | Opcional; se confirma antes de aplicar el efecto final sobre pago y pedido |
-| `attempted_at` | `timestamptz` | Opcional; marca durable de que se intentó enviar la devolución, confirmada antes del HTTP |
+| `provider_reference` | `varchar(255)` | Opcional; se confirma antes de aplicar el efecto final sobre pago y pedido. Queda vacía si la pasarela rechazó la devolución sin crearla |
+| `charged_amount` | `integer` | Opcional; la devolución en la unidad que cobró la pasarela: colones enteros con ONVO y centavos de dólar con PayPal. Se fija junto con `attempted_at`; `refunds_charged_amount_check`: mayor que 0 |
+| `attempted_at` | `timestamptz` | Opcional; marca durable de que se intentó enviar la devolución, confirmada antes del HTTP. `refunds_attempted_at_check`: una devolución intentada tiene `charged_amount` |
 | `reason` | `text` | Opcional |
 | `created_at`, `updated_at` | `timestamptz` | |
 
-Llaves únicas: `id` y `(id, business_id)`. Índice `(business_id, status)`. Política `refunds_business_isolation`, habilitada y forzada. `PaymentRefundRequests` asigna pagos bajo bloqueo para que devoluciones pendientes o confirmadas no superen el principal. `ProcessOrderRefunds` persiste `attempted_at`, realiza el HTTP sin la transacción exterior de la petición, conserva la referencia en una transacción propia y aplica la devolución al pago y al pedido en una última transacción. Una respuesta perdida sin referencia queda pendiente para conciliación; repetir la petición no repite ese POST a ciegas. ONVO tiene implementación; PayPal queda documentado para este corte.
+Llaves únicas: `id` y `(id, business_id)`. Índice `(business_id, status)`. Política `refunds_business_isolation`, habilitada y forzada. `PaymentRefundRequests` asigna pagos bajo bloqueo para que devoluciones pendientes o confirmadas no superen el principal, y `RefundPayment` bloquea el pago antes de contar sus devoluciones pendientes (#97). `RequestRefundJob` persiste `attempted_at` y `charged_amount` antes del HTTP, fuera de la transacción de la operación que registró la devolución, conserva la referencia en una transacción propia y aplica la devolución al pago y al pedido en una última transacción, con un `UPDATE` condicionado a `status = 'pending'`. Con ONVO, una respuesta perdida sin referencia queda pendiente para que una persona la revise y ningún trabajo repite ese POST; con PayPal, los reintentos del trabajo lo repiten con el mismo `PayPal-Request-Id`, y PayPal responde la devolución que ya creó. Una devolución con referencia que sigue pendiente se confirma con el aviso de PayPal o con la conciliación.
+
+En PayPal, `charged_amount` sale de convertir el total acumulado de las devoluciones del pago con el tipo de cambio del pago original y restar lo que ya salió, así la suma de las devoluciones nunca pasa de `payments.charged_amount`. Por eso se guarda al intentar y no se recalcula después. La migración de #97 llenó la columna de las devoluciones en CRC ya intentadas con su `amount`.
 
 ### webhook_events
 
@@ -722,6 +726,7 @@ Cada una se aparta de la 3FN o de la regla de llaves con una razón. Las cuatro 
 | `decant_packs.remaining_decants` | Se puede derivar de `total_decants` menos los canjes, pero el canje concurrente de R34 exige decidir con un `UPDATE` condicional y un `CHECK` en la misma fila (#147), como los ml de las botellas |
 | `payments.charged_amount`, `exchange_rate` | Conservan el importe real de aquel cobro y su conversión, aunque cambie después el tipo de cambio de la tienda. CRC se guarda en colones enteros y USD en centavos; los montos enviados por HTTP son responsabilidad del adaptador |
 | `payments.refunded_amount` | Resume el principal devuelto para impedir un exceso al bloquear el pago. Solo crece con un reembolso confirmado y se actualiza junto con el reembolso y su efecto sobre el pedido |
+| `refunds.charged_amount` | Congela lo que se pidió a la pasarela en su unidad. Con PayPal depende del tipo de cambio del pago y de las devoluciones que salieron antes, así que recalcularlo después podría dar otro centavo; también es lo que se compara con la respuesta y el aviso de la pasarela (#97) |
 | `webhook_events` no tiene `business_id` | El evento de la pasarela llega antes de saber a qué tienda pertenece, y se identifica por `(gateway, event_id)` para procesarse una sola vez (R38). La tienda se obtiene después, por el pago que el evento menciona. No tiene política de fila porque no tiene `business_id` |
 | `business_id` se repite en las tablas hijas | Una tabla hija como `appointments` lleva `business_id` aunque su padre ya lo implique. Es lo que permite las llaves foráneas compuestas `(parent_id, business_id)` hacia la llave `(id, business_id)` del padre, que impiden que una fila apunte al recurso de otra tienda (R56), y la política de fila directa. Los dos valores no pueden discrepar: lo garantiza la llave compuesta |
 | `businesses.settings` es un `jsonb` | Guarda los ajustes por tienda (sección 10 de la especificación). Cada ajuste se lee y se escribe entero y ninguno se consulta ni se une con otras tablas; un `CHECK` exige que sea un objeto. Si un ajuste necesitara consultarse o validarse por columna, se promueve a columna |

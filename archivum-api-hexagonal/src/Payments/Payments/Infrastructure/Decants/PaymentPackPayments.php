@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Src\Payments\Payments\Infrastructure\Decants;
 
+use LogicException;
 use Src\Decants\Packs\Application\Contracts\PackPayments;
 use Src\Decants\Packs\Application\DTOs\PackPayment;
 use Src\Payments\Payments\Application\DTOs\PaymentResult;
@@ -31,8 +32,11 @@ final readonly class PaymentPackPayments implements PackPayments
         return $payment === null ? null : $this->packPaymentOf(PaymentResult::from($payment, communicationError: $payment->status === PaymentStatus::Pending && $payment->providerReference === null));
     }
 
+    /** A pack is paid online, so its payment always has a method: only a payment received on delivery (#98) has none. */
     private function packPaymentOf(PaymentResult $result): PackPayment
     {
-        return new PackPayment($result->id, $result->amount, $result->currency, $result->chargedAmount, $result->gateway, $result->status, $result->checkoutUrl, $result->method, $result->communicationError);
+        $method = $result->method ?? throw new LogicException('A payment of a pack is always made online.');
+
+        return new PackPayment($result->id, $result->amount, $result->currency, $result->chargedAmount, $result->gateway, $result->status, $result->checkoutUrl, $method, $result->communicationError);
     }
 }

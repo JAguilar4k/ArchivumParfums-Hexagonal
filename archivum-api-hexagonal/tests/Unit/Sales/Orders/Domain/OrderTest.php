@@ -258,6 +258,20 @@ it('expires a pending order only when its deadline arrives', function () {
     expect(fn () => $order->recordPayment(7500))->toThrow(OrderConflictException::class);
 });
 
+it('R25: is overdue only while it waits for its payment once its deadline arrived', function () {
+    $pending = salesOrder([salesBottle()]);
+    $paid = salesOrder([salesBottle()]);
+    $paid->recordPayment(7500);
+
+    expect($pending->isOverdueAt(new DateTimeImmutable('2026-10-24T10:29:59-06:00')))->toBeFalse()
+        ->and($pending->isOverdueAt(new DateTimeImmutable('2026-10-24T10:30:00-06:00')))->toBeTrue()
+        ->and($paid->isOverdueAt(new DateTimeImmutable('2026-10-24T10:30:00-06:00')))->toBeFalse();
+
+    $pending->expire(new DateTimeImmutable('2026-10-24T10:30:00-06:00'));
+
+    expect($pending->isOverdueAt(new DateTimeImmutable('2026-10-24T11:00:00-06:00')))->toBeFalse();
+});
+
 it('removes an unavailable bottle and returns its allocated deposit without erasing actual paid money', function () {
     $order = salesOrder([salesBottle(15001), salesBottle(15001, 'line-3'), salesDecant(501)]);
     $order->recordPayment(15502);

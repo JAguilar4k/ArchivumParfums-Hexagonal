@@ -7,20 +7,25 @@ namespace Src\Sales\Orders\Application\UseCases;
 use DateTimeImmutable;
 use Src\Sales\Orders\Application\Contracts\DecantStock;
 use Src\Sales\Orders\Application\Contracts\OrderCustomers;
+use Src\Sales\Orders\Application\Contracts\OrderDeadlines;
 use Src\Sales\Orders\Application\Contracts\OrderProducts;
 use Src\Sales\Orders\Application\DTOs\PlaceOrderCommand;
 use Src\Sales\Orders\Domain\Contracts\OrderRepository;
 use Src\Sales\Orders\Domain\Entities\Order;
 use Src\Sales\Orders\Domain\Entities\OrderLine;
 use Src\Sales\Orders\Domain\ValueObjects\OrderLineKind;
+use Src\Sales\Orders\Domain\ValueObjects\OrderStatus;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\Contracts\TransactionRunner;
 
 final readonly class PlaceOrder
 {
-    public function __construct(private OrderRepository $orders, private OrderProducts $products, private OrderCustomers $customers, private DecantStock $stock, private BusinessContext $business, private TransactionRunner $transaction) {}
+    public function __construct(private OrderRepository $orders, private OrderProducts $products, private OrderCustomers $customers, private DecantStock $stock, private OrderDeadlines $deadlines, private BusinessContext $business, private TransactionRunner $transaction) {}
 
-    /** Place and reserve every line atomically; a shortage rolls back all earlier reservations. */
+    /**
+     * Place and reserve every line atomically; a shortage rolls back all earlier reservations. An order that waits
+     * for its payment is checked again at its deadline, when it expires if it is still unpaid (R25).
+     */
     public function execute(PlaceOrderCommand $command): Order
     {
         return $this->transaction->run(function () use ($command): Order {
@@ -41,6 +46,10 @@ final readonly class PlaceOrder
                 if ($line->decantBottleId !== null && $line->ml !== null) {
                     $this->stock->reserve($line->decantBottleId, $line->ml, $line->id, $command->userId);
                 }
+            }
+
+            if ($order->status === OrderStatus::PendingPayment) {
+                $this->deadlines->checkAt($order->id, $order->businessId, $order->expiresAt);
             }
 
             return $order;
