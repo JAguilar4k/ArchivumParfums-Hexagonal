@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Illuminate\Testing\PendingCommand;
 use Src\Payments\Payments\Application\DTOs\RefundPaymentCommand;
@@ -47,6 +48,17 @@ beforeEach(function (): void {
     ]);
     Http::preventStrayRequests();
 });
+
+// A test that keeps the locks of the unique jobs in the database commits them on their own connection.
+afterEach(function (): void {
+    DB::connection('pgsql_locks')->table('cache_locks')->delete();
+});
+
+/** Leave one more copy of a job in the database queue without its unique key, as php artisan queue:retry does. */
+function pushAnotherRefundJob(RequestRefundJob $job): void
+{
+    Queue::connection('database')->push($job);
+}
 
 /** Run the next job of the database queue, as the worker of production does. */
 function workNextRefundJob(): void
@@ -390,7 +402,27 @@ it('R40: applies a PayPal notice that arrives before its refund kept the referen
     Http::assertNotSent(fn (Request $request): bool => str_ends_with($request->url(), '/refund'));
 });
 
-it('R40: never sends a refund twice, even when a second job runs it', function (): void {
+it('R40: keeps one job when the owner asks again while the refund still waits for it', function (): void {
+    // The locks of production: the owner's request runs in one transaction and finds the key of the job taken.
+    config(['cache.default' => 'database']);
+    $business = actingAsCustomer();
+    $order = StoredOrders::create($business, 'confirmed')['order'];
+    $payment = StoredPayments::create($business, $order, 'succeeded');
+    fakeOnvoRefund($payment, 'refund-asked-twice', 750_000, 'succeeded');
+    postJson('/api/v1/cuenta/pedidos/'.$order->id.'/cancelacion')->assertOk();
+
+    actingAsOwner($business);
+    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonPath('data.0.estado', 'pendiente');
+    expect(DB::table('jobs')->count())->toBe(1);
+    workNextRefundJob();
+
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'succeeded', 'provider_reference' => 'refund-asked-twice']);
+    expect(DB::table('jobs')->count())->toBe(0);
+    expect(Http::recorded(fn (Request $request): bool => $request->method() === 'POST')->count())->toBe(1);
+});
+
+it('R40: never sends a refund twice, even when a second copy of its job runs', function (): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business, 'confirmed')['order'];
     $payment = StoredPayments::create($business, $order, 'succeeded');
@@ -398,7 +430,7 @@ it('R40: never sends a refund twice, even when a second job runs it', function (
     postJson('/api/v1/cuenta/pedidos/'.$order->id.'/cancelacion')->assertOk();
     app(BusinessTransaction::class)->scope($business->business->id);
     $refundId = (string) DB::table('refunds')->where('payment_id', $payment->id)->value('id');
-    RequestRefundJob::dispatch($refundId, $business->business->id);
+    pushAnotherRefundJob(new RequestRefundJob($refundId, $business->business->id));
     expect(DB::table('jobs')->count())->toBe(2);
 
     workNextRefundJob();
@@ -553,12 +585,31 @@ it('changes nothing when the job of a refund names another business', function (
     $refundId = (string) DB::table('refunds')->where('payment_id', $payment->id)->value('id');
     DB::table('jobs')->delete();
 
-    RequestRefundJob::dispatch($refundId, $other->business->id);
+    pushAnotherRefundJob(new RequestRefundJob($refundId, $other->business->id));
     workNextRefundJob();
 
     app(BusinessTransaction::class)->scope($business->business->id);
     assertDatabaseHas('refunds', ['id' => $refundId, 'status' => 'pending', 'attempted_at' => null, 'charged_amount' => null]);
     expect(DB::table('jobs')->count())->toBe(0)
         ->and(DB::table('failed_jobs')->count())->toBe(0);
+    Http::assertNothingSent();
+});
+
+it('fails the job of a refund that carries no business, without sending or changing the refund', function (): void {
+    $business = actingAsCustomer();
+    $order = StoredOrders::create($business, 'confirmed')['order'];
+    $payment = StoredPayments::create($business, $order, 'succeeded');
+    postJson('/api/v1/cuenta/pedidos/'.$order->id.'/cancelacion')->assertOk();
+    app(BusinessTransaction::class)->scope($business->business->id);
+    $refundId = (string) DB::table('refunds')->where('payment_id', $payment->id)->value('id');
+    DB::table('jobs')->delete();
+
+    pushAnotherRefundJob(new RequestRefundJob($refundId, ''));
+    workNextRefundJob();
+
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('refunds', ['id' => $refundId, 'status' => 'pending', 'attempted_at' => null, 'charged_amount' => null]);
+    expect(DB::table('jobs')->count())->toBe(0)
+        ->and(DB::table('failed_jobs')->sole()->exception)->toContain('LogicException: The job carries no business.');
     Http::assertNothingSent();
 });
