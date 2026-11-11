@@ -17,6 +17,7 @@ use Src\Decants\Bottles\Infrastructure\BottlesServiceProvider;
 use Src\Payments\Payments\Infrastructure\PaymentsServiceProvider;
 use Src\Recommendations\Recommender\Infrastructure\RecommenderServiceProvider;
 use Src\Sales\Orders\Infrastructure\OrdersServiceProvider;
+use Src\Scheduling\Appointments\Infrastructure\AppointmentsServiceProvider;
 use Src\Scheduling\Availability\Infrastructure\AvailabilityServiceProvider;
 use Src\Scheduling\BusinessHours\Infrastructure\BusinessHoursServiceProvider;
 use Src\Scheduling\ScheduleBlocks\Infrastructure\ScheduleBlocksServiceProvider;
@@ -48,4 +49,5 @@ return [
     StaffSchedulesServiceProvider::class,
     ScheduleBlocksServiceProvider::class,
     AvailabilityServiceProvider::class,
+    AppointmentsServiceProvider::class,
 ];

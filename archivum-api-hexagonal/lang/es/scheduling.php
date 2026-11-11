@@ -4,6 +4,14 @@ declare(strict_types=1);
 
 return [
     'service.name_required' => 'El nombre del servicio es obligatorio.',
+    'appointment.invalid_transition' => 'La cita no puede pasar de :from a :to.',
+    'appointment.change_not_allowed' => 'La cita solo se cambia o se cancela hasta :hours horas antes.',
+    'appointment.too_many_perfumes' => 'La cita no puede probar más de :max perfumes.',
+    'appointment.repeated_perfume' => 'Un perfume no se puede elegir dos veces en la misma cita.',
+    'appointment.invalid_order' => 'El fin de la cita debe ser posterior a su inicio.',
+    'appointment.invalid_block' => 'El margen de la cita no puede terminar antes que la cita.',
+    'appointment.invalid_business' => 'La cita no pertenece a esta tienda.',
+    'appointment.slot_taken' => 'Ese horario ya no está disponible.',
     'service.not_found' => 'El servicio no existe.',
     'schedule_block.not_found' => 'El bloqueo no existe.',
     'schedule_block.member_not_found' => 'La persona no pertenece al personal de la tienda.',
