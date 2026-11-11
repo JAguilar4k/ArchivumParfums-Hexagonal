@@ -101,7 +101,7 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Compra de un paquete | `PurchaseDecantPack`, `PurchasedPack` | Una fila de `decant_packs` y su pago en `payments.decant_pack_id` | `POST /api/v1/tiendas/{tienda}/paquetes/{paquete}/compra` |
 | Clave de idempotencia de la compra | `IdempotencyKey` | `decant_packs.idempotency_key`, única por cliente y tienda | encabezado `Idempotency-Key`, opcional |
 | Canje de un decant del paquete | `RedeemPackDecant`, `RecordPackRedemption`, `DecantPackRedemption` | `decant_pack_redemptions` y `order_lines.decant_pack_id` | `paquete_id` de una línea de decant del pedido; `canjeado` en los movimientos de la botella |
-| Devolución de un decant al paquete | `ReturnPackDecant`, `DecantPack::returnDecant` | Borra la fila de `decant_pack_redemptions` y suma el decant a `remaining_decants` | Al cancelar el pedido: `POST /api/v1/cuenta/pedidos/{pedido}/cancelacion` |
+| Devolución de un decant al paquete | `ReturnPackDecant`, `DecantPack::returnDecant` | Borra la fila de `decant_pack_redemptions` y suma el decant a `remaining_decants` | Al cancelar el pedido (`POST /api/v1/cuenta/pedidos/{pedido}/cancelacion`) o cuando vence sin pago (#158) |
 | Proveedor | `Supplier` | `suppliers` | `proveedores` |
 | Costo del proveedor | `SupplierPrice` | `supplier_prices` | `costos` |
 | Importación del catálogo | `CatalogImport` | `catalog_imports` | `importaciones` |
