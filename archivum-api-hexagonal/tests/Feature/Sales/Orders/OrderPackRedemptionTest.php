@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Decants\Bottles\Infrastructure\Persistence\Models\DecantBottleModel;
+use Src\Sales\Orders\Infrastructure\Jobs\ExpireUnpaidOrderJob;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
 use Tests\Support\Catalog\StoredPerfumes;
@@ -234,6 +235,25 @@ it('gives the redeemed decants of a cancelled order back to the pack and release
     assertDatabaseCount('refunds', 0);
 });
 
+it('gives the redeemed decants of an order that expired unpaid back to the pack and releases their ml', function () {
+    $store = storeWithAPack(['remaining_decants' => 1]);
+    // A decant paid with money keeps the order waiting for its payment, besides the one the pack pays.
+    $order = postJson($store['url'], ['lineas' => [redeemedLine($store), ['botella_id' => $store['bottle'], 'ml' => 5]]])->assertCreated()
+        ->assertJsonPath('data.estado', 'pendiente_de_pago')->json('data.id');
+    travel(31)->minutes();
+
+    // The job of its payment deadline, as the worker runs it (#158).
+    ExpireUnpaidOrderJob::dispatchSync($order, $store['business']->business->id);
+
+    // The pack that the redemption had exhausted is active again, because it is still valid.
+    $this->scopeQueriesTo($store['business']->business->id);
+    assertDatabaseHas('orders', ['id' => $order, 'status' => 'expired']);
+    assertDatabaseHas('decant_packs', ['id' => $store['pack'], 'remaining_decants' => 1, 'status' => 'active']);
+    assertDatabaseCount('decant_pack_redemptions', 0);
+    assertDatabaseHas('decant_bottles', ['id' => $store['bottle'], 'remaining_ml' => 100, 'reserved_ml' => 0]);
+    expect(DB::table('order_lines')->where('order_id', $order)->pluck('status')->all())->toBe(['released', 'released']);
+});
+
 it('R35: gives the decant back to a pack whose validity ended meanwhile, which stays expired', function () {
     freezeTime();
     $store = storeWithAPack(['remaining_decants' => 1, 'expires_at' => now()->addDay()]);
@@ -294,7 +314,7 @@ function rowsWrittenBy(Closure $operation, array $rows): array
     return $written;
 }
 
-it('locks the packs and then the bottles of an order in the order of their identifiers when it is placed, cancelled or prepared', function () {
+it('locks the packs and then the bottles of an order in the order of their identifiers when it is placed, cancelled, expired or prepared', function () {
     $store = storeWithAPack();
     $packs = [$store['pack'], StoredPacks::create($store['business'], ['status' => 'active', 'expires_at' => now()->addDays(180)])['pack_id']];
     $bottles = [$store['bottle'], DecantBottleModel::factory()->forPresentation($store['business']->business->id, $store['variant'], 100)->create()->id];
@@ -314,6 +334,13 @@ it('locks the packs and then the bottles of an order in the order of their ident
 
     $placed[] = postJson($store['url'], $cart)->assertCreated()->json('data.id');
     expect(rowsWrittenBy(fn () => postJson('/api/v1/cuenta/pedidos/'.$placed[1].'/cancelacion')->assertOk(), $rows))
+        ->toBe(['first pack', 'last pack', 'first bottle', 'last bottle']);
+
+    // A decant paid with money keeps this order waiting for its payment until its deadline passes (#158).
+    $unpaid = postJson($store['url'], ['lineas' => [...$cart['lineas'], ['botella_id' => $bottles[1], 'ml' => 5]]])->assertCreated()
+        ->assertJsonPath('data.estado', 'pendiente_de_pago')->json('data.id');
+    travel(31)->minutes();
+    expect(rowsWrittenBy(fn () => ExpireUnpaidOrderJob::dispatchSync($unpaid, $store['business']->business->id), $rows))
         ->toBe(['first pack', 'last pack', 'first bottle', 'last bottle']);
 
     actingAsOwner($store['business']);

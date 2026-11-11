@@ -63,6 +63,7 @@ function panelResourcesById(): array
         'prepare order decants' => ['POST', '/api/v1/panel/pedidos/{id}/preparacion', [], 'orders', exampleOrder(...)],
         'mark an order ready' => ['POST', '/api/v1/panel/pedidos/{id}/listo', [], 'orders', exampleOrder(...)],
         'deliver an order' => ['POST', '/api/v1/panel/pedidos/{id}/entrega', [], 'orders', exampleOrder(...)],
+        'record a payment on delivery' => ['POST', '/api/v1/panel/pedidos/{id}/pagos-manuales', ['metodo' => 'sinpe', 'monto' => 1000, 'referencia' => 'SINPE-2026-0001'], 'orders', exampleOrder(...)],
         'process order refunds' => ['POST', '/api/v1/panel/pedidos/{id}/reembolsos', [], 'orders', exampleOrder(...)],
         'mark a line unavailable' => ['POST', '/api/v1/panel/pedidos/{id}/lineas/'.MISSING_RESOURCE.'/no-disponible', [], 'orders', exampleOrder(...)],
         'edit an offer of decant packs' => ['PATCH', '/api/v1/panel/paquetes', ['precio' => 1, 'activo' => false], 'decant_pack_plans', examplePackPlan(...)],

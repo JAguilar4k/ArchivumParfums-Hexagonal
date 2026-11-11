@@ -107,6 +107,7 @@ function permissionMatrixRows(): array
             'listar mis paquetes' => ['GET', 'api/v1/cuenta/paquetes-comprados', [], customerOnly(200)],
         ],
         'registrar pagos en la entrega y reembolsos' => [
+            'registrar un pago en la entrega' => ['POST', 'api/v1/panel/pedidos/{pedido}/pagos-manuales', [], ownerOnly(422), fn (): array => ['metodo' => 'sinpe', 'monto' => 7500, 'referencia' => 'SINPE de otra tienda']],
             'procesar los reembolsos de un pedido' => ['POST', 'api/v1/panel/pedidos/{pedido}/reembolsos', [], ownerOnly(200)],
         ],
         'cuenta propia (sección 8)' => [

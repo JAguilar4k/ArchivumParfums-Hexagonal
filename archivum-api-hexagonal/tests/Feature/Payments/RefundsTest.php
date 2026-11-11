@@ -230,12 +230,12 @@ it('R40: rejects with a conflict a refund above what is left of its payment, cou
     Http::assertNothingSent();
 });
 
-it('R40: leaves the refund failed, visible to the owner, and the payment unchanged when the gateway rejects it', function (string $rejection, ?string $reference): void {
+it('R40: leaves the refund failed, visible to the owner, and the payment unchanged when the gateway rejects it', function (?int $refusal, ?string $reference): void {
     $business = actingAsCustomer();
     $order = StoredOrders::create($business, 'confirmed')['order'];
     $payment = StoredPayments::create($business, $order, 'succeeded');
-    if ($rejection === 'refused') {
-        Http::fake(['api.onvopay.com/v1/refunds' => Http::response(['code' => 'refund_declined'], 402)]);
+    if ($refusal !== null) {
+        Http::fake(['api.onvopay.com/v1/refunds' => Http::response(['code' => 'refused'], $refusal)]);
     } else {
         fakeOnvoRefund($payment, 'refund-failed', 750_000, 'failed');
     }
@@ -249,13 +249,17 @@ it('R40: leaves the refund failed, visible to the owner, and the payment unchang
     assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'cancelled', 'paid' => 7500]);
     actingAsOwner($business);
     postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.estado', 'fallido')->assertJsonPath('data.0.monto', 7500)->assertJsonPath('data.0.pago', $payment->id);
+        ->assertJsonPath('data.0.estado', 'fallido')->assertJsonPath('data.0.monto', 7500)->assertJsonPath('data.0.pago', $payment->id)
+        ->assertJsonPath('data.0.consulta_pendiente', false);
     // A rejected refund is not sent again by itself.
-    expect(DB::table('jobs')->count())->toBe(0);
-    Http::assertSentCount($rejection === 'refused' ? 1 : 2);
+    expect(DB::table('jobs')->count())->toBe(0)
+        ->and(DB::table('failed_jobs')->count())->toBe(0);
+    Http::assertSentCount($refusal !== null ? 1 : 2);
 })->with([
-    'a refusal of the request' => ['refused', null],
-    'a refund the provider failed' => ['failed', 'refund-failed'],
+    'a declined refund' => [402, null],
+    'a key ONVO does not accept' => [401, null],
+    'an intent ONVO does not know' => [404, null],
+    'a refund the provider failed' => [null, 'refund-failed'],
 ]);
 
 it('R40: confirms with the reconciliation a refund the provider still processes', function (): void {
@@ -274,6 +278,10 @@ it('R40: confirms with the reconciliation a refund the provider still processes'
     app(BusinessTransaction::class)->scope($business->business->id);
     assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'pending', 'provider_reference' => 'refund-later']);
     assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded', 'refunded_amount' => 0]);
+    // ONVO answered with its reference, so the owner sees it in process, not waiting for someone to check it.
+    actingAsOwner($business);
+    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()
+        ->assertJsonPath('data.0.estado', 'pendiente')->assertJsonPath('data.0.consulta_pendiente', false);
     // The reconciliation leaves a refund alone while it still waits for its confirmation.
     reconcileRefundsNow()->expectsOutputToContain('Ningún reembolso pendiente cambió de estado.')->assertSuccessful();
     Http::assertSentCount(2);
@@ -374,14 +382,17 @@ it('R40: applies a PayPal notice that arrives before its refund kept the referen
         'api-m.sandbox.paypal.com/v2/payments/refunds/PAYPAL-REFUND-EARLY' => Http::response(paypalRefundAnswer('PAYPAL-REFUND-EARLY', 'COMPLETED', '15.00')),
     ]);
     postJson('/api/v1/cuenta/pedidos/'.$order->id.'/cancelacion')->assertOk();
-    // The request already left for PayPal, but its answer has not been kept yet.
+    // The request already left for PayPal, but its answer has not been kept yet: its job is still running elsewhere.
     app(BusinessTransaction::class)->scope($business->business->id);
     $refundId = (string) DB::table('refunds')->where('payment_id', $payment->id)->value('id');
     DB::table('refunds')->where('id', $refundId)->update(['charged_amount' => 1500, 'attempted_at' => now()]);
+    DB::table('jobs')->delete();
 
     postJson('/api/v1/webhooks/paypal', paypalRefundNotice('PAYPAL-REFUND-EARLY', $capture, '15.00', $business->business->id.':'.$refundId), paypalRefundSignature())
         ->assertOk()->assertJsonPath('data.estado', 'recibido');
     workNextRefundJob();
+    // Once the notice kept the reference, a job of the refund that runs after it asks PayPal nothing more.
+    RequestRefundJob::dispatch($refundId, $business->business->id);
     workNextRefundJob();
 
     app(BusinessTransaction::class)->scope($business->business->id);
@@ -442,17 +453,65 @@ it('R40: keeps an uncertain refund pending without sending it again or counting 
     workNextRefundJob();
 
     app(BusinessTransaction::class)->scope($business->business->id);
+    $refundId = (string) DB::table('refunds')->where('payment_id', $payment->id)->value('id');
     assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'pending', 'provider_reference' => null, 'charged_amount' => 7500]);
     expect(DB::table('refunds')->where('payment_id', $payment->id)->value('attempted_at'))->not->toBeNull();
     assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded', 'refunded_amount' => 0]);
     assertDatabaseHas('orders', ['id' => $order->id, 'paid' => 7500]);
-    // Neither the owner's list nor the reconciliation sends it again: a person checks it in the provider.
+    // Neither the queue, the owner's list nor the reconciliation sends it again: the owner sees that ONVO did not
+    // answer, and a person checks it in the provider.
+    expect(DB::table('jobs')->count())->toBe(0)
+        ->and(DB::table('failed_jobs')->count())->toBe(0);
     actingAsOwner($business);
-    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonPath('data.0.estado', 'pendiente');
+    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()
+        ->assertJsonPath('data.0.estado', 'pendiente')->assertJsonPath('data.0.consulta_pendiente', true);
     travel(Payment::MINUTES_FOR_THE_NOTICE + 1)->minutes();
     reconcileRefundsNow()->expectsOutputToContain('Ningún reembolso pendiente cambió de estado.')->assertSuccessful();
     expect(DB::table('jobs')->count())->toBe(0);
+    // Not even another job of the same refund sends it again, because ONVO could return the money twice.
+    RequestRefundJob::dispatch($refundId, $business->business->id);
+    workNextRefundJob();
+    expect(DB::table('jobs')->count())->toBe(0)
+        ->and(DB::table('failed_jobs')->count())->toBe(0);
     Http::assertSentCount(1);
+});
+
+it('R40: asks PayPal again through the queue for a refund whose answer was lost, with the same PayPal-Request-Id, and returns it once', function (): void {
+    $business = actingAsCustomer();
+    $order = StoredOrders::create($business, 'confirmed')['order'];
+    $payment = StoredPayments::create($business, $order, 'succeeded', gateway: 'paypal');
+    $capture = (string) $payment->capture_reference;
+    Http::fake([
+        'api-m.sandbox.paypal.com/v1/oauth2/token' => Http::response(['access_token' => 'fake-token']),
+        'api-m.sandbox.paypal.com/v2/payments/captures/'.$capture.'/refund' => Http::sequence()
+            ->pushFailedConnection()
+            ->push(paypalRefundAnswer('PAYPAL-REFUND-1', 'COMPLETED', '15.00'), 201),
+    ]);
+    postJson('/api/v1/cuenta/pedidos/'.$order->id.'/cancelacion')->assertOk();
+
+    workNextRefundJob();
+
+    // The refund left without an answer: its job waits in the queue for its next attempt, and the owner sees it.
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'pending', 'provider_reference' => null, 'charged_amount' => 1500]);
+    expect(DB::table('jobs')->count())->toBe(1)
+        ->and(DB::table('failed_jobs')->count())->toBe(0);
+    actingAsOwner($business);
+    postJson('/api/v1/panel/pedidos/'.$order->id.'/reembolsos')->assertOk()->assertJsonPath('data.0.consulta_pendiente', true);
+
+    travel(11)->seconds();
+    workNextRefundJob();
+
+    app(BusinessTransaction::class)->scope($business->business->id);
+    assertDatabaseHas('refunds', ['payment_id' => $payment->id, 'status' => 'succeeded', 'provider_reference' => 'PAYPAL-REFUND-1', 'charged_amount' => 1500]);
+    assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'refunded', 'refunded_amount' => 7500]);
+    assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'cancelled', 'paid' => 0]);
+    expect(DB::table('jobs')->count())->toBe(0);
+    // Both requests carry the same key, so PayPal answers the refund it may have created instead of a second one.
+    $requests = Http::recorded(fn (Request $request): bool => str_ends_with($request->url(), '/refund'));
+    expect($requests)->toHaveCount(2)
+        ->and($requests->map(fn (array $sent): array => $sent[0]->header('PayPal-Request-Id'))->unique()->values()->all())->toHaveCount(1)
+        ->and($requests->map(fn (array $sent): mixed => $sent[0]['amount']['value'])->values()->all())->toBe(['15.00', '15.00']);
 });
 
 it('R40: keeps the reference when applying the answer fails and confirms the refund with the reconciliation', function (): void {

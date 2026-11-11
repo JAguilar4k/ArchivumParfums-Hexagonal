@@ -9,6 +9,7 @@ use Illuminate\Support\ServiceProvider;
 use Src\Sales\Orders\Application\Contracts\DecantPackRedemption;
 use Src\Sales\Orders\Application\Contracts\DecantStock;
 use Src\Sales\Orders\Application\Contracts\OrderCustomers;
+use Src\Sales\Orders\Application\Contracts\OrderDeadlines;
 use Src\Sales\Orders\Application\Contracts\OrderProducts;
 use Src\Sales\Orders\Application\Contracts\OrderSearch;
 use Src\Sales\Orders\Domain\Contracts\OrderRepository;
@@ -19,6 +20,7 @@ use Src\Sales\Orders\Infrastructure\Decants\BottleDecantStock;
 use Src\Sales\Orders\Infrastructure\Decants\PackDecantRedemption;
 use Src\Sales\Orders\Infrastructure\Persistence\Repositories\EloquentOrderRepository;
 use Src\Sales\Orders\Infrastructure\Policies\OrderPolicy;
+use Src\Sales\Orders\Infrastructure\Queue\QueuedOrderDeadlines;
 
 final class OrdersServiceProvider extends ServiceProvider
 {
@@ -30,6 +32,7 @@ final class OrdersServiceProvider extends ServiceProvider
         OrderProducts::class => CatalogOrderProducts::class,
         DecantStock::class => BottleDecantStock::class,
         DecantPackRedemption::class => PackDecantRedemption::class,
+        OrderDeadlines::class => QueuedOrderDeadlines::class,
     ];
 
     /** Let OrderPolicy decide who reaches an order (#104). */

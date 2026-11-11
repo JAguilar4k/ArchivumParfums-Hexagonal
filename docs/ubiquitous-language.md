@@ -76,7 +76,10 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Pago | `Payment` | `payments` | `pagos` |
 | Recurso que se cobra | `Payable` | Actualmente `payments.order_id` con llave foránea compuesta | El pedido `{pedido}` de la ruta |
 | Propósito del pago | `PaymentPurpose` | `payments.purpose` | `proposito`: `deposito`, `saldo` o `total` |
-| Medio de pago | `PaymentMethod` | `payments.method` | `medio`: `tarjeta` o `sinpe_movil` |
+| Medio de pago | `PaymentMethod` | `payments.method` | `medio`: `tarjeta` o `sinpe_movil`; nulo en un pago en la entrega |
+| Pago en la entrega | `Payment::recordManually()`, pasarela `manual` | `payments` con `gateway = 'manual'`, ya `succeeded` y con propósito `balance` | `POST /api/v1/panel/pedidos/{pedido}/pagos-manuales`; `pasarela`: `manual` |
+| Registro del pago en la entrega | `ManualRecord` | `payments.recorded_by`, `manual_method`, `manual_reference` y `created_at` | `registrado_por` (`id` y `nombre`), `metodo`, `referencia` y `registrado_en` |
+| Medio del pago en la entrega | `ManualPaymentMethod` | `payments.manual_method`: `sinpe` o `cash` | `metodo`: `sinpe` o `efectivo` |
 | Principal del pago | `amount` | `payments.amount`, colones enteros | `monto` |
 | Moneda del cobro externo | `chargedCurrency` | `payments.charged_currency` | `moneda_cobrada`: `CRC` o `USD` |
 | Importe del cobro externo | `chargedAmount` | `payments.charged_amount` | `monto_cobrado`: colones enteros en CRC; centavos en USD |
@@ -86,7 +89,8 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Reembolso | `Refund` | `refunds` | `reembolsos` |
 | Intento de reembolso enviado | `attempted` | `refunds.attempted_at` | La devolución sigue `pendiente` si falta una respuesta verificable |
 | Importe pedido a la pasarela | `chargedAmount` de `Refund` | `refunds.charged_amount`: colones enteros con ONVO, centavos con PayPal | Se fija al enviar la devolución y se compara con la respuesta y el aviso de la pasarela |
-| Envío del reembolso en la cola | `RequestRefundJob`, `RequestRefund` | La fila del reembolso y su trabajo en `jobs` | Un trabajo por reembolso; un reembolso que ya salió no se envía otra vez |
+| Envío del reembolso en la cola | `RequestRefundJob`, `RequestRefund` | La fila del reembolso y su trabajo en `jobs` | Un trabajo por reembolso; uno que ya salió solo se vuelve a pedir a PayPal, con el mismo `PayPal-Request-Id`, mientras no tenga respuesta |
+| Reembolso sin respuesta de la pasarela | `awaitsAnswer` de `OrderRefund` | Reembolso `pending` con `refunds.attempted_at` y sin `provider_reference` | `consulta_pendiente: true` en la lista del dueño; con ONVO, o con PayPal después de los reintentos, lo revisa una persona en la pasarela |
 | Conciliación de los reembolsos pendientes | `ReconcileRefund`, `PendingRefunds` | Los reembolsos `pending` con referencia del proveedor que ya esperaron su confirmación | La misma corrida de `archivum:reconcile-payments` |
 | Principal reembolsado | `refundedAmount` | `payments.refunded_amount`, colones enteros | Se refleja en el estado del pago y en `pagado` del pedido después de confirmarse |
 | Aviso de la pasarela (evento de webhook) | `PaymentEvent` | `webhook_events`, global, `pending` hasta procesarse y luego `processed` o `failed` con su error | `POST /api/v1/webhooks/onvo` y `/paypal`; responde `evento` y `estado`: `recibido` o `repetido` |
@@ -98,7 +102,7 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Clave de idempotencia de la compra | `IdempotencyKey` | `decant_packs.idempotency_key`, única por cliente y tienda | encabezado `Idempotency-Key`, opcional |
 | Canje de un decant del paquete | `RedeemPackDecant`, `RecordPackRedemption`, `DecantPackRedemption` | `decant_pack_redemptions` y `order_lines.decant_pack_id` | `paquete_id` de una línea de decant del pedido; `canjeado` en los movimientos de la botella |
 | Saldo del paquete | `DecantPackBalance`, `DecantPack::remainingDecants` | `decant_packs.remaining_decants`, que descuenta un `UPDATE` condicional | `decants_restantes` |
-| Devolución de un decant al paquete | `ReturnPackDecant`, `DecantPack::returnDecant` | Borra la fila de `decant_pack_redemptions` y suma el decant a `remaining_decants` | Al cancelar el pedido: `POST /api/v1/cuenta/pedidos/{pedido}/cancelacion` |
+| Devolución de un decant al paquete | `ReturnPackDecant`, `DecantPack::returnDecant` | Borra la fila de `decant_pack_redemptions` y suma el decant a `remaining_decants` | Al cancelar el pedido (`POST /api/v1/cuenta/pedidos/{pedido}/cancelacion`) o cuando vence sin pago (#158) |
 | Estado del paquete en un momento | `DecantPack::statusAt` y la misma expresión en `PostgresDecantPackReader` | Un paquete `pending_payment` o `active` cuyo `expires_at` ya pasó se lee `expired`, aunque la cola todavía no lo haya cambiado | `estado` de las consultas de paquetes |
 | Vencimiento del paquete | `ExpireDecantPack`, `ExpiryReason` (`Unpaid` y `ValidityEnded`), `PackDeadlines`, `ExpireDecantPackJob` | Un trabajo de la cola por paquete y motivo, disponible en `decant_packs.expires_at`, pasa a `expired` el paquete que todavía espera su pago o sigue activo, con un `UPDATE` condicionado al estado, y sin pago cierra su pago `pending` | `vencido` en las consultas de paquetes |
 | Mis paquetes | `ListMyDecantPacks`, `PurchasedPackView` | Los `decant_packs` de la cuenta en cada tienda donde es cliente, con su oferta y su tienda | `GET /api/v1/cuenta/paquetes-comprados` |
@@ -109,6 +113,15 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Orden de compra | `PurchaseOrder` | `purchase_orders` | `ordenes-de-compra` |
 | Línea de la orden de compra | `PurchaseOrderLine` | `purchase_order_lines` | `lineas` |
 | Recomendación | `Recommendation` | — | `recomendaciones` |
+| Catálogo del recomendador | `RecommendableCatalog`, `CatalogPerfume` | — | No viaja: es la vitrina de la tienda que recibe la IA y contra la que se valida su sugerencia |
+| Preferencias del cliente | `CustomerPreferences` | — | `preferencias` |
+| Perfume sugerido | `SuggestedPerfume` | — | `perfumes`, cada uno con su `razon` |
+| Origen de la recomendación | `RecommendationOrigin` | — | `origen` |
+| Validación de la sugerencia | `SuggestionValidator`, `SuggestionValidation` | — | No viaja: decide qué parte de la salida de la IA se usa |
+| Causa de descarte | `DiscardCause` | — | No viaja: el log cuenta los descartes por causa |
+| Máscara de datos personales | `PersonalDataMask` | — | No viaja: cambia los correos y teléfonos del texto por `[correo]` y `[teléfono]` antes de que llegue a un recomendador |
+| Recomendador por reglas | `RuleBasedRecommender` | — | Su respuesta lleva `origen: "reglas"` |
+| Coincidencia con el texto | `RuleMatch` | — | No viaja: da el puntaje y la razón del perfume |
 
 El dueño y el colaborador son los dos roles del personal: en la base son los valores `owner` y `staff` de `members.role`. Una cuenta que no está en el personal de ninguna tienda es cliente. En la API, `rol` vale `dueno`, `colaborador` o `cliente`.
 
@@ -118,7 +131,7 @@ Los ml se manejan como enteros. Al registrar una botella, `ml_totales` debe coin
 
 El depósito usa el porcentaje vigente al crear el pedido y lo congela en `orders.deposit_percent`; el precio de cada línea también queda congelado. Ningún importe de pedido o pago se calcula a partir de un precio recibido del navegador. En Investigación 1 el objeto `Payable` representa un pedido; desde #143 un pago también puede pertenecer a un paquete de decants, con su propia llave foránea compuesta con la tienda, y desde #145 un `Payable` de tipo `decant_pack` cobra completo el precio de la oferta guardada del paquete.
 
-`payments.recorded_by` reserva el actor de un futuro pago manual y referencia a `members(id, business_id)`, no a `users`. El autor de un movimiento de ml sí es una cuenta global porque puede ser personal, cliente o nulo en una operación automática.
+`payments.recorded_by` guarda al dueño que registró un pago en la entrega (#98) y referencia a `members(id, business_id)`, no a `users`: solo un dueño de la tienda registra ese pago. El autor de un movimiento de ml sí es una cuenta global porque puede ser personal, cliente o nulo en una operación automática.
 
 ## Estados
 
@@ -183,6 +196,7 @@ El dominio y la base guardan el estado en inglés. La API lo muestra en español
 - Un canje descuenta el decant del paquete al crear el pedido, pero sus ml se reservan y se consumen al preparar el decant, como los de cualquier decant. Un decant devuelto deja `active` el paquete que su canje había agotado, salvo que la vigencia ya terminara: entonces el paquete queda `expired` (R35).
 - Una oferta de paquetes no se borra: se desactiva y deja de aparecer en la lista pública de la tienda. Sus ml por decant son uno de los tamaños de decant de la tienda cuando se define o se cambian, y los conserva si la tienda deja de vender ese tamaño.
 - Las transiciones permitidas están en la sección 6 de [la especificación](especificacion.md#6-estados). Solo `held` y `confirmed` cuentan para la restricción de traslape de las citas.
+- La sección 6 no tiene `expired` → `succeeded` para un pago: #192 la suma solo para un cobro que la pasarela confirma después de que el vencimiento del pedido cerró su pago, para que el pago coincida con la pasarela (R39). Ese cobro se reembolsa completo y el pedido sigue vencido.
 
 Los valores cerrados adicionales se traducen en la frontera HTTP:
 
@@ -191,6 +205,7 @@ Los valores cerrados adicionales se traducen en la frontera HTTP:
 | Tipo de línea | `bottle`, `decant` | `botella`, `decant` |
 | Propósito del pago | `deposit`, `balance`, `full` | `deposito`, `saldo`, `total` |
 | Medio del pago | `card`, `sinpe_mobile` | `tarjeta`, `sinpe_movil` |
+| Origen de la recomendación | `ai`, `rules` | `ia`, `reglas` |
 
 ## Valores en la API
 

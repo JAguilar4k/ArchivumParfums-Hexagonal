@@ -29,7 +29,10 @@ function routesUnder(string $prefix): array
     ));
 }
 
-/** Payment operations own their scoped transactions so an attempt commits before an external POST. */
+/**
+ * The operations that wait for an external provider own their scoped transactions: a payment commits its attempt before
+ * an external POST, and the recommender reads the catalog before it waits for the AI.
+ */
 function usesBusinessContext(RouteDefinition $route, string $source): bool
 {
     $middleware = $route->gatherMiddleware();
@@ -37,14 +40,14 @@ function usesBusinessContext(RouteDefinition $route, string $source): bool
         return true;
     }
 
-    $paymentRoutes = match ($source) {
+    $ownTransactionRoutes = match ($source) {
         'staff' => ['api/v1/panel/pedidos/{pedido}/reembolsos'],
         'account' => ['api/v1/cuenta/pedidos/{pedido}/pagos', 'api/v1/cuenta/pagos/{pago}'],
-        'route' => ['api/v1/tiendas/{tienda}/paquetes/{paquete}/compra'],
+        'route' => ['api/v1/tiendas/{tienda}/paquetes/{paquete}/compra', 'api/v1/tiendas/{tienda}/recomendaciones'],
         default => [],
     };
 
-    return in_array($route->uri(), $paymentRoutes, true) && in_array("business:{$source},context", $middleware, true);
+    return in_array($route->uri(), $ownTransactionRoutes, true) && in_array("business:{$source},context", $middleware, true);
 }
 
 /** Whether the closure of the test panel route ran, which stands for reaching a use case. */

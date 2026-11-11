@@ -31,6 +31,12 @@ final readonly class PayPalGateway implements PaymentGateway
     /** Notices about the capture of an order; the refund of a capture has its own notice and the rest change no payment. */
     private const array CAPTURE_EVENTS = ['PAYMENT.CAPTURE.COMPLETED', 'PAYMENT.CAPTURE.PENDING', 'PAYMENT.CAPTURE.DENIED', 'PAYMENT.CAPTURE.DECLINED'];
 
+    /**
+     * Answers to a refund request that refuse it: an invalid request (400), a capture that may not be refunded (403) or
+     * that PayPal does not know (404), and one it cannot process (422). Any other error says nothing about the refund.
+     */
+    private const array REFUND_REFUSALS = [400, 403, 404, 422];
+
     /** The notice PayPal sends when a merchant refunds a capture (#97); its resource is the refund. */
     private const string REFUND_EVENT = 'PAYMENT.CAPTURE.REFUNDED';
 
@@ -164,8 +170,9 @@ final readonly class PayPalGateway implements PaymentGateway
     /**
      * Refund the capture of the payment with the cents fixed when the refund started, under an idempotency key of the
      * refund, so PayPal never creates the same refund twice. The custom_id carries `businessId:refundId`, which the
-     * notice of the refund brings back. A refusal of PayPal (422, such as an amount above what is left of the capture)
-     * leaves the refund failed. With the reference of a refund PayPal already accepted, only its state is asked.
+     * notice of the refund brings back. A refusal of PayPal (REFUND_REFUSALS, such as an amount above what is left of
+     * the capture) leaves the refund failed. With the reference of a refund PayPal already accepted, only its state is
+     * asked.
      */
     public function refund(RefundRequest $request): RefundResult
     {
@@ -183,13 +190,24 @@ final readonly class PayPalGateway implements PaymentGateway
         ])->post('/v2/payments/captures/'.rawurlencode($capture).'/refund', [
             'amount' => ['currency_code' => 'USD', 'value' => GatewayMoney::decimal($request->chargedAmount)],
             'custom_id' => $request->businessId.':'.$request->refundId,
-        ]), answers: [422]);
+        ]), answers: self::REFUND_REFUSALS);
 
-        if ($refund->status() === 422) {
+        // PayPal refused the request and created no refund: a request it finds invalid, a capture it does not let
+        // refund or does not know, or one it cannot process does not change by sending it again, so the refund fails.
+        if (in_array($refund->status(), self::REFUND_REFUSALS, true)) {
             return new RefundResult(null, 'failed');
         }
 
         return $this->refundResult($refund, $request);
+    }
+
+    /**
+     * PayPal keeps the PayPal-Request-Id of a refund and answers the same refund when the request comes again, so a
+     * refund whose answer was lost is asked again by the retries of the queue.
+     */
+    public function resendsRefunds(): bool
+    {
+        return true;
     }
 
     /** Check that PayPal answers about this refund, in dollars and for its exact cents, and read its state. */
