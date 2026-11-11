@@ -6,17 +6,19 @@ use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Src\Decants\Packs\Domain\Contracts\DecantPackRepository;
 use Src\Decants\Packs\Domain\ValueObjects\ExpiryReason;
 use Src\Decants\Packs\Infrastructure\Jobs\ExpireDecantPackJob;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\EloquentDecantPackRepository;
+use Src\Payments\Payments\Infrastructure\Jobs\RequestRefundJob;
 use Tests\Support\Decants\HoldLockedPackForCompetingOperation;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 pest()->use(RefreshDatabaseAsOwner::class);
 
-it('R33: ends with only one of the expiry of an unpaid pack and the confirmation of its payment that arrive at the same time', function (string $first, array $outcome): void {
+it('R33, R38: ends the expiry of an unpaid pack and the confirmation of its payment that arrive at the same time in only one of two outcomes', function (string $first, array $outcome): void {
     $owner = DB::connection('pgsql_admin');
     $businessId = (string) Str::uuid7();
     $userId = (string) Str::uuid7();
@@ -60,7 +62,8 @@ it('R33: ends with only one of the expiry of an unpaid pack and the confirmation
         return ['overlap' => app(HoldLockedPackForCompetingOperation::class)->observedOverlap];
     };
 
-    // ONVO's notice of the paid checkout, applied by the sync queue inside its request.
+    // ONVO's notice of the paid checkout, applied by the sync queue inside its request; only the request of a refund to
+    // ONVO is faked.
     $notify = function () use ($notice, $session, $intent, $signal, $first): array {
         config(['payments.onvo.secret_key' => 'onvo_test_fake', 'payments.onvo.webhook_secret' => 'webhook_secret_fictitious']);
         Http::preventStrayRequests();
@@ -68,6 +71,7 @@ it('R33: ends with only one of the expiry of an unpaid pack and the confirmation
             'api.onvopay.com/v1/checkout/sessions/'.$session => Http::response(['id' => $session, 'mode' => 'test', 'status' => 'complete', 'paymentIntentId' => $intent]),
             'api.onvopay.com/v1/payment-intents/'.$intent => Http::response(['id' => $intent, 'mode' => 'test', 'amount' => 4_000_000, 'currency' => 'CRC', 'status' => 'succeeded']),
         ]);
+        $queue = Queue::fake([RequestRefundJob::class]);
         app()->singleton(HoldLockedPackForCompetingOperation::class, fn (): HoldLockedPackForCompetingOperation => new HoldLockedPackForCompetingOperation(app(EloquentDecantPackRepository::class), $first === 'notice' ? $signal : null));
         app()->bind(DecantPackRepository::class, fn (): HoldLockedPackForCompetingOperation => app(HoldLockedPackForCompetingOperation::class));
         if ($first !== 'notice') {
@@ -83,11 +87,13 @@ it('R33: ends with only one of the expiry of an unpaid pack and the confirmation
             'status' => $response->getStatusCode(),
             'overlap' => app(HoldLockedPackForCompetingOperation::class)->observedOverlap,
             'queries' => Http::recorded()->count(),
+            'queued' => $queue->pushed(RequestRefundJob::class)->count(),
         ];
     };
 
+    // audit_logs is left out of the tables to empty: nobody can change it, and its entries name a store only this test has.
     try {
-        [$expired, $notified] = inParallel(['webhook_events', 'payments', 'decant_packs', 'decant_pack_plans', 'customers', 'users', 'businesses'], $expire, $notify);
+        [$expired, $notified] = inParallel(['refunds', 'webhook_events', 'payments', 'decant_packs', 'decant_pack_plans', 'customers', 'users', 'businesses'], $expire, $notify);
     } finally {
         if (file_exists($signal)) {
             unlink($signal);
@@ -95,9 +101,9 @@ it('R33: ends with only one of the expiry of an unpaid pack and the confirmation
     }
 
     // The second one waited for the lock of the pack and then saw what the first one committed. A notice that finds the
-    // payment closed does not ask ONVO.
+    // payment closed by the expiry still asks ONVO, which charged it: the charge is kept and its refund requested.
     expect($expired)->toBe(['overlap' => $first === 'expiry'])
-        ->and($notified)->toBe(['status' => 200, 'overlap' => $first === 'notice', 'queries' => $first === 'notice' ? 2 : 0]);
+        ->and($notified)->toBe(['status' => 200, 'overlap' => $first === 'notice', 'queries' => 2, 'queued' => $first === 'expiry' ? 1 : 0]);
 
     $state = $owner->transaction(function () use ($owner, $businessId, $packId, $paymentId): array {
         $owner->statement("select set_config('app.business_id', ?, true)", [$businessId]);
@@ -109,16 +115,17 @@ it('R33: ends with only one of the expiry of an unpaid pack and the confirmation
             'valid_for_days' => (int) round((strtotime((string) $pack->expires_at) - time()) / 86400),
             'payment' => (string) $owner->table('payments')->where('id', $paymentId)->value('status'),
             'remaining' => (int) $pack->remaining_decants,
-            'refunds' => $owner->table('refunds')->count(),
+            'refunds' => $owner->table('refunds')->get(['payment_id', 'amount', 'status'])->map(fn (object $refund): array => (array) $refund)->all(),
             'notice' => (string) $owner->table('webhook_events')->value('status'),
         ];
     });
 
-    // Never an expired pack with a confirmed payment, or an active pack whose payment the expiry closed.
-    expect($state)->toBe([...$outcome, 'remaining' => 5, 'refunds' => 0, 'notice' => 'processed']);
+    // Never an expired pack whose charge nobody refunds, or an active pack whose payment the expiry closed (#192).
+    expect($state)->toBe([...$outcome, 'remaining' => 5, 'refunds' => $first === 'expiry' ? [['payment_id' => $paymentId, 'amount' => 40000, 'status' => 'pending']] : [], 'notice' => 'processed']);
 })->with([
-    // The notice finds the payment closed and changes nothing.
-    'the expiry locks the pack first' => ['expiry', ['pack' => 'expired', 'valid_for_days' => 0, 'payment' => 'expired']],
+    // The notice finds the payment closed by the expiry: ONVO charged it, so the payment is kept and refunded in full,
+    // and the pack stays expired.
+    'the expiry locks the pack first' => ['expiry', ['pack' => 'expired', 'valid_for_days' => 0, 'payment' => 'succeeded']],
     // The expiry finds the pack paid and changes nothing; its validity counts from the confirmation.
     'the notice locks the pack first' => ['notice', ['pack' => 'active', 'valid_for_days' => 180, 'payment' => 'succeeded']],
 ]);

@@ -22,8 +22,8 @@ final readonly class PostgresPendingPayments implements PendingPayments
      * payments of each one in a transaction of its own. It only reads, it never settles. The maintenance role of #157
      * will read them in one query.
      *
-     * It reads the pending payments of orders and of decant packs (#145), so the join with the orders is a left one.
-     * Besides them, it reads the expired payments of expired orders that the expiry closed (#158) between
+     * It reads the pending payments of orders and of decant packs (#145), so both joins are left ones. Besides them, it
+     * reads the expired payments of expired orders and packs that the expiry closed (#158, #159) between
      * Payment::MINUTES_FOR_THE_NOTICE minutes and Payment::HOURS_FOR_A_LATE_CHARGE hours ago, when the payment last
      * changed: the provider may still have charged them, and then their refund is requested (#192).
      */
@@ -45,10 +45,11 @@ final readonly class PostgresPendingPayments implements PendingPayments
                 "select p.id
                    from payments p
                    left join orders o on o.id = p.order_id and o.business_id = p.business_id
+                   left join decant_packs dp on dp.id = p.decant_pack_id and dp.business_id = p.business_id
                   where p.business_id = ?
                     and p.provider_reference is not null
                     and ((p.status = 'pending' and p.created_at <= ?)
-                      or (p.status = 'expired' and o.status = 'expired' and p.updated_at <= ? and p.updated_at > ?))
+                      or (p.status = 'expired' and (o.status = 'expired' or dp.status = 'expired') and p.updated_at <= ? and p.updated_at > ?))
                   order by p.created_at
                   limit ?",
                 [$businessId, $waitedSince, $waitedSince, $lateSince, $remaining],

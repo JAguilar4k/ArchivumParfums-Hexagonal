@@ -32,9 +32,9 @@ interface PaymentRepository
     public function saveIfPending(Payment $payment): bool;
 
     /**
-     * Save a payment whose charge the provider confirmed after its order was cancelled or expired (#192), only while its
-     * row is still pending or expired: the late charge changes the payment, and registers its refund, only once. Answer
-     * false when the row was neither, and then nothing changes.
+     * Save a payment whose charge the provider confirmed after its order was cancelled or expired, or after its pack
+     * expired (#192), only while its row is still pending or expired: the late charge changes the payment, and
+     * registers its refund, only once. Answer false when the row was neither, and then nothing changes.
      */
     public function saveIfPendingOrExpired(Payment $payment): bool;
 }

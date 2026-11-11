@@ -28,8 +28,8 @@ final readonly class ReconcilePayment
      * Ask the provider what happened to a pending payment and close it with the same settlement that a verified notice
      * uses (#94), in one transaction of the payment's business; answer whether the payment left pending. A payment that
      * a notice already closed changes nothing, and a notice that arrives after the reconciliation finds the payment
-     * closed and changes nothing either. A payment that the expiry of its cancelled or expired order closed is settled
-     * as a notice would settle it (#192): answer whether the provider had charged it after all.
+     * closed and changes nothing either. A payment that the expiry of its cancelled or expired order, or of its expired
+     * pack, closed is settled as a notice would settle it (#192): answer whether the provider had charged it after all.
      *
      * @throws GatewayUnavailableException when the provider cannot answer; the payment stays as it was
      */

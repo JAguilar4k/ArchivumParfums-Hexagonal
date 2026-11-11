@@ -35,7 +35,8 @@ final readonly class RefundPayment
      * both in one transaction (R40). The payment's row is locked before its pending refunds are counted, so two refunds
      * of the same payment never return more than it paid and has not returned yet (R30, R31). Nothing leaves for the
      * provider here. The refund leaves its entry in the trail in the same transaction, with the person of the request
-     * as its author, so a refund whose entry fails is not kept (#113). Answer the refund's identifier.
+     * as its author, so a refund whose entry fails is not kept (#113); the entry names the order or the decant pack the
+     * payment paid. Answer the refund's identifier.
      *
      * @throws PaymentNotFoundException
      * @throws InvalidPaymentTransitionException when the payment is not confirmed or cannot return that amount
@@ -47,8 +48,9 @@ final readonly class RefundPayment
             $refund = $payment->requestRefund($this->refunds->nextId()->value, $command->amount, $this->refunds->pendingAmountOf($payment->id), $command->orderLineId);
 
             $this->refunds->add($refund);
+            $paid = $payment->payable->type === 'decant_pack' ? 'decant_pack_id' : 'order_id';
             $this->audit->record(new BusinessId($refund->businessId), AuditAction::RefundRequested, 'refund', $refund->id, null, [
-                'payment_id' => $refund->paymentId, 'order_id' => $payment->payable->id, 'order_line_id' => $refund->orderLineId, 'amount' => $refund->amount,
+                'payment_id' => $refund->paymentId, $paid => $payment->payable->id, 'order_line_id' => $refund->orderLineId, 'amount' => $refund->amount,
             ]);
             $this->outgoing->send($refund->id, $refund->businessId);
 

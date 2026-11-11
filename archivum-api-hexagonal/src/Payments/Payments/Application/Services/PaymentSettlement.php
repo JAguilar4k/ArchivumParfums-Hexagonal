@@ -8,6 +8,8 @@ use Src\Payments\Payments\Application\Contracts\PayablePackReader;
 use Src\Payments\Payments\Application\Contracts\PayableReader;
 use Src\Payments\Payments\Application\DTOs\PayableOrder;
 use Src\Payments\Payments\Application\DTOs\PayablePack;
+use Src\Payments\Payments\Application\DTOs\RefundPaymentCommand;
+use Src\Payments\Payments\Application\UseCases\RefundPayment;
 use Src\Payments\Payments\Domain\Contracts\PaymentGateways;
 use Src\Payments\Payments\Domain\Contracts\PaymentRepository;
 use Src\Payments\Payments\Domain\Entities\Payment;
@@ -19,8 +21,8 @@ use Src\Payments\Payments\Domain\ValueObjects\Payable;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentStatus;
 
 /**
- * What follows the provider's answer about a pending charge, or about one the expiry of its order closed (#192), whoever
- * asked: a verified notice (#94) or the reconciliation (#96).
+ * What follows the provider's answer about a pending charge, or about one the expiry of its order or its pack closed
+ * (#192), whoever asked: a verified notice (#94) or the reconciliation (#96).
  */
 final readonly class PaymentSettlement
 {
@@ -30,6 +32,7 @@ final readonly class PaymentSettlement
         private PayablePackReader $packs,
         private PaymentRepository $payments,
         private PaymentGateways $gateways,
+        private RefundPayment $refunds,
     ) {}
 
     /**
@@ -45,8 +48,8 @@ final readonly class PaymentSettlement
      * Inside the transaction that locked the order or the pack and then the pending payment: ask the provider, with the
      * server's own credentials, what happened to the charge, keep its identity and close the payment with that status.
      * A success adds the payment to what the order paid and activates a pack that waits for it (R33); one that arrives
-     * after the order was cancelled or expired is kept and its refund requested. PayPal captures an approved charge
-     * only while the order or the pack still waits for it.
+     * after the order was cancelled or expired, or after the pack expired, is kept and its refund requested. PayPal
+     * captures an approved charge only while the order or the pack still waits for it.
      *
      * @throws GatewayUnavailableException when the provider cannot answer; nothing changes
      */
@@ -56,10 +59,10 @@ final readonly class PaymentSettlement
 
         $payment->attach($result);
         $payment->apply($result->status);
-        if ($payable instanceof PayablePack) {
+        if ($result->status === PaymentStatus::Succeeded && $this->isClosed($payable)) {
+            $this->recordLateCharge($payment, $payable);
+        } elseif ($payable instanceof PayablePack) {
             $this->settlePack($payment, $result->status === PaymentStatus::Succeeded && $this->awaitsPayment($payable));
-        } elseif ($result->status === PaymentStatus::Succeeded && $this->isClosed($payable)) {
-            $this->recordLateCharge($payment);
         } elseif ($result->status === PaymentStatus::Succeeded) {
             $this->orders->applyPayment($payment->payable->id, $payment->amount->amount);
             $this->saveSettled($payment);
@@ -69,18 +72,18 @@ final readonly class PaymentSettlement
     }
 
     /**
-     * Inside the transaction that locked the order and then the expired payment: if the order was cancelled or expired,
-     * ask the provider again what happened to the charge, because the expiry of an order closes its payment without
-     * asking (#158). Only a success changes something (#192): the payment becomes succeeded, as the provider says
-     * (R39), and the charge is kept and its refund requested, as for one that arrives after a cancellation. Any other
-     * answer, or an order that is still open, leaves the payment expired. A pack does not expire before #159, so the
-     * expired payment of a pack stays as it is.
+     * Inside the transaction that locked the order or the pack and then the expired payment: if the order was cancelled
+     * or expired, or the pack expired, ask the provider again what happened to the charge, because their expiry closes
+     * the payment without asking (#158, #159). Only a success changes something (#192): the payment becomes succeeded,
+     * as the provider says (R39), and the charge is kept and its refund requested, as for one that arrives after a
+     * cancellation. Any other answer, or an order or a pack that still waits for its payment, leaves the payment
+     * expired.
      *
      * @throws GatewayUnavailableException when the provider cannot answer; nothing changes
      */
     public function settleLate(Payment $payment, PayableOrder|PayablePack $payable): void
     {
-        if ($payment->status !== PaymentStatus::Expired || ! $payable instanceof PayableOrder || ! $this->isClosed($payable)) {
+        if ($payment->status !== PaymentStatus::Expired || ! $this->isClosed($payable)) {
             return;
         }
 
@@ -90,13 +93,18 @@ final readonly class PaymentSettlement
         }
 
         $payment->confirmLate($result);
-        $this->recordLateCharge($payment);
+        $this->recordLateCharge($payment, $payable);
     }
 
-    /** Whether the order was cancelled or expired, so that a charge confirmed now arrives late and is refunded. */
-    private function isClosed(PayableOrder $order): bool
+    /**
+     * Whether the order was cancelled or expired, or the pack expired, so that a charge confirmed now arrives late and
+     * is refunded (P11). A pack that is active or exhausted was already paid.
+     */
+    private function isClosed(PayableOrder|PayablePack $payable): bool
     {
-        return in_array($order->status, ['cancelled', 'expired'], true);
+        return $payable instanceof PayablePack
+            ? $payable->status === 'expired'
+            : in_array($payable->status, ['cancelled', 'expired'], true);
     }
 
     /** Whether the order or the pack still waits for its payment, the only case in which PayPal captures an approved charge. */
@@ -123,23 +131,29 @@ final readonly class PaymentSettlement
     }
 
     /**
-     * Keep a charge confirmed after the order was cancelled or expired and request its full refund (#192). Besides the
-     * locks, the row changes only while it is still pending or expired: the same notice applied twice, or also by the
-     * reconciliation, registers one refund. The confirmed principal is saved first, so that its refund can reference it
-     * in this same transaction.
+     * Keep a charge confirmed after the order was cancelled or expired, or after the pack expired, and request its full
+     * refund (#192). Besides the locks, the row changes only while it is still pending or expired: the same notice
+     * applied twice, or also by the reconciliation, registers one refund. The confirmed principal is saved first, so
+     * that its refund can reference it in this same transaction. The order counts the charge in what it paid until its
+     * refund is confirmed; a pack keeps no paid amount, so only its payment registers the refund, and the pack stays
+     * expired.
      */
-    private function recordLateCharge(Payment $payment): void
+    private function recordLateCharge(Payment $payment, PayableOrder|PayablePack $payable): void
     {
         if (! $this->payments->saveIfPendingOrExpired($payment)) {
             throw new InvalidPaymentTransitionException('payments.invalid_transition');
         }
 
-        $this->orders->applyLatePayment($payment->payable->id, $payment->amount->amount);
+        if ($payable instanceof PayablePack) {
+            $this->refunds->execute(new RefundPaymentCommand($payment->id->value, $payment->amount->amount));
+        } else {
+            $this->orders->applyLatePayment($payment->payable->id, $payment->amount->amount);
+        }
     }
 
     /**
      * A confirmed charge activates the pack that waited for it, in the same transaction. One confirmed for a pack that
-     * no longer waits stays recorded as it is: its full refund comes with the packs of #192.
+     * is already active or exhausted stays recorded as it is.
      */
     private function settlePack(Payment $payment, bool $activates): void
     {
