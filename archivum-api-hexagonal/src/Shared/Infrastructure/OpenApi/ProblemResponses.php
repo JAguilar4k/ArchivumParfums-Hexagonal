@@ -88,6 +88,12 @@ final class ProblemResponses implements DocumentTransformer
             $types[] = ProblemType::InvalidCredentials;
         }
 
+        if ($this->isWebhookRoute($path)) {
+            $types[] = ProblemType::InvalidCredentials;
+            $types[] = ProblemType::InvalidData;
+            $types[] = ProblemType::ServiceUnavailable;
+        }
+
         if (str_contains($path, '{')) {
             $types[] = ProblemType::NotFound;
         }
@@ -130,6 +136,15 @@ final class ProblemResponses implements DocumentTransformer
     private function rejectsCredentials(string $path, Operation $operation): bool
     {
         return ltrim($path, '/') === 'sesiones' && strtolower($operation->method) === 'post';
+    }
+
+    /**
+     * A notice of a payment provider is public, yet it answers 401 when its origin is not verified, 422 when a verified
+     * body is not a notice and 503 when the provider cannot be asked, so that the provider sends it again.
+     */
+    private function isWebhookRoute(string $path): bool
+    {
+        return str_starts_with(ltrim($path, '/'), 'webhooks/');
     }
 
     /** The panel is the part of the API that checks the role of the member. */
