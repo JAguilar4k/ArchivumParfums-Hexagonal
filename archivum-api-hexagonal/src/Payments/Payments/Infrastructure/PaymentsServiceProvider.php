@@ -46,9 +46,11 @@ use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymen
 use Src\Payments\Payments\Infrastructure\Policies\PaymentPolicy;
 use Src\Payments\Payments\Infrastructure\Queue\QueuedOutgoingRefunds;
 use Src\Payments\Payments\Infrastructure\Queue\QueuedPendingPaymentEvents;
+use Src\Payments\Payments\Infrastructure\Sales\PaymentOrderPayments;
 use Src\Payments\Payments\Infrastructure\Sales\PaymentRefundRequests;
 use Src\Payments\Payments\Infrastructure\Sales\SalesPayableReader;
 use Src\Payments\Payments\Infrastructure\Tenancy\PaymentEventBusinessContext;
+use Src\Sales\Orders\Application\Contracts\OrderPayments;
 use Src\Sales\Orders\Application\Contracts\RefundRequests;
 use Src\Shared\Domain\Contracts\TransactionRunner;
 
@@ -62,6 +64,7 @@ final class PaymentsServiceProvider extends ServiceProvider
         PayableReader::class => SalesPayableReader::class,
         RefundRepository::class => DatabaseRefundRepository::class,
         RefundRequests::class => PaymentRefundRequests::class,
+        OrderPayments::class => PaymentOrderPayments::class,
         WebhookEventLog::class => DatabaseWebhookEventLog::class,
         PendingPaymentEvents::class => QueuedPendingPaymentEvents::class,
         PaymentBusinesses::class => PostgresPaymentBusinesses::class,
