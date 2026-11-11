@@ -10,6 +10,8 @@ return [
     'appointment.repeated_perfume' => 'Un perfume no se puede elegir dos veces en la misma cita.',
     'appointment.invalid_order' => 'El fin de la cita debe ser posterior a su inicio.',
     'appointment.invalid_block' => 'El margen de la cita no puede terminar antes que la cita.',
+    'appointment.invalid_business' => 'La cita no pertenece a esta tienda.',
+    'appointment.slot_taken' => 'Ese horario ya no está disponible.',
     'service.invalid_duration' => 'La duración del servicio debe ser mayor a cero.',
     'service.invalid_buffer' => 'El margen entre citas no puede ser negativo.',
     'service.invalid_max_perfumes' => 'El máximo de perfumes no puede ser negativo.',
