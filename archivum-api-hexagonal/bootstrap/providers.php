@@ -19,6 +19,7 @@ use Src\Recommendations\Recommender\Infrastructure\RecommenderServiceProvider;
 use Src\Sales\Orders\Infrastructure\OrdersServiceProvider;
 use Src\Scheduling\BusinessHours\Infrastructure\BusinessHoursServiceProvider;
 use Src\Scheduling\Services\Infrastructure\ServicesServiceProvider;
+use Src\Scheduling\StaffSchedules\Infrastructure\StaffSchedulesServiceProvider;
 use Src\Shared\Infrastructure\RateLimitsServiceProvider;
 use Src\Shared\Infrastructure\SharedServiceProvider;
 
@@ -42,4 +43,5 @@ return [
     RecommenderServiceProvider::class,
     ServicesServiceProvider::class,
     BusinessHoursServiceProvider::class,
+    StaffSchedulesServiceProvider::class,
 ];

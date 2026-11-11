@@ -13,4 +13,6 @@ return [
     'time_slot_overlaps' => 'El tramo de horario se traslapa con otro existente.',
     'block.reason_required' => 'El motivo del bloqueo es obligatorio.',
     'schedule_block.invalid_order' => 'Error: orden inválida. La hora de fin debe ser posterior a la hora de inicio.',
+    'staff_schedule.member_not_found' => 'La persona no pertenece al personal de la tienda.',
+    'staff_schedule.member_not_attending' => 'Esa persona todavía no atiende citas.',
 ];
