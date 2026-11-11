@@ -442,6 +442,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/panel/pedidos/{pedido}/pagos-manuales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record the balance that the customer paid the owner on delivery, by SINPE or in cash; no gateway takes part */
+        post: operations["payments.manual.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/panel/pedidos/{pedido}/reembolsos": {
         parameters: {
             query?: never;
@@ -602,6 +619,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tiendas/{tienda}/recomendaciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recommend up to five perfumes of the showcase for what the customer describes, by the AI or, if it fails, by the rules */
+        post: operations["recommendations.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sesiones": {
         parameters: {
             query?: never;
@@ -738,6 +772,25 @@ export interface components {
                 nombre: string;
                 slug: string;
             } | null;
+        };
+        /** ManualPaymentResource */
+        ManualPaymentResource: {
+            id: string;
+            /** @enum {string} */
+            proposito: "deposito" | "saldo" | "total";
+            monto: number;
+            /** @constant */
+            pasarela: "manual";
+            /** @enum {string} */
+            estado: "confirmado" | "reembolsado" | "reembolsado_parcialmente" | "pendiente";
+            /** @enum {string} */
+            metodo: "efectivo" | "sinpe";
+            referencia: string;
+            registrado_por: {
+                id: string;
+                nombre: string;
+            };
+            registrado_en: string;
         };
         /** MemberResource */
         MemberResource: {
@@ -907,8 +960,11 @@ export interface components {
             /** @enum {string} */
             estado: "confirmado" | "fallido" | "vencido" | "reembolsado" | "reembolsado_parcialmente" | "pendiente";
             url_pago: string | null;
-            /** @enum {string} */
-            medio: "sinpe_movil" | "tarjeta";
+            /**
+             * @description Medio del cobro en línea; es nulo en un pago registrado en la entrega.
+             * @enum {string|null}
+             */
+            medio: "tarjeta" | "sinpe_movil" | null;
             consulta_pendiente: boolean;
         };
         /** Problema */
@@ -955,6 +1011,32 @@ export interface components {
             lugar_cita: string | null;
             zona_horaria: string;
         };
+        /** RecommendationResource */
+        RecommendationResource: {
+            /** @enum {string} */
+            origen: "ia" | "reglas";
+            preferencias: {
+                notas: string[];
+                momento: string | null;
+                clima: string | null;
+                ocasion: string | null;
+                presupuesto: number | null;
+            };
+            perfumes: components["schemas"]["RecommendedPerfumeResource"][];
+        };
+        /** RecommendedPerfumeResource */
+        RecommendedPerfumeResource: {
+            id: string;
+            marca: string;
+            nombre: string;
+            razon: string;
+            presentaciones: components["schemas"]["RecommendedVariantResource"][];
+        };
+        /** RecommendedVariantResource */
+        RecommendedVariantResource: {
+            ml: number;
+            precio_venta: number;
+        };
         /** RefundResource */
         RefundResource: {
             id: string;
@@ -963,6 +1045,7 @@ export interface components {
             monto: number;
             /** @enum {string} */
             estado: "confirmado" | "fallido" | "pendiente";
+            consulta_pendiente: boolean;
         };
         /** SessionTokenResource */
         SessionTokenResource: {
@@ -1036,6 +1119,18 @@ export interface components {
             abierta_en: string;
             notas?: string | null;
         };
+        /** StoreManualPayment */
+        StoreManualPayment: {
+            /**
+             * @description Cómo pagó el cliente al recibir el pedido: `sinpe` o `efectivo`.
+             * @enum {string}
+             */
+            metodo: "sinpe" | "efectivo";
+            /** @description Colones enteros recibidos. No puede superar el saldo del pedido. */
+            monto: number;
+            /** @description Referencia de la transferencia SINPE o del recibo del pago en efectivo. */
+            referencia: string;
+        };
         /** StoreMemberRequest */
         StoreMemberRequest: {
             nombre: string;
@@ -1098,6 +1193,10 @@ export interface components {
         StorePerfumeVariant: {
             ml: number;
             precio_manual?: number | null;
+        };
+        /** StoreRecommendation */
+        StoreRecommendation: {
+            texto: string;
         };
         /** StoreSessionRequest */
         StoreSessionRequest: {
@@ -3401,6 +3500,88 @@ export interface operations {
             };
         };
     };
+    "payments.manual.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pedido: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreManualPayment"];
+            };
+        };
+        responses: {
+            /** @description Se registra el pago del saldo, ya confirmado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ManualPaymentResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Conflicto */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
     "payments.refunds.process": {
         parameters: {
             query?: never;
@@ -4187,6 +4368,61 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "recommendations.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tienda: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreRecommendation"];
+            };
+        };
+        responses: {
+            /** @description `RecommendationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RecommendationResource"];
+                    };
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
                 };
             };
             /** @description Error interno */
