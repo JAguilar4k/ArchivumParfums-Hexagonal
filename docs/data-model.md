@@ -49,6 +49,7 @@ erDiagram
     purchase_order_lines |o--o{ order_lines : "abastece"
 
     orders ||--o{ payments : "se paga con"
+    decant_packs ||--o{ payments : "se paga con"
     payments ||--o{ refunds : "se reembolsa con"
     order_lines |o--o{ refunds : "origina"
     members |o--o{ payments : "registra"
@@ -159,6 +160,35 @@ erDiagram
         text reason
         timestamptz created_at
     }
+    decant_pack_plans {
+        uuid id PK
+        uuid business_id FK
+        varchar name
+        integer decants_count
+        integer ml_per_decant
+        integer price
+        integer validity_days
+        integer max_price_per_ml
+        boolean is_active
+    }
+    decant_packs {
+        uuid id PK
+        uuid business_id FK
+        uuid customer_id FK
+        uuid decant_pack_plan_id FK
+        integer total_decants
+        integer remaining_decants
+        integer ml_per_decant
+        integer max_price_per_ml
+        varchar status
+        timestamptz expires_at
+    }
+    decant_pack_redemptions {
+        uuid id PK
+        uuid business_id FK
+        uuid decant_pack_id FK
+        uuid order_line_id FK
+    }
     orders {
         uuid id PK
         uuid business_id FK
@@ -184,13 +214,14 @@ erDiagram
         integer quantity
         integer unit_price
         varchar status
-        uuid decant_pack_id
+        uuid decant_pack_id FK
         uuid purchase_order_line_id
     }
     payments {
         uuid id PK
         uuid business_id FK
         uuid order_id FK
+        uuid decant_pack_id FK
         varchar purpose
         integer amount
         varchar gateway
@@ -232,7 +263,7 @@ erDiagram
     }
 ```
 
-Las tablas sin columnas en el diagrama están previstas y todavía no existen. `webhook_events` guarda los avisos verificados de las pasarelas desde #94; aparece sin relaciones porque no pertenece a ninguna tienda (ver [excepciones](#excepciones-deliberadas)). Los pagos actuales pertenecen a pedidos mediante `payments.order_id`; el soporte a paquetes se incorpora en #143 con una relación que conserve la integridad por tienda, sin una relación polimórfica sin llave foránea. Además hay tablas del framework (caché y colas de Laravel) que no pertenecen al negocio y no se documentan aquí.
+Las tablas sin columnas en el diagrama están previstas y todavía no existen. `webhook_events` guarda los avisos verificados de las pasarelas desde #94; aparece sin relaciones porque no pertenece a ninguna tienda (ver [excepciones](#excepciones-deliberadas)). Un pago pertenece a un pedido o a un paquete de decants, nunca a los dos: `payments.order_id` y `payments.decant_pack_id` tienen sus llaves foráneas compuestas con la tienda, sin una relación polimórfica sin llave. Además hay tablas del framework (caché y colas de Laravel) que no pertenecen al negocio y no se documentan aquí.
 
 ## Tablas creadas
 
@@ -437,6 +468,66 @@ Cada fila registra un cambio de ml de una botella (R8). No se borra ni se modifi
 
 Índice `(business_id, decant_bottle_id, created_at)` para el historial, que la API ordena por fecha e identificador descendentes. La seguridad de fila está habilitada y forzada con dos políticas: `decant_movements_business_read` solo permite `SELECT` de la tienda actual y `decant_movements_business_insert` solo permite `INSERT` en ella. Se revocan `UPDATE`, `DELETE` y `TRUNCATE` al rol de la aplicación. La llave a `users` está justificada en la [lista blanca](#lista-blanca-de-businesskeystest).
 
+### decant_pack_plans
+
+Cada fila es una oferta de paquetes de decants de la tienda (R32). Se desactiva y no se borra, porque los paquetes comprados apuntan a ella.
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Llave foránea a `businesses`; borrado restringido |
+| `name` | `varchar(120)` | `decant_pack_plans_name_check`: no vacío |
+| `decants_count` | `integer` | `decant_pack_plans_decants_count_check`: mayor que 0; el dominio admite hasta 50 |
+| `ml_per_decant` | `integer` | `decant_pack_plans_ml_per_decant_check`: mayor que 0 |
+| `price` | `integer` | Colones del paquete completo; `decant_pack_plans_price_check`: mayor que 0 |
+| `validity_days` | `integer` | `decant_pack_plans_validity_days_check`: mayor que 0; el dominio admite hasta 365 |
+| `max_price_per_ml` | `integer` | Opcional; tope en colones por ml de la presentación; `decant_pack_plans_max_price_per_ml_check`: mayor que 0 |
+| `is_active` | `boolean` | Por defecto `true`; una oferta inactiva no se vende |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+- Llaves únicas: `id` y `(id, business_id)`.
+- Índice `(business_id, is_active)` para la lista pública de ofertas.
+- Política `decant_pack_plans_business_isolation`, habilitada y forzada.
+
+### decant_packs
+
+Cada fila es un paquete que compró un cliente (R33). Copia de la oferta lo que se vendió: los decants, sus ml y su tope.
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Llave foránea a `businesses`; borrado restringido |
+| `customer_id` | `uuid` | Llave foránea compuesta a `customers(id, business_id)`; borrado restringido |
+| `decant_pack_plan_id` | `uuid` | Llave foránea compuesta a `decant_pack_plans(id, business_id)`; borrado restringido |
+| `total_decants` | `integer` | `decant_packs_total_decants_check`: mayor que 0 |
+| `remaining_decants` | `integer` | `decant_packs_remaining_decants_check`: entre 0 y `total_decants` (R34) |
+| `ml_per_decant` | `integer` | `decant_packs_ml_per_decant_check`: mayor que 0 |
+| `max_price_per_ml` | `integer` | Opcional; el tope de la oferta al comprar; `decant_packs_max_price_per_ml_check`: mayor que 0 |
+| `status` | `varchar(20)` | Por defecto `pending_payment`; `decant_packs_status_check`: `pending_payment` con todos sus decants, `active` con al menos uno, `exhausted` sin ninguno o `expired` |
+| `expires_at` | `timestamptz` | El plazo de pago mientras espera su pago y el fin de su vigencia desde que se activa |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+- Llaves únicas: `id` y `(id, business_id)`.
+- Índices `(business_id, customer_id, status)` para los paquetes del cliente y `(business_id, status, expires_at)` para los vencimientos (#159).
+- Política `decant_packs_business_isolation`, habilitada y forzada.
+- El canje de #147 descuenta un decant con un `UPDATE` condicional sobre esta fila, y el `CHECK` impide un saldo negativo aunque un camino se salte esa condición.
+
+### decant_pack_redemptions
+
+Cada fila es un decant de un paquete canjeado en una línea de un pedido (R34).
+
+| Columna | Tipo | Regla |
+|---|---|---|
+| `id` | `uuid` | Llave primaria |
+| `business_id` | `uuid` | Llave foránea a `businesses`; borrado restringido |
+| `decant_pack_id` | `uuid` | Llave foránea compuesta a `decant_packs(id, business_id)`; borrado restringido |
+| `order_line_id` | `uuid` | Llave foránea compuesta a `order_lines(id, business_id)`; borrado restringido |
+| `created_at`, `updated_at` | `timestamptz` | |
+
+- Llaves únicas: `id` y `(business_id, order_line_id)`: una línea del pedido canjea un solo decant.
+- Índice `(business_id, decant_pack_id)` para los canjes de un paquete.
+- Política `decant_pack_redemptions_business_isolation`, habilitada y forzada.
+
 ### orders
 
 Cada fila es un pedido de un cliente de una tienda. Los precios, el porcentaje del depósito y el vencimiento se fijan al crear el pedido.
@@ -475,20 +566,22 @@ Cada fila es una botella bajo pedido o un decant. El precio unitario es un hecho
 | `quantity` | `integer` | `order_lines_quantity_check`: mayor que 0; en decants debe ser 1 |
 | `unit_price` | `integer` | Precio congelado en colones; `order_lines_unit_price_check`: no negativo |
 | `status` | `varchar(20)` | Botellas: `pending`, `ordered`, `received` o `unavailable`; decants: `reserved`, `prepared` o `released` |
-| `decant_pack_id`, `purchase_order_line_id` | `uuid` | Opcionales; reservadas para M18 y M23, todavía sin llave foránea |
+| `decant_pack_id` | `uuid` | Opcional; llave foránea compuesta a `decant_packs(id, business_id)`: el paquete con que se canjeó el decant (#146) |
+| `purchase_order_line_id` | `uuid` | Opcional; reservada para M23, todavía sin llave foránea |
 | `created_at`, `updated_at` | `timestamptz` | |
 
 Llaves únicas: `id` y `(id, business_id)`. `order_lines_kind_check` exige presentación y ausencia de botella de decants, ml y paquete en las líneas de botella; exige identificador de botella, ml positivos y cantidad 1 en las líneas de decant. La apertura y disponibilidad de la botella se validan al reservar con el adaptador, no con ese `CHECK`. Política `order_lines_business_isolation`, habilitada y forzada.
 
 ### payments
 
-Cada fila es un intento de cobro de un pedido. La intención se confirma en una transacción antes del HTTP al proveedor; así un timeout no borra el intento ni habilita otro cobro del mismo propósito.
+Cada fila es un intento de cobro de un pedido o de un paquete de decants. La intención se confirma en una transacción antes del HTTP al proveedor; así un timeout no borra el intento ni habilita otro cobro del mismo propósito.
 
 | Columna | Tipo | Regla |
 |---|---|---|
 | `id` | `uuid` | Llave primaria y clave del intento usada por el adaptador |
 | `business_id` | `uuid` | Llave foránea a `businesses` |
-| `order_id` | `uuid` | Obligatoria; llave foránea compuesta a `orders(id, business_id)` |
+| `order_id` | `uuid` | Opcional; llave foránea compuesta a `orders(id, business_id)`; `payments_payable_check` exige exactamente uno entre `order_id` y `decant_pack_id` |
+| `decant_pack_id` | `uuid` | Opcional; llave foránea compuesta a `decant_packs(id, business_id)`, incorporada con #143 |
 | `purpose` | `varchar(16)` | `payments_purpose_check`: `deposit`, `balance` o `full` |
 | `amount` | `integer` | Principal en colones; `payments_amount_check`: mayor que 0 |
 | `gateway` | `varchar(16)` | `payments_gateway_check`: `onvo`, `paypal` o `manual`; `manual` es el pago del saldo que un dueño registra en la entrega (#98) |
@@ -505,7 +598,7 @@ Cada fila es un intento de cobro de un pedido. La intención se confirma en una 
 | `created_at`, `updated_at` | `timestamptz` | |
 
 - Llaves únicas: `id`, `(id, business_id)` y `(business_id, gateway, provider_reference)`; las referencias nulas no impiden guardar una intención todavía sin respuesta.
-- Índice único parcial `payments_one_pending_purpose` sobre `(business_id, order_id, purpose)` cuando `status = 'pending'`: no puede haber dos intentos pendientes del mismo propósito. Índice adicional `(business_id, status)`.
+- Índice único parcial `payments_one_pending_purpose` sobre `(business_id, order_id, purpose)` cuando `status = 'pending'`: no puede haber dos intentos pendientes del mismo propósito. `payments_one_pending_pack_purpose` hace lo mismo sobre `(business_id, decant_pack_id, purpose)` para los paquetes. Índice adicional `(business_id, status)`.
 - Política `payments_business_isolation`, habilitada y forzada, más `payments_definer_read` de solo lectura para el dueño del esquema al resolver recursos del cliente.
 - La consulta autenticada al proveedor es la autoridad. La piden un aviso verificado de la pasarela (#94) o la conciliación de los pagos pendientes (#96); la consulta del cliente solo lee el pago guardado. El pago y el efecto sobre el pedido se guardan en la misma transacción. El registro único de cada aviso y su cola corresponden a #95.
 - `fn_payment_business(gateway, referencia)` responde la tienda de una referencia del proveedor (`provider_reference`, `checkout_reference` o `capture_reference`) antes de fijar una tienda, para el aviso que no trae la que Archivum envió con el cobro. Es `SECURITY DEFINER`, lee por `payments_definer_read` y solo devuelve el identificador de la tienda.
@@ -586,7 +679,6 @@ Existen en el diagrama, pero su detalle llega en el pull request de la migració
 | Horarios y servicios | `services`, `business_hours`, `staff_schedules`, `schedule_blocks` | #52 (M08) |
 | Citas | `appointments`, `appointment_perfumes`, `appointment_reminders` | #59 (M09) |
 | Lista de espera | `waitlist_entries` | M19 |
-| Paquetes | `decant_pack_plans`, `decant_packs`, `decant_pack_redemptions` | M18 |
 | Proveedores | `suppliers`, `supplier_prices`, `catalog_imports`, `purchase_orders`, `purchase_order_lines` | M23 |
 
 ## Verificación de las formas normales
@@ -606,6 +698,9 @@ Se revisa tabla por tabla. Una dependencia funcional `A → B` significa que A d
 | `perfume_variants` | Un tamaño por fila | Llave de una sola columna; `(business_id, perfume_id, size_ml)` es una llave candidata y los precios dependen de los tres, no de uno solo | `size_ml` y los dos precios describen la presentación. El nombre y la marca no se copian aquí. `sale_price` es la excepción justificada abajo |
 | `decant_bottles` | Una botella física y sus ml enteros por fila | Llave de una sola columna; `(id, business_id)` permite referencias de la misma tienda | Capacidad, fecha y notas describen la botella; `remaining_ml` y `reserved_ml` son la excepción de concurrencia justificada abajo |
 | `decant_movements` | Un movimiento por fila, sin una lista de movimientos en la botella | Llave de una sola columna | Tipo, ml, fecha, motivo y referencias describen ese movimiento; no se copia el nombre del autor |
+| `decant_pack_plans` | Una oferta por fila | Llave de una sola columna | Nombre, cantidades, precio, vigencia, tope y estado describen la oferta |
+| `decant_packs` | Un paquete comprado por fila; sus canjes viven aparte | Llave de una sola columna | Cliente, oferta, estado y vencimiento describen el paquete; lo que copia de la oferta y `remaining_decants` son las excepciones justificadas abajo |
+| `decant_pack_redemptions` | Un decant canjeado por fila | Llave de una sola columna; `(business_id, order_line_id)` es una llave candidata | El paquete y la línea describen el canje; nada del pedido ni del paquete se copia aquí |
 | `orders` | Un pedido por fila; sus líneas viven aparte | Llave de una sola columna | Estado, fechas y porcentaje congelado pertenecen al pedido; los resúmenes monetarios se justifican abajo |
 | `order_lines` | Una línea de botella o decant por fila | Llave de una sola columna | Cantidad, tamaño solicitado, estado y precio congelado describen la venta de esa línea; el precio no depende del catálogo actual |
 | `payments` | Un intento de cobro por fila | Llave de una sola columna; el índice parcial limita intentos pendientes del mismo propósito | Proveedor, referencias, principal y conversión describen el intento; `refunded_amount` es un resumen justificado abajo |
@@ -625,6 +720,8 @@ Cada una se aparta de la 3FN o de la regla de llaves con una razón. Las cuatro 
 | `orders.deposit_percent` congela la condición del pedido | Es el porcentaje aceptado al crear el pedido, no el ajuste vigente de la tienda. Cambiar el ajuste después no recalcula un pedido existente |
 | `orders.subtotal`, `due_now`, `paid`, `balance` | Son resúmenes guardados para lectura y bloqueo del pedido. `OrderAmounts` los calcula desde las líneas y el porcentaje congelado; la aplicación actualiza el pago confirmado y su efecto sobre el pedido en una sola transacción |
 | `decant_bottles.remaining_ml`, `reserved_ml` | La reserva concurrente de R9 exige decidir con un `UPDATE` condicional y un `CHECK` en la misma fila. La fila conserva el saldo inicial registrado y las operaciones posteriores guardan el cambio y su movimiento de forma atómica |
+| `decant_packs.total_decants`, `ml_per_decant`, `max_price_per_ml` copian la oferta | No dependen de `decant_pack_plans`: son lo que el cliente compró. Editar la oferta después no cambia los paquetes ya comprados (#144), igual que `order_lines.unit_price` congela el precio |
+| `decant_packs.remaining_decants` | Se puede derivar de `total_decants` menos los canjes, pero el canje concurrente de R34 exige decidir con un `UPDATE` condicional y un `CHECK` en la misma fila (#147), como los ml de las botellas |
 | `payments.charged_amount`, `exchange_rate` | Conservan el importe real de aquel cobro y su conversión, aunque cambie después el tipo de cambio de la tienda. CRC se guarda en colones enteros y USD en centavos; los montos enviados por HTTP son responsabilidad del adaptador |
 | `payments.refunded_amount` | Resume el principal devuelto para impedir un exceso al bloquear el pago. Solo crece con un reembolso confirmado y se actualiza junto con el reembolso y su efecto sobre el pedido |
 | `refunds.charged_amount` | Congela lo que se pidió a la pasarela en su unidad. Con PayPal depende del tipo de cambio del pago y de las devoluciones que salieron antes, así que recalcularlo después podría dar otro centavo; también es lo que se compara con la respuesta y el aviso de la pasarela (#97) |
@@ -641,9 +738,8 @@ Las columnas de la sección 7 que guardan un valor calculable se justifican, o s
 | Columna | Por qué se prevé guardarla |
 |---|---|
 | `appointments.blocked_until` | Fin de la cita más su margen; la restricción de exclusión (R14) la necesita como columna |
-| `decant_packs.remaining_decants` | Igual, para el saldo de R34 |
 
-`Payable` es el concepto del dominio para lo que se cobra, pero la persistencia actual admite solo `order` y usa `payments.order_id` con llave foránea compuesta. La incorporación de paquetes en #143 debe ampliar ese esquema con integridad referencial explícita, no retirar la llave para guardar un identificador polimórfico sin validar.
+`Payable` es el concepto del dominio para lo que se cobra. La persistencia lo guarda con una columna por tipo, `payments.order_id` o `payments.decant_pack_id` desde #143, cada una con su llave foránea compuesta, y `payments_payable_check` exige exactamente una: no hay un identificador polimórfico sin validar.
 
 ## Lista blanca de `BusinessKeysTest`
 
