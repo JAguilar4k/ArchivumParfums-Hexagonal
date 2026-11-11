@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Decants\Packs\Domain\Entities\DecantPack;
@@ -9,6 +10,7 @@ use Src\Decants\Packs\Domain\Entities\DecantPackPlan;
 use Src\Decants\Packs\Domain\Exceptions\DecantPackNotFoundException;
 use Src\Decants\Packs\Domain\Exceptions\IdempotencyKeyReusedException;
 use Src\Decants\Packs\Domain\ValueObjects\DecantCount;
+use Src\Decants\Packs\Domain\ValueObjects\DecantPackId;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackStatus;
 use Src\Decants\Packs\Domain\ValueObjects\IdempotencyKey;
 use Src\Decants\Packs\Domain\ValueObjects\MaxPricePerMl;
@@ -18,13 +20,16 @@ use Src\Decants\Packs\Domain\ValueObjects\PlanName;
 use Src\Decants\Packs\Domain\ValueObjects\ValidityDays;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\EloquentDecantPackPlanRepository;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\EloquentDecantPackRepository;
+use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderLineModel;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Tests\Support\Businesses\StaffedBusiness;
 use Tests\Support\Catalog\FixedBusinessContext;
 use Tests\Support\RefreshDatabaseAsOwner;
+use Tests\Support\Sales\StoredOrders;
 use Tests\Support\Shared\ScopesQueriesToBusiness;
 
 use function Pest\Laravel\assertDatabaseCount;
+use function Pest\Laravel\assertDatabaseHas;
 
 pest()->use(RefreshDatabaseAsOwner::class, ScopesQueriesToBusiness::class);
 
@@ -161,4 +166,36 @@ it('finds no pack of another business and refuses to store one there, as for a p
         ->and($myRepository->findByIdempotencyKey($theirs->customerId, new IdempotencyKey('compra-1')))->toBeNull()
         ->and(fn () => $myRepository->add($theirs))->toThrow(DecantPackNotFoundException::class, 'packs.pack_not_found')
         ->and(fn () => $myRepository->save($theirs))->toThrow(DecantPackNotFoundException::class, 'packs.pack_not_found');
+});
+
+it('R34: keeps one redemption for each saved line of an order, and forgets it only once', function () {
+    $business = StaffedBusiness::create();
+    $this->scopeQueriesTo($business->business->id);
+    $repository = packRepositoryOf($business->business->id);
+    $pack = packToStore($repository, $business, storedOfferOf($business));
+    $repository->add($pack);
+    $line = (string) OrderLineModel::query()->where('order_id', StoredOrders::create($business, 'confirmed', false, true)['order']->id)->value('id');
+
+    $repository->addRedemption($pack->id, $line);
+
+    assertDatabaseHas('decant_pack_redemptions', ['business_id' => $business->business->id, 'decant_pack_id' => $pack->id->value, 'order_line_id' => $line]);
+    expect(fn () => DB::transaction(fn () => $repository->addRedemption($pack->id, $line)))->toThrow(UniqueConstraintViolationException::class)
+        ->and($repository->removeRedemption($pack->id, $line))->toBeTrue()
+        ->and($repository->removeRedemption($pack->id, $line))->toBeFalse();
+    assertDatabaseCount('decant_pack_redemptions', 0);
+});
+
+it('forgets no redemption of another pack or of another business', function () {
+    $business = StaffedBusiness::create();
+    $other = StaffedBusiness::create();
+    $this->scopeQueriesTo($business->business->id);
+    $repository = packRepositoryOf($business->business->id);
+    $pack = packToStore($repository, $business, storedOfferOf($business));
+    $repository->add($pack);
+    $line = (string) OrderLineModel::query()->where('order_id', StoredOrders::create($business, 'confirmed', false, true)['order']->id)->value('id');
+    $repository->addRedemption($pack->id, $line);
+
+    expect($repository->removeRedemption(new DecantPackId('0192f0c4-0000-7000-9000-000000009999'), $line))->toBeFalse()
+        ->and(packRepositoryOf($other->business->id)->removeRedemption($pack->id, $line))->toBeFalse();
+    assertDatabaseCount('decant_pack_redemptions', 1);
 });

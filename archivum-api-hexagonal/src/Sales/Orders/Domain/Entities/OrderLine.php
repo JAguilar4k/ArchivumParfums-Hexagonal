@@ -28,15 +28,18 @@ final class OrderLine
         public readonly ?int $variantMl = null,
     ) {}
 
-    /** Freeze a presentation price or the price of one decant. */
-    public static function create(string $id, OrderLineKind $kind, ?string $variantId, ?string $bottleId, ?int $ml, int $quantity, int $price): self
+    /**
+     * Freeze a presentation price or the price of one decant. A decant paid with a pack keeps the pack: its price stays
+     * on the line, but the order does not charge it (R24).
+     */
+    public static function create(string $id, OrderLineKind $kind, ?string $variantId, ?string $bottleId, ?int $ml, int $quantity, int $price, ?string $packId = null): self
     {
-        if ($quantity < 1 || ($kind === OrderLineKind::Bottle && ($variantId === null || $bottleId !== null || $ml !== null))
+        if ($quantity < 1 || ($kind === OrderLineKind::Bottle && ($variantId === null || $bottleId !== null || $ml !== null || $packId !== null))
             || ($kind === OrderLineKind::Decant && ($bottleId === null || $ml === null || $ml < 1 || $quantity !== 1))) {
             throw new InvalidValueException('orders.invalid_line');
         }
 
-        $line = new self($id, $kind, $variantId, $bottleId, $ml, $quantity, new Colones($price), $kind === OrderLineKind::Bottle ? OrderLineStatus::Pending : OrderLineStatus::Reserved);
+        $line = new self($id, $kind, $variantId, $bottleId, $ml, $quantity, new Colones($price), $kind === OrderLineKind::Bottle ? OrderLineStatus::Pending : OrderLineStatus::Reserved, $packId);
         new Colones($line->total());
 
         return $line;

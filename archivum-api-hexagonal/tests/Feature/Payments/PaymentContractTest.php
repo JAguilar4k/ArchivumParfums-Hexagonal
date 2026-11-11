@@ -89,7 +89,7 @@ it('keeps the order JSON and its unwrapped line list unchanged while clamping th
         'id' => '019a0010-0000-7000-8000-000000000004', 'tipo' => 'botella',
         'presentacion_id' => '019a0010-0000-7000-8000-000000000005', 'botella_id' => null,
         'perfume' => 'Aroma ficticio', 'ml' => null, 'presentacion_ml' => 100,
-        'cantidad' => 1, 'precio_unitario' => 15000, 'estado' => 'pendiente',
+        'cantidad' => 1, 'precio_unitario' => 15000, 'paquete_id' => null, 'estado' => 'pendiente',
     ]]);
 })->with([[OrderStatus::PendingPayment, 0, 7500], [OrderStatus::PendingPayment, 8000, 0], [OrderStatus::Confirmed, 7500, 0]]);
 

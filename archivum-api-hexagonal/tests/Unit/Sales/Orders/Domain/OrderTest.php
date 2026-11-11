@@ -61,6 +61,19 @@ it('confirms an order with nothing to charge without a gateway', function () {
     expect(salesOrder([salesDecant(0)])->status)->toBe(OrderStatus::Confirmed);
 });
 
+it('R24: keeps the price of a decant paid with a pack without charging it, and pays no bottle with a pack', function () {
+    $redeemed = OrderLine::create('line-3', OrderLineKind::Decant, 'variant-1', 'bottle-1', 5, 1, 800, 'pack-1');
+
+    expect($redeemed->decantPackId)->toBe('pack-1')
+        ->and($redeemed->total())->toBe(800)
+        ->and($redeemed->status)->toBe(OrderLineStatus::Reserved)
+        ->and(salesOrder([salesBottle(), $redeemed])->amounts)->toEqual(new OrderAmounts(15000, 7500, 0, 7500))
+        ->and(salesOrder([$redeemed])->status)->toBe(OrderStatus::Confirmed)
+        ->and(salesDecant()->decantPackId)->toBeNull()
+        ->and(fn () => OrderLine::create('line-4', OrderLineKind::Bottle, 'variant-1', null, null, 1, 15000, 'pack-1'))
+        ->toThrow(InvalidValueException::class, 'orders.invalid_line');
+});
+
 it('collects the full bottle amount upfront when the configured deposit is 100 percent', function () {
     $order = salesOrder([salesBottle(15001)], 100);
 

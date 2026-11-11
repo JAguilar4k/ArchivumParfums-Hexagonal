@@ -145,4 +145,23 @@ final class DecantPack
             $this->status = DecantPackStatus::Exhausted;
         }
     }
+
+    /**
+     * Take back the decant of a redemption whose order was cancelled or expired (precisions of R32–R35). A pack that
+     * the redemption had exhausted is active again while it is still valid, and expired once its validity ended; an
+     * expired pack keeps the decant but stays expired, because it is never used, refunded or changed for money (R35).
+     *
+     * @throws DecantPackConflictException when the pack has every decant it bought, as one that waits for its payment
+     */
+    public function returnDecant(DateTimeImmutable $at): void
+    {
+        if ($this->remainingDecants === $this->totalDecants) {
+            throw new DecantPackConflictException('packs.transition');
+        }
+
+        $this->remainingDecants++;
+        if ($this->status === DecantPackStatus::Exhausted) {
+            $this->status = $at < $this->expiresAt ? DecantPackStatus::Active : DecantPackStatus::Expired;
+        }
+    }
 }

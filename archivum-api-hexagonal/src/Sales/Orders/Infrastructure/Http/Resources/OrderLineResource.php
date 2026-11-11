@@ -25,6 +25,7 @@ final class OrderLineResource extends JsonResource
             'presentacion_ml' => $this->variantMl,
             'cantidad' => $this->quantity,
             'precio_unitario' => $this->unitPrice->amount,
+            'paquete_id' => $this->decantPackId,
             'estado' => $this->status->spanish(),
         ];
     }

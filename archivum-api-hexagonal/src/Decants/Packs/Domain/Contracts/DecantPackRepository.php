@@ -29,4 +29,13 @@ interface DecantPackRepository
 
     /** Persist the status, the decants left and the expiry of a pack. */
     public function save(DecantPack $pack): void;
+
+    /** Keep that a decant of the pack was redeemed in a line of an order of the business of the operation (R34). */
+    public function addRedemption(DecantPackId $packId, string $orderLineId): void;
+
+    /**
+     * Forget the redemption of a line of an order whose decant goes back to the pack. Answer whether the line had
+     * redeemed a decant of that pack, so a decant is given back only once.
+     */
+    public function removeRedemption(DecantPackId $packId, string $orderLineId): bool;
 }
