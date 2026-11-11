@@ -49,7 +49,8 @@ final class MatrixResources
                 ->where('customers.business_id', self::BUSINESS)->where('users.email', self::ACCOUNTS['cliente'])->value('customers.id');
             $person = DB::table('members')->join('users', 'users.id', '=', 'members.user_id')
                 ->where('members.business_id', self::BUSINESS)->where('users.email', self::ACCOUNTS['colaborador'])->value('members.id');
-            assert(is_object($variant) && is_string($bottle) && is_string($customer) && is_string($person));
+            $packPlan = DB::table('decant_pack_plans')->where('business_id', self::BUSINESS)->orderBy('id')->value('id');
+            assert(is_object($variant) && is_string($bottle) && is_string($customer) && is_string($person) && is_string($packPlan));
 
             $order = OrderModel::factory()->create([
                 'business_id' => self::BUSINESS, 'customer_id' => $customer, 'status' => 'confirmed',
@@ -74,6 +75,7 @@ final class MatrixResources
                 'linea' => $line->id,
                 'pago' => $payment->id,
                 'persona' => $person,
+                'paquete' => $packPlan,
             ];
         });
     }

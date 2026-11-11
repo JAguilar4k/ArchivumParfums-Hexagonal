@@ -315,6 +315,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/panel/paquetes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the offers of decant packs of the business of the session, on sale or not, by name */
+        get: operations["decants.packs.plans.index"];
+        put?: never;
+        /**
+         * Define an offer of decant packs in the business of the session
+         * @description Ml that the store does not sell as decants are reported on the field ml_por_decant.
+         */
+        post: operations["decants.packs.plans.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/panel/paquetes/{paquete}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change the fields sent of an offer of the business of the session, also to take it off sale or put it back
+         * @description The packs already bought keep the decants, the ml and the cap they were bought with.
+         */
+        patch: operations["decants.packs.plans.update"];
+        trace?: never;
+    };
     "/panel/personal": {
         parameters: {
             query?: never;
@@ -619,6 +660,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tiendas/{tienda}/paquetes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the decant packs on sale in the store of the address, by name, to any visitor */
+        get: operations["decants.packs.on-sale.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tiendas/{tienda}/recomendaciones": {
         parameters: {
             query?: never;
@@ -866,6 +924,17 @@ export interface components {
             abierta_en: string;
             notas: string | null;
         };
+        /** PanelDecantPackPlan */
+        PanelDecantPackPlan: {
+            id: string;
+            nombre: string;
+            cantidad_decants: number;
+            ml_por_decant: number;
+            precio: number;
+            vigencia_dias: number;
+            precio_maximo_por_ml: number | null;
+            activo: boolean;
+        };
         /** PanelMovement */
         PanelMovement: {
             id: string;
@@ -915,6 +984,16 @@ export interface components {
         /** PatchDecantBottle */
         PatchDecantBottle: {
             notas?: string | null;
+        };
+        /** PatchDecantPackPlan */
+        PatchDecantPackPlan: {
+            nombre?: string;
+            cantidad_decants?: number;
+            ml_por_decant?: number;
+            precio?: number;
+            vigencia_dias?: number;
+            precio_maximo_por_ml?: number | null;
+            activo?: boolean;
         };
         /** PatchPerfume */
         PatchPerfume: {
@@ -1010,6 +1089,16 @@ export interface components {
             logo_url: string | null;
             lugar_cita: string | null;
             zona_horaria: string;
+        };
+        /** PublicPackPlan */
+        PublicPackPlan: {
+            id: string;
+            nombre: string;
+            cantidad_decants: number;
+            ml_por_decant: number;
+            precio: number;
+            vigencia_dias: number;
+            precio_maximo_por_ml: number | null;
         };
         /** RecommendationResource */
         RecommendationResource: {
@@ -1118,6 +1207,16 @@ export interface components {
             /** Format: date-time */
             abierta_en: string;
             notas?: string | null;
+        };
+        /** StoreDecantPackPlan */
+        StoreDecantPackPlan: {
+            nombre: string;
+            cantidad_decants: number;
+            ml_por_decant: number;
+            precio: number;
+            vigencia_dias: number;
+            precio_maximo_por_ml?: number | null;
+            activo?: boolean;
         };
         /** StoreManualPayment */
         StoreManualPayment: {
@@ -2930,6 +3029,190 @@ export interface operations {
             };
         };
     };
+    "decants.packs.plans.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PanelDecantPackPlan` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelDecantPackPlan"][];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "decants.packs.plans.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreDecantPackPlan"];
+            };
+        };
+        responses: {
+            /** @description `PanelDecantPackPlan` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelDecantPackPlan"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "decants.packs.plans.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paquete: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchDecantPackPlan"];
+            };
+        };
+        responses: {
+            /** @description `PanelDecantPackPlan` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelDecantPackPlan"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
     "businesses.members.index": {
         parameters: {
             query?: never;
@@ -4358,6 +4641,48 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["PublicBusiness"];
+                    };
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "decants.packs.on-sale.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tienda: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PublicPackPlan` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PublicPackPlan"][];
                     };
                 };
             };

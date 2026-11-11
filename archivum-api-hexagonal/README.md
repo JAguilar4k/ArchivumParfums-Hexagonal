@@ -251,6 +251,10 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | PATCH | `/api/v1/panel/botellas/{botella}` | Dueño | Edita los datos permitidos de una botella. |
 | GET | `/api/v1/panel/botellas/{botella}/movimientos` | Dueño | Historial inmutable de reservas, consumo, liberación y ajustes. |
 | POST | `/api/v1/panel/botellas/{botella}/ajustes` | Dueño | Ajusta ml con motivo, respetando lo reservado y el bloqueo de botellas vacías. |
+| GET | `/api/v1/panel/paquetes` | Dueño | Lista las ofertas de paquetes de decants de su tienda, a la venta o no, por nombre. |
+| POST | `/api/v1/panel/paquetes` | Dueño | Define una oferta con `nombre`, `cantidad_decants`, `ml_por_decant`, `precio`, `vigencia_dias` y, opcional, `precio_maximo_por_ml`. Los ml deben ser uno de los tamaños de decant de la tienda; si no, responde 422 en `ml_por_decant`. Responde 201 con `Location`. |
+| PATCH | `/api/v1/panel/paquetes/{paquete}` | Dueño | Edita los campos enviados; `activo=false` la saca de la venta sin borrarla y `precio_maximo_por_ml: null` le quita el tope. Los paquetes ya comprados conservan sus decants, sus ml y su tope. |
+| GET | `/api/v1/tiendas/{tienda}/paquetes` | Cualquiera | Paquetes de decants a la venta en la tienda, con sus decants, ml por decant, precio, vigencia y tope. |
 | POST | `/api/v1/tiendas/{tienda}/pedidos` | Cliente | Crea un pedido con precios y depósito calculados por el servidor. |
 | GET | `/api/v1/cuenta/pedidos` | Cliente | Lista sus pedidos, también si pertenece a varias tiendas. |
 | GET | `/api/v1/cuenta/pedidos/{pedido}` | Cliente propietario | Consulta el pedido y sus importes. |
@@ -386,6 +390,8 @@ La actualización lee y bloquea la fila de la tienda dentro de una transacción 
 | | `mariana@clientes.test`, `carlos@clientes.test`, `sofia@clientes.test` | Clientes. |
 | Esencias del Norte (`esencias-del-norte`) | `dueno@esenciasdelnorte.test` | Dueño; atiende citas. |
 | | `lucia@clientes.test`, `sofia@clientes.test` | Clientes. `sofia@clientes.test` es cliente de las dos tiendas. |
+
+`DecantPackPlansDemoSeeder` deja en cada tienda la oferta inicial de paquetes, «Descubrimiento»: 5 decants de 5 ml por ₡40.000, con 180 días de vigencia y un tope de ₡2.500 por ml. Con ese tope el paquete cubre 3 presentaciones de cada tienda y deja fuera las más caras, como Oud Nocturno y Tabaco Dulce.
 
 Las tiendas tienen identificadores fijos: `0192f0c4-0000-7000-8000-000000000001` es ArchivumParfums y `0192f0c4-0000-7000-8000-000000000002` es Esencias del Norte. La segunda tienda sirve para demostrar el aislamiento entre tiendas: el dueño de cada una pide en el panel un recurso de la otra y recibe 404 `no-encontrado`, la misma respuesta que con un recurso que no existe. Las pruebas de `tests/Feature/Tenancy` comprueban lo mismo en cada endpoint del panel con dos tiendas propias, creadas con las fábricas, así que no dependen de estos datos. Los nombres son inventados, los correos usan el dominio reservado `.test` y los teléfonos son de prueba. Como las contraseñas de los sembradores son conocidas, `db:seed` nunca se ejecuta en producción.
 
