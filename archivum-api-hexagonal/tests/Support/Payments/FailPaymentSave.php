@@ -32,6 +32,11 @@ final readonly class FailPaymentSave implements PaymentRepository
         return $this->repository->pending($payable, $purpose);
     }
 
+    public function findByReference(string $gateway, string $reference): ?Payment
+    {
+        return $this->repository->findByReference($gateway, $reference);
+    }
+
     public function save(Payment $payment): void
     {
         if ($payment->status === PaymentStatus::Succeeded || ($this->afterReference && $payment->providerReference !== null)) {
@@ -39,5 +44,23 @@ final readonly class FailPaymentSave implements PaymentRepository
         }
 
         $this->repository->save($payment);
+    }
+
+    public function saveIfPending(Payment $payment): bool
+    {
+        if ($payment->status === PaymentStatus::Succeeded || ($this->afterReference && $payment->providerReference !== null)) {
+            throw new RuntimeException('Injected payment persistence failure.');
+        }
+
+        return $this->repository->saveIfPending($payment);
+    }
+
+    public function saveIfPendingOrExpired(Payment $payment): bool
+    {
+        if ($payment->status === PaymentStatus::Succeeded || ($this->afterReference && $payment->providerReference !== null)) {
+            throw new RuntimeException('Injected payment persistence failure.');
+        }
+
+        return $this->repository->saveIfPendingOrExpired($payment);
     }
 }

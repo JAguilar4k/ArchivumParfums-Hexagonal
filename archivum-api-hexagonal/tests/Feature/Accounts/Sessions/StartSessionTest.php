@@ -42,7 +42,7 @@ it('answers a bearer token named after the device for the owner, the advisor and
 
     $token = UserModel::query()->where('email', $email)->sole()->tokens()->sole();
 
-    expect(array_keys($response->json('data')))->toBe(['token', 'tipo'])
+    expect(array_keys($response->json('data')))->toBe(['token', 'tipo', 'vence_en'])
         ->and($response->json('data.token'))->toStartWith($token->getKey().'|')
         ->and($token->name)->toBe('Celular de la tienda');
 })->with([

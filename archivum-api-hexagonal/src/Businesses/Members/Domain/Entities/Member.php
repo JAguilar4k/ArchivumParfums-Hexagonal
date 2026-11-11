@@ -18,6 +18,7 @@ final readonly class Member
         public BusinessId $businessId,
         public MemberRole $role,
         public bool $attendsAppointments,
+        public bool $isActive = true,
     ) {}
 
     /** Link an account to one business with a role; owners and staff can both attend appointments. */
@@ -38,8 +39,28 @@ final readonly class Member
         BusinessId $businessId,
         MemberRole $role,
         bool $attendsAppointments,
+        bool $isActive = true,
     ): self {
-        return new self($id, $userId, $businessId, $role, $attendsAppointments);
+        return new self($id, $userId, $businessId, $role, $attendsAppointments, $isActive);
+    }
+
+    /** The same member with the changes given; null keeps the current value. */
+    public function update(?MemberRole $role, ?bool $attendsAppointments, ?bool $isActive): self
+    {
+        return new self(
+            $this->id,
+            $this->userId,
+            $this->businessId,
+            $role ?? $this->role,
+            $attendsAppointments ?? $this->attendsAppointments,
+            $isActive ?? $this->isActive,
+        );
+    }
+
+    /** Whether this member is an owner who can still sign in. */
+    public function isActiveOwner(): bool
+    {
+        return $this->isActive && $this->isOwner();
     }
 
     /** Whether this member owns the business. */

@@ -18,7 +18,9 @@ La aplicación nunca se conecta con el rol dueño de las tablas.
 | Rol | Conexión de Laravel | Variables de `.env` | Qué hace | Qué no puede hacer |
 |---|---|---|---|---|
 | `archivum_owner` | `pgsql_admin` | `DB_ADMIN_USERNAME`, `DB_ADMIN_PASSWORD` | Es dueño de las dos bases y ejecuta las migraciones | No atiende peticiones |
-| `archivum_app` | `pgsql` (por defecto) | `DB_USERNAME`, `DB_PASSWORD` | Lee y escribe filas | Crear, alterar o borrar tablas; no es superusuario ni tiene `BYPASSRLS`, `CREATEDB` ni `CREATEROLE` |
+| `archivum_app` | `pgsql` (por defecto) y `pgsql_locks` | `DB_USERNAME`, `DB_PASSWORD` | Lee y escribe filas | Crear, alterar o borrar tablas; no es superusuario ni tiene `BYPASSRLS`, `CREATEDB` ni `CREATEROLE` |
+
+`pgsql_locks` entra con el mismo rol a la misma base, en una sesión propia: la usan solo los bloqueos de la caché en `cache_locks`, como la clave de un trabajo único (#156). PostgreSQL anula toda la transacción cuando falla el `INSERT` con que Laravel intenta tomar un bloqueo que ya existe, así que el bloqueo nunca comparte la conexión de la transacción de una operación.
 
 El script `database/roles.sql` crea los dos roles y las dos bases, le quita a `PUBLIC` todo permiso sobre ellas y le da a `archivum_app` solo `CONNECT`. Lo ejecuta una sola vez por servidor un superusuario, con las contraseñas como variables de `psql`:
 
@@ -56,7 +58,7 @@ Un tercer rol, de mantenimiento, llega con #157 para las tareas que recorren tod
 | Llave primaria | `id` de tipo `uuid`, versión 7, con `DEFAULT uuidv7()` |
 | Tienda | Toda tabla que pertenece a una tienda lleva `business_id` y una política de seguridad a nivel de fila (R55) |
 | Llaves únicas y foráneas | Incluyen `business_id`, para que el aislamiento no dependa del código (R56) |
-| Fechas | `timestamptz`; las dos conexiones trabajan en la zona `America/Costa_Rica` |
+| Fechas | `timestamptz`; las conexiones trabajan en la zona `America/Costa_Rica` |
 | Dinero | Colones enteros en `integer`; nunca decimales ni punto flotante |
 | Rangos del negocio | Restricción `CHECK` con nombre `<tabla>_<columna>_check` |
 | Intervalos que no se traslapan | Restricción `EXCLUDE` con nombre `<tabla>_no_overlap_excl` |
@@ -134,15 +136,17 @@ Como el dueño de las tablas también está sujeto a las políticas, los sembrad
 
 ### Funciones que leen sin tienda
 
-Hay preguntas que se responden antes de saber la tienda: al ingresar, de qué tienda es una persona del personal; en las rutas del cliente, en qué tiendas es cliente una cuenta y de qué tienda es uno de sus recursos. Las responden tres funciones:
+Hay preguntas que se responden antes de saber la tienda: al ingresar, de qué tienda es una persona del personal; en las rutas del cliente, en qué tiendas es cliente una cuenta y de qué tienda es uno de sus recursos; y al recibir el aviso de una pasarela, de qué tienda es el cobro que nombra. Las responden cuatro funciones:
 
 | Función | Devuelve | La usa |
 |---|---|---|
-| `fn_member_business(user_id)` | La tienda y el rol de la persona del personal | `PostgresMemberships`, al ingresar y en el panel |
+| `fn_member_deactivated(email)` | Si el correo es de una persona desactivada; solo un booleano | `PostgresDeactivatedAccounts`, al ingresar, porque sin una membresía activa la cuenta entraría como cliente |
+| `fn_member_business(user_id)` | La tienda y el rol de la persona activa del personal | `PostgresMemberships`, al ingresar y en el panel |
 | `fn_customer_businesses(user_id)` | Las tiendas donde la cuenta tiene fila en `customers` | Los listados de `/api/v1/cuenta` |
 | `fn_customer_resource_business(tipo, id, user_id)` | La tienda de un recurso propio, o `NULL` si es de otro cliente o no existe | Las rutas de un recurso de `/api/v1/cuenta` |
+| `fn_payment_business(gateway, referencia)` | La tienda del pago con esa referencia del proveedor (cobro, checkout o captura), o `NULL` si ningún pago la tiene | `PostgresPaymentBusinesses`, para el aviso verificado que no trae la tienda que Archivum envió con el cobro (#94) |
 
-Las tres son `SECURITY DEFINER` con `search_path` vacío y nombres calificados, propiedad de `archivum_owner` y con `EXECUTE` solo para `archivum_app`. Devuelven identificadores y el rol, nunca filas completas. Como `FORCE` también somete a `archivum_owner`, las tablas que consultan agregan la política de solo lectura `<tabla>_definer_read`, `FOR SELECT TO archivum_owner USING (true)`; `archivum_app` sigue sin ver filas sin tienda.
+Las cuatro son `SECURITY DEFINER` con `search_path` vacío y nombres calificados, propiedad de `archivum_owner` y con `EXECUTE` solo para `archivum_app`. Devuelven identificadores y el rol, nunca filas completas. Como `FORCE` también somete a `archivum_owner`, las tablas que consultan agregan la política de solo lectura `<tabla>_definer_read`, `FOR SELECT TO archivum_owner USING (true)`; `archivum_app` sigue sin ver filas sin tienda.
 
 `fn_customer_resource_business` acepta una lista cerrada de tipos y rechaza cualquier otro con el SQLSTATE `22023`. Hoy solo conoce `customer`, la ficha del cliente en una tienda; cada esquema con recursos del cliente agrega el suyo a la función, al enum `CustomerResourceType` y a `CustomerBusinessContext::RESOURCES`: `appointment` con #59 y `order` con #78. El mecanismo está registrado en el [ADR 0011](adr/0011-customer-routes-resolve-the-business-through-definer-functions.md).
 
@@ -155,6 +159,7 @@ Las tres son `SECURITY DEFINER` con `search_path` vacío y nombres calificados, 
 | `users` | No tiene `business_id`: una cuenta puede ser cliente de varias tiendas, y el ingreso la busca por su correo antes de saber la tienda |
 | `businesses` | No tiene `business_id`: cada fila es una tienda, y las rutas públicas la buscan por el slug de la URL |
 | `personal_access_tokens` | No tiene `business_id`: el token pertenece a la cuenta |
+| `webhook_events` | No tiene `business_id`: el aviso de la pasarela llega antes de saber su tienda y se identifica por `(gateway, event_id)`, que lo guarda una sola vez (#95); la tienda sale después del pago que nombra el aviso verificado (#94) |
 
 ### Llaves únicas y foráneas
 

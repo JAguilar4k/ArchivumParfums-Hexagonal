@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Database\Seeders\BusinessesSeeder;
 use Database\Seeders\CustomersSeeder;
 use Database\Seeders\StaffSeeder;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
@@ -51,6 +52,7 @@ function demoCustomers(string $slug): array
         ->where('businesses.slug', $slug)
         ->orderBy('users.email')
         ->pluck('customers.phone', 'users.email')
+        ->map(fn (string $phone): string => Crypt::decryptString($phone))
         ->all();
 }
 
@@ -106,7 +108,7 @@ it('uses only fictitious emails and test phones', function () {
         $this->scopeQueriesTo($businessId);
 
         foreach (DB::table('customers')->pluck('phone') as $phone) {
-            expect($phone)->toStartWith('+5068888000');
+            expect(Crypt::decryptString($phone))->toStartWith('+5068888000');
         }
     }
 });

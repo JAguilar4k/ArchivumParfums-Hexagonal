@@ -4,7 +4,7 @@ API REST de ArchivumParfums. Laravel 13, PHP 8.4 y PostgreSQL 18.
 
 ## Alcance integrado
 
-La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Los servicios y horarios, la disponibilidad, las citas, los webhooks de pagos y el cliente Vue siguen pendientes de integración. Los escenarios externos ONVO y PayPal ya tienen [evidencia sandbox](../docs/evidencia-investigacion-1/README.md); el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
+La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Avance 2 suma la confirmación de pagos por aviso verificado de ONVO y PayPal (#94), procesado una sola vez en la cola (#95), la conciliación de los pagos pendientes cuyo aviso no llegó (#96), los reembolsos pedidos en la cola a ONVO y a PayPal (#97) y el registro del saldo pagado en la entrega (#98); desde #96, la consulta del cliente solo lee el pago guardado. Los servicios y horarios, la disponibilidad, las citas y el cliente Vue siguen pendientes de integración. Los escenarios externos ONVO y PayPal ya tienen [evidencia sandbox](../docs/evidencia-investigacion-1/README.md); el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
 
 ## Requisitos
 
@@ -133,6 +133,10 @@ COMMIT;
 | `php artisan storage:link` | Hace accesibles los logos y fotos guardados en el disco público. Se ejecuta una vez por instalación. |
 | `php artisan migrate --database=pgsql_admin` | Aplica migraciones pendientes con el rol dueño del esquema, sin volver a sembrar. |
 | `php artisan route:list --path=api --except-vendor` | Muestra las rutas realmente cargadas de la API. Añade `-vv` para consultar sus middleware. |
+| `php artisan queue:work` | Corre el worker de la cola en desarrollo, en otra terminal: aplica los avisos de las pasarelas, envía los reembolsos y vence los pedidos sin pagar. En producción lo supervisa la plataforma de #21. |
+| `php artisan queue:failed` | Lista los trabajos que agotaron sus intentos; `php artisan queue:retry all` los vuelve a encolar. |
+| `php artisan schedule:work` | Ejecuta las tareas programadas en desarrollo; en producción se usa `schedule:run` desde cron, cada minuto. |
+| `php artisan archivum:reconcile-payments` | Consulta a la pasarela los pagos pendientes de todas las tiendas que ya esperaron su aviso (#96), los pagos que el vencimiento de su pedido cerró en las últimas 24 horas, por si la pasarela los cobró igual (#192), y los reembolsos que la pasarela aceptó y siguen pendientes (#97), y aplica su estado real. Corre sola cada cinco minutos. |
 | `php artisan archivum:create-business` | Da de alta una tienda y la cuenta de su dueño. Ver [Dar de alta una tienda](#dar-de-alta-una-tienda). |
 
 Antes de abrir un pull request deben pasar `composer validate --strict`, `composer lint`, `composer analyse` y `composer test`. La auditoría completa se ejecuta con `composer audit --locked`; CI ejecuta `composer audit --locked --ignore-severity=low --ignore-severity=medium` después de las pruebas, por lo que una ejecución local completa puede informar avisos adicionales.
@@ -146,7 +150,9 @@ git diff -- openapi/v1.json
 
 Para comprobar que el contrato versionado ya coincide con el generador, usa `git diff --exit-code -- openapi/v1.json` después de exportarlo. Un diff requiere revisar y actualizar el contrato; no significa que se haya ejecutado el comportamiento HTTP.
 
-Cuando se implemente trabajo en cola, el worker local se ejecuta en otra terminal con `php artisan queue:work --tries=1`; el scheduler usa `php artisan schedule:work`. Son procesos separados de `composer run dev`, y se inician cuando el módulo que se prueba los necesita. Los pagos de Investigación 1 usan peticiones HTTP y consultas explícitas desde la API; no requieren un worker ni un webhook. Los recordatorios y websockets siguen pendientes.
+`archivum-web` genera sus tipos desde este contrato: después de exportarlo, se ejecuta `npm run api:types` en `archivum-web/` y el pull request incluye los dos archivos ([README del cliente](../archivum-web/README.md#tipos-de-la-api)).
+
+Los avisos de las pasarelas se procesan en la cola (#95): con `QUEUE_CONNECTION=database`, el worker local corre en otra terminal con `php artisan queue:work`, y cada aviso guardado espera en la tabla `jobs` hasta que el worker lo aplica. La cola escribe cada trabajo cuando se confirma la transacción que lo despachó, y mientras una copia espera no se encola otra con la misma clave, como el mismo aviso o el mismo reembolso (#156). Cada trabajo toma sus reintentos de `config/archivum.php` (cinco intentos, con esperas de 10, 60 y 300 segundos, y la última se repite), y uno que los agota queda en `failed_jobs`, desde donde `php artisan queue:retry` lo vuelve a encolar. Las claves de los trabajos son bloqueos de la caché en `cache_locks`, por la conexión `pgsql_locks`, que usa la misma base y el mismo rol que la aplicación: no hace falta configurar nada más. Los reembolsos también salen por la cola (#97): la cancelación, la línea no disponible y el cobro que llega con el pedido ya cerrado solo registran el reembolso y su trabajo, y el worker lo pide a la pasarela. Si PayPal no responde, los reintentos del trabajo lo piden otra vez con el mismo `PayPal-Request-Id`; con ONVO, que no documenta una llave de idempotencia, un reembolso sin respuesta no se reenvía y se revisa en su panel. Cada pedido que espera su pago deja su vencimiento en la cola, disponible a los 30 minutos o a los que fije la tienda (#158): si para entonces nadie lo pagó, el worker lo vence, devuelve los ml de sus decants y cierra su pago pendiente. El scheduler usa `php artisan schedule:work` y concilia cada cinco minutos los pagos pendientes cuyo aviso no llegó (#96) y los reembolsos que la pasarela todavía procesa (#97). Son procesos separados de `composer run dev`. El cobro y su consulta desde la API no necesitan el worker. En local, sin dirección pública, los avisos no llegan: ahí confirma los pagos la conciliación. Los recordatorios y websockets siguen pendientes.
 
 ## Pruebas
 
@@ -180,8 +186,10 @@ Ayudas para las pruebas de `tests/Feature`:
 
 - `actingAsOwner()`, `actingAsStaff()` y `actingAsCustomer()` crean una tienda con su dueño, un colaborador y un cliente (`StaffedBusiness`, con las fábricas de miembros y clientes), inician sesión como esa persona con `Sanctum::actingAs()` y devuelven la tienda. Si reciben una tienda, la reutilizan. `actingAsRole('dueno')` hace lo mismo con el nombre del rol que usa la API; con `visitante` no inicia sesión.
 - `DemoAccounts::seed()` siembra los datos de demostración y `DemoAccounts::signIn($correo)` ingresa por `POST /api/v1/sesiones`, como lo hace un cliente de la API, y devuelve el encabezado `Authorization`. Sirve a las pruebas que necesitan un token real, como las de `GET /api/v1/cuenta` en `tests/Feature/Accounts/Sessions/CurrentAccountTest.php`.
+- La matriz de permisos de la sección 9 de la especificación (#105) vive en `tests/Datasets/PermissionMatrix.php`: un dataset por fila con cada endpoint, su cuerpo y la respuesta de cada rol del dataset `roles` (dueño, colaborador, cliente y visitante), sobre los datos de los seeders y un pedido de Mariana en ArchivumParfums (`tests/Support/Security/MatrixResources.php`). `tests/Feature/PermissionMatrixTest.php` entra con tokens reales de `POST /api/v1/sesiones` y comprueba el 403 `prohibido` del rol sin permiso y el 401 `no-autenticado` del visitante, sin escribir ninguna fila. También comprueba el 404 `no-encontrado` del dueño de Esencias del Norte, o de una clienta suya en `/cuenta/...`, sobre cada recurso de ArchivumParfums, y el 422 `datos-invalidos` en el campo cuando el cuerpo trae un identificador de otra tienda. La prueba falla si una ruta de `/api/v1/panel` o de `/api/v1/cuenta` no está en ninguna fila, así que cada endpoint nuevo suma su fila. Las filas de citas, paquetes, reportes y el recomendador quedan como `todo` hasta que existan sus endpoints.
 - Los datasets de `tests/Datasets` recorren los roles de la matriz de permisos (`roles`) y el personal de otra tienda (`staff of another business`).
-- `inParallel($tablas, $operacion1, $operacion2)` ejecuta cada operación en su propio proceso, con su propia conexión y fuera de la transacción de la prueba, todas en el mismo instante, y devuelve sus resultados en orden. Lo que las operaciones comparten se inserta antes con `DB::connection('pgsql_admin')`, y las tablas de `$tablas` se vacían al terminar la prueba. Cada operación se escribe en su propia línea y no usa `$this`. Es la ayuda de las pruebas de concurrencia; el ejemplo está en `tests/Feature/Shared/InParallelTest.php`.
+- Las pruebas usan la cola `sync` y la caché `array`. Las que necesitan las de producción ponen `queue.default` o `cache.default` en `database` y corren cada trabajo con `queue:work --once`, como el worker. Los bloqueos de `cache_locks` se confirman fuera de la transacción de la prueba, por su propia conexión, así que esas pruebas los borran al terminar. `RecordingJob`, de `tests/Support/Shared`, es un trabajo de una tienda que anota lo que ve en cada intento (#156).
+- `inParallel($tablas, $operacion1, $operacion2)` ejecuta cada operación en su propio proceso, con su propia conexión y fuera de la transacción de la prueba, todas en el mismo instante, y devuelve sus resultados en orden. Lo que las operaciones comparten se inserta antes con `DB::connection('pgsql_admin')`, y las tablas de `$tablas` se vacían al terminar la prueba. Cada operación se escribe en su propia línea y no usa `$this`. `audit_logs` no va en `$tablas`, porque nadie puede vaciarla ni cambiarla: sus entradas nombran la tienda que creó la prueba y desaparecen cuando la siguiente corrida recrea las tablas. Es la ayuda de las pruebas de concurrencia; el ejemplo está en `tests/Feature/Shared/InParallelTest.php`.
 
 Cada prueba que demuestra una regla de la sección 5 de la [especificación](../docs/especificacion.md) la nombra al inicio de su descripción, por ejemplo `it('R14: ...')`, de modo que una búsqueda de `R14:` en `tests/` encuentra sus pruebas. `tests/Architecture/BusinessRulesTest.php` falla si una regla no aparece en ninguna prueba ni en la lista de pendientes `tests/Architecture/pending-rules.php`, o si sigue en esa lista cuando una prueba ya la nombra. El issue que prueba una regla la quita de la lista en el mismo pull request.
 
@@ -210,12 +218,21 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/` | Cualquiera | Redirección temporal (302) a `/api/v1`, para que abrir el servidor en el navegador no dé 404. |
 | GET | `/up` | Cualquiera | Estado de la aplicación, fuera del prefijo `/api/v1`. |
 | GET | `/api/v1` | Cualquiera | Nombre y versión de la API. |
+| POST | `/api/v1/cuentas` | Cualquiera | Registra una cuenta de cliente con `nombre`, `correo`, `contrasena` y `acepta_privacidad: true`; responde 201 con `Location` hacia `/api/v1/cuenta` y los datos públicos de la cuenta, sin iniciar sesión. |
 | POST | `/api/v1/sesiones` | Cualquiera | Ingresa con `correo`, `contrasena` y el nombre del `dispositivo` y devuelve un token Bearer. |
 | DELETE | `/api/v1/sesiones/actual` | Con token | Cierra la sesión: revoca solo el token de la petición y responde 204. |
+| POST | `/api/v1/sesiones/actual/renovacion` | Con token vigente | Cambia el token de la petición por uno nuevo con su `vence_en` y revoca el anterior; responde 201. |
 | GET | `/api/v1/cuenta` | Con token | Nombre, correo y rol de la cuenta (`dueno`, `colaborador` o `cliente`) y, para el personal, su tienda. |
 | GET | `/api/v1/panel/tienda` | Dueño | Perfil y ajustes de la tienda de la sesión: nombre, slug, lugar de la cita, zona horaria y ajustes. |
 | PATCH | `/api/v1/panel/tienda` | Dueño | Cambia solo los campos enviados del perfil y de los ajustes. El slug no cambia. |
 | POST | `/api/v1/panel/tienda/logo` | Dueño | Sube el logo mediante `multipart/form-data`. |
+| PUT | `/api/v1/cuenta/contrasena` | Cualquier rol | Cambia la contraseña con `contrasena_actual` y `contrasena_nueva`. Responde 204 y cierra las demás sesiones de la cuenta. |
+| POST | `/api/v1/recuperaciones-de-contrasena` | Cualquiera | Con `correo`, responde 202 con el mismo cuerpo exista o no la cuenta; solo si existe envía el enlace en cola. |
+| POST | `/api/v1/recuperaciones-de-contrasena/confirmacion` | Cualquiera | Con `correo`, `token` y `contrasena_nueva`, responde 204 y cierra todas las sesiones. Un token vencido, usado o de otro correo responde 422 en `token`. |
+| GET | `/api/v1/panel/personal` | Dueño | Personal de la tienda de la sesión con su rol, si atiende citas y si está activo. |
+| POST | `/api/v1/panel/personal` | Dueño | Agrega a una persona con `nombre`, `correo`, `contrasena` inicial, `rol` (`dueno` o `colaborador`) y `atiende_citas`. Responde 201 con `Location`; un correo ya registrado responde 422 en `correo`. |
+| GET | `/api/v1/panel/personal/{persona}` | Dueño | Una persona de la tienda; la de otra tienda responde 404. |
+| PATCH | `/api/v1/panel/personal/{persona}` | Dueño | Cambia `nombre`, `rol`, `atiende_citas` y `activo`. Cambiar el rol o desactivar revoca sus tokens; quitar al último dueño activo responde 409 `conflicto`. |
 | GET | `/api/v1/panel/perfumes` | Dueño | Lista perfumes de su tienda, incluidos los inactivos, con búsqueda por marca/nombre y paginación. |
 | POST | `/api/v1/panel/perfumes` | Dueño | Crea un perfume con sus notas y etiquetas. |
 | GET | `/api/v1/panel/perfumes/{perfume}` | Dueño | Consulta un perfume de su tienda. |
@@ -227,6 +244,7 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/api/v1/tiendas/{tienda}` | Cualquiera | Perfil público de la tienda identificada por su slug. |
 | GET | `/api/v1/tiendas/{tienda}/perfumes` | Cualquiera | Vitrina pública de perfumes activos, con búsqueda, filtros y paginación. |
 | GET | `/api/v1/tiendas/{tienda}/perfumes/{perfume}` | Cualquiera | Detalle público del perfume activo con sus presentaciones activas. |
+| POST | `/api/v1/tiendas/{tienda}/recomendaciones` | Cualquiera | Recomienda hasta 5 perfumes de la vitrina para lo que describe el cliente, con la IA o, si falla, por reglas; `origen` dice cuál respondió. |
 | GET | `/api/v1/panel/botellas` | Dueño | Lista botellas de decants de su tienda. |
 | POST | `/api/v1/panel/botellas` | Dueño | Registra una botella abierta de una presentación. |
 | GET | `/api/v1/panel/botellas/{botella}` | Dueño | Consulta los ml y el estado de una botella. |
@@ -236,7 +254,7 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | POST | `/api/v1/tiendas/{tienda}/pedidos` | Cliente | Crea un pedido con precios y depósito calculados por el servidor. |
 | GET | `/api/v1/cuenta/pedidos` | Cliente | Lista sus pedidos, también si pertenece a varias tiendas. |
 | GET | `/api/v1/cuenta/pedidos/{pedido}` | Cliente propietario | Consulta el pedido y sus importes. |
-| POST | `/api/v1/cuenta/pedidos/{pedido}/cancelacion` | Cliente propietario | Cancela cuando las reglas lo permiten y registra los reembolsos pendientes. |
+| POST | `/api/v1/cuenta/pedidos/{pedido}/cancelacion` | Cliente propietario | Cancela cuando las reglas lo permiten, registra los reembolsos pendientes y deja su envío en la cola. |
 | GET | `/api/v1/panel/pedidos` | Dueño | Lista pedidos de su tienda. |
 | GET | `/api/v1/panel/pedidos/{pedido}` | Dueño | Consulta un pedido de su tienda. |
 | POST | `/api/v1/panel/pedidos/{pedido}/preparacion` | Dueño | Consume los ml reservados al preparar los decants. |
@@ -244,20 +262,23 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | POST | `/api/v1/panel/pedidos/{pedido}/entrega` | Dueño | Entrega un pedido listo y pagado, sin reembolsos sin resolver. |
 | POST | `/api/v1/panel/pedidos/{pedido}/lineas/{linea}/no-disponible` | Dueño | Marca una botella encargada como no disponible y calcula la devolución correspondiente. |
 | POST | `/api/v1/cuenta/pedidos/{pedido}/pagos` | Cliente propietario | Inicia el cobro calculado o devuelve su intento pendiente existente. |
-| GET | `/api/v1/cuenta/pagos/{pago}` | Cliente propietario | Consulta el proveedor y confirma el resultado; en PayPal captura tras la aprobación. |
-| POST | `/api/v1/panel/pedidos/{pedido}/reembolsos` | Dueño | Procesa los importes de devolución ya registrados; ONVO ejecuta y consulta el reembolso. |
+| GET | `/api/v1/cuenta/pagos/{pago}` | Cliente propietario | Lee el pago guardado, sin consultar al proveedor ni cambiarlo; mientras siga `pendiente`, el cliente muestra "procesando". Lo confirman el aviso o la conciliación. |
+| POST | `/api/v1/panel/pedidos/{pedido}/pagos-manuales` | Dueño | Registra el saldo que el cliente pagó en la entrega por SINPE o en efectivo, con `metodo`, `monto` y `referencia`; el pago queda confirmado y el saldo baja en la misma transacción, sin pasar por la pasarela. |
+| POST | `/api/v1/panel/pedidos/{pedido}/reembolsos` | Dueño | Lista los reembolsos del pedido con su pago, línea, monto y estado, y vuelve a encolar los que nunca salieron hacia la pasarela. `consulta_pendiente` marca los que salieron sin respuesta de la pasarela. |
+| POST | `/api/v1/webhooks/onvo` | ONVO Pay | Recibe un aviso con `X-Webhook-Secret`, guarda solo la primera llegada de cada evento y responde de inmediato `recibido`, o `repetido` sin cambiar nada. En la cola, el worker consulta al proveedor y confirma el pago y su pedido, o deja el aviso con su error. Un origen no verificado responde 401. |
+| POST | `/api/v1/webhooks/paypal` | PayPal | Recibe un aviso cuya firma verifica la API de PayPal y lo guarda y procesa igual que el de ONVO; en la cola, la orden aprobada se captura y el pago se confirma con la captura completada. Un origen no verificado responde 401. |
 | GET | `/docs/api` | Desarrollo local | Documentación interactiva de Scramble; el gate la deniega en producción. |
 | GET | `/docs/api.json` | Desarrollo local | Contrato OpenAPI generado de las rutas. |
 
 Las rutas sin versión, como `/api`, responden 404: toda ruta de la API lleva el prefijo `/api/v1`.
 
-Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial). Las rutas de servicios, horarios, disponibilidad, reservas de citas y webhooks de pagos siguen pendientes de integración y no forman parte de esta tabla de rutas disponibles.
+Cada pull request que agrega un endpoint agrega su fila a esta tabla. La lista prevista está en la sección 8 de la [especificación](../docs/especificacion.md#8-api-inicial). Las rutas de servicios, horarios, disponibilidad y reservas de citas siguen pendientes de integración y no forman parte de esta tabla de rutas disponibles.
 
 ## Recorrido básico en Postman
 
 La colección y el entorno se incluyen en [`tests/Postman/`](tests/Postman/README.md), con 35 peticiones ordenadas, datos ficticios y captura de variables desde las respuestas. Al clonar el repositorio, importa ambos JSON y ajusta `base_url` a la dirección real de tu API. La carpeta contiene las instrucciones y el alcance; las pruebas HTTP no añaden dependencias a las capas del producto.
 
-Para los pagos de Investigación 1 hay [dos colecciones adicionales y sus entornos](tests/Postman/README.md#investigación-1-archivos-y-nombres-del-recorrido): ONVO con 24 peticiones y PayPal con 21. Con sesión preparan el recorrido, capturan referencias y comprueban el resultado después del checkout manual del navegador. Sin cuenta, el mismo README explica cómo enviar las peticiones y copiar las referencias a mano, como en Avance 1.
+Para los pagos de Investigación 1 hay [dos colecciones adicionales y sus entornos](tests/Postman/README.md#investigación-1-archivos-y-nombres-del-recorrido): ONVO con 24 peticiones y PayPal con 21. Con sesión preparan el recorrido, capturan referencias y comprueban el resultado después del checkout manual del navegador y de la conciliación (#96). Sin cuenta, el mismo README explica cómo enviar las peticiones y copiar las referencias a mano, como en Avance 1.
 
 Realiza este recorrido con las cuentas ficticias de una instalación local. Configura **Accept: application/json**. En los POST y PATCH con JSON, usa **Body → raw → JSON**; en archivos, usa **Body → form-data** y deja que Postman genere `Content-Type` con su boundary.
 
@@ -296,6 +317,14 @@ Para probar fotos, añade `foto` como archivo en el POST de foto; para el logo, 
 
 Los ejemplos cURL de la sección siguiente usan sintaxis Bash para continuar líneas; en PowerShell puedes crear las mismas solicitudes en Postman o escribir el comando `curl.exe` en una sola línea.
 
+Un visitante crea su cuenta con `POST /api/v1/cuentas` (#101). Solo se piden `nombre` (hasta 120 caracteres), `correo` y `contrasena` (al menos 8 caracteres, `Password::defaults()`), como pide la Ley 8968. La cuenta nueva siempre es de cliente: `rol`, `business_id` o una tienda enviados en el cuerpo se ignoran, no se crea ninguna fila en `members` y tampoco en `customers`, que se crea al operar en una tienda (#62). La respuesta `201` trae el encabezado `Location` hacia `/api/v1/cuenta` y los mismos datos públicos que `GET /api/v1/cuenta`, nunca la contraseña, su hash ni un token: el registro no inicia sesión y el cliente llama después a `POST /api/v1/sesiones`. Un correo ya registrado, aunque cambien las mayúsculas, responde 422 `datos-invalidos` con el error en `errores.correo`; si dos registros simultáneos usan el mismo correo, la llave única de `users.email` deja pasar uno y el otro recibe ese mismo 422, nunca un 500. El límite por IP llega con #108.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/cuentas \
+  -H 'Content-Type: application/json' -H 'Accept: application/json' \
+  -d '{"nombre": "Cliente Ficticia", "correo": "cliente.ficticia@clientes.test", "contrasena": "<una contraseña de 8 o más caracteres>"}'
+```
+
 El token de `POST /api/v1/sesiones` se muestra una sola vez y se envía en cada petición en el encabezado `Authorization: Bearer <token>`; cada ingreso crea un token nuevo con el nombre de su dispositivo, así cada sesión se distingue de las demás, y `DELETE /api/v1/sesiones/actual` borra solo el token de la petición, sin cerrar las demás sesiones de la cuenta. Un correo inexistente y una contraseña incorrecta reciben la misma respuesta 401 `credenciales-invalidas`, sin indicar cuál dato falló, como en el proyecto guía. Los campos ausentes o mal formados responden 422 `datos-invalidos` con sus errores de validación. Sin token, o con uno inválido, las rutas protegidas responden 401 `no-autenticado`. Para ingresar con una cuenta de los [datos de demostración](#datos-de-demostración):
 
 ```bash
@@ -304,7 +333,7 @@ curl -X POST http://localhost:8000/api/v1/sesiones \
   -d '{"correo": "duena@archivumparfums.test", "contrasena": "<ARCHIVUM_DEMO_PASSWORD>", "dispositivo": "Computadora"}'
 ```
 
-La respuesta `201` trae el token en `data.token`. Con él se consulta la cuenta que ingresó:
+La respuesta `201` trae el token en `data.token` y su vencimiento en `data.vence_en`. Con él se consulta la cuenta que ingresó:
 
 ```bash
 curl http://localhost:8000/api/v1/cuenta -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
@@ -316,7 +345,15 @@ Para cerrar esa sesión se envía el mismo token; la respuesta es `204` y las de
 curl -X DELETE http://localhost:8000/api/v1/sesiones/actual -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
 ```
 
-Mientras llegan las abilities y las policies de #102 y #104, el middleware `RequireAccountRole` separa los grupos de rutas según el rol indicado. `role:owner` deja pasar solo a los dueños de la tienda: la configuración (perfil y ajustes, servicios, horarios, bloqueos, perfumes, botellas y proveedores) y las citas que se reservan, reprograman o cancelan en nombre de un cliente. `role:customer` deja pasar solo a las cuentas sin fila en `members`: las reservas, los pedidos y las rutas de `/api/v1/cuenta/...`. Cualquier otra cuenta recibe 403 `prohibido` antes de que la petición escriba algo, y `GET /api/v1/cuenta` sigue abierta a los tres roles. `tests/Feature/Accounts/Sessions/RoleGroupsTest.php` falla si una ruta de esos grupos no lleva su middleware, y cada endpoint nuevo de los dos grupos suma su fila a su dataset, con el estado exacto que recibe el rol permitido.
+Cada token vence a los minutos de `SANCTUM_EXPIRATION` (60 por defecto, en `config/sanctum.php`) y `POST /api/v1/sesiones` lo informa en `vence_en`, en ISO 8601 con el desplazamiento de la zona horaria (#103). Un token vencido responde 401 `no-autenticado` en cualquier ruta protegida. Mientras siga vigente, `POST /api/v1/sesiones/actual/renovacion` lo cambia por uno nuevo para el mismo dispositivo, con su propio `vence_en` y las abilities del rol que la cuenta tiene en ese momento, y responde 201. El token anterior deja de servir: usarlo de nuevo, o renovar con un token vencido o cerrado, responde 401 y hay que ingresar otra vez. `RenewSession` borra el token anterior con un `DELETE` condicionado a que siga vigente y emite el nuevo en la misma transacción, así dos renovaciones simultáneas del mismo token producen un solo token nuevo y la otra recibe 401. Las demás sesiones de la cuenta no cambian. El scheduler ejecuta `sanctum:prune-expired --hours=24` cada día para borrar las filas de los tokens vencidos. Todavía no hay un tiempo máximo de sesión: una sesión que se renueva a tiempo no vence.
+
+```bash
+curl -X POST http://localhost:8000/api/v1/sesiones/actual/renovacion -H 'Accept: application/json' -H 'Authorization: Bearer <token>'
+```
+
+Cada token lleva solo las abilities del rol de la cuenta (#102). El mapa vive en un solo lugar, el enum `Src\Accounts\Sessions\Domain\ValueObjects\Ability`, y sigue la matriz de la sección 9 de la especificación: el dueño recibe `business:configure`, `catalog:manage`, `appointments:view-all`, `appointments:attendance`, `appointments:book-for-customer`, `orders:manage`, `payments:record`, `packs:manage` y `reports:view`; el colaborador, `appointments:view-own` y `appointments:attendance`; el cliente, `customer:own`. `POST /api/v1/sesiones` fija las abilities al emitir el token, así que cambiar el rol o desactivar a una persona revoca sus tokens (#106) y renovar las recalcula (#103). Cada ruta de `/api/v1/panel`, de `/api/v1/cuenta/...` y de las operaciones autenticadas del cliente bajo `/api/v1/tiendas/{tienda}` declara la que exige con los middleware `abilities` (todas) o `ability` (alguna) de Sanctum, justo después de `auth:sanctum`; un token sin ella recibe 403 `prohibido` antes de que la petición escriba algo. `GET /api/v1/cuenta` y `DELETE /api/v1/sesiones/actual` sirven a los tres roles y las rutas públicas no exigen ability. Que el recurso sea de la cuenta (solo sus citas, solo sus pedidos) lo deciden las policies de #104. `tests/Feature/Accounts/Sessions/RoleAbilitiesTest.php` falla si una de esas rutas no declara ability o declara una que no existe, y `RoleGroupsTest` sigue probando los grupos de los dueños y de los clientes con las abilities.
+
+Las abilities deciden el rol; la propiedad la deciden las policies de cada módulo (#104), en su `Infrastructure` y registradas en su provider: `OrderPolicy` (`view`, `cancel`, `pay` y `manage`) y `PaymentPolicy` (`view`). El cliente solo alcanza sus pedidos y sus pagos, y el dueño todo lo de su tienda; el colaborador no tiene pedidos. Los middleware `AuthorizeOrder` y `AuthorizePayment` cargan el `{pedido}` o el `{pago}` de la ruta en la tienda de la petición y preguntan a la policy antes del controlador, así que una petición rechazada no escribe nada. Toda negativa usa `Response::denyAsNotFound()`: un recurso de otro cliente, de otra persona del personal o de otra tienda responde 404 `no-encontrado`, igual que uno inexistente. En `/api/v1/cuenta/...`, un recurso de otro cliente ni siquiera resuelve tienda (`fn_customer_resource_business`) y responde 404 antes de llegar a la policy; los listados de la cuenta filtran por el cliente en la consulta. Las policies de la cita, del paquete comprado y de la entrada de la lista de espera llegan con sus módulos y siguen la misma forma. `tests/Feature/Sales/Orders/OrderPolicyTest.php` y `tests/Feature/Payments/PaymentPolicyTest.php` prueban cada policy con el propietario, otro cliente de la misma tienda, un cliente de otra tienda, el colaborador y el dueño de otra tienda.
 
 La tienda de `/api/v1/panel/tienda` siempre es la de la sesión: un `business_id` o un slug en el cuerpo se ignoran. `PATCH` acepta `nombre`, `lugar_cita` (`null` lo deja sin configurar), `zona_horaria` (identificador IANA) y, dentro de `ajustes`, cualquiera de estos campos; los que no se envían conservan su valor:
 
@@ -358,18 +395,20 @@ Para Investigación 1, el [recorrido de pagos del README raíz](../README.md#inv
 
 Las guías independientes [Demostración de ONVO](../docs/demostracion-onvo.md) y [Demostración de PayPal](../docs/demostracion-paypal.md) incluyen el recorrido completo en Postman, los resultados esperados y los archivos que se modifican para configurar o ampliar cada pasarela. La colección de Postman existente cubre el recorrido básico; las peticiones adicionales de pagos se crean siguiendo esas guías.
 
-`config/payments.php` lee `ONVO_SECRET_KEY`, `ONVO_PUBLISHABLE_KEY`, `ONVO_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYMENTS_RETURN_URL` y `PAYMENTS_CANCEL_URL`. `.env.example` las declara; todas las credenciales quedan vacías. El flujo actual usa checkout hospedado y consultas desde el servidor, sin webhook habilitado. PayPal solo admite el host sandbox fijado en configuración. La pasarela y el tipo CRC/USD se eligen en los ajustes existentes de la tienda.
+`config/payments.php` lee `ONVO_SECRET_KEY`, `ONVO_PUBLISHABLE_KEY`, `ONVO_WEBHOOK_SECRET`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_WEBHOOK_ID`, `PAYMENTS_RETURN_URL` y `PAYMENTS_CANCEL_URL`. `.env.example` las declara; todas las credenciales quedan vacías. El cobro usa checkout hospedado y se confirma con la consulta del servidor, que piden un aviso verificado o la conciliación (#96); la consulta del cliente solo lee el pago guardado. Para recibir avisos, `ONVO_WEBHOOK_SECRET` lleva el secreto del webhook que muestra el panel de ONVO (empieza por `webhook_secret_`) y `PAYPAL_WEBHOOK_ID` el identificador del webhook registrado en el sandbox de PayPal; vacíos, toda notificación responde 401. La pasarela solo alcanza esas rutas en una dirección pública con HTTPS (#21). PayPal solo admite el host sandbox fijado en configuración. La pasarela y el tipo CRC/USD se eligen en los ajustes existentes de la tienda.
 
 `.env.example` lista todas las variables que lee la aplicación. Las propias del producto:
 
 | Variable | Uso |
 |---|---|
-| `APP_TIMEZONE` | Zona horaria de la aplicación y de las dos conexiones de PostgreSQL. Por defecto, `America/Costa_Rica`. |
+| `APP_TIMEZONE` | Zona horaria de la aplicación y de las conexiones de PostgreSQL. Por defecto, `America/Costa_Rica`. |
 | `DB_DATABASE` | Base de desarrollo, `archivum_hexagonal`. Las pruebas usan `archivum_hexagonal_testing`, fijada en `phpunit.xml`. |
-| `DB_USERNAME`, `DB_PASSWORD` | Rol de la aplicación, `archivum_app`, y su contraseña. Atiende las peticiones. |
+| `DB_USERNAME`, `DB_PASSWORD` | Rol de la aplicación, `archivum_app`, y su contraseña. Atiende las peticiones y los trabajos de la cola; la conexión `pgsql_locks` lo usa para los bloqueos de la caché (#156). |
 | `DB_ADMIN_USERNAME`, `DB_ADMIN_PASSWORD` | Rol dueño del esquema, `archivum_owner`, y su contraseña. Lo usa la conexión `pgsql_admin` para migrar. |
-| `DB_SSLMODE` | Modo SSL de las dos conexiones. Por defecto, `prefer`. |
+| `DB_SSLMODE` | Modo SSL de las conexiones. Por defecto, `prefer`. |
 | `ARCHIVUM_DEMO_PASSWORD` | Contraseña de las cuentas de los [datos de demostración](#datos-de-demostración). Se deja vacía fuera del desarrollo local. |
+| `SANCTUM_EXPIRATION` | Minutos que dura cada token de `POST /api/v1/sesiones` y de su renovación. Por defecto, `60`. |
+| `GEMINI_API_KEY` | Llave de la Gemini Developer API, que se crea gratis en Google AI Studio, para el recomendador con IA ([ADR 0012](../docs/adr/0012-ai-recommender-through-laravel-ai-with-gemini.md)). El proveedor y el modelo están fijos en `config/ai.php`. Sin llave, cada consulta a la IA falla y la recomendación sale por reglas (#120); las pruebas nunca llaman a Gemini. |
 
 El código nunca lee variables de entorno directamente: lo hacen los archivos de `config/`, porque con `php artisan config:cache` en producción `env()` devuelve `null` fuera de ellos. `tests/Architecture/EnvironmentConfigurationTest.php` falla si se llama `env()` fuera de `config/`, si `config/` lee una variable que `.env.example` no lista o si `.env.example` trae el valor de una llave, un secreto, un token o una contraseña. `config/` solo guarda los archivos que cambian algo del framework, y `.env.example` solo las variables que la API usa: el issue que agrega un servicio (correo, colas en Redis, pasarelas, IA) agrega sus variables a `.env.example` y a esta tabla en el mismo pull request. `.env` nunca se versiona, y las credenciales de producción se cargan en la plataforma de despliegue, nunca en el repositorio.
 
