@@ -7,6 +7,7 @@ namespace Tests\Support\Decants;
 use Src\Decants\Packs\Domain\Contracts\DecantPackRepository;
 use Src\Decants\Packs\Domain\Entities\DecantPack;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackId;
+use Src\Decants\Packs\Domain\ValueObjects\DecantPackStatus;
 use Src\Decants\Packs\Domain\ValueObjects\IdempotencyKey;
 
 /** A repository whose first lookup by key arrives too early to see the pack another request is saving. */
@@ -48,6 +49,11 @@ final class LatePackKeyLookup implements DecantPackRepository
     public function save(DecantPack $pack): void
     {
         $this->inner->save($pack);
+    }
+
+    public function saveIfStatus(DecantPack $pack, DecantPackStatus $expected): bool
+    {
+        return $this->inner->saveIfStatus($pack, $expected);
     }
 
     public function addRedemption(DecantPackId $packId, string $orderLineId): void

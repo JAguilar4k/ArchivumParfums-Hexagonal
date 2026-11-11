@@ -9,17 +9,22 @@ use Src\Decants\Packs\Domain\Contracts\DecantPackRepository;
 use Src\Decants\Packs\Domain\Entities\DecantPack;
 use Src\Decants\Packs\Domain\Exceptions\IdempotencyKeyReusedException;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackId;
+use Src\Decants\Packs\Domain\ValueObjects\DecantPackStatus;
 use Src\Decants\Packs\Domain\ValueObjects\IdempotencyKey;
 use Src\Shared\Domain\Contracts\BusinessContext;
 
 /**
  * Packs kept in memory, each one reachable only from its own business, like the adapter that filters by it. Like the
- * unique key of PostgreSQL, it refuses a second pack of the same customer with the same key.
+ * unique key of PostgreSQL, it refuses a second pack of the same customer with the same key. It also keeps the status
+ * each pack had when it was last stored, like its row, so a conditional save compares with that one.
  */
 final class InMemoryDecantPackRepository implements DecantPackRepository
 {
     /** @var array<string, DecantPack> */
     private array $packs = [];
+
+    /** @var array<string, DecantPackStatus> the status of each pack as it was last stored */
+    private array $storedStatuses = [];
 
     /** @var list<string> identifiers of the packs read to be changed, in the order they were read */
     public private(set) array $lockedIds = [];
@@ -50,6 +55,7 @@ final class InMemoryDecantPackRepository implements DecantPackRepository
         }
 
         $this->packs[$pack->id->value] = $pack;
+        $this->storedStatuses[$pack->id->value] = $pack->status;
         $this->added++;
     }
 
@@ -79,6 +85,25 @@ final class InMemoryDecantPackRepository implements DecantPackRepository
     public function save(DecantPack $pack): void
     {
         $this->packs[$pack->id->value] = $pack;
+        $this->storedStatuses[$pack->id->value] = $pack->status;
+    }
+
+    /** Like UPDATE ... WHERE status = $expected: store the pack only while its stored status is the one expected. */
+    public function saveIfStatus(DecantPack $pack, DecantPackStatus $expected): bool
+    {
+        if (($this->storedStatuses[$pack->id->value] ?? null) !== $expected) {
+            return false;
+        }
+
+        $this->save($pack);
+
+        return true;
+    }
+
+    /** Store another status for a pack, as an operation that committed after this one read the pack. */
+    public function changeStoredStatus(DecantPackId $id, DecantPackStatus $status): void
+    {
+        $this->storedStatuses[$id->value] = $status;
     }
 
     /** Like the unique key of PostgreSQL, a line of an order redeems one decant. */

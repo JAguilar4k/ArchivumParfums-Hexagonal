@@ -18,4 +18,7 @@ interface PackPayments
 
     /** The last payment attempt of a pack, if any: the purchase sent again answers it once the pack no longer waits. */
     public function last(string $packId): ?PackPayment;
+
+    /** Close as expired the payment of the pack that still waits for the provider, if there is one (#159). */
+    public function expirePending(string $packId): void;
 }

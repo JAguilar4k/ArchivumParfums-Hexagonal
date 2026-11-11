@@ -30,6 +30,7 @@ final readonly class PackPurchaseWiring
         public InMemoryDecantPackRepository $packs,
         public FakePackCustomers $customers,
         public FakePackPayments $payments,
+        public RecordingPackDeadlines $deadlines,
         public RecordingTransactionRunner $transaction,
     ) {}
 
@@ -44,15 +45,16 @@ final readonly class PackPurchaseWiring
         $packs = new InMemoryDecantPackRepository($context);
         $customers = new FakePackCustomers;
         $payments = new FakePackPayments;
+        $deadlines = new RecordingPackDeadlines;
         $transaction = new RecordingTransactionRunner;
 
-        return new self(new PurchaseDecantPack($packs, $plans, $customers, new FixedPaymentDeadline($minutes), $payments, $transaction),
-            $plan, $context, $plans, $packs, $customers, $payments, $transaction);
+        return new self(new PurchaseDecantPack($packs, $plans, $customers, new FixedPaymentDeadline($minutes), $deadlines, $payments, $transaction),
+            $plan, $context, $plans, $packs, $customers, $payments, $deadlines, $transaction);
     }
 
     /** The same purchase with another repository of packs, such as one that looks a key up too early. */
     public function withPacks(DecantPackRepository $packs): PurchaseDecantPack
     {
-        return new PurchaseDecantPack($packs, $this->plans, $this->customers, new FixedPaymentDeadline, $this->payments, $this->transaction);
+        return new PurchaseDecantPack($packs, $this->plans, $this->customers, new FixedPaymentDeadline, $this->deadlines, $this->payments, $this->transaction);
     }
 }

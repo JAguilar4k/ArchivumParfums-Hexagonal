@@ -13,6 +13,9 @@ final class FakePackPayments implements PackPayments
     /** @var list<array{pack: string, user: string, method: string}> the payments started, in order */
     public private(set) array $started = [];
 
+    /** @var list<string> the packs whose pending payment was closed as expired, in order */
+    public private(set) array $expired = [];
+
     /** @var array<string, PackPayment> the attempt of each pack */
     private array $attempts = [];
 
@@ -26,5 +29,10 @@ final class FakePackPayments implements PackPayments
     public function last(string $packId): ?PackPayment
     {
         return $this->attempts[$packId] ?? null;
+    }
+
+    public function expirePending(string $packId): void
+    {
+        $this->expired[] = $packId;
     }
 }

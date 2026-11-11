@@ -8,6 +8,7 @@ use Illuminate\Support\ServiceProvider;
 use Src\Decants\Packs\Application\Contracts\DecantPackReader;
 use Src\Decants\Packs\Application\Contracts\DecantSizes;
 use Src\Decants\Packs\Application\Contracts\PackCustomers;
+use Src\Decants\Packs\Application\Contracts\PackDeadlines;
 use Src\Decants\Packs\Application\Contracts\PaymentDeadline;
 use Src\Decants\Packs\Application\Contracts\PublicPackPlanReader;
 use Src\Decants\Packs\Application\UseCases\PurchaseDecantPack;
@@ -20,6 +21,7 @@ use Src\Decants\Packs\Infrastructure\Persistence\Repositories\EloquentDecantPack
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\PostgresDecantPackBalance;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\PostgresDecantPackReader;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\PostgresPublicPackPlanReader;
+use Src\Decants\Packs\Infrastructure\Queue\QueuedPackDeadlines;
 use Src\Decants\Packs\Infrastructure\Settings\BusinessSettingsDecantSizes;
 use Src\Decants\Packs\Infrastructure\Settings\BusinessSettingsPaymentDeadline;
 use Src\Payments\Payments\Infrastructure\Persistence\PaymentTransactionRunner;
@@ -37,6 +39,7 @@ final class PacksServiceProvider extends ServiceProvider
         DecantSizes::class => BusinessSettingsDecantSizes::class,
         PackCustomers::class => AccountsPackCustomers::class,
         PaymentDeadline::class => BusinessSettingsPaymentDeadline::class,
+        PackDeadlines::class => QueuedPackDeadlines::class,
     ];
 
     /**

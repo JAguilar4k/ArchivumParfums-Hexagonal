@@ -6,6 +6,7 @@ namespace Src\Decants\Packs\Application\UseCases;
 
 use DateTimeImmutable;
 use Src\Decants\Packs\Application\Contracts\PackCustomers;
+use Src\Decants\Packs\Application\Contracts\PackDeadlines;
 use Src\Decants\Packs\Application\Contracts\PackPayments;
 use Src\Decants\Packs\Application\Contracts\PaymentDeadline;
 use Src\Decants\Packs\Application\DTOs\PurchaseDecantPackCommand;
@@ -17,29 +18,34 @@ use Src\Decants\Packs\Domain\Exceptions\DecantPackPlanNotFoundException;
 use Src\Decants\Packs\Domain\Exceptions\IdempotencyKeyReusedException;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackPlanId;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackStatus;
+use Src\Decants\Packs\Domain\ValueObjects\ExpiryReason;
 use Src\Decants\Packs\Domain\ValueObjects\IdempotencyKey;
 use Src\Shared\Domain\Contracts\TransactionRunner;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 
 final readonly class PurchaseDecantPack
 {
-    /** Receive the packs and the offers of the store of the address, its customers, its payment deadline, the payments and the transaction ports. */
+    /**
+     * Receive the packs and the offers of the store of the address, its customers, its payment deadline, the deadlines
+     * the queue checks, the payments and the transaction ports.
+     */
     public function __construct(
         private DecantPackRepository $packs,
         private DecantPackPlanRepository $plans,
         private PackCustomers $customers,
         private PaymentDeadline $deadline,
+        private PackDeadlines $deadlines,
         private PackPayments $payments,
         private TransactionRunner $transaction,
     ) {}
 
     /**
      * Buy a pack of an offer on sale for the account of the session, which becomes a customer of the store if it was
-     * not yet (R33). The pack waits for its payment until the deadline of the store, and the payment of the full price
-     * of the stored offer starts once the pack is saved, never inside its transaction. The same purchase sent again
-     * with the same key answers the pack already bought and its payment, without a second charge, also when both
-     * requests arrive at once; the same key for another offer is refused. A purchase without a key, or with another
-     * one, is a new one.
+     * not yet (R33). The pack waits for its payment until the deadline of the store, when the queue expires it if it
+     * still waits (#159), and the payment of the full price of the stored offer starts once the pack is saved, never
+     * inside its transaction. The same purchase sent again with the same key answers the pack already bought and its
+     * payment, without a second charge, also when both requests arrive at once; the same key for another offer is
+     * refused. A purchase without a key, or with another one, is a new one.
      *
      * @throws DecantPackPlanNotFoundException when the offer does not exist in the store or is not on sale
      * @throws IdempotencyKeyReusedException when the key was used to buy another offer
@@ -83,6 +89,7 @@ final readonly class PurchaseDecantPack
         $plan = $this->plans->find($planId) ?? throw new DecantPackPlanNotFoundException('packs.plan_not_found');
         $pack = DecantPack::create($this->packs->nextId(), $customerId, $plan, $at->modify('+'.$this->deadline->minutes().' minutes'), $key);
         $this->packs->add($pack);
+        $this->deadlines->checkAt($pack->id, $pack->businessId, $pack->expiresAt, ExpiryReason::Unpaid);
 
         return [$pack, true];
     }

@@ -132,6 +132,30 @@ it('saves the status, the decants left and the expiry of a pack, and keeps what 
         ->and([$stored?->totalDecants, $stored?->mlPerDecant, $stored?->maxPricePerMl?->amount])->toBe([5, 5, 2500]);
 });
 
+it('stores the pack only while its row still has the status it was read with', function () {
+    $business = StaffedBusiness::create();
+    $this->scopeQueriesTo($business->business->id);
+    $repository = packRepositoryOf($business->business->id);
+    $pack = packToStore($repository, $business, storedOfferOf($business));
+    $repository->add($pack);
+    $read = $repository->find($pack->id);
+    assert($read !== null);
+
+    // The confirmation of its payment committed after this operation read the pack: the expiry changes nothing.
+    DB::table('decant_packs')->where('id', $pack->id->value)->update(['status' => 'active', 'expires_at' => '2027-05-09T15:05:00-06:00']);
+    $read->expire(new DateTimeImmutable('2026-11-10T15:30:00-06:00'));
+
+    expect($repository->saveIfStatus($read, DecantPackStatus::PendingPayment))->toBeFalse()
+        ->and((array) DB::table('decant_packs')->where('id', $pack->id->value)->first(['status', 'remaining_decants']))->toBe(['status' => 'active', 'remaining_decants' => 5])
+        ->and($repository->find($pack->id)?->expiresAt)->toEqual(new DateTimeImmutable('2027-05-09T15:05:00-06:00'));
+
+    // With the status it was read with, the row changes like with save().
+    DB::table('decant_packs')->where('id', $pack->id->value)->update(['status' => 'pending_payment', 'expires_at' => '2026-11-10T15:30:00-06:00']);
+
+    expect($repository->saveIfStatus($read, DecantPackStatus::PendingPayment))->toBeTrue()
+        ->and($repository->find($pack->id)?->status)->toBe(DecantPackStatus::Expired);
+});
+
 it('locks the pack it returns for an update, and only then', function () {
     $business = StaffedBusiness::create();
     $this->scopeQueriesTo($business->business->id);
@@ -165,7 +189,9 @@ it('finds no pack of another business and refuses to store one there, as for a p
     expect($myRepository->find($theirs->id))->toBeNull()
         ->and($myRepository->findByIdempotencyKey($theirs->customerId, new IdempotencyKey('compra-1')))->toBeNull()
         ->and(fn () => $myRepository->add($theirs))->toThrow(DecantPackNotFoundException::class, 'packs.pack_not_found')
-        ->and(fn () => $myRepository->save($theirs))->toThrow(DecantPackNotFoundException::class, 'packs.pack_not_found');
+        ->and(fn () => $myRepository->save($theirs))->toThrow(DecantPackNotFoundException::class, 'packs.pack_not_found')
+        ->and(fn () => $myRepository->saveIfStatus($theirs, DecantPackStatus::PendingPayment))->toThrow(DecantPackNotFoundException::class, 'packs.pack_not_found');
+    expect(DB::table('decant_packs')->where('id', $theirs->id->value)->value('status'))->toBe('pending_payment');
 });
 
 it('R34: keeps one redemption for each saved line of an order, and forgets it only once', function () {
