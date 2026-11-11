@@ -24,6 +24,12 @@ Route::prefix('cuenta/citas')->middleware(['auth:sanctum', 'abilities:customer:o
         Route::post('/{cita}/cancelacion', 'cancel')->whereUuid('cita')->middleware('business:account')->name('cancel');
     });
 
+// The panel books for a customer of its own store: the ability of the owner of the matrix of #102 keeps a collaborator
+// and a customer out, and business:staff pins the transaction to the store of the session.
+Route::post('panel/citas', [PanelAppointmentController::class, 'store'])
+    ->middleware(['auth:sanctum', 'abilities:appointments:book-for-customer', 'business:staff'])
+    ->name('scheduling.business.appointments.store');
+
 // The panel moves and cancels the appointments of its own store: the ability of the owner of the matrix of #102 keeps
 // a collaborator out, and business:staff pins the transaction to the store of the session, so another store is a 404.
 Route::prefix('panel/citas')->middleware(['auth:sanctum', 'abilities:appointments:view-all', 'business:staff'])

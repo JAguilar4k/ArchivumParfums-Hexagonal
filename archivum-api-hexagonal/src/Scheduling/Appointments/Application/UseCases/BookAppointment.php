@@ -18,6 +18,7 @@ use Src\Scheduling\Appointments\Application\DTOs\PersonOption;
 use Src\Scheduling\Appointments\Domain\Contracts\AppointmentRepository;
 use Src\Scheduling\Appointments\Domain\Entities\Appointment;
 use Src\Scheduling\Appointments\Domain\Exceptions\AppointmentSlotTakenException;
+use Src\Scheduling\Appointments\Domain\ValueObjects\CustomerId;
 use Src\Scheduling\Appointments\Domain\ValueObjects\PerfumeId;
 use Src\Scheduling\Appointments\Domain\ValueObjects\ServiceId;
 use Src\Scheduling\Availability\Application\DTOs\AvailablePerson;
@@ -82,7 +83,7 @@ final readonly class BookAppointment
             $this->appointments->nextId(),
             $this->business->current(),
             new ServiceId($service->id),
-            $this->customers->findOrCreate($command->userId),
+            $this->customer($command),
             new MemberId($person->id),
             $this->forStorage($startsAt),
             $service->durationMinutes,
@@ -109,6 +110,22 @@ final readonly class BookAppointment
                 array_values($perfumes),
             ),
         );
+    }
+
+    /**
+     * The customer the appointment belongs to: the record the panel chose, which must be of the store, or the record
+     * of the account of the session, created the first time that account books here.
+     *
+     * @throws ValidationException when the panel named a customer of another store
+     */
+    private function customer(BookAppointmentCommand $command): CustomerId
+    {
+        if ($command->customerId !== null) {
+            return $this->customers->ofStore($command->customerId)
+                ?? throw ValidationException::withMessages(['cliente_id' => __('scheduling.booking.customer_unavailable')]);
+        }
+
+        return $this->customers->findOrCreate((string) $command->userId);
     }
 
     /**

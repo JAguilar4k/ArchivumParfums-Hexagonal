@@ -36,4 +36,5 @@ return [
     'booking.service_unavailable' => 'El servicio no está disponible para reservar en esta tienda.',
     'booking.person_unavailable' => 'Esa persona no atiende citas en esta tienda.',
     'booking.perfume_unavailable' => 'Alguno de los perfumes no está disponible en esta tienda.',
+    'booking.customer_unavailable' => 'Ese cliente no pertenece a esta tienda.',
 ];
