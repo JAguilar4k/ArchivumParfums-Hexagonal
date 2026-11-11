@@ -14,6 +14,7 @@ use Src\Payments\Payments\Application\Contracts\OutgoingRefunds;
 use Src\Payments\Payments\Application\Contracts\PayablePackReader;
 use Src\Payments\Payments\Application\Contracts\PayableReader;
 use Src\Payments\Payments\Application\Contracts\PaymentBusinesses;
+use Src\Payments\Payments\Application\Contracts\PaymentRecorders;
 use Src\Payments\Payments\Application\Contracts\PendingPaymentEvents;
 use Src\Payments\Payments\Application\Contracts\PendingPayments;
 use Src\Payments\Payments\Application\Contracts\PendingRefunds;
@@ -31,6 +32,7 @@ use Src\Payments\Payments\Domain\Contracts\PaymentGateways;
 use Src\Payments\Payments\Domain\Contracts\PaymentRepository;
 use Src\Payments\Payments\Domain\Contracts\RefundRepository;
 use Src\Payments\Payments\Domain\Entities\Payment;
+use Src\Payments\Payments\Infrastructure\Businesses\BusinessesPaymentRecorders;
 use Src\Payments\Payments\Infrastructure\Console\ReconcilePaymentsConsoleCommand;
 use Src\Payments\Payments\Infrastructure\Decants\DecantsPayablePackReader;
 use Src\Payments\Payments\Infrastructure\Decants\PaymentPackPayments;
@@ -76,6 +78,7 @@ final class PaymentsServiceProvider extends ServiceProvider
         OutgoingRefunds::class => QueuedOutgoingRefunds::class,
         PendingRefunds::class => PostgresPendingRefunds::class,
         BusinessScope::class => PaymentEventBusinessContext::class,
+        PaymentRecorders::class => BusinessesPaymentRecorders::class,
     ];
 
     public function register(): void

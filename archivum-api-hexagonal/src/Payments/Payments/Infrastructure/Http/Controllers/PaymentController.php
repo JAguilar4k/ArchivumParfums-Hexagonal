@@ -10,11 +10,14 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Src\Payments\Payments\Application\DTOs\PaymentResult;
 use Src\Payments\Payments\Application\UseCases\ObservePayment;
+use Src\Payments\Payments\Application\UseCases\RecordManualPayment;
 use Src\Payments\Payments\Application\UseCases\RequestOrderRefunds;
 use Src\Payments\Payments\Application\UseCases\StartPayment;
 use Src\Payments\Payments\Domain\ValueObjects\Payable;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentMethod;
+use Src\Payments\Payments\Infrastructure\Http\Requests\StoreManualPayment;
 use Src\Payments\Payments\Infrastructure\Http\Requests\StorePayment;
+use Src\Payments\Payments\Infrastructure\Http\Resources\ManualPaymentResource;
 use Src\Payments\Payments\Infrastructure\Http\Resources\PaymentResource;
 use Src\Payments\Payments\Infrastructure\Http\Resources\RefundResource;
 
@@ -38,6 +41,13 @@ final readonly class PaymentController
     public function show(Request $request, string $pago, ObservePayment $observe): JsonResponse
     {
         return $this->respond($observe->execute($pago, (string) $request->user()?->getAuthIdentifier()), $request);
+    }
+
+    /** Record the balance that the customer paid the owner on delivery, by SINPE or in cash; no gateway takes part. */
+    #[Response(201, 'Se registra el pago del saldo, ya confirmado.', type: ManualPaymentResource::class)]
+    public function storeManual(StoreManualPayment $request, RecordManualPayment $record): JsonResponse
+    {
+        return (new ManualPaymentResource($record->execute($request->toCommand())))->response($request)->setStatusCode(201);
     }
 
     /**

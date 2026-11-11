@@ -27,10 +27,14 @@ final readonly class RequestRefund
     /**
      * Send a registered refund to the provider of its original payment and apply what the provider answers (R40). Every
      * transaction it opens reaches only the business of the operation, the one RequestRefundJob carries: a refund of
-     * another business is not found, and nothing changes. A refund leaves once: its attempt is committed before the
-     * request, and a refund that already left is never sent again. When the answer is lost, the refund stays pending
-     * without the provider's reference, for a person to check in the provider; one the provider accepted and still
-     * processes is confirmed by its notice or by the reconciliation (#96).
+     * another business is not found, and nothing changes. Its attempt is committed before the request, so a refund that
+     * already left is not sent again blindly. When the answer is lost, a provider that recognizes the same request
+     * (PayPal) is asked again by the retries of the queue, with the same amount; with any other (ONVO) the refund stays
+     * pending without the provider's reference, for a person to check in the provider. One the provider accepted and
+     * still processes is confirmed by its notice or by the reconciliation (#96), and one it refused fails.
+     *
+     * @throws GatewayUnavailableException when a provider that recognizes the same request did not answer, so the
+     *                                     queue sends it again
      */
     public function execute(RequestRefundCommand $command): void
     {
@@ -43,7 +47,11 @@ final readonly class RequestRefund
         [$gateway, $request] = $attempt;
         try {
             $answer = $gateway->refund($request);
-        } catch (GatewayUnavailableException) {
+        } catch (GatewayUnavailableException $exception) {
+            if ($gateway->resendsRefunds()) {
+                throw $exception;
+            }
+
             return;
         }
 
@@ -69,19 +77,25 @@ final readonly class RequestRefund
 
     /**
      * Under the locks of the refund, commit the attempt of a refund that never left, with its amount in the unit the
-     * provider charged: the running total of the payment's refunds that already left decides it (R37). Answer the
-     * provider and the request to send, or null when there is nothing to send.
+     * provider charged: the running total of the payment's refunds that already left decides it (R37). A refund that
+     * left is sent again only while the provider has not answered it and only to a provider that recognizes the same
+     * request, with the amount it left with. Answer the provider and the request to send, or null when there is
+     * nothing to send.
      *
      * @return array{PaymentGateway, RefundRequest}|null
      */
     private function attempt(RefundId $id): ?array
     {
         [$refund, $payment] = $this->settlement->lock($id) ?? [null, null];
-        if ($refund === null || $payment === null || $refund->status !== 'pending' || $refund->attempted) {
+        if ($refund === null || $payment === null || $refund->status !== 'pending') {
             return null;
         }
 
         $gateway = $this->gateways->for($payment->gateway);
+        if ($refund->attempted) {
+            return $refund->providerReference === null && $gateway->resendsRefunds() ? [$gateway, $this->settlement->requestFor($refund, $payment)] : null;
+        }
+
         $refundedBefore = $payment->refundedAmount + $this->refunds->inFlightAmountOf($payment->id);
         $refund->start($gateway->refundAmount($refund->amount, $refundedBefore, $payment->exchangeRate));
         $this->refunds->save($refund);
