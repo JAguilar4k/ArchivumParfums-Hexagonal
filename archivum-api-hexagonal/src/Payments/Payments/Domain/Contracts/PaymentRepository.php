@@ -17,5 +17,14 @@ interface PaymentRepository
 
     public function pending(Payable $payable, PaymentPurpose $purpose): ?Payment;
 
+    /** Find the payment of the business that a reference of the provider names: its charge, checkout or capture. */
+    public function findByReference(string $gateway, string $reference): ?Payment;
+
     public function save(Payment $payment): void;
+
+    /**
+     * Save a payment whose charge was settled, only while its row is still pending: two operations that settle the
+     * same payment change it once. Answer false when the row was no longer pending, and then nothing changes.
+     */
+    public function saveIfPending(Payment $payment): bool;
 }
