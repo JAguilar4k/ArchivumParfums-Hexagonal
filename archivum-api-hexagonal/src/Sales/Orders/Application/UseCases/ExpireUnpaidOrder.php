@@ -31,9 +31,9 @@ final readonly class ExpireUnpaidOrder
     /**
      * When the deadline of an order arrives (R25): if it still waits for its payment, it expires, its pending payment
      * expires with it, each reserved decant gives its ml back to the bottle and a decant paid with a pack goes back to
-     * the pack, all in one transaction (precisions of R32–R35). The packs are locked before the bottles, each pack in the
-     * order of its identifier, as when the order was placed or cancelled. An order that was paid, cancelled or already
-     * expired does not change, so a second run releases nothing. Answer whether the order expired.
+     * the pack, all in one transaction (precisions of R32–R35). The packs are locked before the bottles, each pack and
+     * each bottle in the order of its identifier, as when the order was placed or cancelled. An order that was paid,
+     * cancelled or already expired does not change, so a second run releases nothing. Answer whether the order expired.
      */
     public function execute(ExpireUnpaidOrderCommand $command): bool
     {
@@ -54,7 +54,9 @@ final readonly class ExpireUnpaidOrder
                 $this->packs->giveBack($line, $checkedAt);
             }
 
-            foreach ($order->lines as $line) {
+            $byBottle = $order->lines;
+            usort($byBottle, fn (OrderLine $a, OrderLine $b): int => strcmp((string) $a->decantBottleId, (string) $b->decantBottleId));
+            foreach ($byBottle as $line) {
                 if ($line->status === OrderLineStatus::Reserved && $line->decantBottleId !== null && $line->ml !== null) {
                     $this->stock->releaseExpired($line->decantBottleId, $line->ml, $line->id);
                     $line->advanceTo(OrderLineStatus::Released);

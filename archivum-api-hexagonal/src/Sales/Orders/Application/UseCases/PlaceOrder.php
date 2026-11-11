@@ -27,9 +27,9 @@ final readonly class PlaceOrder
      * Place and reserve every line atomically; a shortage rolls back all earlier reservations. A decant paid with a
      * pack takes one decant of the pack and reserves its ml like any other decant, which its preparation consumes
      * (R25, R26, R34); the order does not charge it (R24). The packs are locked before the lines that name them are
-     * saved and before the bottles, each pack in the order of its identifier, so two orders never wait for each other.
-     * An order that waits for its payment is checked again at its deadline, when it expires if it is still unpaid
-     * (R25).
+     * saved, and then the bottles, each pack and each bottle in the order of its identifier, as every transaction that
+     * changes several of them does, so two transactions never wait for each other. An order that waits for its payment
+     * is checked again at its deadline, when it expires if it is still unpaid (R25).
      */
     public function execute(PlaceOrderCommand $command): Order
     {
@@ -59,7 +59,9 @@ final readonly class PlaceOrder
                 $this->packs->record($line);
             }
 
-            foreach ($order->lines as $line) {
+            $byBottle = $order->lines;
+            usort($byBottle, fn (OrderLine $a, OrderLine $b): int => strcmp((string) $a->decantBottleId, (string) $b->decantBottleId));
+            foreach ($byBottle as $line) {
                 if ($line->decantBottleId !== null && $line->ml !== null) {
                     $this->stock->reserve($line->decantBottleId, $line->ml, $line->id, $command->userId);
                 }

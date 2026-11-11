@@ -24,7 +24,7 @@ final readonly class CancelMyOrder
     /**
      * Cancel an order of the customer before its bottles are ordered or a decant is prepared (R30): its reserved ml are
      * released, a decant paid with a pack goes back to it, and what was paid is requested back. The packs are locked
-     * before the bottles, each pack in the order of its identifier, as when the order was placed.
+     * before the bottles, each pack and each bottle in the order of its identifier, as when the order was placed.
      */
     public function execute(string $orderId, string $userId, string $cancelledAt): Order
     {
@@ -44,7 +44,9 @@ final readonly class CancelMyOrder
                 $this->packs->giveBack($line, $at);
             }
 
-            foreach ($order->lines as $line) {
+            $byBottle = $order->lines;
+            usort($byBottle, fn (OrderLine $a, OrderLine $b): int => strcmp((string) $a->decantBottleId, (string) $b->decantBottleId));
+            foreach ($byBottle as $line) {
                 if ($line->status === OrderLineStatus::Reserved && $line->decantBottleId !== null && $line->ml !== null) {
                     $this->stock->release($line->decantBottleId, $line->ml, $line->id, $userId);
                     $line->advanceTo(OrderLineStatus::Released);

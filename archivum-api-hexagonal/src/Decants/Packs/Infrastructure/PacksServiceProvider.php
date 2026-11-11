@@ -10,11 +10,13 @@ use Src\Decants\Packs\Application\Contracts\PackCustomers;
 use Src\Decants\Packs\Application\Contracts\PaymentDeadline;
 use Src\Decants\Packs\Application\Contracts\PublicPackPlanReader;
 use Src\Decants\Packs\Application\UseCases\PurchaseDecantPack;
+use Src\Decants\Packs\Domain\Contracts\DecantPackBalance;
 use Src\Decants\Packs\Domain\Contracts\DecantPackPlanRepository;
 use Src\Decants\Packs\Domain\Contracts\DecantPackRepository;
 use Src\Decants\Packs\Infrastructure\Accounts\AccountsPackCustomers;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\EloquentDecantPackPlanRepository;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\EloquentDecantPackRepository;
+use Src\Decants\Packs\Infrastructure\Persistence\Repositories\PostgresDecantPackBalance;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\PostgresPublicPackPlanReader;
 use Src\Decants\Packs\Infrastructure\Settings\BusinessSettingsDecantSizes;
 use Src\Decants\Packs\Infrastructure\Settings\BusinessSettingsPaymentDeadline;
@@ -27,6 +29,7 @@ final class PacksServiceProvider extends ServiceProvider
     public array $bindings = [
         DecantPackPlanRepository::class => EloquentDecantPackPlanRepository::class,
         DecantPackRepository::class => EloquentDecantPackRepository::class,
+        DecantPackBalance::class => PostgresDecantPackBalance::class,
         PublicPackPlanReader::class => PostgresPublicPackPlanReader::class,
         DecantSizes::class => BusinessSettingsDecantSizes::class,
         PackCustomers::class => AccountsPackCustomers::class,

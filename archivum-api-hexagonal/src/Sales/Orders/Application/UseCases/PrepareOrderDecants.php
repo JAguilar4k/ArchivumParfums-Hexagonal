@@ -7,6 +7,7 @@ namespace Src\Sales\Orders\Application\UseCases;
 use Src\Sales\Orders\Application\Contracts\DecantStock;
 use Src\Sales\Orders\Domain\Contracts\OrderRepository;
 use Src\Sales\Orders\Domain\Entities\Order;
+use Src\Sales\Orders\Domain\Entities\OrderLine;
 use Src\Sales\Orders\Domain\Exceptions\OrderNotFoundException;
 use Src\Sales\Orders\Domain\ValueObjects\OrderId;
 use Src\Shared\Domain\Contracts\TransactionRunner;
@@ -17,14 +18,17 @@ final readonly class PrepareOrderDecants
 
     /**
      * Prepare every reserved decant of a confirmed order, consuming the ml its reservation kept (R26). A decant paid
-     * with a pack is consumed like the others, and its movement shows the redemption (R8).
+     * with a pack is consumed like the others, and its movement shows the redemption (R8). The bottles are locked in
+     * the order of their identifiers, as when an order is placed, so two transactions never wait for each other.
      */
     public function execute(string $orderId, string $userId): Order
     {
         return $this->transaction->run(function () use ($orderId, $userId): Order {
             $order = $this->orders->find(new OrderId($orderId), true) ?? throw new OrderNotFoundException('orders.not_found');
 
-            foreach ($order->decantsToPrepare() as $line) {
+            $byBottle = $order->decantsToPrepare();
+            usort($byBottle, fn (OrderLine $a, OrderLine $b): int => strcmp((string) $a->decantBottleId, (string) $b->decantBottleId));
+            foreach ($byBottle as $line) {
                 if ($line->decantBottleId !== null && $line->ml !== null) {
                     $this->stock->consume($line->decantBottleId, $line->ml, $line->id, $userId);
                 }
