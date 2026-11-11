@@ -108,7 +108,7 @@ function bookingScenario(array $settings = [], array $service = []): array
 /**
  * The URL that books an appointment in the store of the scenario.
  *
- * @param  array{business: Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel, service: ServiceModel, day: DateTimeImmutable, first: string, second: string, customer: string, perfumes: list<string>, staffed: StaffedBusiness}  $scenario
+ * @param  array{business: BusinessModel, service: ServiceModel, day: DateTimeImmutable, first: string, second: string, customer: string, perfumes: list<string>, staffed: StaffedBusiness}  $scenario
  */
 function bookingUrl(array $scenario): string
 {
@@ -118,7 +118,7 @@ function bookingUrl(array $scenario): string
 /**
  * The body of a booking at the given hour of the day of the scenario.
  *
- * @param  array{business: Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel, service: ServiceModel, day: DateTimeImmutable, first: string, second: string, customer: string, perfumes: list<string>, staffed: StaffedBusiness}  $scenario
+ * @param  array{business: BusinessModel, service: ServiceModel, day: DateTimeImmutable, first: string, second: string, customer: string, perfumes: list<string>, staffed: StaffedBusiness}  $scenario
  * @param  list<string>|null  $perfumes
  * @return array<string, mixed>
  */
@@ -143,7 +143,7 @@ function bookingInstant(DateTimeImmutable $day, string $time): string
 /**
  * Insert an active appointment of the scenario, so another one competes with it.
  *
- * @param  array{business: Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel, service: ServiceModel, day: DateTimeImmutable, first: string, second: string, customer: string, perfumes: list<string>, staffed: StaffedBusiness}  $scenario
+ * @param  array{business: BusinessModel, service: ServiceModel, day: DateTimeImmutable, first: string, second: string, customer: string, perfumes: list<string>, staffed: StaffedBusiness}  $scenario
  */
 function bookingCompetitor(array $scenario, string $memberId, string $from, string $to, string $blockedUntil): void
 {
