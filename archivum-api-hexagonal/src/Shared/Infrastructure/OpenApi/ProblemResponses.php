@@ -84,6 +84,10 @@ final class ProblemResponses implements DocumentTransformer
             $types[] = ProblemType::InvalidData;
         }
 
+        if ($this->readsIdempotencyKey($operation)) {
+            $types[] = ProblemType::BadRequest;
+        }
+
         if ($this->rejectsCredentials($path, $operation)) {
             $types[] = ProblemType::InvalidCredentials;
         }
@@ -132,6 +136,15 @@ final class ProblemResponses implements DocumentTransformer
             );
     }
 
+    /** An Idempotency-Key header sent blank or longer than its limit answers 400, as the guide does (#145). */
+    private function readsIdempotencyKey(Operation $operation): bool
+    {
+        return array_any(
+            $operation->parameters,
+            fn (Parameter|Reference $parameter): bool => $parameter instanceof Parameter && $parameter->in === 'header' && $parameter->name === 'Idempotency-Key',
+        );
+    }
+
     /** Signing in is public, yet it answers 401 when the email or the password is wrong, with no Sanctum token involved. */
     private function rejectsCredentials(string $path, Operation $operation): bool
     {
@@ -153,14 +166,14 @@ final class ProblemResponses implements DocumentTransformer
         return str_starts_with(ltrim($path, '/'), 'panel');
     }
 
-    /** These operations also check the role, ownership and the current business state. */
+    /** These operations also check the role, ownership and the current business state; buying a pack starts its payment. */
     private function isOrderOrPaymentRoute(string $path): bool
     {
         $path = ltrim($path, '/');
 
         return str_starts_with($path, 'cuenta/pedidos') || str_starts_with($path, 'cuenta/pagos')
             || str_starts_with($path, 'panel/pedidos') || str_starts_with($path, 'panel/botellas')
-            || $path === 'tiendas/{tienda}/pedidos';
+            || $path === 'tiendas/{tienda}/pedidos' || $path === 'tiendas/{tienda}/paquetes/{paquete}/compra';
     }
 
     /** HTTP status of a response, resolving the references to the components. */

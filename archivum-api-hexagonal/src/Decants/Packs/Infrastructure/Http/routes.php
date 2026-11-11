@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Route;
 use Src\Decants\Packs\Infrastructure\Http\Controllers\DecantPackPlanController;
+use Src\Decants\Packs\Infrastructure\Http\Controllers\PackPurchaseController;
 use Src\Decants\Packs\Infrastructure\Http\Controllers\PublicPackPlanController;
 
 // Only the owner defines the offers (section 9): the staff and the customers lack packs:manage and get a 403.
@@ -22,3 +23,11 @@ Route::prefix('panel/paquetes')
 Route::get('tiendas/{tienda}/paquetes', [PublicPackPlanController::class, 'index'])
     ->middleware('business:route')
     ->name('decants.packs.on-sale.index');
+
+// Only a customer buys (section 9): without a session 401, and the staff, without customer:own, 403. The store comes from
+// the slug of the address. business:route only resolves it, without a transaction around the request: like a payment
+// (#92), the purchase commits the pack and its payment attempt before it asks the gateway for the charge.
+Route::post('tiendas/{tienda}/paquetes/{paquete}/compra', [PackPurchaseController::class, 'store'])
+    ->middleware(['auth:sanctum', 'abilities:customer:own', 'business:route,context'])
+    ->whereUuid('paquete')
+    ->name('decants.packs.purchases.store');

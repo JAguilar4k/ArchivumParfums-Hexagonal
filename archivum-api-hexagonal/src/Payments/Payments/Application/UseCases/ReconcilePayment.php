@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Src\Payments\Payments\Application\UseCases;
 
 use Src\Payments\Payments\Application\Contracts\BusinessScope;
-use Src\Payments\Payments\Application\Contracts\PayableReader;
 use Src\Payments\Payments\Application\DTOs\ReconcilePaymentCommand;
 use Src\Payments\Payments\Application\Services\PaymentSettlement;
 use Src\Payments\Payments\Domain\Contracts\PaymentRepository;
@@ -17,10 +16,9 @@ use Src\Shared\Domain\ValueObjects\BusinessId;
 
 final readonly class ReconcilePayment
 {
-    /** Receive the ports that pin the payment's business, lock its order and the payment, and settle the charge. */
+    /** Receive the ports that pin the payment's business, lock what it pays and the payment, and settle the charge. */
     public function __construct(
         private BusinessScope $scope,
-        private PayableReader $orders,
         private PaymentRepository $payments,
         private PaymentSettlement $settlement,
         private TransactionRunner $transaction,
@@ -43,15 +41,15 @@ final readonly class ReconcilePayment
                 return false;
             }
 
-            // Lock in the same order as StartPayment and ApplyPaymentEvent: the order first, then its payment.
-            $order = $this->orders->findForUpdate($payment->payable->id);
+            // Lock in the same order as StartPayment and ApplyPaymentEvent: the order or the pack first, then its payment.
+            $payable = $this->settlement->lockPayable($payment->payable);
             $payment = $this->payments->find($payment->id, true);
             if ($payment === null || $payment->providerReference === null) {
                 return false;
             }
 
             if ($payment->status === PaymentStatus::Expired) {
-                $this->settlement->settleLate($payment, $order);
+                $this->settlement->settleLate($payment, $payable);
 
                 return $payment->status === PaymentStatus::Succeeded;
             }
@@ -60,7 +58,7 @@ final readonly class ReconcilePayment
                 return false;
             }
 
-            $this->settlement->settle($payment, $order);
+            $this->settlement->settle($payment, $payable);
 
             return $payment->status !== PaymentStatus::Pending;
         }));

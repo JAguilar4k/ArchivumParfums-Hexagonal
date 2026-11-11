@@ -22,9 +22,10 @@ final readonly class PostgresPendingPayments implements PendingPayments
      * payments of each one in a transaction of its own. It only reads, it never settles. The maintenance role of #157
      * will read them in one query.
      *
-     * Besides the pending payments, it reads the expired payments of expired orders that the expiry closed (#158)
-     * between Payment::MINUTES_FOR_THE_NOTICE minutes and Payment::HOURS_FOR_A_LATE_CHARGE hours ago, when the payment
-     * last changed: the provider may still have charged them, and then their refund is requested (#192).
+     * It reads the pending payments of orders and of decant packs (#145), so the join with the orders is a left one.
+     * Besides them, it reads the expired payments of expired orders that the expiry closed (#158) between
+     * Payment::MINUTES_FOR_THE_NOTICE minutes and Payment::HOURS_FOR_A_LATE_CHARGE hours ago, when the payment last
+     * changed: the provider may still have charged them, and then their refund is requested (#192).
      */
     public function dueAt(DateTimeImmutable $now, int $limit): array
     {
@@ -43,7 +44,7 @@ final readonly class PostgresPendingPayments implements PendingPayments
             $rows = $this->transaction->run($businessId, fn (): array => DB::select(
                 "select p.id
                    from payments p
-                   join orders o on o.id = p.order_id and o.business_id = p.business_id
+                   left join orders o on o.id = p.order_id and o.business_id = p.business_id
                   where p.business_id = ?
                     and p.provider_reference is not null
                     and ((p.status = 'pending' and p.created_at <= ?)

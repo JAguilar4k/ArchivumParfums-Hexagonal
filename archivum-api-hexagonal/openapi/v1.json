@@ -3338,6 +3338,182 @@
                 ]
             }
         },
+        "/tiendas/{tienda}/paquetes/{paquete}/compra": {
+            "post": {
+                "operationId": "decants.packs.purchases.store",
+                "description": "The pack waits for its payment and becomes active only when a verified notice of the gateway or the\nreconciliation confirms it, never with this answer or the return address of the gateway.",
+                "summary": "Buy a decant pack on sale in the store of the address for the account of the session, and start its payment",
+                "tags": [
+                    "PackPurchase"
+                ],
+                "parameters": [
+                    {
+                        "name": "tienda",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "paquete",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "description": "Llave de 1 a 100 caracteres que el cliente elige para cada intento de compra. Repetir la compra con la misma llave responde 200 con el mismo paquete y su pago, sin un segundo cobro; la misma llave para otra oferta responde 409. Sin ella, cada solicitud es una compra nueva; vac\u00eda o m\u00e1s larga responde 400.",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StorePackPurchase"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Se compra el paquete, pero todav\u00eda no se sabe si la pasarela cre\u00f3 el cobro.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PurchasedPackResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "201": {
+                        "description": "Se compra el paquete y se inicia su pago.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PurchasedPackResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "200": {
+                        "description": "Se repiti\u00f3 la compra con la misma llave: se devuelve el mismo paquete y su pago.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PurchasedPackResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Solicitud inv\u00e1lida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Conflicto",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/cuenta/contrasena": {
             "put": {
                 "operationId": "accounts.password.update",
@@ -7022,6 +7198,117 @@
                 ],
                 "title": "PublicPackPlan"
             },
+            "PurchasedPackResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "paquete_id": {
+                        "type": "string"
+                    },
+                    "estado": {
+                        "type": "string",
+                        "enum": [
+                            "pendiente_de_pago",
+                            "activo",
+                            "agotado",
+                            "vencido"
+                        ]
+                    },
+                    "decants_totales": {
+                        "type": "integer"
+                    },
+                    "decants_restantes": {
+                        "type": "integer"
+                    },
+                    "ml_por_decant": {
+                        "type": "integer"
+                    },
+                    "precio_maximo_por_ml": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ]
+                    },
+                    "vence_en": {
+                        "type": "string"
+                    },
+                    "pago": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "monto": {
+                                "type": "integer"
+                            },
+                            "moneda_cobrada": {
+                                "type": "string"
+                            },
+                            "monto_cobrado": {
+                                "type": "integer"
+                            },
+                            "pasarela": {
+                                "type": "string"
+                            },
+                            "estado": {
+                                "type": "string",
+                                "enum": [
+                                    "confirmado",
+                                    "fallido",
+                                    "vencido",
+                                    "reembolsado",
+                                    "reembolsado_parcialmente",
+                                    "pendiente"
+                                ]
+                            },
+                            "url_pago": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "medio": {
+                                "type": "string",
+                                "enum": [
+                                    "sinpe_movil",
+                                    "tarjeta"
+                                ]
+                            },
+                            "consulta_pendiente": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "monto",
+                            "moneda_cobrada",
+                            "monto_cobrado",
+                            "pasarela",
+                            "estado",
+                            "url_pago",
+                            "medio",
+                            "consulta_pendiente"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "paquete_id",
+                    "estado",
+                    "decants_totales",
+                    "decants_restantes",
+                    "ml_por_decant",
+                    "precio_maximo_por_ml",
+                    "vence_en",
+                    "pago"
+                ],
+                "title": "PurchasedPackResource"
+            },
             "RecommendationResource": {
                 "type": "object",
                 "properties": {
@@ -7612,6 +7899,19 @@
                     "lineas"
                 ],
                 "title": "StoreOrder"
+            },
+            "StorePackPurchase": {
+                "type": "object",
+                "properties": {
+                    "medio": {
+                        "type": "string",
+                        "enum": [
+                            "tarjeta",
+                            "sinpe_movil"
+                        ]
+                    }
+                },
+                "title": "StorePackPurchase"
             },
             "StorePasswordReset": {
                 "type": "object",

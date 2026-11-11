@@ -12,10 +12,13 @@ return [
     'cap_invalid' => 'El precio máximo por ml debe ser un número entero de colones entre 1 y :max.',
     'invalid_pack' => 'Los decants del paquete no son válidos.',
     'plan_not_found' => 'Ese paquete no existe en esta tienda.',
+    'pack_not_found' => 'Ese paquete comprado no existe.',
     'transition' => 'El paquete no puede pasar a ese estado.',
     'not_active' => 'El paquete todavía espera la confirmación de su pago.',
     'expired' => 'El paquete venció y ya no se puede usar.',
     'exhausted' => 'El paquete ya no tiene decants disponibles.',
     'ml_mismatch' => 'Este paquete solo cubre decants de :ml ml.',
     'over_price_cap' => 'Ese perfume supera el precio por ml que cubre el paquete.',
+    'idempotency_key_invalid' => 'La clave de idempotencia no puede estar vacía ni superar los :max caracteres.',
+    'idempotency_key_reused' => 'Esa clave de idempotencia ya se usó para comprar otro paquete.',
 ];

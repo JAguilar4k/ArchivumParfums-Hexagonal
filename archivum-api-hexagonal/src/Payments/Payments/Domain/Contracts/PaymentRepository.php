@@ -17,6 +17,9 @@ interface PaymentRepository
 
     public function pending(Payable $payable, PaymentPurpose $purpose): ?Payment;
 
+    /** The last attempt made to pay an order or a decant pack of the business, whatever its status. */
+    public function last(Payable $payable): ?Payment;
+
     /** Find the payment of the business that a reference of the provider names: its charge, checkout or capture. */
     public function findByReference(string $gateway, string $reference): ?Payment;
 

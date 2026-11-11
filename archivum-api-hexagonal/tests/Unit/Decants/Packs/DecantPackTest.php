@@ -10,6 +10,7 @@ use Src\Decants\Packs\Domain\ValueObjects\DecantCount;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackId;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackPlanId;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackStatus;
+use Src\Decants\Packs\Domain\ValueObjects\IdempotencyKey;
 use Src\Decants\Packs\Domain\ValueObjects\MaxPricePerMl;
 use Src\Decants\Packs\Domain\ValueObjects\MlPerDecant;
 use Src\Decants\Packs\Domain\ValueObjects\PackPrice;
@@ -174,7 +175,34 @@ it('R35: offers no operation to refund a pack or to change it for money', functi
         new ReflectionClass(DecantPack::class)->getMethods(ReflectionMethod::IS_PUBLIC),
     );
 
-    expect($operations)->toEqualCanonicalizing(['create', 'reconstitute', 'activate', 'isOverdueAt', 'expire', 'statusAt', 'redeem']);
+    // repeatsPurchase only compares a key (#145): it changes nothing of the pack.
+    expect($operations)->toEqualCanonicalizing(['create', 'reconstitute', 'repeatsPurchase', 'activate', 'isOverdueAt', 'expire', 'statusAt', 'redeem']);
+});
+
+it('keeps the key of its purchase and tells it apart from the key of another purchase or another offer', function () {
+    $pack = DecantPack::create(new DecantPackId('0192f0c4-0000-7000-9000-000000000201'), '0192f0c4-0000-7000-9000-000000000301',
+        offerOfThePack(), new DateTimeImmutable('2026-11-10T15:30:00-06:00'), new IdempotencyKey('compra-1'));
+    $offer = new DecantPackPlanId('0192f0c4-0000-7000-9000-000000000101');
+
+    expect($pack->idempotencyKey?->value)->toBe('compra-1')
+        ->and($pack->repeatsPurchase(new IdempotencyKey('compra-1'), $offer))->toBeTrue()
+        ->and($pack->repeatsPurchase(new IdempotencyKey('compra-2'), $offer))->toBeFalse()
+        ->and($pack->repeatsPurchase(new IdempotencyKey('compra-1'), new DecantPackPlanId('0192f0c4-0000-7000-9000-000000000102')))->toBeFalse()
+        ->and(boughtPack()->idempotencyKey)->toBeNull()
+        ->and(boughtPack()->repeatsPurchase(new IdempotencyKey('compra-1'), $offer))->toBeFalse();
+});
+
+it('refuses a key that is blank or longer than its column', function (string $key) {
+    expect(fn () => new IdempotencyKey($key))->toThrow(InvalidValueException::class, 'packs.idempotency_key_invalid');
+})->with([
+    'empty' => [''],
+    'only spaces' => ['   '],
+    'one character too long' => [str_repeat('k', IdempotencyKey::MAX_LENGTH + 1)],
+]);
+
+it('accepts a key of up to 100 characters', function () {
+    expect(new IdempotencyKey(str_repeat('k', 100))->value)->toHaveLength(100)
+        ->and(new IdempotencyKey('k')->value)->toBe('k');
 });
 
 it('refuses the transitions that section 6 does not have', function (Closure $transition) {

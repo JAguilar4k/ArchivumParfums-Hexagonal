@@ -5,18 +5,27 @@ declare(strict_types=1);
 namespace Src\Decants\Packs\Domain\Contracts;
 
 use Src\Decants\Packs\Domain\Entities\DecantPack;
+use Src\Decants\Packs\Domain\Exceptions\IdempotencyKeyReusedException;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackId;
+use Src\Decants\Packs\Domain\ValueObjects\IdempotencyKey;
 
 interface DecantPackRepository
 {
     /** Generate the identity of a new pack. */
     public function nextId(): DecantPackId;
 
-    /** Persist a new pack in the business of the operation. */
+    /**
+     * Persist a new pack in the business of the operation.
+     *
+     * @throws IdempotencyKeyReusedException when the customer already bought a pack with the same key
+     */
     public function add(DecantPack $pack): void;
 
     /** Find a pack of the business of the operation; with $forUpdate, its row stays locked until the transaction ends. */
     public function find(DecantPackId $id, bool $forUpdate = false): ?DecantPack;
+
+    /** Find the pack a customer of the business of the operation bought with a key, if the key was used. */
+    public function findByIdempotencyKey(string $customerId, IdempotencyKey $key): ?DecantPack;
 
     /** Persist the status, the decants left and the expiry of a pack. */
     public function save(DecantPack $pack): void;
