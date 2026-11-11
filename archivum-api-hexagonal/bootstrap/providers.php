@@ -17,8 +17,8 @@ use Src\Decants\Bottles\Infrastructure\BottlesServiceProvider;
 use Src\Payments\Payments\Infrastructure\PaymentsServiceProvider;
 use Src\Recommendations\Recommender\Infrastructure\RecommenderServiceProvider;
 use Src\Sales\Orders\Infrastructure\OrdersServiceProvider;
-use Src\Shared\Infrastructure\RateLimitsServiceProvider;
 use Src\Scheduling\Services\Infrastructure\ServicesServiceProvider;
+use Src\Shared\Infrastructure\RateLimitsServiceProvider;
 use Src\Shared\Infrastructure\SharedServiceProvider;
 
 return [

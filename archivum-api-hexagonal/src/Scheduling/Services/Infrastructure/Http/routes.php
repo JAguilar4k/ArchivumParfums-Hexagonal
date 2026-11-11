@@ -6,9 +6,10 @@ use Illuminate\Support\Facades\Route;
 use Src\Scheduling\Services\Infrastructure\Http\Controllers\ServiceController;
 
 // The business always comes from the session of the panel: business:staff resolves it and keeps the transaction of
-// the business, as panel/perfumes does, and role:owner keeps the routes to the owner until #102 defines the abilities.
+// the business, as panel/perfumes does, and business:configure keeps the routes to the owner, which is the only role
+// that receives that ability in the permission matrix of #102.
 Route::prefix('panel/servicios')
-    ->middleware(['auth:sanctum', 'business:staff', 'role:owner'])
+    ->middleware(['auth:sanctum', 'abilities:business:configure', 'business:staff'])
     ->name('scheduling.services.')
     ->controller(ServiceController::class)
     ->group(function (): void {
