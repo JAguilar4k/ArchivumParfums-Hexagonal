@@ -98,7 +98,7 @@ Es la segunda barrera del aislamiento entre tiendas. La primera está en el cód
 
 ### Qué protege
 
-Toda tabla con `business_id` tiene la seguridad a nivel de fila habilitada y forzada, con la política `<tabla>_business_isolation`. Hoy son `members` y `customers`, que protege la migración `enable_row_level_security_on_business_tables`, y las cuatro del catálogo (`perfumes`, `perfume_notes`, `perfume_tags` y `perfume_variants`), que protege `enable_row_level_security_on_catalog_tables`. Las dos migraciones aplican lo mismo a cada tabla; por ejemplo, a `customers`:
+Toda tabla con `business_id` tiene la seguridad a nivel de fila habilitada y forzada, con la política `<tabla>_business_isolation`. Hoy son `members` y `customers`, que protege la migración `enable_row_level_security_on_business_tables`; las cuatro del catálogo (`perfumes`, `perfume_notes`, `perfume_tags` y `perfume_variants`), que protege `enable_row_level_security_on_catalog_tables`; y las cuatro de horarios (`services`, `business_hours`, `staff_schedules` y `schedule_blocks`), que protege `enable_row_level_security_on_scheduling_tables` (#52). Cada migración aplica lo mismo a cada tabla; por ejemplo, a `customers`:
 
 ```sql
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
@@ -166,6 +166,24 @@ Las cuatro son `SECURITY DEFINER` con `search_path` vacío y nombres calificados
 PostgreSQL revisa las llaves únicas, las restricciones de exclusión y las llaves foráneas sin aplicar las políticas. Por eso todas incluyen `business_id`. Una llave única sin la tienda rechazaría un valor que ya usa otra tienda y revelaría que existe; una llave foránea sin la tienda permitiría que una fila apunte a la de otra tienda.
 
 `BusinessKeysTest` lee `pg_constraint` y `pg_index` y falla si una de esas llaves no incluye `business_id`, salvo una lista de excepciones que `docs/data-model.md` (#35) justifica: la llave única global `members(user_id)` (una tienda por persona del personal) y las foráneas de `members` y `customers` hacia `users`.
+
+### Restricciones de exclusión
+
+Dos tramos de horario del mismo día no se traslapan (#52), y dos citas activas de la misma persona tampoco (#59). La garantía es una restricción de exclusión de PostgreSQL y no una consulta previa del código: entre leer y escribir, otra petición puede tomar el mismo espacio.
+
+| Tabla | Restricción | Qué impide |
+|---|---|---|
+| `business_hours` | `business_hours_no_overlap_excl`: `EXCLUDE USING gist (business_id WITH =, weekday WITH =, timerange(opens_at, closes_at) WITH &&)` | Dos tramos de atención traslapados del mismo día |
+| `staff_schedules` | `staff_schedules_no_overlap_excl`: `EXCLUDE USING gist (business_id WITH =, member_id WITH =, weekday WITH =, timerange(starts_at, ends_at) WITH &&)` | Dos tramos traslapados de la misma persona el mismo día |
+
+| Pieza | Para qué |
+|---|---|
+| `timerange` | Tipo de rango propio, `CREATE TYPE public.timerange AS RANGE (subtype = time)`, para comparar horas locales. Lo crea la migración de `business_hours` (#52) y su `down()` lo borra |
+| `btree_gist` | Permite comparar `business_id`, `member_id` y `weekday` con `=` dentro de un índice GiST. Se crea con `CREATE EXTENSION IF NOT EXISTS` y ninguna reversión la borra, porque otra migración puede depender de ella |
+| `[)` | El rango es cerrado al inicio y abierto al final: dos tramos contiguos, como 17:00–20:00 y 20:00–22:00, no se consideran traslapados |
+
+Un traslape falla con el SQLSTATE `23P01` y el nombre de la restricción en el mensaje; la API lo traduce a un 409 `conflicto` (#60). Las tablas de horarios guardan horas locales en `time`, mientras que `appointments` usará `tstzrange` porque sus rangos son instantes (#59).
+
 
 ### Cómo agregar una tabla de una tienda
 
