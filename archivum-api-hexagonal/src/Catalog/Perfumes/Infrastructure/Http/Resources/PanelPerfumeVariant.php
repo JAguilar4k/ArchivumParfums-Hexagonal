@@ -39,7 +39,7 @@ final class PanelPerfumeVariant extends JsonResource
         return [
             'id' => $variant->id->value,
             'ml' => $variant->size->value,
-            'precio_venta' => ($variant->manualPrice ?? $variant->salePrice)?->amount,
+            'precio_venta' => $variant->manualPrice?->amount ?? $variant->salePrice?->amount,
             'precio_manual' => $variant->manualPrice?->amount,
             'activa' => $variant->isActive,
         ];
