@@ -27,7 +27,10 @@ final class PaymentResource extends JsonResource
                 'succeeded' => 'confirmado', 'failed' => 'fallido', 'expired' => 'vencido', 'refunded' => 'reembolsado', 'partially_refunded' => 'reembolsado_parcialmente', default => 'pendiente',
             },
             'url_pago' => $this->checkoutUrl,
-            'medio' => $this->method === 'sinpe_mobile' ? 'sinpe_movil' : 'tarjeta',
+            /** Medio del cobro en línea; es nulo en un pago registrado en la entrega. */
+            'medio' => match ($this->method) {
+                'card' => 'tarjeta', 'sinpe_mobile' => 'sinpe_movil', default => null,
+            },
             'consulta_pendiente' => $this->communicationError,
         ];
     }

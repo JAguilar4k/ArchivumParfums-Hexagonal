@@ -17,6 +17,7 @@ return [
     'balance_due' => 'El pedido aún tiene saldo pendiente.',
     'refund_pending' => 'El reembolso pendiente debe resolverse antes de entregar el pedido.',
     'payment_not_allowed' => 'El pedido no admite ese pago.',
+    'expired_release' => 'El pedido venció sin pago.',
     'product_unavailable' => 'Ese producto no está disponible para pedirlo.',
     'decant_size' => 'Ese tamaño de decant no está disponible en esta tienda.',
     'line_kind' => 'La línea debe incluir una presentación o una botella para decants.',

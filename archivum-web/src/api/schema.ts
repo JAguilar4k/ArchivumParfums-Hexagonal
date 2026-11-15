@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/cuentas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a customer and answer its public data. It does not sign in: the client calls POST /sesiones next */
+        post: operations["accounts.users.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/": {
         parameters: {
             query?: never;
@@ -234,6 +251,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cuenta/paquetes-comprados": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the decant packs the authenticated customer bought in every store, newest first, with their decants left and
+         *     their status at this moment: a pack whose validity ended shows vencido even before the queue expires it
+         * @description Each store is read under its own row-level scope, like the orders of the account.
+         */
+        get: operations["decants.packs.purchased.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/panel/botellas": {
         parameters: {
             query?: never;
@@ -298,6 +336,161 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/panel/paquetes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the offers of decant packs of the business of the session, on sale or not, by name */
+        get: operations["decants.packs.plans.index"];
+        put?: never;
+        /**
+         * Define an offer of decant packs in the business of the session
+         * @description Ml that the store does not sell as decants are reported on the field ml_por_decant.
+         */
+        post: operations["decants.packs.plans.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/panel/paquetes/{paquete}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change the fields sent of an offer of the business of the session, also to take it off sale or put it back
+         * @description The packs already bought keep the decants, the ml and the cap they were bought with.
+         */
+        patch: operations["decants.packs.plans.update"];
+        trace?: never;
+    };
+    "/panel/personal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the staff of the business of the session */
+        get: operations["businesses.members.index"];
+        put?: never;
+        /**
+         * Add a person to the staff of the business of the session. An email already registered answers 422 in the field,
+         *     with a message that does not say where it is registered
+         */
+        post: operations["businesses.members.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/panel/personal/{persona}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Show one person of the staff of the business of the session */
+        get: operations["businesses.members.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change the name, the role, whether the person attends appointments and whether they stay active */
+        patch: operations["businesses.members.update"];
+        trace?: never;
+    };
+    "/tiendas/{tienda}/paquetes/{paquete}/compra": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Buy a decant pack on sale in the store of the address for the account of the session, and start its payment
+         * @description The pack waits for its payment and becomes active only when a verified notice of the gateway or the
+         *     reconciliation confirms it, never with this answer or the return address of the gateway.
+         */
+        post: operations["decants.packs.purchases.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cuenta/contrasena": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Change the password of the account of the session. A wrong current password answers 422 in its field */
+        put: operations["accounts.password.update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recuperaciones-de-contrasena": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Queue the recovery for every email and answer the same: the search of the account, the token and the mail all
+         *     happen outside the request, so neither the body nor the time tell whether the account exists
+         */
+        post: operations["accounts.password.reset.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/recuperaciones-de-contrasena/confirmacion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set the new password. A token that expired, was used or belongs to another email answers 422 in its field */
+        post: operations["accounts.password.reset.confirm"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cuenta/pedidos/{pedido}/pagos": {
         parameters: {
             query?: never;
@@ -322,10 +515,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Confirm only by asking the provider from the server; the request carries no status */
+        /** Read the stored payment: this query never asks the provider nor changes the payment, and the request carries no status */
         get: operations["payments.show"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/panel/pedidos/{pedido}/pagos-manuales": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Record the balance that the customer paid the owner on delivery, by SINPE or in cash; no gateway takes part */
+        post: operations["payments.manual.store"];
         delete?: never;
         options?: never;
         head?: never;
@@ -341,8 +551,46 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Process only refund amounts already registered by cancellation or an unavailable line */
+        /**
+         * List the refunds of an order with their state and ask the provider again for those that never left
+         * @description Only a cancellation, an unavailable line (R30, R31) or a charge confirmed after the order closed registers a
+         *     refund, with the amount the server calculates.
+         */
         post: operations["payments.refunds.process"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/onvo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive a notice of ONVO Pay, whose origin is the secret ONVO sends in `X-Webhook-Secret` */
+        post: operations["payments.webhooks.onvo"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/webhooks/paypal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Receive a notice of PayPal, whose signature PayPal's verification API checks */
+        post: operations["payments.webhooks.paypal"];
         delete?: never;
         options?: never;
         head?: never;
@@ -454,6 +702,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tiendas/{tienda}/paquetes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the decant packs on sale in the store of the address, by name, to any visitor */
+        get: operations["decants.packs.on-sale.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tiendas/{tienda}/recomendaciones": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recommend up to five perfumes of the showcase for what the customer describes, by the AI or, if it fails, by the rules */
+        post: operations["recommendations.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sesiones": {
         parameters: {
             query?: never;
@@ -483,6 +765,26 @@ export interface paths {
         post?: never;
         /** Sign out by revoking the token of the request */
         delete: operations["accounts.sessions.destroy"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sesiones/actual/renovacion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Swap the token of the request, while it is still valid, for a new one with its expiration; the old one stops
+         *     working. A token that expired or was revoked meanwhile gets the same 401 as a missing token: sign in again
+         */
+        post: operations["accounts.sessions.renewal.store"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -522,6 +824,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/panel/paquetes-vendidos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List a page of the decant packs sold in the business of the session, newest first, with their customer, their
+         *     offer, their balance and their status at this moment; estado keeps only the packs with that status, and vencido
+         *     also takes the ones whose validity ended before the queue expired them
+         */
+        get: operations["decants.packs.sold.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -551,6 +874,13 @@ export interface components {
                 tipo_cambio_usd: number | null;
             };
         };
+        /** ConfirmPasswordReset */
+        ConfirmPasswordReset: {
+            /** Format: email */
+            correo: string;
+            token: string;
+            contrasena_nueva: string;
+        };
         /** CurrentAccountResource */
         CurrentAccountResource: {
             id: string;
@@ -564,6 +894,58 @@ export interface components {
                 slug: string;
             } | null;
         };
+        /** CustomerPack */
+        CustomerPack: {
+            id: string;
+            tienda: {
+                id: string;
+                nombre: string;
+                slug: string;
+            };
+            oferta: {
+                id: string;
+                nombre: string;
+            };
+            decants_totales: number;
+            decants_restantes: number;
+            ml_por_decant: number;
+            estado: string;
+            vence_en: string;
+        };
+        /** ManualPaymentResource */
+        ManualPaymentResource: {
+            id: string;
+            /** @enum {string} */
+            proposito: "deposito" | "saldo" | "total";
+            monto: number;
+            /** @constant */
+            pasarela: "manual";
+            /** @enum {string} */
+            estado: "confirmado" | "reembolsado" | "reembolsado_parcialmente" | "pendiente";
+            /** @enum {string} */
+            metodo: "efectivo" | "sinpe";
+            referencia: string;
+            registrado_por: {
+                id: string;
+                nombre: string;
+            };
+            registrado_en: string;
+        };
+        /** MemberResource */
+        MemberResource: {
+            id: string;
+            nombre: string;
+            correo: string;
+            rol: string;
+            atiende_citas: boolean;
+            activo: boolean;
+        };
+        /**
+         * MemberRoleName
+         * @description Names of the roles of the staff in the API, as GET /api/v1/cuenta names them.
+         * @enum {string}
+         */
+        MemberRoleName: "dueno" | "colaborador";
         /** OrderLineResource */
         OrderLineResource: {
             id: string;
@@ -576,6 +958,7 @@ export interface components {
             presentacion_ml: number | null;
             cantidad: number;
             precio_unitario: number;
+            paquete_id: string | null;
             /** @enum {string} */
             estado: "pendiente" | "encargada" | "recibida" | "no_disponible" | "reservada" | "preparada" | "liberada";
         };
@@ -623,6 +1006,17 @@ export interface components {
             abierta_en: string;
             notas: string | null;
         };
+        /** PanelDecantPackPlan */
+        PanelDecantPackPlan: {
+            id: string;
+            nombre: string;
+            cantidad_decants: number;
+            ml_por_decant: number;
+            precio: number;
+            vigencia_dias: number;
+            precio_maximo_por_ml: number | null;
+            activo: boolean;
+        };
         /** PanelMovement */
         PanelMovement: {
             id: string;
@@ -633,6 +1027,7 @@ export interface components {
             fecha: string;
             hecho_por: string | null;
             linea_pedido_id: string | null;
+            canjeado: boolean;
         };
         /** PanelPerfume */
         PanelPerfume: {
@@ -664,9 +1059,40 @@ export interface components {
             precio_manual: number | null;
             activa: boolean;
         };
+        /** PanelSoldPack */
+        PanelSoldPack: {
+            id: string;
+            cliente: {
+                nombre: string;
+            };
+            oferta: {
+                id: string;
+                nombre: string;
+            };
+            decants_totales: number;
+            decants_restantes: number;
+            ml_por_decant: number;
+            estado: string;
+            vence_en: string;
+        };
+        /** PasswordResetRequestedResource */
+        PasswordResetRequestedResource: {
+            /** @constant */
+            mensaje: "Si el correo tiene una cuenta, le enviamos un enlace para recuperar la contraseña.";
+        };
         /** PatchDecantBottle */
         PatchDecantBottle: {
             notas?: string | null;
+        };
+        /** PatchDecantPackPlan */
+        PatchDecantPackPlan: {
+            nombre?: string;
+            cantidad_decants?: number;
+            ml_por_decant?: number;
+            precio?: number;
+            vigencia_dias?: number;
+            precio_maximo_por_ml?: number | null;
+            activo?: boolean;
         };
         /** PatchPerfume */
         PatchPerfume: {
@@ -694,6 +1120,12 @@ export interface components {
             precio_manual?: number | null;
             activa?: boolean;
         };
+        /** PaymentNoticeResource */
+        PaymentNoticeResource: {
+            evento: string;
+            /** @enum {string} */
+            estado: "repetido" | "recibido";
+        };
         /** PaymentResource */
         PaymentResource: {
             id: string;
@@ -706,8 +1138,11 @@ export interface components {
             /** @enum {string} */
             estado: "confirmado" | "fallido" | "vencido" | "reembolsado" | "reembolsado_parcialmente" | "pendiente";
             url_pago: string | null;
-            /** @enum {string} */
-            medio: "sinpe_movil" | "tarjeta";
+            /**
+             * @description Medio del cobro en línea; es nulo en un pago registrado en la entrega.
+             * @enum {string|null}
+             */
+            medio: "tarjeta" | "sinpe_movil" | null;
             consulta_pendiente: boolean;
         };
         /** Problema */
@@ -754,11 +1189,83 @@ export interface components {
             lugar_cita: string | null;
             zona_horaria: string;
         };
+        /** PublicPackPlan */
+        PublicPackPlan: {
+            id: string;
+            nombre: string;
+            cantidad_decants: number;
+            ml_por_decant: number;
+            precio: number;
+            vigencia_dias: number;
+            precio_maximo_por_ml: number | null;
+        };
+        /** PurchasedPackResource */
+        PurchasedPackResource: {
+            id: string;
+            paquete_id: string;
+            /** @enum {string} */
+            estado: "pendiente_de_pago" | "activo" | "agotado" | "vencido";
+            decants_totales: number;
+            decants_restantes: number;
+            ml_por_decant: number;
+            precio_maximo_por_ml: number | null;
+            vence_en: string;
+            pago: {
+                id: string;
+                monto: number;
+                moneda_cobrada: string;
+                monto_cobrado: number;
+                pasarela: string;
+                /** @enum {string} */
+                estado: "confirmado" | "fallido" | "vencido" | "reembolsado" | "reembolsado_parcialmente" | "pendiente";
+                url_pago: string | null;
+                /** @enum {string} */
+                medio: "sinpe_movil" | "tarjeta";
+                consulta_pendiente: boolean;
+            } | null;
+        };
+        /** RecommendationResource */
+        RecommendationResource: {
+            /** @enum {string} */
+            origen: "ia" | "reglas";
+            preferencias: {
+                notas: string[];
+                momento: string | null;
+                clima: string | null;
+                ocasion: string | null;
+                presupuesto: number | null;
+            };
+            perfumes: components["schemas"]["RecommendedPerfumeResource"][];
+        };
+        /** RecommendedPerfumeResource */
+        RecommendedPerfumeResource: {
+            id: string;
+            marca: string;
+            nombre: string;
+            razon: string;
+            presentaciones: components["schemas"]["RecommendedVariantResource"][];
+        };
+        /** RecommendedVariantResource */
+        RecommendedVariantResource: {
+            ml: number;
+            precio_venta: number;
+        };
+        /** RefundResource */
+        RefundResource: {
+            id: string;
+            pago: string;
+            linea: string | null;
+            monto: number;
+            /** @enum {string} */
+            estado: "confirmado" | "fallido" | "pendiente";
+            consulta_pendiente: boolean;
+        };
         /** SessionTokenResource */
         SessionTokenResource: {
             token: string;
             /** @constant */
             tipo: "Bearer";
+            vence_en: string;
         };
         /** ShowcasePerfume */
         ShowcasePerfume: {
@@ -798,6 +1305,15 @@ export interface components {
             presentaciones: unknown[];
             decants: unknown[];
         };
+        /** StoreAccountRequest */
+        StoreAccountRequest: {
+            nombre: string;
+            /** Format: email */
+            correo: string;
+            contrasena: string;
+            /** @enum {unknown} */
+            acepta_privacidad: "yes" | "on" | "1" | 1 | "true" | true;
+        };
         /** StoreBusinessLogo */
         StoreBusinessLogo: {
             /**
@@ -816,6 +1332,37 @@ export interface components {
             abierta_en: string;
             notas?: string | null;
         };
+        /** StoreDecantPackPlan */
+        StoreDecantPackPlan: {
+            nombre: string;
+            cantidad_decants: number;
+            ml_por_decant: number;
+            precio: number;
+            vigencia_dias: number;
+            precio_maximo_por_ml?: number | null;
+            activo?: boolean;
+        };
+        /** StoreManualPayment */
+        StoreManualPayment: {
+            /**
+             * @description Cómo pagó el cliente al recibir el pedido: `sinpe` o `efectivo`.
+             * @enum {string}
+             */
+            metodo: "sinpe" | "efectivo";
+            /** @description Colones enteros recibidos. No puede superar el saldo del pedido. */
+            monto: number;
+            /** @description Referencia de la transferencia SINPE o del recibo del pago en efectivo. */
+            referencia: string;
+        };
+        /** StoreMemberRequest */
+        StoreMemberRequest: {
+            nombre: string;
+            /** Format: email */
+            correo: string;
+            contrasena: string;
+            rol: components["schemas"]["MemberRoleName"];
+            atiende_citas?: boolean;
+        };
         /** StoreOrder */
         StoreOrder: {
             lineas: {
@@ -825,7 +1372,19 @@ export interface components {
                 botella_id?: string;
                 cantidad?: number;
                 ml?: number;
+                /** Format: uuid */
+                paquete_id?: string | null;
             }[];
+        };
+        /** StorePackPurchase */
+        StorePackPurchase: {
+            /** @enum {string} */
+            medio?: "tarjeta" | "sinpe_movil";
+        };
+        /** StorePasswordReset */
+        StorePasswordReset: {
+            /** Format: email */
+            correo: string;
         };
         /** StorePayment */
         StorePayment: {
@@ -865,6 +1424,10 @@ export interface components {
             ml: number;
             precio_manual?: number | null;
         };
+        /** StoreRecommendation */
+        StoreRecommendation: {
+            texto: string;
+        };
         /** StoreSessionRequest */
         StoreSessionRequest: {
             /** Format: email */
@@ -890,6 +1453,18 @@ export interface components {
                 pasarela_por_defecto?: "onvo" | "paypal";
                 tipo_cambio_usd?: number | null;
             };
+        };
+        /** UpdateMemberRequest */
+        UpdateMemberRequest: {
+            nombre?: string;
+            rol?: components["schemas"]["MemberRoleName"];
+            atiende_citas?: boolean;
+            activo?: boolean;
+        };
+        /** UpdatePassword */
+        UpdatePassword: {
+            contrasena_actual: string;
+            contrasena_nueva: string;
         };
     };
     responses: {
@@ -929,6 +1504,50 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    "accounts.users.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreAccountRequest"];
+            };
+        };
+        responses: {
+            /** @description `CurrentAccountResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CurrentAccountResource"];
+                    };
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
     index: {
         parameters: {
             query?: never;
@@ -1996,6 +2615,55 @@ export interface operations {
             };
         };
     };
+    "decants.packs.purchased.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `CustomerPack` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CustomerPack"][];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
     "decants.bottles.index": {
         parameters: {
             query?: {
@@ -2459,6 +3127,7 @@ export interface operations {
                                 fecha: string;
                                 hecho_por: string | null;
                                 linea_pedido_id: string | null;
+                                canjeado: boolean;
                             };
                             botella: {
                                 id: string;
@@ -2520,6 +3189,684 @@ export interface operations {
                 content: {
                     "application/problem+json": components["schemas"]["Problema"];
                 };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "decants.packs.plans.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PanelDecantPackPlan` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelDecantPackPlan"][];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "decants.packs.plans.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreDecantPackPlan"];
+            };
+        };
+        responses: {
+            /** @description `PanelDecantPackPlan` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelDecantPackPlan"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "decants.packs.plans.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                paquete: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchDecantPackPlan"];
+            };
+        };
+        responses: {
+            /** @description `PanelDecantPackPlan` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelDecantPackPlan"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "businesses.members.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `MemberResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MemberResource"][];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "businesses.members.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description `MemberResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MemberResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "businesses.members.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                persona: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `MemberResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MemberResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "businesses.members.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                persona: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["UpdateMemberRequest"];
+            };
+        };
+        responses: {
+            /** @description `MemberResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["MemberResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "decants.packs.purchases.store": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Llave de 1 a 100 caracteres que el cliente elige para cada intento de compra. Repetir la compra con la misma llave responde 200 con el mismo paquete y su pago, sin un segundo cobro; la misma llave para otra oferta responde 409. Sin ella, cada solicitud es una compra nueva; vacía o más larga responde 400. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                tienda: string;
+                paquete: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["StorePackPurchase"];
+            };
+        };
+        responses: {
+            /** @description Se repitió la compra con la misma llave: se devuelve el mismo paquete y su pago. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PurchasedPackResource"];
+                    };
+                };
+            };
+            /** @description Se compra el paquete y se inicia su pago. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PurchasedPackResource"];
+                    };
+                };
+            };
+            /** @description Se compra el paquete, pero todavía no se sabe si la pasarela creó el cobro. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PurchasedPackResource"];
+                    };
+                };
+            };
+            /** @description Solicitud inválida */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Conflicto */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "accounts.password.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePassword"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "accounts.password.reset.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePasswordReset"];
+            };
+        };
+        responses: {
+            /** @description `PasswordResetRequestedResource` */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PasswordResetRequestedResource"];
+                    };
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "accounts.password.reset.confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmPasswordReset"];
+            };
+        };
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Datos inválidos */
             422: {
@@ -2656,7 +4003,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Estado del pago consultado desde el servidor. */
+            /** @description Estado guardado del pago. Mientras siga pendiente, el cliente muestra "procesando". */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -2667,7 +4014,7 @@ export interface operations {
                     };
                 };
             };
-            /** @description El resultado sigue pendiente de consulta al proveedor. */
+            /** @description Todavía no se sabe si el proveedor creó el cobro. */
             202: {
                 headers: {
                     [name: string]: unknown;
@@ -2675,6 +4022,88 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["PaymentResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Conflicto */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "payments.manual.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pedido: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreManualPayment"];
+            };
+        };
+        responses: {
+            /** @description Se registra el pago del saldo, ya confirmado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ManualPaymentResource"];
                     };
                 };
             };
@@ -2745,18 +4174,14 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            /** @description Array of `RefundResource` */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
-                        data: {
-                            id: string;
-                            monto: number;
-                            /** @enum {string} */
-                            estado: "confirmado" | "fallido" | "pendiente";
-                        }[];
+                        data: components["schemas"]["RefundResource"][];
                     };
                 };
             };
@@ -2807,6 +4232,122 @@ export interface operations {
             };
             /** @description Error interno */
             500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "payments.webhooks.onvo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PaymentNoticeResource"];
+                    };
+                };
+            };
+            /** @description Credenciales inválidas */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Servicio no disponible */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "payments.webhooks.paypal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PaymentNoticeResource"];
+                    };
+                };
+            };
+            /** @description Credenciales inválidas */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Servicio no disponible */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3421,6 +4962,103 @@ export interface operations {
             };
         };
     };
+    "decants.packs.on-sale.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tienda: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PublicPackPlan` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PublicPackPlan"][];
+                    };
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "recommendations.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tienda: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreRecommendation"];
+            };
+        };
+        responses: {
+            /** @description `RecommendationResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["RecommendationResource"];
+                    };
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
     "accounts.sessions.store": {
         parameters: {
             query?: never;
@@ -3489,6 +5127,46 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "accounts.sessions.renewal.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `SessionTokenResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["SessionTokenResource"];
+                    };
+                };
             };
             /** @description No autenticado */
             401: {
@@ -3626,6 +5304,93 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "decants.packs.sold.index": {
+        parameters: {
+            query?: {
+                pagina?: number;
+                por_pagina?: number;
+                estado?: "pendiente_de_pago" | "activo" | "agotado" | "vencido";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Paginated set of `PanelSoldPack` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelSoldPack"][];
+                        links: {
+                            first: string | null;
+                            last: string | null;
+                            prev: string | null;
+                            next: string | null;
+                        };
+                        meta: {
+                            current_page: number;
+                            from: number | null;
+                            last_page: number;
+                            /** @description Generated paginator links. */
+                            links: {
+                                url: string | null;
+                                label: string;
+                                active: boolean;
+                            }[];
+                            /** @description Base path for paginator generated URLs. */
+                            path: string | null;
+                            /** @description Number of items shown per page. */
+                            per_page: number;
+                            /** @description Number of the last item in the slice. */
+                            to: number | null;
+                            /** @description Total number of items being paginated. */
+                            total: number;
+                        };
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
                 };
             };
             /** @description Error interno */

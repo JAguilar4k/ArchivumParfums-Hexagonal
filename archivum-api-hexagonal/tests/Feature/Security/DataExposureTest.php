@@ -127,7 +127,6 @@ it('API3: answers from a Resource, except the controllers that list their fields
         'BusinessLogoController.php',
         'PerfumePhotoController.php',
         'DecantMovementController.php',
-        'PaymentController.php',
         'ApiIndexController.php',
     ]);
 });

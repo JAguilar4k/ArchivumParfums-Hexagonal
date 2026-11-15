@@ -42,6 +42,11 @@ final class HoldReservationForCompetingRequest implements DecantStock
         $this->stock->release($bottleId, $ml, $lineId, $userId);
     }
 
+    public function releaseExpired(string $bottleId, int $ml, string $lineId): void
+    {
+        $this->stock->releaseExpired($bottleId, $ml, $lineId);
+    }
+
     public function consume(string $bottleId, int $ml, string $lineId, string $userId): void
     {
         $this->stock->consume($bottleId, $ml, $lineId, $userId);

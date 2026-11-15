@@ -15,15 +15,21 @@ use Src\Payments\Payments\Domain\Exceptions\GatewayUnavailableException;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeReference;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeRequest;
 use Src\Payments\Payments\Domain\ValueObjects\ChargeResult;
+use Src\Payments\Payments\Domain\ValueObjects\PaymentEvent;
+use Src\Payments\Payments\Domain\ValueObjects\PaymentId;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentMethod;
 use Src\Payments\Payments\Domain\ValueObjects\PaymentStatus;
 use Src\Payments\Payments\Domain\ValueObjects\RefundRequest;
 use Src\Payments\Payments\Domain\ValueObjects\RefundResult;
 use Src\Payments\Payments\Infrastructure\Gateways\GatewayMoney;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
+use Src\Shared\Domain\ValueObjects\BusinessId;
 
 final readonly class OnvoGateway implements PaymentGateway
 {
+    /** Notices about the charge of a checkout session; the rest, such as subscription renewals, change no payment. */
+    private const array CHARGE_EVENTS = ['checkout-session.succeeded', 'payment-intent.succeeded', 'payment-intent.failed', 'payment-intent.deferred'];
+
     public function __construct(
         private string $secretKey,
         private string $returnUrl,
@@ -165,13 +171,29 @@ final readonly class OnvoGateway implements PaymentGateway
         return $intent->json('status') === 'failed' ? PaymentStatus::Failed : $closedStatus;
     }
 
+    /** ONVO charged whole colones, so a refund returns its own colones: the earlier refunds do not change it. */
+    public function refundAmount(int $amount, int $refundedBefore, ?string $exchangeRate): int
+    {
+        GatewayMoney::colonesToMinor($amount);
+
+        return $amount;
+    }
+
+    /**
+     * ONVO does not notify refunds by webhook (its notices are about charges, subscriptions and transfers), so the
+     * answer comes from asking for the refund right after creating it, and later from the reconciliation (#96). A clear
+     * refusal of ONVO, to find the intent or to create the refund, leaves the refund failed without a reference.
+     */
     public function refund(RefundRequest $request): RefundResult
     {
-        $amount = GatewayMoney::colonesToMinor($request->amount);
+        $amount = GatewayMoney::colonesToMinor($request->chargedAmount);
         $intentId = $request->captureReference;
 
         if ($intentId === null) {
-            $session = $this->send(fn (PendingRequest $http): Response => $http->get('/checkout/sessions/'.rawurlencode($request->providerReference)));
+            $session = $this->send(fn (PendingRequest $http): Response => $http->get('/checkout/sessions/'.rawurlencode($request->providerReference)), answersRefusals: true);
+            if ($this->refused($session)) {
+                return new RefundResult(null, 'failed');
+            }
             $this->requireTestMode($session, required: false);
             $intentId = $this->string($session->json('paymentIntentId'));
         }
@@ -183,10 +205,12 @@ final readonly class OnvoGateway implements PaymentGateway
                 'paymentIntentId' => $intentId,
                 'amount' => $amount,
                 'description' => $request->refundId,
-            ]));
+            ]), answersRefusals: true);
 
-            if ($response->status() === 402) {
-                return new RefundResult($request->refundId, 'failed');
+            // ONVO refused the request and created no refund: a declined refund (402), a key it does not accept (401)
+            // or an intent it does not know (404) does not change by sending it again, so the refund fails.
+            if ($this->refused($response)) {
+                return new RefundResult(null, 'failed');
             }
 
             $refundId = $this->string($response->json('id'));
@@ -209,6 +233,15 @@ final readonly class OnvoGateway implements PaymentGateway
         });
     }
 
+    /**
+     * ONVO documents no idempotency key for its requests (docs/payment-gateways.md): a refund whose answer was lost may
+     * exist, so it is never sent again and a person checks it in ONVO.
+     */
+    public function resendsRefunds(): bool
+    {
+        return false;
+    }
+
     public function verifyWebhook(string $body, array $headers): bool
     {
         $headers = array_change_key_case($headers, CASE_LOWER);
@@ -216,10 +249,56 @@ final readonly class OnvoGateway implements PaymentGateway
         return $this->webhookSecret !== '' && isset($headers['x-webhook-secret']) && hash_equals($this->webhookSecret, $headers['x-webhook-secret']);
     }
 
-    /** ONVO does not document a POST idempotency guarantee, so mutations are never retried here.
+    /**
+     * ONVO sends `type` and the object it is about in `data`, with no identifier of the notice, so the notice is its
+     * type and its object. A checkout session brings back the metadata Archivum sent and its total; a payment intent
+     * carries its own amount, except in the notice of a failed one, which ONVO documents without `amount` or `mode`.
+     * Amounts arrive in céntimos and the payment keeps whole colones.
+     */
+    public function parseWebhook(string $body): PaymentEvent
+    {
+        $event = json_decode($body, true);
+        $type = is_array($event) ? ($event['type'] ?? null) : null;
+        $data = is_array($event) ? ($event['data'] ?? null) : null;
+
+        if (! is_string($type) || ! is_array($data) || ! is_string($data['id'] ?? null) || ($data['mode'] ?? 'test') !== 'test') {
+            throw new InvalidValueException('payments.invalid_webhook');
+        }
+
+        if (! in_array($type, self::CHARGE_EVENTS, true)) {
+            return new PaymentEvent('onvo', $type.':'.$data['id'], $type);
+        }
+
+        $metadata = is_array($data['metadata'] ?? null) ? $data['metadata'] : [];
+        [$businessId, $paymentId] = $this->ownReferences($metadata['businessId'] ?? null, $metadata['paymentId'] ?? null);
+        $amount = $type === 'checkout-session.succeeded' ? ($data['amountTotal'] ?? null) : ($data['amount'] ?? null);
+
+        return new PaymentEvent('onvo', $type.':'.$data['id'], $type, $data['id'], $businessId, $paymentId,
+            is_string($data['currency'] ?? null) ? $data['currency'] : null, is_int($amount) && $amount > 0 && $amount % 100 === 0 ? intdiv($amount, 100) : null,
+            reportsFailure: $type === 'payment-intent.failed');
+    }
+
+    /**
+     * The identifiers Archivum sent in the metadata of the checkout; both must be valid or neither is used.
+     *
+     * @return array{?BusinessId, ?PaymentId}
+     */
+    private function ownReferences(mixed $businessId, mixed $paymentId): array
+    {
+        try {
+            return [new BusinessId(is_string($businessId) ? $businessId : ''), new PaymentId(is_string($paymentId) ? $paymentId : '')];
+        } catch (InvalidValueException) {
+            return [null, null];
+        }
+    }
+
+    /**
+     * ONVO does not document a POST idempotency guarantee, so mutations are never retried here. With $answersRefusals,
+     * a clear refusal of the request comes back as its response instead of an unavailable provider.
+     *
      * @param  Closure(PendingRequest): Response  $request
      */
-    private function send(Closure $request): Response
+    private function send(Closure $request, bool $answersRefusals = false): Response
     {
         try {
             $response = $request(Http::baseUrl('https://api.onvopay.com/v1')->withToken($this->secretKey)->acceptJson()->asJson()->timeout($this->timeout)->connectTimeout($this->connectTimeout)->withoutRedirecting());
@@ -227,11 +306,20 @@ final readonly class OnvoGateway implements PaymentGateway
             throw new GatewayUnavailableException('payments.unavailable');
         }
 
-        if (! $response->successful() && $response->status() !== 402) {
+        if (! $response->successful() && $response->status() !== 402 && ! ($answersRefusals && $this->refused($response))) {
             throw new GatewayUnavailableException('payments.unavailable');
         }
 
         return $response;
+    }
+
+    /**
+     * ONVO answered the request with a client error and did nothing with it. A timeout (408), a conflict (409) or too
+     * many requests (429) do not say whether it acted, and neither does an error of its server.
+     */
+    private function refused(Response $response): bool
+    {
+        return $response->clientError() && ! in_array($response->status(), [408, 409, 429], true);
     }
 
     private function string(mixed $value): string

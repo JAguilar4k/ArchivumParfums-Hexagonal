@@ -24,6 +24,5 @@ Un identificador de la **URL** que apunta a otra tienda o a otro cliente respond
 ## Lo que falta
 
 - **Citas.** Las pruebas de BOLA sobre citas quedan como `todo` hasta que existan sus endpoints (#62, #65 y #66).
-- **Pago manual.** La prueba de BFLA queda como `todo` porque `POST /panel/pedidos/{pedido}/pagos-manuales` todavía no existe.
 - **Cuenta nueva.** La prueba de `MassAssignmentTest` sobre `POST /cuentas` se omite hasta integrar #101, que crea la ruta.
-- **Respuestas sin Resource.** Cinco controladores arman su respuesta con un arreglo de campos elegidos, sin pasar por un Resource: `BusinessLogoController`, `PerfumePhotoController`, `DecantMovementController`, `PaymentController::refund` y `ApiIndexController`. Ninguno expone un modelo completo, pero no cumplen al pie de la letra la regla de #107. No se cambiaron porque son código ya validado del equipo; `DataExposureTest` los fija en una lista para que no aparezca otro sin que se note.
+- **Respuestas sin Resource.** Cuatro controladores arman su respuesta con un arreglo de campos elegidos, sin pasar por un Resource: `BusinessLogoController`, `PerfumePhotoController`, `DecantMovementController` y `ApiIndexController`. `PaymentController::refund` responde desde `RefundResource` desde #97. Ninguno expone un modelo completo, pero no cumplen al pie de la letra la regla de #107. No se cambiaron porque son código ya validado del equipo; `DataExposureTest` los fija en una lista para que no aparezca otro sin que se note.

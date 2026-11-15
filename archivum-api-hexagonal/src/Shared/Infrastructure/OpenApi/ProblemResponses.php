@@ -78,14 +78,28 @@ final class ProblemResponses implements DocumentTransformer
             $types[] = ProblemType::Forbidden;
         }
 
+        if ($this->isCustomerPacksRoute($path)) {
+            $types[] = ProblemType::Forbidden;
+        }
+
         if ($this->isOrderOrPaymentRoute($path)) {
             $types[] = ProblemType::Forbidden;
             $types[] = ProblemType::Conflict;
             $types[] = ProblemType::InvalidData;
         }
 
+        if ($this->readsIdempotencyKey($operation)) {
+            $types[] = ProblemType::BadRequest;
+        }
+
         if ($this->rejectsCredentials($path, $operation)) {
             $types[] = ProblemType::InvalidCredentials;
+        }
+
+        if ($this->isWebhookRoute($path)) {
+            $types[] = ProblemType::InvalidCredentials;
+            $types[] = ProblemType::InvalidData;
+            $types[] = ProblemType::ServiceUnavailable;
         }
 
         if (str_contains($path, '{')) {
@@ -126,10 +140,28 @@ final class ProblemResponses implements DocumentTransformer
             );
     }
 
+    /** An Idempotency-Key header sent blank or longer than its limit answers 400, as the guide does (#145). */
+    private function readsIdempotencyKey(Operation $operation): bool
+    {
+        return array_any(
+            $operation->parameters,
+            fn (Parameter|Reference $parameter): bool => $parameter instanceof Parameter && $parameter->in === 'header' && $parameter->name === 'Idempotency-Key',
+        );
+    }
+
     /** Signing in is public, yet it answers 401 when the email or the password is wrong, with no Sanctum token involved. */
     private function rejectsCredentials(string $path, Operation $operation): bool
     {
         return ltrim($path, '/') === 'sesiones' && strtolower($operation->method) === 'post';
+    }
+
+    /**
+     * A notice of a payment provider is public, yet it answers 401 when its origin is not verified, 422 when a verified
+     * body is not a notice and 503 when the provider cannot be asked, so that the provider sends it again.
+     */
+    private function isWebhookRoute(string $path): bool
+    {
+        return str_starts_with(ltrim($path, '/'), 'webhooks/');
     }
 
     /** The panel is the part of the API that checks the role of the member. */
@@ -138,14 +170,20 @@ final class ProblemResponses implements DocumentTransformer
         return str_starts_with(ltrim($path, '/'), 'panel');
     }
 
-    /** These operations also check the role, ownership and the current business state. */
+    /** The packs of the account are only for a customer: the staff, without customer:own, gets a 403 (#148). */
+    private function isCustomerPacksRoute(string $path): bool
+    {
+        return str_starts_with(ltrim($path, '/'), 'cuenta/paquetes-comprados');
+    }
+
+    /** These operations also check the role, ownership and the current business state; buying a pack starts its payment. */
     private function isOrderOrPaymentRoute(string $path): bool
     {
         $path = ltrim($path, '/');
 
         return str_starts_with($path, 'cuenta/pedidos') || str_starts_with($path, 'cuenta/pagos')
             || str_starts_with($path, 'panel/pedidos') || str_starts_with($path, 'panel/botellas')
-            || $path === 'tiendas/{tienda}/pedidos';
+            || $path === 'tiendas/{tienda}/pedidos' || $path === 'tiendas/{tienda}/paquetes/{paquete}/compra';
     }
 
     /** HTTP status of a response, resolving the references to the components. */

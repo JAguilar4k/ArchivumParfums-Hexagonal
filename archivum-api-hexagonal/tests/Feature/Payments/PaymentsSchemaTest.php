@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
+use Tests\Support\Decants\StoredPacks;
 use Tests\Support\Payments\StoredPayments;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Sales\StoredOrders;
@@ -36,6 +37,33 @@ it('rejects invalid payment values with the named PostgreSQL checks', function (
     ['charged_currency', 'USD', 'payments_exchange_rate_check'],
 ]);
 
+it('keeps the online method out of a payment received on delivery and requires it on a charge of a gateway', function (string $gateway, ?string $method): void {
+    $business = StaffedBusiness::create();
+    $order = StoredOrders::create($business, 'ready')['order'];
+    app(BusinessTransaction::class)->scope($business->business->id);
+
+    expect(fn () => DB::transaction(fn (): bool => DB::table('payments')->insert([
+        'id' => (string) Str::uuid7(), 'business_id' => $business->business->id, 'order_id' => $order->id,
+        'purpose' => 'balance', 'amount' => 7500, 'gateway' => $gateway, 'method' => $method, 'status' => 'succeeded',
+        'recorded_by' => DB::table('members')->where('user_id', $business->owner->id)->value('id'), 'manual_method' => 'cash', 'manual_reference' => 'Recibo 1',
+    ])))->toThrow(QueryException::class, 'payments_method_check');
+})->with([['manual', 'card'], ['manual', 'sinpe_mobile'], ['onvo', null], ['paypal', null]]);
+
+it('accepts a payment received on delivery with the record of its owner and no online method', function (): void {
+    $business = StaffedBusiness::create();
+    $order = StoredOrders::create($business, 'ready')['order'];
+    app(BusinessTransaction::class)->scope($business->business->id);
+    $id = (string) Str::uuid7();
+
+    DB::table('payments')->insert([
+        'id' => $id, 'business_id' => $business->business->id, 'order_id' => $order->id, 'purpose' => 'balance', 'amount' => 7500,
+        'gateway' => 'manual', 'method' => null, 'status' => 'succeeded', 'charged_amount' => 7500,
+        'recorded_by' => DB::table('members')->where('user_id', $business->owner->id)->value('id'), 'manual_method' => 'sinpe', 'manual_reference' => 'SINPE-2026-0001',
+    ]);
+
+    expect(DB::table('payments')->where('id', $id)->value('method'))->toBeNull();
+});
+
 it('prevents a payment from referencing another tenant order', function (): void {
     $first = StaffedBusiness::create();
     $other = StaffedBusiness::create();
@@ -60,6 +88,43 @@ it('prevents two pending attempts of the same order and purpose', function (): v
     ])))->toThrow(QueryException::class, 'payments_one_pending_purpose');
 });
 
+it('pays exactly one order or one decant pack', function (bool $withOrder, bool $withPack): void {
+    $business = StaffedBusiness::create();
+    $order = StoredOrders::create($business)['order'];
+    $pack = StoredPacks::create($business);
+    app(BusinessTransaction::class)->scope($business->business->id);
+
+    expect(fn () => DB::transaction(fn (): bool => DB::table('payments')->insert([
+        'id' => (string) Str::uuid7(), 'business_id' => $business->business->id,
+        'order_id' => $withOrder ? $order->id : null, 'decant_pack_id' => $withPack ? $pack['pack_id'] : null,
+        'purpose' => 'full', 'amount' => 40000, 'gateway' => 'onvo', 'status' => 'pending',
+    ])))->toThrow(QueryException::class, 'payments_payable_check');
+})->with(['an order and a pack' => [true, true], 'neither of them' => [false, false]]);
+
+it('pays a decant pack of its own business, with one pending attempt for each purpose', function (): void {
+    $business = StaffedBusiness::create();
+    $pack = StoredPacks::create($business)['pack_id'];
+    $foreign = StoredPacks::create(StaffedBusiness::create())['pack_id'];
+    app(BusinessTransaction::class)->scope($business->business->id);
+    $attempt = fn (string $packId): array => [
+        'id' => (string) Str::uuid7(), 'business_id' => $business->business->id, 'decant_pack_id' => $packId,
+        'purpose' => 'full', 'amount' => 40000, 'gateway' => 'onvo', 'status' => 'pending',
+    ];
+
+    DB::table('payments')->insert($attempt($pack));
+
+    expect(DB::table('payments')->where('decant_pack_id', $pack)->whereNull('order_id')->count())->toBe(1)
+        ->and(fn () => DB::transaction(fn (): bool => DB::table('payments')->insert($attempt($pack))))
+        ->toThrow(QueryException::class, 'payments_one_pending_pack_purpose')
+        ->and(fn () => DB::transaction(fn (): bool => DB::table('payments')->insert($attempt($foreign))))
+        ->toThrow(QueryException::class, 'payments_decant_pack_id_business_id_foreign');
+
+    DB::table('payments')->where('decant_pack_id', $pack)->update(['status' => 'failed']);
+    DB::table('payments')->insert($attempt($pack));
+
+    expect(DB::table('payments')->where('decant_pack_id', $pack)->pluck('status')->sort()->values()->all())->toBe(['failed', 'pending']);
+});
+
 it('rejects invalid refund values with the named database checks', function (string $field, mixed $value, string $constraint): void {
     $business = StaffedBusiness::create();
     $order = StoredOrders::create($business)['order'];
@@ -70,7 +135,12 @@ it('rejects invalid refund values with the named database checks', function (str
         'id' => (string) Str::uuid7(), 'business_id' => $business->business->id, 'payment_id' => $payment->id,
         'amount' => 7500, 'status' => 'pending', $field => $value,
     ])))->toThrow(QueryException::class, $constraint);
-})->with([['amount', 0, 'refunds_amount_check'], ['amount', -1, 'refunds_amount_check'], ['status', 'approved', 'refunds_status_check']]);
+})->with([
+    ['amount', 0, 'refunds_amount_check'], ['amount', -1, 'refunds_amount_check'], ['status', 'approved', 'refunds_status_check'],
+    ['charged_amount', 0, 'refunds_charged_amount_check'], ['charged_amount', -1, 'refunds_charged_amount_check'],
+    // A refund that left for the provider keeps the amount it asked of it.
+    ['attempted_at', '2026-11-02 12:00:00+00', 'refunds_attempted_at_check'],
+]);
 
 it('prevents a refund from referencing another tenant payment', function (): void {
     $first = StaffedBusiness::create();
@@ -110,10 +180,62 @@ it('enforces read and write tenant barriers using the non-owner application role
 })->with(['payments', 'refunds']);
 
 it('records each webhook event identity only once per provider', function (): void {
-    $event = ['gateway' => 'onvo', 'event_id' => 'fictitious-event-1', 'event_type' => 'payment-intent.succeeded', 'payload' => '{}'];
+    $event = ['gateway' => 'onvo', 'event_id' => 'fictitious-event-1', 'event_type' => 'payment-intent.succeeded', 'payload' => '{}', 'status' => 'failed', 'error' => 'payments.not_found'];
     DB::table('webhook_events')->insert(['id' => (string) Str::uuid7(), ...$event]);
     DB::table('webhook_events')->insert(['id' => (string) Str::uuid7(), ...$event, 'gateway' => 'paypal']);
 
     expect(fn () => DB::transaction(fn (): bool => DB::table('webhook_events')->insert(['id' => (string) Str::uuid7(), ...$event])))->toThrow(QueryException::class, 'webhook_events_gateway_event_id_unique');
     expect(DB::table('webhook_events')->count())->toBe(2);
+});
+
+it('keeps the outcome of each webhook event with the named PostgreSQL checks', function (array $outcome, string $constraint): void {
+    expect(fn () => DB::transaction(fn (): bool => DB::table('webhook_events')->insert([
+        'id' => (string) Str::uuid7(), 'gateway' => 'onvo', 'event_id' => 'fictitious-event-1', 'event_type' => 'checkout-session.succeeded', 'payload' => '{}', ...$outcome,
+    ])))->toThrow(QueryException::class, $constraint);
+})->with([
+    'an unknown status' => [['status' => 'ignored'], 'webhook_events_status_check'],
+    'a failure without error' => [['status' => 'failed'], 'webhook_events_error_check'],
+    'a processed event with an error' => [['status' => 'processed', 'processed_at' => now(), 'error' => 'payments.not_found'], 'webhook_events_error_check'],
+    'a processed event without its moment' => [['status' => 'processed'], 'webhook_events_processed_at_check'],
+    'a failure with a moment of processing' => [['status' => 'failed', 'error' => 'payments.not_found', 'processed_at' => now()], 'webhook_events_processed_at_check'],
+    'a pending event with an error' => [['status' => 'pending', 'error' => 'payments.not_found'], 'webhook_events_error_check'],
+    'a pending event with a moment of processing' => [['status' => 'pending', 'processed_at' => now()], 'webhook_events_processed_at_check'],
+]);
+
+it('keeps a new webhook event pending until it is processed', function (): void {
+    $id = (string) Str::uuid7();
+    DB::table('webhook_events')->insert(['id' => $id, 'gateway' => 'onvo', 'event_id' => 'fictitious-event-1', 'event_type' => 'checkout-session.succeeded', 'payload' => '{}']);
+
+    expect(DB::table('webhook_events')->where('id', $id)->first(['status', 'error', 'processed_at']))
+        ->toEqual((object) ['status' => 'pending', 'error' => null, 'processed_at' => null]);
+});
+
+it('finds the business of any reference of a payment only through fn_payment_business', function (): void {
+    $business = StaffedBusiness::create();
+    $payment = StoredPayments::create($business, StoredOrders::create($business)['order']);
+    app(BusinessTransaction::class)->scope(null);
+
+    expect(DB::table('payments')->count())->toBe(0);
+    foreach ([$payment->provider_reference, $payment->checkout_reference, $payment->capture_reference] as $reference) {
+        expect(DB::scalar('select fn_payment_business(?, ?)', ['onvo', $reference]))->toBe($business->business->id);
+    }
+    expect(DB::scalar('select fn_payment_business(?, ?)', ['paypal', $payment->provider_reference]))->toBeNull()
+        ->and(DB::scalar('select fn_payment_business(?, ?)', ['onvo', 'session-unknown']))->toBeNull();
+});
+
+it('runs fn_payment_business as the schema owner, with an empty search_path, and lets only the application role call it', function (): void {
+    $definition = DB::selectOne(
+        "select prosecdef, proconfig, pg_get_userbyid(proowner) as owner,
+                array(select coalesce(nullif(grantee::regrole::text, '-'), 'PUBLIC')
+                        from aclexplode(proacl) where privilege_type = 'EXECUTE' order by 1) as callers
+           from pg_proc where oid = 'fn_payment_business(text, text)'::regprocedure",
+    );
+    $owner = config('database.connections.pgsql_admin.username');
+    $callers = [$owner, config('database.connections.pgsql.username')];
+    sort($callers);
+
+    expect($definition->prosecdef)->toBeTrue()
+        ->and($definition->proconfig)->toBe('{"search_path=\"\""}')
+        ->and($definition->owner)->toBe($owner)
+        ->and($definition->callers)->toBe('{'.implode(',', $callers).'}');
 });

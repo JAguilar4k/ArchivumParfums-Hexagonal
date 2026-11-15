@@ -21,6 +21,22 @@ function layerNamespaces(string $layer): array
 }
 
 /**
+ * The framework: Illuminate and the namespace of every Laravel package installed, such as Laravel\Ai or
+ * Laravel\Sanctum. Pest finds a namespace through the autoloader, and no package maps the bare Laravel\ prefix,
+ * so the name Laravel alone would match nothing.
+ *
+ * @return list<string>
+ */
+function frameworkNamespaces(): array
+{
+    /** @var array<string, list<string>> $autoload */
+    $autoload = require dirname(__DIR__, 2).'/vendor/composer/autoload_psr4.php';
+    $laravel = array_filter(array_keys($autoload), fn (string $prefix): bool => str_starts_with($prefix, 'Laravel\\'));
+
+    return ['Illuminate', ...array_map(fn (string $prefix): string => rtrim($prefix, '\\'), array_values($laravel))];
+}
+
+/**
  * Root namespaces of the modules a domain must not know, given the domain namespace.
  *
  * @return list<string>
@@ -38,7 +54,7 @@ function foreignModules(string $domain): array
 
 foreach (layerNamespaces('Domain') as $domain) {
     arch("the domain {$domain} does not depend on the framework", function () use ($domain) {
-        expect($domain)->not->toUse(['Illuminate', 'Laravel']);
+        expect($domain)->not->toUse(frameworkNamespaces());
     });
 
     $outer = [...layerNamespaces('Application'), ...layerNamespaces('Infrastructure')];
@@ -60,7 +76,7 @@ foreach (layerNamespaces('Domain') as $domain) {
 
 foreach (layerNamespaces('Application') as $application) {
     arch("the application layer {$application} does not depend on the framework", function () use ($application) {
-        expect($application)->not->toUse(['Illuminate', 'Laravel']);
+        expect($application)->not->toUse(frameworkNamespaces());
     });
 
     $infrastructure = layerNamespaces('Infrastructure');

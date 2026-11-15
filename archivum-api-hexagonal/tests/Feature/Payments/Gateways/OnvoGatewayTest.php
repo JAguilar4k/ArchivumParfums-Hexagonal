@@ -296,7 +296,7 @@ it('requests and queries a refund in cents against its original intent', functio
         'api.onvopay.com/v1/refunds/refund-1' => Http::response(['id' => 'refund-1', 'mode' => 'test', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => $status]),
     ]);
 
-    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500, 'intent-1'));
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1'));
 
     expect($result->status)->toBe($status);
     expect($result->providerReference)->toBe('refund-1');
@@ -307,7 +307,7 @@ it('requests and queries a refund in cents against its original intent', functio
 it('queries an existing pending refund without sending a second refund request', function (): void {
     Http::fake(['api.onvopay.com/v1/refunds/refund-1' => Http::response(['id' => 'refund-1', 'mode' => 'test', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => 'succeeded'])]);
 
-    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500, 'intent-1', providerRefundReference: 'refund-1'));
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1', providerRefundReference: 'refund-1'));
 
     expect($result->status)->toBe('succeeded');
     Http::assertSent(fn (Request $request): bool => $request->method() === 'GET');
@@ -321,7 +321,7 @@ it('resolves the refund intent from a checkout that omits mode', function (): vo
         'api.onvopay.com/v1/refunds/refund-1' => Http::response(['id' => 'refund-1', 'mode' => 'test', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => 'succeeded']),
     ]);
 
-    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500));
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500));
 
     expect($result->status)->toBe('succeeded');
     Http::assertSent(fn (Request $request): bool => $request->method() === 'POST' && $request['paymentIntentId'] === 'intent-1' && $request['amount'] === 250_000);
@@ -333,7 +333,7 @@ it('requires an explicit test mode on a refund before accepting its outcome', fu
         'id' => 'refund-1', 'paymentIntentId' => 'intent-1', 'amount' => 250_000, 'currency' => 'CRC', 'status' => 'succeeded', ...$modeFields,
     ])]);
 
-    expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500, 'intent-1', providerRefundReference: 'refund-1')))->toThrow(GatewayUnavailableException::class);
+    expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1', providerRefundReference: 'refund-1')))->toThrow(GatewayUnavailableException::class);
 
     Http::assertSentCount(1);
 })->with([[
@@ -350,11 +350,56 @@ it('preserves the refund reference when its subsequent query cannot communicate'
         'api.onvopay.com/v1/refunds/refund-1' => Http::failedConnection(),
     ]);
 
-    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', 'session-1', 2_500, 'intent-1'));
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1'));
 
     expect($result->status)->toBe('pending');
     expect($result->providerReference)->toBe('refund-1');
     Http::assertSentCount(2);
+});
+
+it('reports a refusal of ONVO as a failed refund without a reference and without asking for it', function (int $status): void {
+    Http::fake(['api.onvopay.com/v1/refunds' => Http::response(['code' => 'refused'], $status)]);
+
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1'));
+
+    // ONVO created no refund, so there is no reference of the provider to keep or to query.
+    expect($result->status)->toBe('failed')->and($result->providerReference)->toBeNull();
+    Http::assertSentCount(1);
+})->with([
+    'a declined refund' => [402],
+    'an invalid request' => [400],
+    'a key ONVO does not accept' => [401],
+    'a request ONVO does not allow' => [403],
+    'an intent ONVO does not know' => [404],
+    'a refund ONVO cannot process' => [422],
+]);
+
+it('reports a refusal of ONVO to find the intent of a checkout as a failed refund, without requesting it', function (): void {
+    Http::fake(['api.onvopay.com/v1/checkout/sessions/session-1' => Http::response(['code' => 'not_found'], 404)]);
+
+    $result = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500));
+
+    expect($result->status)->toBe('failed')->and($result->providerReference)->toBeNull();
+    Http::assertSentCount(1);
+});
+
+it('reports a refund request whose outcome ONVO does not say as unavailable, never as failed', function (Closure $answer): void {
+    Http::fake(['api.onvopay.com/v1/refunds' => $answer()]);
+
+    expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->refund(new RefundRequest('local-refund', '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'session-1', 2_500, 'intent-1')))
+        ->toThrow(GatewayUnavailableException::class);
+
+    Http::assertSentCount(1);
+})->with([
+    'a timeout' => [fn () => Http::response(['code' => 'timeout'], 408)],
+    'a conflict' => [fn () => Http::response(['code' => 'conflict'], 409)],
+    'too many requests' => [fn () => Http::response(['code' => 'rate_limited'], 429)],
+    'an error of its server' => [fn () => Http::response(['code' => 'server_error'], 500)],
+    'a lost connection' => [fn () => Http::failedConnection()],
+]);
+
+it('never sends a refund whose answer was lost again, because ONVO documents no idempotency key', function (): void {
+    expect((new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->resendsRefunds())->toBeFalse();
 });
 
 it('accepts only the configured webhook secret regardless of header casing', function (): void {
@@ -365,3 +410,72 @@ it('accepts only the configured webhook secret regardless of header casing', fun
     expect($gateway->verifyWebhook('{}', []))->toBeFalse();
     Http::assertNothingSent();
 });
+
+it('reads a paid checkout notice with the identifiers Archivum sent and the total in whole colones', function (): void {
+    $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'type' => 'checkout-session.succeeded',
+        'data' => ['id' => 'session-1', 'mode' => 'test', 'status' => 'complete', 'currency' => 'CRC', 'amountTotal' => 750_000,
+            'metadata' => ['businessId' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'paymentId' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a61']],
+    ]));
+
+    expect($event->gateway)->toBe('onvo')
+        ->and($event->eventId)->toBe('checkout-session.succeeded:session-1')
+        ->and($event->aboutCharge())->toBeTrue()
+        ->and($event->reference)->toBe('session-1')
+        ->and($event->businessId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62')
+        ->and($event->paymentId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a61')
+        ->and($event->currency)->toBe('CRC')
+        ->and($event->amount)->toBe(7_500)
+        ->and($event->reportsFailure)->toBeFalse();
+    Http::assertNothingSent();
+});
+
+it('reads the notice ONVO documents for a failed intent as a failure without amount', function (): void {
+    $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'type' => 'payment-intent.failed',
+        'data' => ['id' => 'intent-1', 'accountId' => 'account-fictitious', 'currency' => 'CRC', 'capturableAmount' => 0, 'status' => 'requires_payment_method', 'metadata' => ['orderId' => 'order-fictitious']],
+    ]));
+
+    expect($event->eventId)->toBe('payment-intent.failed:intent-1')
+        ->and($event->reference)->toBe('intent-1')
+        ->and($event->currency)->toBe('CRC')
+        ->and($event->amount)->toBeNull()
+        ->and($event->reportsFailure)->toBeTrue();
+    Http::assertNothingSent();
+});
+
+it('reads an intent notice by its own amount and ignores metadata that is not Archivum\'s', function (mixed $metadata, mixed $amount, ?int $colones): void {
+    $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
+        'type' => 'payment-intent.failed', 'data' => ['id' => 'intent-1', 'mode' => 'test', 'currency' => 'CRC', 'amount' => $amount, 'metadata' => $metadata],
+    ]));
+
+    expect($event->reference)->toBe('intent-1')
+        ->and($event->businessId)->toBeNull()
+        ->and($event->paymentId)->toBeNull()
+        ->and($event->amount)->toBe($colones);
+})->with([
+    'no metadata' => [null, 750_000, 7_500],
+    'another integration' => [['orderId' => '42'], 750_000, 7_500],
+    'only one identifier' => [['businessId' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'paymentId' => 'not-a-uuid'], 750_000, 7_500],
+    'a fraction of a colón' => [null, 750_050, null],
+    'a decimal amount' => [null, 7500.5, null],
+]);
+
+it('reads a notice that is not about a charge by its type and object only', function (): void {
+    $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook('{"type":"subscription.renewal.succeeded","data":{"id":"subscription-1","mode":"test","amount":1}}');
+
+    expect($event->eventId)->toBe('subscription.renewal.succeeded:subscription-1')
+        ->and($event->aboutCharge())->toBeFalse()
+        ->and($event->amount)->toBeNull();
+});
+
+it('refuses a body that is not a test notice of ONVO', function (string $body): void {
+    expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook($body))
+        ->toThrow(InvalidValueException::class, 'payments.invalid_webhook');
+})->with([
+    'not JSON' => ['not-json'],
+    'without type' => ['{"data":{"id":"session-1"}}'],
+    'without object' => ['{"type":"checkout-session.succeeded"}'],
+    'an object without id' => ['{"type":"checkout-session.succeeded","data":{"amountTotal":750000}}'],
+    'live mode' => ['{"type":"checkout-session.succeeded","data":{"id":"session-1","mode":"live"}}'],
+]);

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\Sanctum;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Models\PerfumeVariantModel;
 use Src\Decants\Bottles\Infrastructure\Persistence\Models\DecantBottleModel;
+use Src\Payments\Payments\Infrastructure\Jobs\RequestRefundJob;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderLineModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
 use Tests\Support\Businesses\StaffedBusiness;
@@ -277,7 +279,8 @@ it('returns 409 when cancelling an ordered, ready or terminal order', function (
     assertDatabaseHas('orders', ['id' => $fixture['order']->id, 'status' => $status]);
 })->with(['ordered', 'ready', 'delivered', 'cancelled', 'expired']);
 
-it('R30: stores a pending refund tied to the original successful payment on cancellation', function () {
+it('R30: stores a pending refund tied to the original successful payment on cancellation and leaves its request in the queue', function () {
+    Queue::fake();
     $business = actingAsCustomer();
     $fixture = StoredOrders::create($business, 'confirmed');
     $this->scopeQueriesTo($business->business->id);
@@ -290,7 +293,9 @@ it('R30: stores a pending refund tied to the original successful payment on canc
     postJson('/api/v1/cuenta/pedidos/'.$fixture['order']->id.'/cancelacion')->assertOk()->assertJsonPath('data.pagado', 7500);
 
     $this->scopeQueriesTo($business->business->id);
-    assertDatabaseHas('refunds', ['payment_id' => $paymentId, 'amount' => 7500, 'status' => 'pending']);
+    assertDatabaseHas('refunds', ['payment_id' => $paymentId, 'amount' => 7500, 'status' => 'pending', 'attempted_at' => null]);
+    $refundId = (string) DB::table('refunds')->where('payment_id', $paymentId)->value('id');
+    Queue::assertPushed(RequestRefundJob::class, fn (RequestRefundJob $job): bool => $job->refundId === $refundId && $job->businessId === $business->business->id);
 });
 
 it('does not deliver a nominally paid order while a refund may still remove its credit', function () {
@@ -310,6 +315,7 @@ it('does not deliver a nominally paid order while a refund may still remove its 
 });
 
 it('marks an ordered bottle unavailable and requests only its allocated deposit', function () {
+    Queue::fake();
     $business = actingAsOwner();
     $fixture = StoredOrders::create($business, 'ordered', true, true);
     $this->scopeQueriesTo($business->business->id);
@@ -326,9 +332,11 @@ it('marks an ordered bottle unavailable and requests only its allocated deposit'
 
     $this->scopeQueriesTo($business->business->id);
     assertDatabaseHas('refunds', ['payment_id' => $paymentId, 'order_line_id' => $line->id, 'amount' => 7500, 'status' => 'pending']);
+    Queue::assertPushed(RequestRefundJob::class, 1);
 });
 
 it('R31: cancels an order with no available lines and reserves a refund of all paid money', function (int $paid) {
+    Queue::fake();
     $business = actingAsOwner();
     $fixture = StoredOrders::create($business, 'ordered');
     $this->scopeQueriesTo($business->business->id);
@@ -348,9 +356,11 @@ it('R31: cancels an order with no available lines and reserves a refund of all p
     $this->scopeQueriesTo($business->business->id);
     assertDatabaseHas('refunds', ['payment_id' => $paymentId, 'amount' => $paid, 'status' => 'pending']);
     assertDatabaseHas('orders', ['id' => $fixture['order']->id, 'status' => 'cancelled', 'paid' => $paid]);
+    Queue::assertPushed(RequestRefundJob::class, 1);
 })->with([7500, 15000]);
 
 it('reserves only the remaining refund when earlier refunds are pending or completed', function (bool $completed) {
+    Queue::fake();
     $business = actingAsOwner();
     $fixture = StoredOrders::create($business, 'ordered');
     $this->scopeQueriesTo($business->business->id);
@@ -377,6 +387,7 @@ it('reserves only the remaining refund when earlier refunds are pending or compl
     assertDatabaseCount('refunds', 2);
     assertDatabaseHas('refunds', ['payment_id' => $paymentId, 'order_line_id' => $second->id, 'amount' => 7500, 'status' => 'pending']);
     expect((int) DB::table('refunds')->where('payment_id', $paymentId)->sum('amount'))->toBe(15000);
+    Queue::assertPushed(RequestRefundJob::class, 2);
 })->with([false, true]);
 
 it('rejects negative monetary data and cross-business customer references at the database boundary', function (string $field) {

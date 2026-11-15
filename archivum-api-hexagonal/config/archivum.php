@@ -33,6 +33,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Queue
+    |--------------------------------------------------------------------------
+    |
+    | Attempts of every job of the queue and the seconds it waits before the
+    | second, third and later attempts; the last wait repeats (#156). A job
+    | that runs out of attempts is kept in failed_jobs. Fixed for every
+    | installation, like the timeout of the AI provider.
+    |
+    */
+
+    'queue' => [
+        'tries' => 5,
+        'backoff' => [10, 60, 300],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Privacy notice
     |--------------------------------------------------------------------------
     |

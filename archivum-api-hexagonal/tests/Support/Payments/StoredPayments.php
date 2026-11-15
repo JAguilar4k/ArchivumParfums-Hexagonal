@@ -13,13 +13,33 @@ use Tests\Support\Businesses\StaffedBusiness;
 
 final class StoredPayments
 {
-    public static function create(StaffedBusiness $business, OrderModel $order, string $status = 'pending', string $gateway = 'onvo', int $amount = 7500): PaymentModel
+    public static function create(StaffedBusiness $business, OrderModel $order, string $status = 'pending', string $gateway = 'onvo', int $amount = 7500, string $purpose = 'deposit'): PaymentModel
     {
-        return app(BusinessTransaction::class)->run($business->business->id, function () use ($business, $order, $status, $gateway, $amount): PaymentModel {
+        return app(BusinessTransaction::class)->run($business->business->id, function () use ($business, $order, $status, $gateway, $amount, $purpose): PaymentModel {
             $id = (string) Str::uuid7();
 
             return PaymentModel::factory()->create([
-                'id' => $id, 'business_id' => $business->business->id, 'order_id' => $order->id,
+                'id' => $id, 'business_id' => $business->business->id, 'order_id' => $order->id, 'purpose' => $purpose,
+                'status' => $status, 'gateway' => $gateway, 'amount' => $amount,
+                'provider_reference' => 'session-'.$id, 'checkout_reference' => 'session-'.$id,
+                'capture_reference' => 'intent-'.$id, 'charged_currency' => $gateway === 'paypal' ? 'USD' : 'CRC',
+                'charged_amount' => $gateway === 'paypal' ? GatewayMoney::dollarsFromColones($amount, '500') : $amount,
+                'exchange_rate' => $gateway === 'paypal' ? '500.000000' : null,
+            ]);
+        });
+    }
+
+    /**
+     * Store the payment of the full price of a decant pack, as StartPayment leaves it with the checkout it created, in
+     * the transaction of its business.
+     */
+    public static function forPack(StaffedBusiness $business, string $packId, string $status = 'pending', string $gateway = 'onvo', int $amount = 40000): PaymentModel
+    {
+        return app(BusinessTransaction::class)->run($business->business->id, function () use ($business, $packId, $status, $gateway, $amount): PaymentModel {
+            $id = (string) Str::uuid7();
+
+            return PaymentModel::factory()->create([
+                'id' => $id, 'business_id' => $business->business->id, 'order_id' => null, 'decant_pack_id' => $packId, 'purpose' => 'full',
                 'status' => $status, 'gateway' => $gateway, 'amount' => $amount,
                 'provider_reference' => 'session-'.$id, 'checkout_reference' => 'session-'.$id,
                 'capture_reference' => 'intent-'.$id, 'charged_currency' => $gateway === 'paypal' ? 'USD' : 'CRC',
