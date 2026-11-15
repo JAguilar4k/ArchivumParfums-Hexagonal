@@ -6,6 +6,7 @@ namespace Src\Sales\Orders\Infrastructure;
 
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Src\Sales\Orders\Application\Contracts\DecantPackRedemption;
 use Src\Sales\Orders\Application\Contracts\DecantStock;
 use Src\Sales\Orders\Application\Contracts\OrderCustomers;
 use Src\Sales\Orders\Application\Contracts\OrderDeadlines;
@@ -16,6 +17,7 @@ use Src\Sales\Orders\Domain\Entities\Order;
 use Src\Sales\Orders\Infrastructure\Accounts\AccountsOrderCustomers;
 use Src\Sales\Orders\Infrastructure\Catalog\CatalogOrderProducts;
 use Src\Sales\Orders\Infrastructure\Decants\BottleDecantStock;
+use Src\Sales\Orders\Infrastructure\Decants\PackDecantRedemption;
 use Src\Sales\Orders\Infrastructure\Persistence\Repositories\EloquentOrderRepository;
 use Src\Sales\Orders\Infrastructure\Policies\OrderPolicy;
 use Src\Sales\Orders\Infrastructure\Queue\QueuedOrderDeadlines;
@@ -29,6 +31,7 @@ final class OrdersServiceProvider extends ServiceProvider
         OrderCustomers::class => AccountsOrderCustomers::class,
         OrderProducts::class => CatalogOrderProducts::class,
         DecantStock::class => BottleDecantStock::class,
+        DecantPackRedemption::class => PackDecantRedemption::class,
         OrderDeadlines::class => QueuedOrderDeadlines::class,
     ];
 

@@ -43,7 +43,7 @@ function usesBusinessContext(RouteDefinition $route, string $source): bool
     $ownTransactionRoutes = match ($source) {
         'staff' => ['api/v1/panel/pedidos/{pedido}/reembolsos'],
         'account' => ['api/v1/cuenta/pedidos/{pedido}/pagos', 'api/v1/cuenta/pagos/{pago}'],
-        'route' => ['api/v1/tiendas/{tienda}/recomendaciones'],
+        'route' => ['api/v1/tiendas/{tienda}/paquetes/{paquete}/compra', 'api/v1/tiendas/{tienda}/recomendaciones'],
         default => [],
     };
 
