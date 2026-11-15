@@ -219,6 +219,8 @@ El reembolso previsto se solicita con `POST /v2/payments/captures/{capture_id}/r
 | Se pagó fuera y falla la transacción local | La referencia debe permitir consultar y aplicar después, sin cobrar otra vez. |
 | Vence el pedido mientras no hay resultado final externo | Resolver la carrera por conciliación y estado persistido; no prometer cancelación del cobro externo solo por vencer localmente. |
 
+Actualización del **09/11/2026** (#97): los reembolsos aplican esta política. Un rechazo explícito deja el reembolso `failed`: con ONVO, cualquier error 4xx salvo 408, 409 y 429; con PayPal, 400, 403, 404 y 422, como `REFUND_AMOUNT_EXCEEDED`. La falta de respuesta (sin conexión, 408, 429 o 5xx, y el 409 de PayPal, que su especificación de Payments v2 describe como una llamada anterior para el mismo recurso que sigue en proceso) lo deja `pending`. ONVO no documenta una llave de idempotencia, así que ese reembolso no se reenvía y lo revisa una persona en la pasarela. PayPal responde el estado de la petición anterior que llevó el mismo `PayPal-Request-Id` [P7], así que los reintentos de la cola, que ocurren en minutos, la piden otra vez sin crear otra devolución.
+
 ## 7. Pago dividido y alcance de #100
 
 ONVO ofrece cuentas conectadas y cobro en nombre de un vendedor con comisión marketplace [O9]. PayPal tiene una oferta para plataformas [P8]. GreenPay publica marketplace y distribución por comercio [G3]; sus transferencias IBAN son otro producto [G4]. No se encontró en las fuentes consultadas una garantía equivalente de Tilopay para repartir el mismo cobro entre asesores.

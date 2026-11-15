@@ -6,6 +6,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Testing\TestResponse;
 use Src\Shared\Domain\Contracts\AuditTrail;
 use Src\Shared\Domain\ValueObjects\AuditAction;
@@ -195,6 +196,8 @@ it('leaves no entry when a presentation changes without touching its manual pric
 });
 
 it('leaves one entry per refund, with the customer who cancelled as its author', function () {
+    // The request to the provider waits in the queue (#97); the entry is written with the refund, before it.
+    Queue::fake();
     $resources = MatrixResources::create();
 
     $response = auditedRequest('cliente', 'POST', "api/v1/cuenta/pedidos/{$resources['pedido']}/cancelacion")->assertOk();

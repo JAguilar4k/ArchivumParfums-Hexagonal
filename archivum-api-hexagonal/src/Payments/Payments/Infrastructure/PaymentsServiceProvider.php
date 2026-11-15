@@ -8,17 +8,24 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Src\Decants\Packs\Application\Contracts\PackPayments;
 use Src\Payments\Payments\Application\Contracts\BusinessScope;
+use Src\Payments\Payments\Application\Contracts\OutgoingRefunds;
+use Src\Payments\Payments\Application\Contracts\PayablePackReader;
 use Src\Payments\Payments\Application\Contracts\PayableReader;
 use Src\Payments\Payments\Application\Contracts\PaymentBusinesses;
 use Src\Payments\Payments\Application\Contracts\PaymentRecorders;
 use Src\Payments\Payments\Application\Contracts\PendingPaymentEvents;
 use Src\Payments\Payments\Application\Contracts\PendingPayments;
+use Src\Payments\Payments\Application\Contracts\PendingRefunds;
 use Src\Payments\Payments\Application\Contracts\WebhookEventLog;
 use Src\Payments\Payments\Application\UseCases\ApplyPaymentEvent;
 use Src\Payments\Payments\Application\UseCases\ObservePayment;
-use Src\Payments\Payments\Application\UseCases\ProcessOrderRefunds;
 use Src\Payments\Payments\Application\UseCases\ReconcilePayment;
+use Src\Payments\Payments\Application\UseCases\ReconcileRefund;
+use Src\Payments\Payments\Application\UseCases\RefundPayment;
+use Src\Payments\Payments\Application\UseCases\RequestOrderRefunds;
+use Src\Payments\Payments\Application\UseCases\RequestRefund;
 use Src\Payments\Payments\Application\UseCases\StartPayment;
 use Src\Payments\Payments\Domain\Contracts\ExchangeRates;
 use Src\Payments\Payments\Domain\Contracts\PaymentGateways;
@@ -27,6 +34,8 @@ use Src\Payments\Payments\Domain\Contracts\RefundRepository;
 use Src\Payments\Payments\Domain\Entities\Payment;
 use Src\Payments\Payments\Infrastructure\Businesses\BusinessesPaymentRecorders;
 use Src\Payments\Payments\Infrastructure\Console\ReconcilePaymentsConsoleCommand;
+use Src\Payments\Payments\Infrastructure\Decants\DecantsPayablePackReader;
+use Src\Payments\Payments\Infrastructure\Decants\PaymentPackPayments;
 use Src\Payments\Payments\Infrastructure\Gateways\Onvo\OnvoGateway;
 use Src\Payments\Payments\Infrastructure\Gateways\PayPal\PayPalGateway;
 use Src\Payments\Payments\Infrastructure\GatewaySelection\BusinessExchangeRates;
@@ -34,14 +43,18 @@ use Src\Payments\Payments\Infrastructure\GatewaySelection\ConfiguredPaymentGatew
 use Src\Payments\Payments\Infrastructure\Persistence\PaymentTransactionRunner;
 use Src\Payments\Payments\Infrastructure\Persistence\Queries\PostgresPaymentBusinesses;
 use Src\Payments\Payments\Infrastructure\Persistence\Queries\PostgresPendingPayments;
+use Src\Payments\Payments\Infrastructure\Persistence\Queries\PostgresPendingRefunds;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\DatabaseRefundRepository;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\DatabaseWebhookEventLog;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymentRepository;
 use Src\Payments\Payments\Infrastructure\Policies\PaymentPolicy;
+use Src\Payments\Payments\Infrastructure\Queue\QueuedOutgoingRefunds;
 use Src\Payments\Payments\Infrastructure\Queue\QueuedPendingPaymentEvents;
+use Src\Payments\Payments\Infrastructure\Sales\PaymentOrderPayments;
 use Src\Payments\Payments\Infrastructure\Sales\PaymentRefundRequests;
 use Src\Payments\Payments\Infrastructure\Sales\SalesPayableReader;
 use Src\Payments\Payments\Infrastructure\Tenancy\PaymentEventBusinessContext;
+use Src\Sales\Orders\Application\Contracts\OrderPayments;
 use Src\Sales\Orders\Application\Contracts\RefundRequests;
 use Src\Shared\Domain\Contracts\TransactionRunner;
 
@@ -53,22 +66,30 @@ final class PaymentsServiceProvider extends ServiceProvider
         PaymentGateways::class => ConfiguredPaymentGateways::class,
         ExchangeRates::class => BusinessExchangeRates::class,
         PayableReader::class => SalesPayableReader::class,
+        PayablePackReader::class => DecantsPayablePackReader::class,
+        PackPayments::class => PaymentPackPayments::class,
         RefundRepository::class => DatabaseRefundRepository::class,
         RefundRequests::class => PaymentRefundRequests::class,
+        OrderPayments::class => PaymentOrderPayments::class,
         WebhookEventLog::class => DatabaseWebhookEventLog::class,
         PendingPaymentEvents::class => QueuedPendingPaymentEvents::class,
         PaymentBusinesses::class => PostgresPaymentBusinesses::class,
         PendingPayments::class => PostgresPendingPayments::class,
+        OutgoingRefunds::class => QueuedOutgoingRefunds::class,
+        PendingRefunds::class => PostgresPendingRefunds::class,
         BusinessScope::class => PaymentEventBusinessContext::class,
         PaymentRecorders::class => BusinessesPaymentRecorders::class,
     ];
 
     public function register(): void
     {
-        $this->app->when([StartPayment::class, ObservePayment::class, ProcessOrderRefunds::class, ApplyPaymentEvent::class, ReconcilePayment::class])
-            ->needs(TransactionRunner::class)->give(PaymentTransactionRunner::class);
+        $this->app->when([
+            StartPayment::class, ObservePayment::class, ApplyPaymentEvent::class, ReconcilePayment::class,
+            RefundPayment::class, RequestRefund::class, ReconcileRefund::class, RequestOrderRefunds::class,
+        ])->needs(TransactionRunner::class)->give(PaymentTransactionRunner::class);
         // One per request, job or command: ProcessPaymentEventJob and ReconcilePaymentsConsoleCommand bind it as the
-        // BusinessContext, and ProcessPaymentEvent and ReconcilePayment pin the business of each payment through BusinessScope.
+        // BusinessContext, and ProcessPaymentEvent, ReconcilePayment and ReconcileRefund pin the business of each payment
+        // or refund through BusinessScope. RequestRefundJob carries its business, and ScopeJobToBusiness binds it.
         $this->app->scoped(PaymentEventBusinessContext::class);
         $this->app->bind(OnvoGateway::class, fn (Application $app): OnvoGateway => new OnvoGateway(
             (string) config('payments.onvo.secret_key'),

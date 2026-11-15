@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Sleep;
 use Src\Recommendations\Recommender\Domain\Contracts\AiRecommender;
 use Src\Recommendations\Recommender\Domain\Exceptions\AiUnavailableException;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogPerfume;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogVariant;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CustomerPreferences;
+use Src\Recommendations\Recommender\Domain\ValueObjects\Recommendation;
 use Src\Recommendations\Recommender\Domain\ValueObjects\RecommendationOrigin;
 use Src\Recommendations\Recommender\Domain\ValueObjects\SuggestedPerfume;
-use Src\Recommendations\Recommender\Infrastructure\Ai\LaravelAiRecommender;
 
 use function Pest\Laravel\travel;
 
@@ -119,7 +120,7 @@ it('asks the configured model for the declared schema, with the catalog apart fr
             ->and($schema['properties']['preferences']['required'])->toBe(['notes'])
             ->and($schema['properties']['preferences']['properties']['time_of_day']['enum'])->toBe(['day', 'afternoon', 'night'])
             ->and($schema['properties']['preferences']['properties']['climate']['enum'])->toBe(['warm', 'temperate', 'cold'])
-            ->and($schema['properties']['perfumes']['maxItems'])->toBe(LaravelAiRecommender::MAX_PERFUMES)
+            ->and($schema['properties']['perfumes']['maxItems'])->toBe(Recommendation::MAX_PERFUMES)
             ->and($schema['properties']['perfumes']['items']['required'])->toBe(['id', 'reason']);
 
         return true;
@@ -143,9 +144,33 @@ it('keeps the values of the schema for the check against the catalog, which come
 
     $recommendation = app(AiRecommender::class)->recommend(RECOMMENDER_TEXT, recommenderCatalog());
 
-    // The adapter only translates: a moment, a climate, a budget, a perfume or a reason that are not valid are discarded by #119.
+    // The adapter only translates: SuggestionValidator discards a moment, a climate, a budget, a perfume or a reason that are not valid.
     expect($recommendation->preferences)->toEqual(new CustomerPreferences(['vainilla'], 'madrugada', 'lluvioso', null, 0))
         ->and($recommendation->perfumes)->toEqual([new SuggestedPerfume('perfume-inventado', ''), new SuggestedPerfume(RECOMMENDER_AMBER_ID, 'Gratis por hoy.')]);
+});
+
+it('keeps only the identifier and the reason of each perfume, so a store, a role, a name or a price the AI makes up never leaves the adapter', function (): void {
+    Http::fake([GEMINI_INTERACTIONS => Http::response(geminiAnswer(recommenderAnswer([
+        'store' => 'otra-tienda',
+        'role' => 'owner',
+        'perfumes' => [[
+            'id' => RECOMMENDER_AMBER_ID,
+            'reason' => 'Su vainilla y su ámbar abrigan una cita en una noche fría.',
+            'brand' => 'Marca Inventada',
+            'name' => 'Nombre Inventado',
+            'price' => 0,
+            'presentations' => [['ml' => 100, 'price' => 0]],
+        ]],
+    ])))]);
+
+    $recommendation = app(AiRecommender::class)->recommend(RECOMMENDER_TEXT, recommenderCatalog());
+
+    // Brand, name and prices are read from the catalog when the answer is built (#118), never from the AI (#119).
+    expect($recommendation)->toEqual(new Recommendation(
+        RecommendationOrigin::Ai,
+        new CustomerPreferences(['vainilla'], 'night', 'cold', 'una cita', 90_000),
+        [new SuggestedPerfume(RECOMMENDER_AMBER_ID, 'Su vainilla y su ámbar abrigan una cita en una noche fría.')],
+    ));
 });
 
 it('R50: reports an error of the provider as unavailable, without letting an exception of the SDK or of the HTTP client out', function (Closure $answer): void {
@@ -165,6 +190,34 @@ it('R50: reports an error of the provider as unavailable, without letting an exc
     'empty body' => fn () => fn () => Http::response(''),
     'host it cannot reach' => fn () => Http::failedConnection(),
 ]);
+
+it('logs the cause and the duration of a failure, never the text of the customer', function (Closure $answer, string $cause, int $atLeastMs): void {
+    Sleep::fake();
+    Http::fake([GEMINI_INTERACTIONS => $answer]);
+    Log::shouldReceive('warning')->once()->with('The AI recommender is unavailable.', Mockery::on(
+        fn (array $context): bool => array_keys($context) === ['cause', 'duration_ms']
+            && $context['cause'] === $cause
+            && is_int($context['duration_ms'])
+            && $context['duration_ms'] >= $atLeastMs,
+    ));
+
+    expect(fn () => app(AiRecommender::class)->recommend(RECOMMENDER_TEXT, recommenderCatalog()))->toThrow(AiUnavailableException::class, $cause);
+})->with([
+    'provider error' => [fn () => fn () => Http::response(['error' => ['code' => 500, 'message' => 'Internal error.']], 500), 'recommendations.ai_failed', 0],
+    'time limit' => [fn () => function (Request $request) {
+        travel(10_001)->milliseconds();
+
+        return Http::failedConnection('cURL error 28: Operation timed out after 10001 milliseconds')($request);
+    }, 'recommendations.ai_timed_out', 10_000],
+    'answer without the shape of the schema' => [fn () => fn () => Http::response(geminiAnswer('{"perfumes": []}')), 'recommendations.ai_invalid_output', 0],
+]);
+
+it('logs nothing when the provider answers in time', function (): void {
+    Http::fake([GEMINI_INTERACTIONS => Http::response(geminiAnswer(recommenderAnswer()))]);
+    Log::shouldReceive('warning')->never();
+
+    expect(app(AiRecommender::class)->recommend(RECOMMENDER_TEXT, recommenderCatalog())->origin)->toBe(RecommendationOrigin::Ai);
+});
 
 it('R50: cuts the request at the fixed limit and reports that the provider ran out of time', function (): void {
     Http::fake([GEMINI_INTERACTIONS => function (Request $request) {
@@ -218,5 +271,5 @@ it('discards whole an answer that does not have the shape or the types of the sc
     'a perfume without a reason' => recommenderAnswer(['perfumes' => [['id' => RECOMMENDER_AMBER_ID]]]),
     'a perfume without an id' => recommenderAnswer(['perfumes' => [['reason' => 'Encaja.']]]),
     'an id that is not a text' => recommenderAnswer(['perfumes' => [['id' => 12, 'reason' => 'Encaja.']]]),
-    'more than five perfumes' => recommenderAnswer(['perfumes' => array_fill(0, LaravelAiRecommender::MAX_PERFUMES + 1, ['id' => RECOMMENDER_AMBER_ID, 'reason' => 'Encaja.'])]),
+    'more than five perfumes' => recommenderAnswer(['perfumes' => array_fill(0, Recommendation::MAX_PERFUMES + 1, ['id' => RECOMMENDER_AMBER_ID, 'reason' => 'Encaja.'])]),
 ]);

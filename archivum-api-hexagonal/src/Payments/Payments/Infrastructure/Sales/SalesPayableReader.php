@@ -66,11 +66,19 @@ final readonly class SalesPayableReader implements PayableReader
         return new PayableOrder($order->id->value, $businessId->value, $order->status->value, $order->amounts->dueNow, $order->amounts->subtotal, $order->amounts->paid, array_any($order->lines, fn ($line): bool => $line->kind === OrderLineKind::Bottle), $business->settings->defaultGateway, $rate?->value, $this->refunds->hasPendingRefunds($order->id->value));
     }
 
+    /**
+     * Besides the lock, the order changes only while it keeps the status it was read with, as its expiry does (#158):
+     * if another operation changed it first, the transaction of the settlement is undone.
+     */
     public function applyPayment(string $orderId, int $amount): void
     {
         $order = $this->orders->find(new OrderId($orderId), true) ?? throw new PaymentNotFoundException('payments.not_found');
+        $status = $order->status;
         $order->recordPayment($amount);
-        $this->orders->save($order);
+
+        if (! $this->orders->saveIfStatus($order, $status)) {
+            throw new InvalidPaymentTransitionException('payments.invalid_transition');
+        }
     }
 
     public function applyRefund(string $orderId, int $amount): void

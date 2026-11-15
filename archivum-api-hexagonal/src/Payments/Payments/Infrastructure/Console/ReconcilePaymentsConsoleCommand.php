@@ -7,8 +7,11 @@ namespace Src\Payments\Payments\Infrastructure\Console;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;
 use Src\Payments\Payments\Application\Contracts\PendingPayments;
+use Src\Payments\Payments\Application\Contracts\PendingRefunds;
 use Src\Payments\Payments\Application\DTOs\ReconcilePaymentCommand;
+use Src\Payments\Payments\Application\DTOs\ReconcileRefundCommand;
 use Src\Payments\Payments\Application\UseCases\ReconcilePayment;
+use Src\Payments\Payments\Application\UseCases\ReconcileRefund;
 use Src\Payments\Payments\Domain\Exceptions\GatewayUnavailableException;
 use Src\Payments\Payments\Infrastructure\Tenancy\PaymentEventBusinessContext;
 use Src\Shared\Domain\Contracts\BusinessContext;
@@ -26,22 +29,25 @@ final class ReconcilePaymentsConsoleCommand extends Command
     }
 
     /**
-     * Ask the provider about every pending payment that already waited for its notice, each one in a transaction of its
-     * own business. A payment the provider cannot answer for stays pending for the next run, and the others are still
-     * reviewed.
+     * Ask the provider about every pending payment that already waited for its notice, and then about every pending
+     * refund it already accepted (#97), each one in a transaction of its own business. One the provider cannot answer
+     * for stays pending for the next run, and the others are still reviewed.
      */
-    public function handle(PendingPayments $pendingPayments): int
+    public function handle(PendingPayments $pendingPayments, PendingRefunds $pendingRefunds): int
     {
         $settled = 0;
         $unreviewed = 0;
+        $settledRefunds = 0;
+        $unreviewedRefunds = 0;
 
-        // A command has no request that names a business: the use case is resolved only after this context is bound,
-        // so every repository it uses asks the business that ReconcilePayment pins for each payment. The binding is
-        // removed afterwards, as ProcessPaymentEventJob does.
+        // A command has no request that names a business: the use cases are resolved only after this context is bound,
+        // so every repository they use asks the business that ReconcilePayment and ReconcileRefund pin for each payment
+        // or refund. The binding is removed afterwards, as ProcessPaymentEventJob does.
         app()->instance(BusinessContext::class, app(PaymentEventBusinessContext::class));
 
         try {
             $reconcilePayment = app(ReconcilePayment::class);
+            $reconcileRefund = app(ReconcileRefund::class);
 
             foreach ($pendingPayments->dueAt(now()->toDateTimeImmutable(), (int) $this->option('limit')) as $payment) {
                 try {
@@ -56,6 +62,18 @@ final class ReconcilePaymentsConsoleCommand extends Command
                     }
                 }
             }
+
+            foreach ($pendingRefunds->dueAt(now()->toDateTimeImmutable(), (int) $this->option('limit')) as $refund) {
+                try {
+                    $settledRefunds += (int) $reconcileRefund->execute(new ReconcileRefundCommand($refund->refundId, $refund->businessId));
+                } catch (DomainException $exception) {
+                    $unreviewedRefunds++;
+
+                    if (! $exception instanceof GatewayUnavailableException) {
+                        report($exception);
+                    }
+                }
+            }
         } finally {
             app()->forgetInstance(BusinessContext::class);
         }
@@ -64,6 +82,12 @@ final class ReconcilePaymentsConsoleCommand extends Command
 
         if ($unreviewed > 0) {
             $this->components->warn(trans_choice('payments.payments_not_reconciled', $unreviewed, ['count' => $unreviewed]));
+        }
+
+        $this->components->info(trans_choice('payments.refunds_reconciled', $settledRefunds, ['count' => $settledRefunds]));
+
+        if ($unreviewedRefunds > 0) {
+            $this->components->warn(trans_choice('payments.refunds_not_reconciled', $unreviewedRefunds, ['count' => $unreviewedRefunds]));
         }
 
         return self::SUCCESS;

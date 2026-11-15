@@ -21,6 +21,12 @@ final readonly class BottleDecantStock implements DecantStock
         $this->reservations->release($bottleId, $ml, $lineId, $userId);
     }
 
+    /** The movement keeps the line and the reason, in the words of lang/es, and no user: the system released it. */
+    public function releaseExpired(string $bottleId, int $ml, string $lineId): void
+    {
+        $this->reservations->release($bottleId, $ml, $lineId, null, (string) __('orders.expired_release'));
+    }
+
     public function consume(string $bottleId, int $ml, string $lineId, string $userId): void
     {
         $this->reservations->consume($bottleId, $ml, $lineId, $userId);

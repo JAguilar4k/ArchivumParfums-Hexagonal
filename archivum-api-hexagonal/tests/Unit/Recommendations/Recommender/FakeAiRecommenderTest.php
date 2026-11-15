@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Src\Recommendations\Recommender\Domain\Exceptions\AiUnavailableException;
+use Src\Recommendations\Recommender\Domain\Services\SuggestionValidator;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogPerfume;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CatalogVariant;
 use Src\Recommendations\Recommender\Domain\ValueObjects\CustomerPreferences;
@@ -53,7 +54,7 @@ it('answers data that the schema allows and the catalog does not', function (): 
     expect($recommendation->preferences)->toEqual(new CustomerPreferences(['vainilla'], 'madrugada', 'lluvioso', 'una cena', 0))
         ->and($recommendation->perfumes)->toEqual([
             new SuggestedPerfume(FakeAiRecommender::UNKNOWN_PERFUME, 'Un perfume que la tienda no vende.'),
-            new SuggestedPerfume($catalog[0]->id, 'Su vainilla acompaña bien una cena.'),
             new SuggestedPerfume($catalog[0]->id, ''),
+            new SuggestedPerfume($catalog[0]->id, str_repeat('a', SuggestionValidator::MAX_REASON_LENGTH + 1)),
         ]);
 });

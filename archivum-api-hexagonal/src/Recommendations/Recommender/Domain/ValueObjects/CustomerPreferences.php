@@ -7,9 +7,9 @@ namespace Src\Recommendations\Recommender\Domain\ValueObjects;
 final readonly class CustomerPreferences
 {
     /**
-     * What the customer's text asks for (R48). What the text does not mention is null or an empty list. The values
-     * are what the recommender read and are not checked yet: a moment, a climate or a budget that does not exist is
-     * discarded before the recommendation is used (#119).
+     * What the customer's text asks for (R48). What the text does not mention is null or an empty list. In what the
+     * AI answers, the values are only what it read: SuggestionValidator discards a moment, a climate or a budget that
+     * does not exist before the recommendation is used.
      *
      * @param  list<string>  $notes  The notes the text names.
      * @param  string|null  $timeOfDay  day, afternoon or night, as the catalog tags it.

@@ -99,10 +99,16 @@ final class Order
         $this->cancelledAt = $at;
     }
 
+    /** Whether the order still waits for its payment once its deadline arrived (R25). */
+    public function isOverdueAt(DateTimeImmutable $at): bool
+    {
+        return $this->status === OrderStatus::PendingPayment && $at >= $this->expiresAt;
+    }
+
     /** Expire only an unpaid pending order whose deadline elapsed. */
     public function expire(DateTimeImmutable $at): void
     {
-        if ($this->status !== OrderStatus::PendingPayment || $at < $this->expiresAt) {
+        if (! $this->isOverdueAt($at)) {
             throw new OrderConflictException('orders.transition');
         }
 

@@ -36,6 +36,23 @@ return [
             'timezone' => env('APP_TIMEZONE', 'America/Costa_Rica'),
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
+        // The same database and role as pgsql, in a session of its own: the locks of the cache (config/cache.php)
+        // stay outside the transaction of any operation (#156).
+        'pgsql_locks' => [
+            'driver' => 'pgsql',
+            'url' => env('DB_URL'),
+            'host' => env('DB_HOST', '127.0.0.1'),
+            'port' => env('DB_PORT', '5432'),
+            'database' => env('DB_DATABASE', 'archivum_hexagonal'),
+            'username' => env('DB_USERNAME', 'archivum_app'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'timezone' => env('APP_TIMEZONE', 'America/Costa_Rica'),
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
     ],
 
     'migrations' => [

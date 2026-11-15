@@ -24,12 +24,13 @@ Este documento lista cada dato personal que guarda ArchivumParfums, para qué se
 - **Aviso de privacidad.** `POST /api/v1/cuentas` exige `acepta_privacidad: true`. La versión aceptada sale de `ARCHIVUM_PRIVACY_NOTICE_VERSION`, nunca del cuerpo. El texto del aviso lo muestra archivum-web.
 - **Registros sin datos sensibles.** `RedactSensitiveData` reemplaza contraseñas, tokens, correos y teléfonos (con o sin `+506`, espacios o guion) en cada entrada de los canales `single`, `daily`, `stderr`, `syslog` y `errorlog`, también si vienen en el mensaje de una consulta fallida. Las excepciones conservan su traza y las que envuelven, sin los argumentos de cada llamada. Los canales `slack` y `papertrail` no llevan el filtro: si se activan, hay que agregárselo en `config/logging.php`.
 - **Datos ficticios.** Los seeders solo crean correos del dominio reservado `.test` y teléfonos de prueba; una prueba falla si eso cambia.
+- **Recomendador con IA.** Al proveedor solo viajan el texto del cliente y el catálogo de la vitrina, con los campos que ya publica (R51, #121): el caso de uso no recibe la cuenta de quien pregunta. Antes de enviarlo, `PersonalDataMask` cambia los correos y teléfonos que el texto traiga por `[correo]` y `[teléfono]`, con los patrones de `RedactSensitiveData`. El log de la IA guarda la causa y la duración de cada falla y cuántos valores se descartaron de una sugerencia, por causa, nunca el texto. `RecommendationPrivacyTest` lo comprueba con un cliente autenticado, la solicitud simulada al proveedor y el log.
 
 ## Lo que cubren otros issues
 
-- Al proveedor de IA nunca viajan datos personales (R51): #121.
 - Exportar y corregir los datos: #111. Eliminar la cuenta: #112.
 - Pulse todavía no está instalado: #180 debe probar que tampoco guarda estos datos. `RedactSensitiveData` no lo cubre.
+- El formulario del recomendador avisa que el texto viaja a un proveedor externo de IA y sugiere no incluir datos personales: es un criterio de aceptación de #128, que lo construye en archivum-web. Julián lo decidió junto con la máscara de #121.
 
 ## Pendiente de definir
 

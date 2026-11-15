@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
+use Tests\Support\Decants\StoredPacks;
 use Tests\Support\Payments\StoredPayments;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Sales\StoredOrders;
@@ -87,6 +88,43 @@ it('prevents two pending attempts of the same order and purpose', function (): v
     ])))->toThrow(QueryException::class, 'payments_one_pending_purpose');
 });
 
+it('pays exactly one order or one decant pack', function (bool $withOrder, bool $withPack): void {
+    $business = StaffedBusiness::create();
+    $order = StoredOrders::create($business)['order'];
+    $pack = StoredPacks::create($business);
+    app(BusinessTransaction::class)->scope($business->business->id);
+
+    expect(fn () => DB::transaction(fn (): bool => DB::table('payments')->insert([
+        'id' => (string) Str::uuid7(), 'business_id' => $business->business->id,
+        'order_id' => $withOrder ? $order->id : null, 'decant_pack_id' => $withPack ? $pack['pack_id'] : null,
+        'purpose' => 'full', 'amount' => 40000, 'gateway' => 'onvo', 'status' => 'pending',
+    ])))->toThrow(QueryException::class, 'payments_payable_check');
+})->with(['an order and a pack' => [true, true], 'neither of them' => [false, false]]);
+
+it('pays a decant pack of its own business, with one pending attempt for each purpose', function (): void {
+    $business = StaffedBusiness::create();
+    $pack = StoredPacks::create($business)['pack_id'];
+    $foreign = StoredPacks::create(StaffedBusiness::create())['pack_id'];
+    app(BusinessTransaction::class)->scope($business->business->id);
+    $attempt = fn (string $packId): array => [
+        'id' => (string) Str::uuid7(), 'business_id' => $business->business->id, 'decant_pack_id' => $packId,
+        'purpose' => 'full', 'amount' => 40000, 'gateway' => 'onvo', 'status' => 'pending',
+    ];
+
+    DB::table('payments')->insert($attempt($pack));
+
+    expect(DB::table('payments')->where('decant_pack_id', $pack)->whereNull('order_id')->count())->toBe(1)
+        ->and(fn () => DB::transaction(fn (): bool => DB::table('payments')->insert($attempt($pack))))
+        ->toThrow(QueryException::class, 'payments_one_pending_pack_purpose')
+        ->and(fn () => DB::transaction(fn (): bool => DB::table('payments')->insert($attempt($foreign))))
+        ->toThrow(QueryException::class, 'payments_decant_pack_id_business_id_foreign');
+
+    DB::table('payments')->where('decant_pack_id', $pack)->update(['status' => 'failed']);
+    DB::table('payments')->insert($attempt($pack));
+
+    expect(DB::table('payments')->where('decant_pack_id', $pack)->pluck('status')->sort()->values()->all())->toBe(['failed', 'pending']);
+});
+
 it('rejects invalid refund values with the named database checks', function (string $field, mixed $value, string $constraint): void {
     $business = StaffedBusiness::create();
     $order = StoredOrders::create($business)['order'];
@@ -97,7 +135,12 @@ it('rejects invalid refund values with the named database checks', function (str
         'id' => (string) Str::uuid7(), 'business_id' => $business->business->id, 'payment_id' => $payment->id,
         'amount' => 7500, 'status' => 'pending', $field => $value,
     ])))->toThrow(QueryException::class, $constraint);
-})->with([['amount', 0, 'refunds_amount_check'], ['amount', -1, 'refunds_amount_check'], ['status', 'approved', 'refunds_status_check']]);
+})->with([
+    ['amount', 0, 'refunds_amount_check'], ['amount', -1, 'refunds_amount_check'], ['status', 'approved', 'refunds_status_check'],
+    ['charged_amount', 0, 'refunds_charged_amount_check'], ['charged_amount', -1, 'refunds_charged_amount_check'],
+    // A refund that left for the provider keeps the amount it asked of it.
+    ['attempted_at', '2026-11-02 12:00:00+00', 'refunds_attempted_at_check'],
+]);
 
 it('prevents a refund from referencing another tenant payment', function (): void {
     $first = StaffedBusiness::create();

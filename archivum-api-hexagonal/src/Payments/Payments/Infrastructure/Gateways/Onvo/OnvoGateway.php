@@ -171,13 +171,29 @@ final readonly class OnvoGateway implements PaymentGateway
         return $intent->json('status') === 'failed' ? PaymentStatus::Failed : $closedStatus;
     }
 
+    /** ONVO charged whole colones, so a refund returns its own colones: the earlier refunds do not change it. */
+    public function refundAmount(int $amount, int $refundedBefore, ?string $exchangeRate): int
+    {
+        GatewayMoney::colonesToMinor($amount);
+
+        return $amount;
+    }
+
+    /**
+     * ONVO does not notify refunds by webhook (its notices are about charges, subscriptions and transfers), so the
+     * answer comes from asking for the refund right after creating it, and later from the reconciliation (#96). A clear
+     * refusal of ONVO, to find the intent or to create the refund, leaves the refund failed without a reference.
+     */
     public function refund(RefundRequest $request): RefundResult
     {
-        $amount = GatewayMoney::colonesToMinor($request->amount);
+        $amount = GatewayMoney::colonesToMinor($request->chargedAmount);
         $intentId = $request->captureReference;
 
         if ($intentId === null) {
-            $session = $this->send(fn (PendingRequest $http): Response => $http->get('/checkout/sessions/'.rawurlencode($request->providerReference)));
+            $session = $this->send(fn (PendingRequest $http): Response => $http->get('/checkout/sessions/'.rawurlencode($request->providerReference)), answersRefusals: true);
+            if ($this->refused($session)) {
+                return new RefundResult(null, 'failed');
+            }
             $this->requireTestMode($session, required: false);
             $intentId = $this->string($session->json('paymentIntentId'));
         }
@@ -189,10 +205,12 @@ final readonly class OnvoGateway implements PaymentGateway
                 'paymentIntentId' => $intentId,
                 'amount' => $amount,
                 'description' => $request->refundId,
-            ]));
+            ]), answersRefusals: true);
 
-            if ($response->status() === 402) {
-                return new RefundResult($request->refundId, 'failed');
+            // ONVO refused the request and created no refund: a declined refund (402), a key it does not accept (401)
+            // or an intent it does not know (404) does not change by sending it again, so the refund fails.
+            if ($this->refused($response)) {
+                return new RefundResult(null, 'failed');
             }
 
             $refundId = $this->string($response->json('id'));
@@ -213,6 +231,15 @@ final readonly class OnvoGateway implements PaymentGateway
             'failed', 'canceled' => 'failed',
             default => 'pending',
         });
+    }
+
+    /**
+     * ONVO documents no idempotency key for its requests (docs/payment-gateways.md): a refund whose answer was lost may
+     * exist, so it is never sent again and a person checks it in ONVO.
+     */
+    public function resendsRefunds(): bool
+    {
+        return false;
     }
 
     public function verifyWebhook(string $body, array $headers): bool
@@ -248,7 +275,7 @@ final readonly class OnvoGateway implements PaymentGateway
 
         return new PaymentEvent('onvo', $type.':'.$data['id'], $type, $data['id'], $businessId, $paymentId,
             is_string($data['currency'] ?? null) ? $data['currency'] : null, is_int($amount) && $amount > 0 && $amount % 100 === 0 ? intdiv($amount, 100) : null,
-            $type === 'payment-intent.failed');
+            reportsFailure: $type === 'payment-intent.failed');
     }
 
     /**
@@ -265,10 +292,13 @@ final readonly class OnvoGateway implements PaymentGateway
         }
     }
 
-    /** ONVO does not document a POST idempotency guarantee, so mutations are never retried here.
+    /**
+     * ONVO does not document a POST idempotency guarantee, so mutations are never retried here. With $answersRefusals,
+     * a clear refusal of the request comes back as its response instead of an unavailable provider.
+     *
      * @param  Closure(PendingRequest): Response  $request
      */
-    private function send(Closure $request): Response
+    private function send(Closure $request, bool $answersRefusals = false): Response
     {
         try {
             $response = $request(Http::baseUrl('https://api.onvopay.com/v1')->withToken($this->secretKey)->acceptJson()->asJson()->timeout($this->timeout)->connectTimeout($this->connectTimeout)->withoutRedirecting());
@@ -276,11 +306,20 @@ final readonly class OnvoGateway implements PaymentGateway
             throw new GatewayUnavailableException('payments.unavailable');
         }
 
-        if (! $response->successful() && $response->status() !== 402) {
+        if (! $response->successful() && $response->status() !== 402 && ! ($answersRefusals && $this->refused($response))) {
             throw new GatewayUnavailableException('payments.unavailable');
         }
 
         return $response;
+    }
+
+    /**
+     * ONVO answered the request with a client error and did nothing with it. A timeout (408), a conflict (409) or too
+     * many requests (429) do not say whether it acted, and neither does an error of its server.
+     */
+    private function refused(Response $response): bool
+    {
+        return $response->clientError() && ! in_array($response->status(), [408, 409, 429], true);
     }
 
     private function string(mixed $value): string

@@ -22,6 +22,12 @@ final class Payment
     /** Minutes a pending charge waits for the provider's notice before the reconciliation asks the provider itself (#96). */
     public const int MINUTES_FOR_THE_NOTICE = 5;
 
+    /**
+     * Hours after the expiry of its order or its pack closed it that the reconciliation still asks about an expired
+     * payment (#192).
+     */
+    public const int HOURS_FOR_A_LATE_CHARGE = 24;
+
     private function __construct(
         public readonly PaymentId $id,
         public readonly BusinessId $businessId,
@@ -84,12 +90,22 @@ final class Payment
             throw new InvalidPaymentTransitionException('payments.invalid_transition');
         }
 
-        $this->providerReference = $result->providerReference;
-        $this->checkoutReference = $result->checkoutReference ?? $this->checkoutReference;
-        $this->checkoutUrl = $result->checkoutUrl ?? $this->checkoutUrl;
-        $this->captureReference = $result->captureReference ?? $this->captureReference;
-        $this->chargedCurrency = $result->currency;
-        $this->chargedAmount = $result->chargedAmount;
+        $this->keepIdentity($result);
+    }
+
+    /**
+     * The provider confirmed the charge after the expiry of its order or its pack closed the payment (#192): the
+     * payment becomes succeeded, so that it matches the provider (R39) and its refund can be requested. This is the
+     * only way out of expired, and only for a success; apply() keeps refusing it.
+     */
+    public function confirmLate(ChargeResult $result): void
+    {
+        if ($this->status !== PaymentStatus::Expired || $result->status !== PaymentStatus::Succeeded) {
+            throw new InvalidPaymentTransitionException('payments.invalid_transition');
+        }
+
+        $this->keepIdentity($result);
+        $this->status = PaymentStatus::Succeeded;
     }
 
     /** Apply only an authenticated server query, never a browser return value. */
@@ -122,6 +138,26 @@ final class Payment
             && ($amount === $this->chargedAmount || ($failure && $amount === null));
     }
 
+    /**
+     * Start a refund of this payment (R40). Only a confirmed payment returns money, and its refunds never pass what it
+     * paid and has not returned yet, counting the ones still pending (R30, R31). The caller holds the lock of the
+     * payment's row, so two refunds of the same payment cannot both count on the same colones.
+     *
+     * @param  int  $pending  colones of the refunds of this payment that are still pending
+     */
+    public function requestRefund(string $refundId, int $amount, int $pending, ?string $orderLineId = null): Refund
+    {
+        if (! in_array($this->status, [PaymentStatus::Succeeded, PaymentStatus::PartiallyRefunded], true)) {
+            throw new InvalidPaymentTransitionException('payments.not_refundable');
+        }
+
+        if ($amount <= 0 || $pending < 0 || $amount > $this->amount->amount - $this->refundedAmount - $pending) {
+            throw new InvalidPaymentTransitionException('payments.invalid_refund');
+        }
+
+        return Refund::create($refundId, $this->businessId->value, $this->id->value, $amount, $orderLineId);
+    }
+
     /** Record a confirmed refund without allowing a total greater than the original payment. */
     public function refund(int $amount): void
     {
@@ -131,5 +167,16 @@ final class Payment
 
         $this->refundedAmount += $amount;
         $this->status = $this->refundedAmount === $this->amount->amount ? PaymentStatus::Refunded : PaymentStatus::PartiallyRefunded;
+    }
+
+    /** Keep what the provider answered about the charge: its references and what it charged, in its currency. */
+    private function keepIdentity(ChargeResult $result): void
+    {
+        $this->providerReference = $result->providerReference;
+        $this->checkoutReference = $result->checkoutReference ?? $this->checkoutReference;
+        $this->checkoutUrl = $result->checkoutUrl ?? $this->checkoutUrl;
+        $this->captureReference = $result->captureReference ?? $this->captureReference;
+        $this->chargedCurrency = $result->currency;
+        $this->chargedAmount = $result->chargedAmount;
     }
 }

@@ -5,19 +5,21 @@ declare(strict_types=1);
 namespace Src\Payments\Payments\Infrastructure\Sales;
 
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
+use Src\Payments\Payments\Application\DTOs\RefundPaymentCommand;
+use Src\Payments\Payments\Application\UseCases\RefundPayment;
 use Src\Payments\Payments\Domain\Exceptions\InvalidPaymentTransitionException;
 use Src\Sales\Orders\Application\Contracts\RefundRequests;
-use Src\Shared\Domain\Contracts\AuditTrail;
 use Src\Shared\Domain\Contracts\BusinessContext;
-use Src\Shared\Domain\ValueObjects\AuditAction;
-use Src\Shared\Domain\ValueObjects\BusinessId;
 
 final readonly class PaymentRefundRequests implements RefundRequests
 {
-    public function __construct(private BusinessContext $business, private AuditTrail $audit) {}
+    public function __construct(private BusinessContext $business, private RefundPayment $refundPayment) {}
 
-    /** Register a durable refund allocation; request cancellation never makes an outbound call. */
+    /**
+     * Split a refund of an order among its confirmed payments, oldest first, and register each part with RefundPayment,
+     * tied to its payment, which leaves the request to the provider in the queue (#97): nothing leaves for the provider
+     * in the transaction of the cancellation or the unavailable line.
+     */
     public function request(string $orderId, int $amount, ?string $lineId = null): void
     {
         $business = $this->business->current()->value;
@@ -31,15 +33,7 @@ final readonly class PaymentRefundRequests implements RefundRequests
             if ($part === 0) {
                 continue;
             }
-            $refundId = (string) Str::uuid7();
-            DB::table('refunds')->insert([
-                'id' => $refundId, 'business_id' => $business, 'payment_id' => $payment->id,
-                'order_line_id' => $lineId, 'amount' => $part, 'status' => 'pending',
-                'created_at' => now(), 'updated_at' => now(),
-            ]);
-            $this->audit->record(new BusinessId($business), AuditAction::RefundRequested, 'refund', $refundId, null, [
-                'payment_id' => $payment->id, 'order_id' => $orderId, 'order_line_id' => $lineId, 'amount' => $part,
-            ]);
+            $this->refundPayment->execute(new RefundPaymentCommand((string) $payment->id, $part, $lineId));
             $remaining -= $part;
             if ($remaining === 0) {
                 return;

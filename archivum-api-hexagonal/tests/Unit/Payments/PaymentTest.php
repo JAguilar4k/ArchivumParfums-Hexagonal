@@ -132,6 +132,54 @@ it('matches nothing before the provider reports what it charged', function () {
         ->and(requestedPayment()->matchesCharge('CRC', null, true))->toBeFalse();
 });
 
+it('R40: registers a pending refund tied to the confirmed payment, counting what it already returned and the pending refunds', function () {
+    $payment = requestedPayment();
+    $payment->apply(PaymentStatus::Succeeded);
+    $payment->refund(2000);
+
+    $refund = $payment->requestRefund('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', 2500, 3000, '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a65');
+
+    expect($refund->paymentId)->toBe($payment->id->value)->and($refund->businessId)->toBe($payment->businessId->value)
+        ->and($refund->amount)->toBe(2500)->and($refund->orderLineId)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a65')
+        ->and($refund->status)->toBe('pending')->and($refund->attempted)->toBeFalse()->and($refund->chargedAmount)->toBeNull();
+    // Registering a refund returns nothing yet: only its confirmation does.
+    expect($payment->refundedAmount)->toBe(2000)->and($payment->status)->toBe(PaymentStatus::PartiallyRefunded);
+});
+
+it('R40: refuses a refund above what the payment paid and has not returned or promised yet', function (int $amount, int $pending) {
+    $payment = requestedPayment();
+    $payment->apply(PaymentStatus::Succeeded);
+    $payment->refund(2000);
+
+    expect(fn () => $payment->requestRefund('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', $amount, $pending))
+        ->toThrow(InvalidPaymentTransitionException::class, 'payments.invalid_refund');
+})->with([
+    'more than what is left' => [5501, 0],
+    'more than what the pending refunds leave' => [2501, 3000],
+    'nothing' => [0, 0],
+    'a negative amount' => [-1, 0],
+    'a negative pending amount' => [100, -1],
+]);
+
+it('R40: refuses a refund of a payment with no confirmed money left', function (PaymentStatus $status) {
+    $payment = requestedPayment();
+    if ($status !== PaymentStatus::Pending) {
+        $payment->apply($status);
+    }
+
+    expect(fn () => $payment->requestRefund('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', 100, 0))
+        ->toThrow(InvalidPaymentTransitionException::class, 'payments.not_refundable');
+})->with([PaymentStatus::Pending, PaymentStatus::Failed, PaymentStatus::Expired]);
+
+it('R40: refuses another refund once the payment returned everything', function () {
+    $payment = requestedPayment();
+    $payment->apply(PaymentStatus::Succeeded);
+    $payment->refund(7500);
+
+    expect(fn () => $payment->requestRefund('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', 1, 0))
+        ->toThrow(InvalidPaymentTransitionException::class, 'payments.not_refundable');
+});
+
 it('R29: records a balance received on delivery as a confirmed payment in colones with no online method', function () {
     $payment = paymentReceivedOnDelivery(5000);
 
@@ -173,3 +221,37 @@ it('keeps a reference of exactly 255 characters', function () {
 
     expect(deliveryRecord($reference)->reference)->toBe($reference);
 });
+
+it('R39: confirms a charge the provider reports after the expiry closed the payment, keeping what it charged and its capture', function () {
+    $payment = requestedPayment();
+    $payment->attach(new ChargeResult('session', PaymentStatus::Pending, 'CRC', 7500, 'https://checkout.onvopay.com/pay/session', 'session'));
+    $payment->apply(PaymentStatus::Expired);
+
+    $payment->confirmLate(new ChargeResult('session', PaymentStatus::Succeeded, 'CRC', 7500, checkoutReference: 'session', captureReference: 'intent'));
+
+    expect($payment->status)->toBe(PaymentStatus::Succeeded)
+        ->and($payment->captureReference)->toBe('intent')
+        ->and($payment->checkoutUrl)->toBe('https://checkout.onvopay.com/pay/session')
+        ->and($payment->chargedAmount)->toBe(7500);
+    // Once confirmed, the payment returns its money as any other confirmed payment does.
+    expect($payment->requestRefund('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a64', 7500, 0)->amount)->toBe(7500);
+});
+
+it('confirms late only an expired payment, and only with a success', function (PaymentStatus $current, PaymentStatus $answer) {
+    $payment = requestedPayment();
+    $payment->attach(new ChargeResult('session', PaymentStatus::Pending, 'CRC', 7500));
+    if ($current !== PaymentStatus::Pending) {
+        $payment->apply($current);
+    }
+
+    expect(fn () => $payment->confirmLate(new ChargeResult('session', $answer, 'CRC', 7500)))
+        ->toThrow(InvalidPaymentTransitionException::class, 'payments.invalid_transition');
+    expect($payment->status)->toBe($current);
+})->with([
+    'a pending payment' => [PaymentStatus::Pending, PaymentStatus::Succeeded],
+    'a failed payment' => [PaymentStatus::Failed, PaymentStatus::Succeeded],
+    'a confirmed payment' => [PaymentStatus::Succeeded, PaymentStatus::Succeeded],
+    'an expired payment the provider reports expired' => [PaymentStatus::Expired, PaymentStatus::Expired],
+    'an expired payment the provider reports failed' => [PaymentStatus::Expired, PaymentStatus::Failed],
+    'an expired payment still waiting at the provider' => [PaymentStatus::Expired, PaymentStatus::Pending],
+]);
