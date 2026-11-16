@@ -97,7 +97,7 @@ it('R55: forces row-level security with its isolation policy on every table with
     $modelled = array_keys(protectedModels());
     sort($modelled);
     // Their module schema tests exercise the catalog, stock, packs, orders, payments and scheduling with the application role.
-    $catalog = ['perfume_notes', 'perfume_tags', 'perfume_variants', 'perfumes', 'decant_bottles', 'decant_movements', 'decant_pack_plans', 'decant_packs', 'decant_pack_redemptions', 'orders', 'order_lines', 'payments', 'refunds', 'audit_logs', 'business_hours', 'schedule_blocks', 'services', 'staff_schedules'];
+    $catalog = ['perfume_notes', 'perfume_tags', 'perfume_variants', 'perfumes', 'decant_bottles', 'decant_movements', 'decant_pack_plans', 'decant_packs', 'decant_pack_redemptions', 'orders', 'order_lines', 'payments', 'refunds', 'audit_logs', 'business_hours', 'schedule_blocks', 'services', 'staff_schedules', 'appointments', 'appointment_perfumes'];
     $withPolicy = [...$protected, ...$catalog];
     sort($withPolicy);
 
@@ -140,6 +140,7 @@ it('adds no policy but the isolation one and the read of the definer functions',
     );
 
     expect($others)->toEqual([
+        (object) ['tablename' => 'appointments', 'policyname' => 'appointments_definer_read', 'cmd' => 'SELECT', 'roles' => "{{$owner}}", 'qual' => 'true', 'with_check' => null],
         (object) ['tablename' => 'customers', 'policyname' => 'customers_definer_read', 'cmd' => 'SELECT', 'roles' => "{{$owner}}", 'qual' => 'true', 'with_check' => null],
         (object) ['tablename' => 'decant_movements', 'policyname' => 'decant_movements_business_insert', 'cmd' => 'INSERT', 'roles' => '{public}', 'qual' => null, 'with_check' => POLICY_EXPRESSION],
         (object) ['tablename' => 'decant_movements', 'policyname' => 'decant_movements_business_read', 'cmd' => 'SELECT', 'roles' => '{public}', 'qual' => POLICY_EXPRESSION, 'with_check' => null],

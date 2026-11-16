@@ -6,7 +6,6 @@ namespace Src\Scheduling\Availability\Application\UseCases;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use Illuminate\Validation\ValidationException;
 use Src\Scheduling\Availability\Application\Contracts\AvailabilityReader;
 use Src\Scheduling\Availability\Application\DTOs\AvailablePerson;
 use Src\Scheduling\Availability\Application\DTOs\AvailableSlot;
@@ -37,7 +36,7 @@ final readonly class GetAvailability
      *
      * @return list<AvailableSlot>
      *
-     * @throws ValidationException when the service is not bookable or the person does not attend appointments here
+     * @throws InvalidValueException when the date, the service or the person cannot be booked in this store
      */
     public function execute(string $serviceId, string $date, ?string $memberId = null, ?string $exceptAppointment = null): array
     {
@@ -46,7 +45,7 @@ final readonly class GetAvailability
         $day = DateTimeImmutable::createFromFormat('!Y-m-d', $date, $timezone);
 
         if ($day === false) {
-            throw ValidationException::withMessages(['fecha' => __('scheduling.availability.invalid_date')]);
+            throw new InvalidValueException('scheduling.availability.invalid_date');
         }
 
         $now = new DateTimeImmutable('now', $timezone);
@@ -61,14 +60,14 @@ final readonly class GetAvailability
         $service = $this->reader->service($this->serviceId($serviceId));
 
         if ($service === null) {
-            throw ValidationException::withMessages(['servicio' => __('scheduling.availability.service_not_bookable')]);
+            throw new InvalidValueException('scheduling.availability.service_not_bookable');
         }
 
         $only = $memberId === null ? null : $this->memberId($memberId);
         $people = $this->reader->people($weekday, $day, $day->modify('+1 day'), $only, $exceptAppointment);
 
         if ($only !== null && $people === []) {
-            throw ValidationException::withMessages(['persona' => __('scheduling.availability.person_not_available')]);
+            throw new InvalidValueException('scheduling.availability.person_not_available');
         }
 
         $slots = FreeSlots::of(
@@ -134,23 +133,23 @@ final readonly class GetAvailability
         return intdiv($instant->getTimestamp() - $day->getTimestamp(), 60);
     }
 
-    /** @throws ValidationException */
+    /** @throws InvalidValueException */
     private function serviceId(string $serviceId): ServiceId
     {
         try {
             return new ServiceId($serviceId);
         } catch (InvalidValueException) {
-            throw ValidationException::withMessages(['servicio' => __('scheduling.availability.service_not_bookable')]);
+            throw new InvalidValueException('scheduling.availability.service_not_bookable');
         }
     }
 
-    /** @throws ValidationException */
+    /** @throws InvalidValueException */
     private function memberId(string $memberId): MemberId
     {
         try {
             return new MemberId($memberId);
         } catch (InvalidValueException) {
-            throw ValidationException::withMessages(['persona' => __('scheduling.availability.person_not_available')]);
+            throw new InvalidValueException('scheduling.availability.person_not_available');
         }
     }
 }
