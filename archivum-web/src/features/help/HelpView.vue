@@ -67,8 +67,8 @@
         <dt id="ml" tabindex="-1"><abbr title="mililitros">ml</abbr></dt>
         <dd>Mililitros, la medida de la cantidad de perfume. Mil mililitros son un litro.</dd>
 
-        <dt id="colones" tabindex="-1">₡</dt>
-        <dd>El símbolo de los colones costarricenses. Los precios están en colones, sin decimales.</dd>
+        <dt id="colones" tabindex="-1">₡ (colones)</dt>
+        <dd>El símbolo del colón, la moneda de Costa Rica. Los precios están en colones, sin decimales.</dd>
 
         <dt id="inteligencia-artificial" tabindex="-1">Inteligencia artificial</dt>
         <dd>
