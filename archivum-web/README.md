@@ -143,6 +143,26 @@ Las tres comparten el encabezado de la tienda (`StoreLayout`, con `GET /tiendas/
 - **Recomendador.** Junto al campo de texto da un ejemplo y avisa que lo escrito se envía a un proveedor externo de inteligencia artificial y que no conviene incluir datos personales; la API igual reemplaza correos y teléfonos antes de enviarlo (R51). Un texto vacío no se envía: el campo se marca y toma el foco. Mientras espera la respuesta, que puede tardar hasta 10 segundos, el botón queda ocupado (`aria-disabled`) y una línea con `role="status"` anuncia la espera y después cuántos perfumes recomienda. Cada perfume muestra su razón como texto (nunca como HTML), sus precios y un enlace al detalle, con "Recomendado con inteligencia artificial" o "Recomendado con las reglas de la tienda" según `origen`. Un 429 dice en cuánto tiempo volver a intentar.
 - **Ayuda y glosario** (`/ayuda`, en `src/features/help`). Explica cómo buscar y cómo pedir una recomendación, y define las palabras de perfumería: concentración, decant, familia olfativa, notas, presentación, ml, ₡ e inteligencia artificial. Cada término tiene un id, así que una página puede enlazarlo (`/ayuda#notas`) y el foco llega a ese término. El pie de todas las páginas enlaza la ayuda.
 
+## Carrito, pedidos y pagos
+
+El cliente arma un pedido y lo paga en línea ([#130](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/130)). La API calcula todos los montos y confirma el pago; el navegador solo envía qué se pide y muestra lo que la API responde.
+
+| Ruta | Vista | API |
+|---|---|---|
+| `/tiendas/:tienda/carrito` | Carrito de la tienda | `POST /tiendas/{tienda}/pedidos` |
+| `/cuenta/pedidos` | "Mis pedidos" | `GET /cuenta/pedidos` |
+| `/cuenta/pedidos/:pedido` | Un pedido, con "Pagar" y "Cancelar el pedido" | `GET /cuenta/pedidos/{pedido}`, `POST .../pagos`, `POST .../cancelacion` |
+| `/pagos/procesando` | "Procesando": la pasarela regresa aquí | `GET /cuenta/pedidos/{pedido}` |
+
+Las rutas de `/cuenta` y `/pagos` piden una sesión con el rol `cliente`.
+
+- **Carrito.** El detalle de un perfume agrega cada presentación (botella bajo pedido) y cada decant. El carrito vive en el store `cart` de Pinia y en `localStorage` bajo `archivum.carrito.<tienda>`, así que sobrevive a una recarga. No calcula un total: muestra el precio de la vitrina de cada línea solo como referencia.
+- **Crear el pedido.** El cuerpo lleva solo identificadores y cantidades (`presentacion_id` y `cantidad`, o `botella_id` y `ml`), nunca un precio. Un 422 marca cada línea por su posición (`lineas.0.presentacion_id`). Un 409 por ml agotados no dice qué línea falló, así que el carrito vuelve a leer el detalle de cada perfume y marca los decants que la vitrina ya no ofrece. Un visitante ve "Inicie sesión para crear el pedido", que regresa al carrito.
+- **El pedido** muestra el subtotal, lo que se cobra ahora, lo pagado y el saldo tal como los calcula la API. Si no hay nada que cobrar, queda "Confirmado" sin pasar por la pasarela.
+- **Pagar.** `POST /cuenta/pedidos/{pedido}/pagos` cobra lo que guardó la API: el depósito o el total mientras el pedido espera su pago, y el saldo cuando está listo. El botón se deshabilita desde el primer clic, así que un doble clic envía una sola solicitud, y la API además devuelve el pago pendiente si llega otra (#92). Con PayPal, antes de ir a la pasarela se muestra el monto en dólares de `monto_cobrado`. Solo se sigue una dirección `http` o `https`.
+- **Procesando.** La pasarela regresa a `PAYMENTS_RETURN_URL` de la API (por defecto `http://localhost:5173/pagos/procesando`), que no nombra el pedido: antes de salir, el cliente guarda en `sessionStorage` cuál pedido pagó y cuánto llevaba pagado. La vista consulta el pedido cada 3 s durante 2 min hasta que la API acredita el pago, lo que solo pasa con un aviso verificado de la pasarela o con la conciliación (#94, #96). Nunca lee los parámetros de la dirección: un `?estado=exito` no cambia nada. Pasados los 2 min, dice que el pago sigue en proceso y que su estado se verá en "Mis pedidos". Un pago cancelado en la pasarela vuelve a `PAYMENTS_CANCEL_URL`, "Mis pedidos".
+- **Mis pedidos** muestra el estado en español, lo pagado y el saldo, y ofrece pagar o cancelar cuando la API lo admite. La API decide: si rechaza la cancelación, se muestra su 409.
+
 ## Estados de una vista
 
 Toda vista que pide datos muestra tres estados con los componentes de `src/shared`: `LoadingState` mientras espera, `ErrorState` si falla (con el aviso de `ProblemNotice` y, si tiene sentido, el botón "Intentar de nuevo") y `EmptyState` si no hay nada que mostrar. `useApiData` lleva esos estados:
@@ -248,16 +268,19 @@ archivum-web/
 │   ├── main.ts           crea la aplicación con Pinia, la sesión, los estilos y Vue Router
 │   ├── App.vue           marco de la página: "Saltar al contenido", cabecera, main, pie y anunciador
 │   ├── styles/base.css   estilos base para WCAG 2.2 AAA
-│   ├── router/index.ts   junta las rutas de cada funcionalidad
+│   ├── router/           routes.ts junta las rutas de cada funcionalidad e index.ts crea el router
 │   ├── api/              schema.ts (generado), client.ts, el cliente tipado de la API,
 │   │                     y problem.ts, que interpreta sus errores
 │   ├── features/         una carpeta por funcionalidad
 │   │   ├── storefront/   perfil de la tienda, vitrina con filtros y detalle de un perfume
 │   │   ├── recommendations/  recomendador con IA o por reglas
+│   │   ├── cart/         carrito de cada tienda y creación del pedido
+│   │   ├── orders/       pedidos del cliente, pago, cancelación y "procesando"
 │   │   ├── help/         "Ayuda y glosario"
 │   │   ├── session/      store de la sesión, guardias por rol, "Iniciar sesión" y menú
 │   │   └── errors/       rutas de "Sin permiso" y "No encontrado"
-│   └── shared/           lo que usan varias funcionalidades: config.ts, ProblemNotice,
+│   └── shared/           lo que usan varias funcionalidades: config.ts, money.ts,
+│                         navigation.ts, ProblemNotice,
 │                         FieldError, las vistas "Sin permiso" y "No encontrado",
 │                         LoadingState, ErrorState, EmptyState, useApiData,
 │                         MlAmount (cantidad en ml) y pageChanges.ts (título y
@@ -268,7 +291,7 @@ archivum-web/
 El código se organiza por funcionalidad. Cada una vive en `src/features/<funcionalidad>` con sus vistas, sus componentes, sus stores de Pinia, un `routes.ts` con sus rutas y una carpeta `__tests__` con sus pruebas. Lo que usan varias funcionalidades va en `src/shared`. Para agregar una funcionalidad:
 
 1. Crear `src/features/<funcionalidad>/` con su vista y su `routes.ts`, como `src/features/storefront`.
-2. Sumar sus rutas en `src/router/index.ts`, antes de `errorRoutes`, que atrapa toda ruta que no existe.
+2. Sumar sus rutas en `src/router/routes.ts`, antes de `errorRoutes`, que atrapa toda ruta que no existe.
 3. Escribir sus pruebas en `src/features/<funcionalidad>/__tests__/`.
 
 ## Idioma
