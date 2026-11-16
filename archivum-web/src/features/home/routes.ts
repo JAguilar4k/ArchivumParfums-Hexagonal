@@ -5,5 +5,6 @@ export const homeRoutes: RouteRecordRaw[] = [
     path: '/',
     name: 'home',
     component: () => import('./HomeView.vue'),
+    meta: { title: 'Inicio' },
   },
 ]
