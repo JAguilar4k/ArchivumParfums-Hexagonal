@@ -14,6 +14,7 @@ use Src\Businesses\PublicProfile\Infrastructure\PublicProfileServiceProvider;
 use Src\Catalog\Perfumes\Infrastructure\PerfumesServiceProvider;
 use Src\Catalog\Showcase\Infrastructure\ShowcaseServiceProvider;
 use Src\Decants\Bottles\Infrastructure\BottlesServiceProvider;
+use Src\Decants\Packs\Infrastructure\PacksServiceProvider;
 use Src\Payments\Payments\Infrastructure\PaymentsServiceProvider;
 use Src\Recommendations\Recommender\Infrastructure\RecommenderServiceProvider;
 use Src\Sales\Orders\Infrastructure\OrdersServiceProvider;
@@ -40,6 +41,7 @@ return [
     UsersServiceProvider::class,
     PasswordsServiceProvider::class,
     BottlesServiceProvider::class,
+    PacksServiceProvider::class,
     OrdersServiceProvider::class,
     PaymentsServiceProvider::class,
     RecommenderServiceProvider::class,

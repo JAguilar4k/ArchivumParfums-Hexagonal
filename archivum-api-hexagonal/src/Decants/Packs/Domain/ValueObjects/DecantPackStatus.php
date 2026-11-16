@@ -19,4 +19,16 @@ enum DecantPackStatus: string
             self::Exhausted => 'agotado', self::Expired => 'vencido',
         };
     }
+
+    /** The status a word of the public API names, or none for a word it does not know. */
+    public static function fromSpanish(string $value): ?self
+    {
+        foreach (self::cases() as $status) {
+            if ($status->spanish() === $value) {
+                return $status;
+            }
+        }
+
+        return null;
+    }
 }
