@@ -10,6 +10,7 @@ use Src\Decants\Bottles\Infrastructure\Persistence\Models\DecantBottleModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackPlanModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
+use Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence\Models\ScheduleBlockModel;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\Exceptions\NotFoundException;
 use Tests\Support\Businesses\TwoBusinesses;
@@ -39,6 +40,7 @@ function panelListings(): array
         'list the orders' => ['/api/v1/panel/pedidos', exampleOrder(...)],
         'list the offers of decant packs' => ['/api/v1/panel/paquetes', examplePackPlan(...)],
         'list the sold decant packs' => ['/api/v1/panel/paquetes-vendidos', exampleSoldPack(...)],
+        'list the blocks of the agenda' => ['/api/v1/panel/bloqueos?desde=2000-01-01&hasta=2100-01-01', exampleBlock(...)],
     ];
 }
 
@@ -67,6 +69,8 @@ function panelResourcesById(): array
         'process order refunds' => ['POST', '/api/v1/panel/pedidos/{id}/reembolsos', [], 'orders', exampleOrder(...)],
         'mark a line unavailable' => ['POST', '/api/v1/panel/pedidos/{id}/lineas/'.MISSING_RESOURCE.'/no-disponible', [], 'orders', exampleOrder(...)],
         'edit an offer of decant packs' => ['PATCH', '/api/v1/panel/paquetes', ['precio' => 1, 'activo' => false], 'decant_pack_plans', examplePackPlan(...)],
+        'edit a block of the agenda' => ['PATCH', '/api/v1/panel/bloqueos', ['motivo' => 'Inventario'], 'schedule_blocks', exampleBlock(...)],
+        'delete a block of the agenda' => ['DELETE', '/api/v1/panel/bloqueos', [], 'schedule_blocks', exampleBlock(...)],
     ];
 }
 
@@ -102,6 +106,9 @@ function panelCreations(): array
         'define an offer of decant packs' => ['/api/v1/panel/paquetes', fn (string $businessId): array => [
             'nombre' => 'Descubrimiento', 'cantidad_decants' => 5, 'ml_por_decant' => 5, 'precio' => 40000, 'vigencia_dias' => 180,
         ], 'decant_pack_plans'],
+        'create a block of the agenda' => ['/api/v1/panel/bloqueos', fn (string $businessId): array => [
+            'inicia_en' => '2026-12-01T09:00:00-06:00', 'termina_en' => '2026-12-01T10:00:00-06:00', 'motivo' => 'Inventario',
+        ], 'schedule_blocks'],
     ];
 }
 
@@ -135,6 +142,12 @@ function examplePackPlan(string $businessId): string
 function exampleSoldPack(string $businessId): string
 {
     return DecantPackModel::factory()->create(['business_id' => $businessId])->id;
+}
+
+/** Create a block of the whole business with its factory and return its identifier. */
+function exampleBlock(string $businessId): string
+{
+    return ScheduleBlockModel::factory()->create(['business_id' => $businessId])->id;
 }
 
 function panelResourcePath(string $path, string $id): string
