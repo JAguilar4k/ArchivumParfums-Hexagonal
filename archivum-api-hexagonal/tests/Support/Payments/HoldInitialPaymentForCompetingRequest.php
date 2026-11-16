@@ -34,6 +34,11 @@ final class HoldInitialPaymentForCompetingRequest implements PaymentRepository
         return $this->repository->pending($payable, $purpose);
     }
 
+    public function last(Payable $payable): ?Payment
+    {
+        return $this->repository->last($payable);
+    }
+
     public function findByReference(string $gateway, string $reference): ?Payment
     {
         return $this->repository->findByReference($gateway, $reference);

@@ -240,7 +240,7 @@ Líneas: botella `pending` → `ordered` → `received` o `unavailable`; decant 
 | Entidad | Estados |
 |---|---|
 | Pago | `pending` → `succeeded`, `failed` o `expired`; `succeeded` → `refunded` o `partially_refunded`; `partially_refunded` → `refunded` al completar el total |
-| Paquete de decants | `pending_payment` → `active` → `exhausted` o `expired`; `exhausted` → `active` cuando un pedido cancelado o vencido devuelve un decant a un paquete vigente |
+| Paquete de decants | `pending_payment` → `active` → `exhausted` o `expired`; `exhausted` → `active` cuando un pedido cancelado o vencido devuelve un decant a un paquete vigente, o → `expired` si su vigencia ya terminó |
 | Orden de compra | `draft` → `sent` → `paid` → `received`; `draft` o `sent` → `cancelled` |
 | Entrada de lista de espera | `waiting` → `offered` → `accepted` o `expired`; `waiting` → `cancelled` |
 
