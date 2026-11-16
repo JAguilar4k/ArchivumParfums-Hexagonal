@@ -5,8 +5,8 @@ import SessionMenu from '@/features/session/SessionMenu.vue'
 import { announcement, focusMainContent, MAIN_CONTENT_ID } from '@/shared/pageChanges'
 
 /**
- * The frame of every page (#126): a link to skip to the content, the header with the session, the main content and
- * an announcer that names the page after each navigation.
+ * The frame of every page (#126): a link to skip to the content, the header with the session, the main content, a
+ * footer with the help (#128) and an announcer that names the page after each navigation.
  */
 function skipToContent(event: MouseEvent): void {
   event.preventDefault()
@@ -23,5 +23,8 @@ function skipToContent(event: MouseEvent): void {
   <main :id="MAIN_CONTENT_ID" tabindex="-1">
     <RouterView />
   </main>
+  <footer class="app-footer">
+    <RouterLink to="/ayuda" class="action-link">Ayuda y glosario</RouterLink>
+  </footer>
   <p class="visually-hidden" role="status" aria-live="polite" aria-atomic="true">{{ announcement }}</p>
 </template>

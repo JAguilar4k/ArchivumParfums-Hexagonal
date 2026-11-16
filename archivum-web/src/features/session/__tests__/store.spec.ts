@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
+import { fakeApi, json, problem } from '@/api/__tests__/fakeApi'
 import { DEVICE_NAME, RENEW_BEFORE_MS, STORAGE_KEY, useSessionStore } from '../store'
-import { accountOf, fakeApi, json, problem, tokenResponse } from './fakeApi'
+import { accountOf, tokenResponse } from './accounts'
 
 const NOW = Date.parse('2026-11-16T12:00:00Z')
 const IN_ONE_HOUR = '2026-11-16T13:00:00Z'

@@ -52,6 +52,7 @@ Vite solo expone al navegador las variables que empiezan con `VITE_`. Todas se d
 | Variable | Ejemplo | Para qué sirve |
 |---|---|---|
 | `VITE_API_URL` | `http://localhost:8000/api/v1` | Dirección base de la API, con el prefijo `/api/v1`. |
+| `VITE_DEFAULT_BUSINESS_SLUG` | `archivumparfums` | Tienda que abre la raíz del cliente (`/`); `archivumparfums` es la tienda piloto de los seeders. |
 
 Las variables se leen al compilar: después de cambiar `.env`, se reinicia `npm run dev` o se vuelve a ejecutar `npm run build`.
 
@@ -123,6 +124,25 @@ El store `session` de Pinia (`src/features/session/store.ts`, [#126](https://git
 
 Una ruta sin `meta.roles` es pública. El visitante que abre una ruta con roles va al inicio de sesión; una cuenta cuyo rol no está en la lista ve "Sin permiso". Los guardias solo ayudan a navegar: los permisos los decide la API (#102, #104).
 
+## Vitrina y recomendaciones
+
+Las páginas públicas de una tienda ([#128](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/128)) llevan su slug en la ruta y no piden sesión. La raíz (`/`) abre la tienda de `VITE_DEFAULT_BUSINESS_SLUG`.
+
+| Ruta | Vista | API |
+|---|---|---|
+| `/tiendas/:tienda` | Vitrina, paginada y con filtros | `GET /tiendas/{tienda}/perfumes` |
+| `/tiendas/:tienda/perfumes/:perfume` | Detalle: notas por capa, etiquetas, presentaciones y decants | `GET /tiendas/{tienda}/perfumes/{perfume}` |
+| `/tiendas/:tienda/recomendaciones` | Recomendador | `POST /tiendas/{tienda}/recomendaciones` |
+
+Las tres comparten el encabezado de la tienda (`StoreLayout`, con `GET /tiendas/{tienda}`): nombre, logo, lugar de las citas y los enlaces a las páginas de la tienda. El nombre de la tienda no es un encabezado: el `h1` de cada página es su propio nombre, el mismo de la pestaña ("Vitrina", "Pedir una recomendación" o el nombre del perfume). Una tienda que no existe, o un perfume inactivo o de otra tienda, muestra "No encontrado", también en la pestaña.
+
+- **Filtros en la URL.** Texto, familia, nota, momento, clima, ocasión y precio máximo viven en el query (`?nota=vainilla&momento=noche`), así que una búsqueda se puede compartir y el botón de volver la recupera. Una búsqueda nueva empieza en la primera página; un filtro que la API rechaza con 422 se marca en su campo.
+- **Precios.** Se muestran tal como los manda la API, en colones enteros con separador de miles (`formatColones` de `src/shared/money.ts`). El navegador no calcula ningún precio.
+- **Vitrina.** Cada filtro lleva una pista con un ejemplo, unida al campo con `aria-describedby`. Una línea con `role="status"` anuncia cuántos perfumes se encontraron, y después de cambiar de página el foco pasa al título de la lista ("Perfumes"), porque el enlace usado puede desaparecer. Los enlaces de las páginas dicen "Página anterior" y "Página siguiente".
+- **Detalle.** Una ruta de enlaces (`nav` "Ubicación": Vitrina › perfume) dice dónde está la página. La concentración nunca va abreviada sola ("Eau de Parfum (EDP)") y cada cantidad marca "ml" como abreviatura de mililitros (`MlAmount`).
+- **Recomendador.** Junto al campo de texto da un ejemplo y avisa que lo escrito se envía a un proveedor externo de inteligencia artificial y que no conviene incluir datos personales; la API igual reemplaza correos y teléfonos antes de enviarlo (R51). Un texto vacío no se envía: el campo se marca y toma el foco. Mientras espera la respuesta, que puede tardar hasta 10 segundos, el botón queda ocupado (`aria-disabled`) y una línea con `role="status"` anuncia la espera y después cuántos perfumes recomienda. Cada perfume muestra su razón como texto (nunca como HTML), sus precios y un enlace al detalle, con "Recomendado con inteligencia artificial" o "Recomendado con las reglas de la tienda" según `origen`. Un 429 dice en cuánto tiempo volver a intentar.
+- **Ayuda y glosario** (`/ayuda`, en `src/features/help`). Explica cómo buscar y cómo pedir una recomendación, y define las palabras de perfumería: concentración, decant, familia olfativa, notas, presentación, ml, ₡ e inteligencia artificial. Cada término tiene un id, así que una página puede enlazarlo (`/ayuda#notas`) y el foco llega a ese término. El pie de todas las páginas enlaza la ayuda.
+
 ## Estados de una vista
 
 Toda vista que pide datos muestra tres estados con los componentes de `src/shared`: `LoadingState` mientras espera, `ErrorState` si falla (con el aviso de `ProblemNotice` y, si tiene sentido, el botón "Intentar de nuevo") y `EmptyState` si no hay nada que mostrar. `useApiData` lleva esos estados:
@@ -164,9 +184,12 @@ El cliente apunta a WCAG 2.2 en el nivel AAA ([#126](https://github.com/JAguilar
 - **Marco de la página** (`App.vue`): el enlace "Saltar al contenido", la cabecera con la sesión y un solo `main` (`#contenido`). Las vistas no declaran otro `main`.
 - **Título y foco al navegar** (`src/shared/pageChanges.ts`): cada ruta declara `meta.title`. Al cambiar de página, la pestaña toma ese título ("Iniciar sesión · ArchivumParfums"), el foco pasa al contenido principal y un anunciador con `role="status"` lee el nombre de la página. Un cambio solo de la consulta (una búsqueda o una página de resultados) deja el foco donde estaba. `usePageTitle()` precisa el título cuando llegan los datos, como el nombre de un perfume.
 - **Botones que esperan una respuesta**: llevan `aria-disabled="true"` en lugar de `disabled`, para que el foco no se pierda, y la función ignora el segundo clic.
-- **Avisos**: los errores usan `role="alert"`; los demás mensajes, una región `.status-message` con `role="status"` que existe desde el principio, para que el lector de pantalla la lea al cambiar.
+- **Avisos**: los errores usan `role="alert"`; los demás mensajes, una región `.status-message` o `.results-summary` con `role="status"` que existe desde el principio, para que el lector de pantalla la lea al cambiar.
+- **Ayuda en los campos** ([#128](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/128)): una pista con `field-hint` y un id, que `fieldAttributes(problem, campo, 'pista-campo')` une al control junto con su error.
+- **Palabras difíciles y abreviaturas** (#128): la página "Ayuda y glosario" las explica y el pie de cada página la enlaza. Las abreviaturas se escriben completas la primera vez o con `<abbr title="…">`.
+- **Enlaces a una parte de una página** (#128): con `#id` en la ruta, el foco va a ese elemento, que lleva `tabindex="-1"`, en lugar del inicio del contenido.
 
-Clases de apoyo: `page` (columna de una vista), `form`, `form-field`, `field-hint`, `form-actions`, `checkbox-field` (casilla con su texto, toda clicable), `action-link` (enlace fuera de una oración, con la altura de un botón), `button` y `button--secondary`, `prose` (bloques de texto, con dos líneas y media entre párrafos) y `visually-hidden`.
+Clases de apoyo: `page` (columna de una vista), `page-section`, `form`, `form-field`, `field-hint`, `form-actions`, `checkbox-field` (casilla con su texto, toda clicable), `action-link` (enlace fuera de una oración, con la altura de un botón), `button` y `button--secondary`, `prose` (bloques de texto, con dos líneas y media entre párrafos), `results-summary`, `card-list` y `card`, `breadcrumbs`, `facts` (pares de nombre y valor), `glossary` y `visually-hidden`.
 
 Para revisar una vista a mano: recorrerla solo con el teclado (Tab, Mayús+Tab, Enter y Espacio), ampliarla al 200 % y verla a 320 px de ancho.
 
@@ -223,25 +246,28 @@ archivum-web/
 ├── index.html
 ├── src/
 │   ├── main.ts           crea la aplicación con Pinia, la sesión, los estilos y Vue Router
-│   ├── App.vue           marco de la página: "Saltar al contenido", cabecera, main y anunciador
+│   ├── App.vue           marco de la página: "Saltar al contenido", cabecera, main, pie y anunciador
 │   ├── styles/base.css   estilos base para WCAG 2.2 AAA
 │   ├── router/index.ts   junta las rutas de cada funcionalidad
 │   ├── api/              schema.ts (generado), client.ts, el cliente tipado de la API,
 │   │                     y problem.ts, que interpreta sus errores
 │   ├── features/         una carpeta por funcionalidad
-│   │   ├── home/         vista de inicio, sus rutas y sus pruebas
+│   │   ├── storefront/   perfil de la tienda, vitrina con filtros y detalle de un perfume
+│   │   ├── recommendations/  recomendador con IA o por reglas
+│   │   ├── help/         "Ayuda y glosario"
 │   │   ├── session/      store de la sesión, guardias por rol, "Iniciar sesión" y menú
 │   │   └── errors/       rutas de "Sin permiso" y "No encontrado"
 │   └── shared/           lo que usan varias funcionalidades: config.ts, ProblemNotice,
 │                         FieldError, las vistas "Sin permiso" y "No encontrado",
-│                         LoadingState, ErrorState, EmptyState, useApiData y
-│                         pageChanges.ts (título y foco al navegar)
+│                         LoadingState, ErrorState, EmptyState, useApiData,
+│                         MlAmount (cantidad en ml) y pageChanges.ts (título y
+│                         foco al navegar)
 └── vite.config.ts
 ```
 
 El código se organiza por funcionalidad. Cada una vive en `src/features/<funcionalidad>` con sus vistas, sus componentes, sus stores de Pinia, un `routes.ts` con sus rutas y una carpeta `__tests__` con sus pruebas. Lo que usan varias funcionalidades va en `src/shared`. Para agregar una funcionalidad:
 
-1. Crear `src/features/<funcionalidad>/` con su vista y su `routes.ts`, como `src/features/home`.
+1. Crear `src/features/<funcionalidad>/` con su vista y su `routes.ts`, como `src/features/storefront`.
 2. Sumar sus rutas en `src/router/index.ts`, antes de `errorRoutes`, que atrapa toda ruta que no existe.
 3. Escribir sus pruebas en `src/features/<funcionalidad>/__tests__/`.
 

@@ -1,5 +1,10 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+
+import { usePageTitle } from './pageChanges'
+
+// The view can appear inside another page, such as the detail of a perfume that does not exist: the tab says it too.
+usePageTitle(() => 'No encontrado')
 </script>
 
 <template>

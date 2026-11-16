@@ -48,10 +48,24 @@ export function focusMainContent(options: FocusOptions = { preventScroll: true }
 }
 
 /**
+ * Moves the focus to the part of the page that the hash of the URL names, such as a term of the glossary
+ * (`/ayuda#decant`), or to the main content when there is none. The router scrolls to it.
+ */
+function focusTarget(hash: string): void {
+  const target = hash ? document.getElementById(decodeURIComponent(hash.slice(1))) : null
+  target?.focus({ preventScroll: true })
+
+  if (!target || document.activeElement !== target) {
+    focusMainContent()
+  }
+}
+
+/**
  * After each navigation (#126): the tab takes the title of the route and, when the page changes, the focus goes to
  * the main content and the announcer reads the name of the page. Without it, the focus would stay on the link that
  * was used, which no longer exists, and a screen reader would not know that the page changed. A change of the query
- * alone, such as a search or a page of results, keeps the focus where it is; the view says what changed.
+ * alone, such as a search or a page of results, keeps the focus where it is; the view says what changed. A link to a
+ * part of a page (#128) takes the focus there instead.
  */
 export function installPageChanges(router: Router): void {
   router.afterEach((to: RouteLocationNormalized, from: RouteLocationNormalized, failure) => {
@@ -62,14 +76,18 @@ export function installPageChanges(router: Router): void {
     setPageTitle(to.meta.title)
 
     // The first route of the tab: the browser already announces the page.
-    if (from.matched.length === 0 || to.path === from.path) {
+    if (from.matched.length === 0) {
       return
     }
 
-    announcement.value = ''
-    void nextTick(() => {
-      announcement.value = to.meta.title ?? SITE_NAME
-      focusMainContent()
-    })
+    if (to.path !== from.path) {
+      announcement.value = ''
+      void nextTick(() => {
+        announcement.value = to.meta.title ?? SITE_NAME
+        focusTarget(to.hash)
+      })
+    } else if (to.hash && to.hash !== from.hash) {
+      void nextTick(() => focusTarget(to.hash))
+    }
   })
 }

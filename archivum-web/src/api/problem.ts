@@ -143,16 +143,22 @@ export function fieldErrorId(field: string): string {
   return `error-${field.replace(/[^A-Za-z0-9_-]/g, '-')}`
 }
 
-/** Attributes that tie a control to its messages, for screen readers. */
+/**
+ * Attributes that tie a control to its messages, for screen readers. `hintIds` are the ids of the help texts of the
+ * field, if it has any: a screen reader reads them first and the messages after them.
+ */
 export function fieldAttributes(
   problem: ApiProblem | null,
   field: string,
+  hintIds?: string,
 ): { 'aria-invalid'?: 'true'; 'aria-describedby'?: string } {
-  if (fieldMessages(problem, field).length === 0) {
-    return {}
-  }
+  const invalid = fieldMessages(problem, field).length > 0
+  const describedBy = [hintIds, invalid ? fieldErrorId(field) : null].filter(Boolean).join(' ')
 
-  return { 'aria-invalid': 'true', 'aria-describedby': fieldErrorId(field) }
+  return {
+    ...(invalid ? { 'aria-invalid': 'true' as const } : {}),
+    ...(describedBy ? { 'aria-describedby': describedBy } : {}),
+  }
 }
 
 /**

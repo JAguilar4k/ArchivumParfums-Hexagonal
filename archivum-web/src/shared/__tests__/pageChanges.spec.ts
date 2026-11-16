@@ -24,8 +24,14 @@ const routes: RouteRecordRaw[] = [
   { path: '/vitrina', name: 'showcase', component: Page('Vitrina'), meta: { title: 'Vitrina' } },
   { path: '/perfume', name: 'perfume', component: Detail, meta: { title: 'Perfume' } },
   { path: '/sin-titulo', name: 'untitled', component: Page('Sin título') },
-  // The session menu of the header links to the sign-in.
+  // The session menu of the header links to the sign-in, and the footer to the help.
   { path: '/iniciar-sesion', name: 'sign-in', component: Page('Iniciar sesión'), meta: { title: 'Iniciar sesión' } },
+  {
+    path: '/ayuda',
+    name: 'help',
+    component: defineComponent({ render: () => h('dl', [h('dt', { id: 'decant', tabindex: -1 }, 'Decant')]) }),
+    meta: { title: 'Ayuda y glosario' },
+  },
 ]
 
 async function start(path: string) {
@@ -102,6 +108,23 @@ describe('page changes', () => {
     name.value = 'Oud Nocturno'
     await flushPromises()
     expect(document.title).toBe('Oud Nocturno · ArchivumParfums')
+  })
+
+  it('takes the focus to the part of the page that a link names', async () => {
+    const { router } = await start('/vitrina')
+
+    await router.push('/ayuda#decant')
+    await flushPromises()
+
+    expect(document.activeElement?.id).toBe('decant')
+    expect(announcement.value).toBe('Ayuda y glosario')
+  })
+
+  it('links every page to the help from its footer', async () => {
+    const { wrapper } = await start('/vitrina')
+
+    expect(wrapper.get('footer a').text()).toBe('Ayuda y glosario')
+    expect(wrapper.get('footer a').attributes('href')).toBe('/ayuda')
   })
 
   it('skips to the main content from the first link of the page', async () => {

@@ -3,14 +3,14 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
+import { fakeApi, json, problem } from '@/api/__tests__/fakeApi'
 import { api, setUnauthenticatedHandler } from '@/api/client'
 import App from '@/App.vue'
 import { errorRoutes } from '@/features/errors/routes'
-import { homeRoutes } from '@/features/home/routes'
 import { installSession } from '../install'
 import { sessionRoutes } from '../routes'
 import { STORAGE_KEY, useSessionStore } from '../store'
-import { accountOf, fakeApi, json, problem, tokenResponse } from './fakeApi'
+import { accountOf, tokenResponse } from './accounts'
 
 const IN_ONE_HOUR = new Date(Date.now() + 60 * 60 * 1000).toISOString()
 
@@ -21,7 +21,7 @@ async function start(path: string) {
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [
-      ...homeRoutes,
+      { path: '/', name: 'home', component: { render: () => null } },
       ...sessionRoutes,
       { path: '/cuenta/citas', name: 'my-appointments', component: { render: () => null }, meta: { roles: ['cliente'] } },
       ...errorRoutes,
@@ -132,7 +132,6 @@ describe('session flow', () => {
 
     expect(requests[0]?.method).toBe('DELETE')
     expect(useSessionStore().isSignedIn).toBe(false)
-    // The home view is loaded on demand, so the navigation takes a moment longer.
     await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('home'))
     expect(wrapper.get('.session-menu').text()).toContain('Iniciar sesión')
   })

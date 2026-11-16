@@ -1268,6 +1268,12 @@ export interface components {
             tipo: "Bearer";
             vence_en: string;
         };
+        /** ShowcaseDecantResource */
+        ShowcaseDecantResource: {
+            botella_id: string;
+            ml: number;
+            precio: number;
+        };
         /** ShowcasePerfume */
         ShowcasePerfume: {
             id: string;
@@ -1281,7 +1287,7 @@ export interface components {
                 clima: unknown[];
                 ocasion: string[];
             };
-            presentaciones: unknown[];
+            presentaciones: components["schemas"]["ShowcaseVariantResource"][];
         };
         /** ShowcasePerfumeDetail */
         ShowcasePerfumeDetail: {
@@ -1303,8 +1309,13 @@ export interface components {
                 clima: unknown[];
                 ocasion: string[];
             };
-            presentaciones: unknown[];
-            decants: unknown[];
+            presentaciones: components["schemas"]["ShowcaseVariantResource"][];
+            decants: components["schemas"]["ShowcaseDecantResource"][];
+        };
+        /** ShowcaseVariantResource */
+        ShowcaseVariantResource: {
+            ml: number;
+            precio_venta: number;
         };
         /** StoreAccountRequest */
         StoreAccountRequest: {

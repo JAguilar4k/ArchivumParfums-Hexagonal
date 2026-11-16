@@ -4,12 +4,13 @@ import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import App from '@/App.vue'
-import { homeRoutes } from '@/features/home/routes'
 import { sessionRoutes } from '@/features/session/routes'
 import { errorRoutes } from '../routes'
 
+const home = { path: '/', name: 'home', component: { render: () => null } }
+
 async function visit(path: string) {
-  const router = createRouter({ history: createMemoryHistory(), routes: [...homeRoutes, ...sessionRoutes, ...errorRoutes] })
+  const router = createRouter({ history: createMemoryHistory(), routes: [home, ...sessionRoutes, ...errorRoutes] })
   await router.push(path)
 
   const wrapper = mount(App, { global: { plugins: [createPinia(), router] } })
@@ -32,9 +33,9 @@ describe('error routes', () => {
     expect(router.currentRoute.value.fullPath).toBe('/no/existe')
   })
 
-  it('leave the home view at /', async () => {
-    const { wrapper } = await visit('/')
+  it('leave the other routes alone', async () => {
+    const { router } = await visit('/')
 
-    expect(wrapper.get('h1').text()).toBe('ArchivumParfums')
+    expect(router.currentRoute.value.name).toBe('home')
   })
 })
