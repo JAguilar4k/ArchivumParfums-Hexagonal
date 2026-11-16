@@ -736,6 +736,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/panel/bloqueos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the blocks of the business of the session that cross the range asked for */
+        get: operations["scheduling.schedule_blocks.index"];
+        put?: never;
+        /** Block a range of the agenda, for one person or for the whole store */
+        post: operations["scheduling.schedule_blocks.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/panel/bloqueos/{bloqueo}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a block of the agenda */
+        delete: operations["scheduling.schedule_blocks.destroy"];
+        options?: never;
+        head?: never;
+        /** Change the fields sent of a block of the agenda */
+        patch: operations["scheduling.schedule_blocks.update"];
+        trace?: never;
+    };
     "/sesiones": {
         parameters: {
             query?: never;
@@ -1059,6 +1095,15 @@ export interface components {
             precio_manual: number | null;
             activa: boolean;
         };
+        /** PanelScheduleBlock */
+        PanelScheduleBlock: {
+            id: string;
+            persona_id: string | null;
+            inicia_en: string;
+            termina_en: string;
+            motivo: string;
+            origen: string;
+        };
         /** PanelSoldPack */
         PanelSoldPack: {
             id: string;
@@ -1119,6 +1164,16 @@ export interface components {
             ml?: number;
             precio_manual?: number | null;
             activa?: boolean;
+        };
+        /** PatchScheduleBlock */
+        PatchScheduleBlock: {
+            /** Format: uuid */
+            persona_id?: string | null;
+            /** Format: date-time */
+            inicia_en?: string;
+            /** Format: date-time */
+            termina_en?: string;
+            motivo?: string;
         };
         /** PaymentNoticeResource */
         PaymentNoticeResource: {
@@ -1427,6 +1482,16 @@ export interface components {
         /** StoreRecommendation */
         StoreRecommendation: {
             texto: string;
+        };
+        /** StoreScheduleBlock */
+        StoreScheduleBlock: {
+            /** Format: uuid */
+            persona_id?: string | null;
+            /** Format: date-time */
+            inicia_en: string;
+            /** Format: date-time */
+            termina_en: string;
+            motivo: string;
         };
         /** StoreSessionRequest */
         StoreSessionRequest: {
@@ -5028,6 +5093,259 @@ export interface operations {
                     "application/json": {
                         data: components["schemas"]["RecommendationResource"];
                     };
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.schedule_blocks.index": {
+        parameters: {
+            query: {
+                desde: string;
+                hasta: string;
+                persona?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PanelScheduleBlock` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelScheduleBlock"][];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.schedule_blocks.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreScheduleBlock"];
+            };
+        };
+        responses: {
+            /** @description `PanelScheduleBlock` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelScheduleBlock"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.schedule_blocks.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bloqueo: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.schedule_blocks.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bloqueo: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchScheduleBlock"];
+            };
+        };
+        responses: {
+            /** @description `PanelScheduleBlock` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelScheduleBlock"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
                 };
             };
             /** @description Recurso no encontrado */
