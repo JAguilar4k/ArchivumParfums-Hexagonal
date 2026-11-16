@@ -544,6 +544,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/panel/citas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Book a trial appointment for a customer of the store of the session. The route carries the ability the matrix of
+         *     #102 gives only to the owner, and business:staff pins the transaction to the store of the session, so a store
+         *     named in the body never changes the store of the appointment
+         */
+        post: operations["scheduling.business.appointments.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/panel/citas/{cita}": {
         parameters: {
             query?: never;
@@ -1773,6 +1794,17 @@ export interface components {
         StorePackPurchase: {
             /** @enum {string} */
             medio?: "tarjeta" | "sinpe_movil";
+        };
+        /** StorePanelAppointment */
+        StorePanelAppointment: {
+            /** Format: uuid */
+            cliente_id: string;
+            /** Format: uuid */
+            servicio_id: string;
+            inicia_en: string;
+            /** Format: uuid */
+            persona_id?: string | null;
+            perfumes?: string[];
         };
         /** StorePasswordReset */
         StorePasswordReset: {
@@ -4627,6 +4659,68 @@ export interface operations {
             };
             /** @description Conflicto */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.business.appointments.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StorePanelAppointment"];
+            };
+        };
+        responses: {
+            /** @description `BookedAppointmentResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BookedAppointmentResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
