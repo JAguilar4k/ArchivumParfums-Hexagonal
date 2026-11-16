@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Scheduling\StaffSchedules\Infrastructure\Persistence;
+namespace Src\Scheduling\StaffSchedules\Infrastructure\Persistence\Repositories;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
