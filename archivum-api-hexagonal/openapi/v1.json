@@ -114,6 +114,253 @@
                 }
             }
         },
+        "/tiendas/{tienda}/disponibilidad": {
+            "get": {
+                "operationId": "scheduling.availability.index",
+                "summary": "List the free slots of one service on one day of the store of the address, without a session",
+                "tags": [
+                    "Availability"
+                ],
+                "parameters": [
+                    {
+                        "name": "tienda",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "servicio",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "fecha",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "persona",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `AvailableSlotResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/AvailableSlotResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/panel/horario": {
+            "get": {
+                "operationId": "scheduling.business_hours.show",
+                "summary": "Show the opening hours of the business of the session, ordered by weekday and opening hour",
+                "tags": [
+                    "BusinessHours"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`PanelBusinessHours`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelBusinessHours"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "scheduling.business_hours.replace",
+                "summary": "Replace the whole opening hours of the business of the session in one transaction",
+                "tags": [
+                    "BusinessHours"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReplaceBusinessHours"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PanelBusinessHours`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelBusinessHours"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/panel/tienda/logo": {
             "post": {
                 "operationId": "businesses.logo.store",
@@ -1146,6 +1393,578 @@
                             "application/problem+json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/tiendas/{tienda}/citas": {
+            "post": {
+                "operationId": "scheduling.customer.appointments.store",
+                "summary": "Book a trial appointment of the customer of the session in the store of the address",
+                "tags": [
+                    "CustomerAppointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "tienda",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreAppointment"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`BookedAppointmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/BookedAppointmentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/cuenta/citas": {
+            "get": {
+                "operationId": "scheduling.customer.appointments.index",
+                "summary": "List the appointments of the customer, one business at a time under its own row-level scope",
+                "tags": [
+                    "CustomerAppointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "periodo",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "enum": [
+                                "proximas",
+                                "pasadas",
+                                null
+                            ]
+                        }
+                    },
+                    {
+                        "name": "pagina",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "por_pagina",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `CustomerAppointmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CustomerAppointmentResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/cuenta/citas/{cita}": {
+            "get": {
+                "operationId": "scheduling.customer.appointments.show",
+                "summary": "Read one appointment of the customer; one of another customer is not found",
+                "tags": [
+                    "CustomerAppointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "cita",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`CustomerAppointmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CustomerAppointmentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "scheduling.customer.appointments.reschedule",
+                "summary": "Move one appointment of the customer to another free slot. The middleware resolved the store of that appointment\nonly because it belongs to the session, so one of another customer is not found before the use case runs",
+                "tags": [
+                    "CustomerAppointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "cita",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RescheduleAppointmentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`CustomerAppointmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CustomerAppointmentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/cuenta/citas/{cita}/cancelacion": {
+            "post": {
+                "operationId": "scheduling.customer.appointments.cancel",
+                "summary": "Cancel one appointment of the customer before the deadline the store gives",
+                "tags": [
+                    "CustomerAppointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "cita",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CancelAppointmentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`CustomerAppointmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CustomerAppointmentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
                                 }
                             }
                         }
@@ -3586,6 +4405,297 @@
                 ]
             }
         },
+        "/panel/citas": {
+            "post": {
+                "operationId": "scheduling.business.appointments.store",
+                "summary": "Book a trial appointment for a customer of the store of the session. The route carries the ability the matrix of\n#102 gives only to the owner, and business:staff pins the transaction to the store of the session, so a store\nnamed in the body never changes the store of the appointment",
+                "tags": [
+                    "PanelAppointment"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StorePanelAppointment"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`BookedAppointmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/BookedAppointmentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/panel/citas/{cita}": {
+            "patch": {
+                "operationId": "scheduling.business.appointments.reschedule",
+                "summary": "Move a confirmed appointment of the store of the session. The route carries the owner ability of the permission\nmatrix of #102, so a collaborator never reaches it, and business:staff keeps the appointment of another store out",
+                "tags": [
+                    "PanelAppointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "cita",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RescheduleAppointmentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`CustomerAppointmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CustomerAppointmentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/panel/citas/{cita}/cancelacion": {
+            "post": {
+                "operationId": "scheduling.business.appointments.cancel",
+                "summary": "Cancel a confirmed appointment of the store of the session. The store has no deadline of its own in the\nspecification, so it may cancel until the appointment starts",
+                "tags": [
+                    "PanelAppointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "cita",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CancelAppointmentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`CustomerAppointmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CustomerAppointmentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/cuenta/contrasena": {
             "put": {
                 "operationId": "accounts.password.update",
@@ -5405,6 +6515,68 @@
                 }
             }
         },
+        "/tiendas/{tienda}/servicios": {
+            "get": {
+                "operationId": "scheduling.public.services.index",
+                "summary": "List the active services of the business of the address, without a session",
+                "tags": [
+                    "PublicService"
+                ],
+                "parameters": [
+                    {
+                        "name": "tienda",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PublicService`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PublicService"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/tiendas/{tienda}/recomendaciones": {
             "post": {
                 "operationId": "recommendations.store",
@@ -5482,6 +6654,700 @@
                         }
                     }
                 }
+            }
+        },
+        "/panel/bloqueos": {
+            "get": {
+                "operationId": "scheduling.schedule_blocks.index",
+                "summary": "List the blocks of the business of the session that cross the range asked for",
+                "tags": [
+                    "ScheduleBlock"
+                ],
+                "parameters": [
+                    {
+                        "name": "desde",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "hasta",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "name": "persona",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PanelScheduleBlock`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PanelScheduleBlock"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "scheduling.schedule_blocks.store",
+                "summary": "Block a range of the agenda, for one person or for the whole store",
+                "tags": [
+                    "ScheduleBlock"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreScheduleBlock"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`PanelScheduleBlock`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelScheduleBlock"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/panel/bloqueos/{bloqueo}": {
+            "patch": {
+                "operationId": "scheduling.schedule_blocks.update",
+                "summary": "Change the fields sent of a block of the agenda",
+                "tags": [
+                    "ScheduleBlock"
+                ],
+                "parameters": [
+                    {
+                        "name": "bloqueo",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchScheduleBlock"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PanelScheduleBlock`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelScheduleBlock"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "delete": {
+                "operationId": "scheduling.schedule_blocks.destroy",
+                "summary": "Delete a block of the agenda",
+                "tags": [
+                    "ScheduleBlock"
+                ],
+                "parameters": [
+                    {
+                        "name": "bloqueo",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/panel/servicios": {
+            "get": {
+                "operationId": "scheduling.services.index",
+                "summary": "List every service of the business of the session, active and inactive, ordered by name",
+                "tags": [
+                    "Service"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PanelService`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PanelService"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "scheduling.services.store",
+                "summary": "Register a service in the business of the session",
+                "tags": [
+                    "Service"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreService"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`PanelService`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelService"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/panel/servicios/{servicio}": {
+            "get": {
+                "operationId": "scheduling.services.show",
+                "summary": "Show one service of the business of the session",
+                "tags": [
+                    "Service"
+                ],
+                "parameters": [
+                    {
+                        "name": "servicio",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`PanelService`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelService"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "scheduling.services.update",
+                "summary": "Change the fields sent of a service of the business of the session, also to deactivate or reactivate it",
+                "tags": [
+                    "Service"
+                ],
+                "parameters": [
+                    {
+                        "name": "servicio",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchService"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PanelService`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelService"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
             }
         },
         "/sesiones": {
@@ -6233,6 +8099,192 @@
                     }
                 ]
             }
+        },
+        "/panel/personal/{persona}/horario": {
+            "get": {
+                "operationId": "scheduling.staff_schedules.show",
+                "summary": "Show the working hours of one person of the staff of the session business",
+                "tags": [
+                    "StaffSchedule"
+                ],
+                "parameters": [
+                    {
+                        "name": "persona",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`PanelStaffSchedule`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelStaffSchedule"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "scheduling.staff_schedules.replace",
+                "summary": "Replace the whole working hours of one person of the staff of the session business, in one transaction",
+                "tags": [
+                    "StaffSchedule"
+                ],
+                "parameters": [
+                    {
+                        "name": "persona",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReplaceStaffSchedule"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PanelStaffSchedule`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelStaffSchedule"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -6261,6 +8313,95 @@
                     "motivo"
                 ],
                 "title": "AdjustBottle"
+            },
+            "AvailableSlotResource": {
+                "type": "object",
+                "properties": {
+                    "inicia_en": {
+                        "type": "string"
+                    },
+                    "termina_en": {
+                        "type": "string"
+                    },
+                    "personas": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "required": [
+                    "inicia_en",
+                    "termina_en",
+                    "personas"
+                ],
+                "title": "AvailableSlotResource"
+            },
+            "BookedAppointmentResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "estado": {
+                        "type": "string"
+                    },
+                    "servicio": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre"
+                        ]
+                    },
+                    "persona": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre"
+                        ]
+                    },
+                    "inicia_en": {
+                        "type": "string"
+                    },
+                    "termina_en": {
+                        "type": "string"
+                    },
+                    "lugar_cita": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "perfumes": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "required": [
+                    "id",
+                    "estado",
+                    "servicio",
+                    "persona",
+                    "inicia_en",
+                    "termina_en",
+                    "lugar_cita",
+                    "perfumes"
+                ],
+                "title": "BookedAppointmentResource"
             },
             "BusinessProfileResource": {
                 "type": "object",
@@ -6350,6 +8491,19 @@
                 ],
                 "title": "BusinessProfileResource"
             },
+            "CancelAppointmentRequest": {
+                "type": "object",
+                "properties": {
+                    "motivo": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 200
+                    }
+                },
+                "title": "CancelAppointmentRequest"
+            },
             "ConfirmPasswordReset": {
                 "type": "object",
                 "properties": {
@@ -6423,6 +8577,90 @@
                     "tienda"
                 ],
                 "title": "CurrentAccountResource"
+            },
+            "CustomerAppointmentResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "tienda": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre"
+                        ]
+                    },
+                    "estado": {
+                        "type": "string"
+                    },
+                    "servicio": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre"
+                        ]
+                    },
+                    "persona": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre"
+                        ]
+                    },
+                    "inicia_en": {
+                        "type": "string"
+                    },
+                    "termina_en": {
+                        "type": "string"
+                    },
+                    "lugar_cita": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "perfumes": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "required": [
+                    "id",
+                    "tienda",
+                    "estado",
+                    "servicio",
+                    "persona",
+                    "inicia_en",
+                    "termina_en",
+                    "lugar_cita",
+                    "perfumes"
+                ],
+                "title": "CustomerAppointmentResource"
             },
             "CustomerPack": {
                 "type": "object",
@@ -6879,6 +9117,37 @@
                 ],
                 "title": "PanelBottle"
             },
+            "PanelBusinessHours": {
+                "type": "object",
+                "properties": {
+                    "tramos": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "dia_semana": {
+                                    "type": "string"
+                                },
+                                "inicio": {
+                                    "type": "string"
+                                },
+                                "fin": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "dia_semana",
+                                "inicio",
+                                "fin"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "tramos"
+                ],
+                "title": "PanelBusinessHours"
+            },
             "PanelDecantPackPlan": {
                 "type": "object",
                 "properties": {
@@ -7114,6 +9383,77 @@
                 ],
                 "title": "PanelPerfumeVariant"
             },
+            "PanelScheduleBlock": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "persona_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "inicia_en": {
+                        "type": "string"
+                    },
+                    "termina_en": {
+                        "type": "string"
+                    },
+                    "motivo": {
+                        "type": "string"
+                    },
+                    "origen": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "persona_id",
+                    "inicia_en",
+                    "termina_en",
+                    "motivo",
+                    "origen"
+                ],
+                "title": "PanelScheduleBlock"
+            },
+            "PanelService": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "duracion_minutos": {
+                        "type": "integer"
+                    },
+                    "precio": {
+                        "type": "integer"
+                    },
+                    "margen_minutos": {
+                        "type": "integer"
+                    },
+                    "maximo_perfumes": {
+                        "type": "integer"
+                    },
+                    "activo": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "duracion_minutos",
+                    "precio",
+                    "margen_minutos",
+                    "maximo_perfumes",
+                    "activo"
+                ],
+                "title": "PanelService"
+            },
             "PanelSoldPack": {
                 "type": "object",
                 "properties": {
@@ -7173,6 +9513,37 @@
                     "vence_en"
                 ],
                 "title": "PanelSoldPack"
+            },
+            "PanelStaffSchedule": {
+                "type": "object",
+                "properties": {
+                    "tramos": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "dia_semana": {
+                                    "type": "string"
+                                },
+                                "inicio": {
+                                    "type": "string"
+                                },
+                                "fin": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "dia_semana",
+                                "inicio",
+                                "fin"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "tramos"
+                ],
+                "title": "PanelStaffSchedule"
             },
             "PasswordResetRequestedResource": {
                 "type": "object",
@@ -7390,6 +9761,64 @@
                     }
                 },
                 "title": "PatchPerfumeVariant"
+            },
+            "PatchScheduleBlock": {
+                "type": "object",
+                "properties": {
+                    "persona_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "inicia_en": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "termina_en": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "motivo": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "title": "PatchScheduleBlock"
+            },
+            "PatchService": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "duracion_minutos": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2147483647
+                    },
+                    "precio": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "margen_minutos": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "maximo_perfumes": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "activo": {
+                        "type": "boolean"
+                    }
+                },
+                "title": "PatchService"
             },
             "PaymentNoticeResource": {
                 "type": "object",
@@ -7635,6 +10064,34 @@
                     "precio_maximo_por_ml"
                 ],
                 "title": "PublicPackPlan"
+            },
+            "PublicService": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "duracion_minutos": {
+                        "type": "integer"
+                    },
+                    "precio": {
+                        "type": "integer"
+                    },
+                    "maximo_perfumes": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "duracion_minutos",
+                    "precio",
+                    "maximo_perfumes"
+                ],
+                "title": "PublicService"
             },
             "PurchasedPackResource": {
                 "type": "object",
@@ -7899,6 +10356,85 @@
                     "consulta_pendiente"
                 ],
                 "title": "RefundResource"
+            },
+            "ReplaceBusinessHours": {
+                "type": "object",
+                "properties": {
+                    "tramos": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "dia_semana": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 7
+                                },
+                                "inicio": {
+                                    "type": "string"
+                                },
+                                "fin": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "dia_semana",
+                                "inicio",
+                                "fin"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "tramos"
+                ],
+                "title": "ReplaceBusinessHours"
+            },
+            "ReplaceStaffSchedule": {
+                "type": "object",
+                "properties": {
+                    "tramos": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "dia_semana": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 7
+                                },
+                                "inicio": {
+                                    "type": "string"
+                                },
+                                "fin": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "dia_semana",
+                                "inicio",
+                                "fin"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "tramos"
+                ],
+                "title": "ReplaceStaffSchedule"
+            },
+            "RescheduleAppointmentRequest": {
+                "type": "object",
+                "properties": {
+                    "inicia_en": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+                    }
+                },
+                "required": [
+                    "inicia_en"
+                ],
+                "title": "RescheduleAppointmentRequest"
             },
             "SessionTokenResource": {
                 "type": "object",
@@ -8191,6 +10727,38 @@
                 ],
                 "title": "StoreAccountRequest"
             },
+            "StoreAppointment": {
+                "type": "object",
+                "properties": {
+                    "servicio_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "inicia_en": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+                    },
+                    "persona_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "perfumes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                },
+                "required": [
+                    "servicio_id",
+                    "inicia_en"
+                ],
+                "title": "StoreAppointment"
+            },
             "StoreBusinessLogo": {
                 "type": "object",
                 "properties": {
@@ -8404,6 +10972,43 @@
                 },
                 "title": "StorePackPurchase"
             },
+            "StorePanelAppointment": {
+                "type": "object",
+                "properties": {
+                    "cliente_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "servicio_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "inicia_en": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+                    },
+                    "persona_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "perfumes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                },
+                "required": [
+                    "cliente_id",
+                    "servicio_id",
+                    "inicia_en"
+                ],
+                "title": "StorePanelAppointment"
+            },
             "StorePasswordReset": {
                 "type": "object",
                 "properties": {
@@ -8613,6 +11218,76 @@
                     "texto"
                 ],
                 "title": "StoreRecommendation"
+            },
+            "StoreScheduleBlock": {
+                "type": "object",
+                "properties": {
+                    "persona_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "inicia_en": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "termina_en": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "motivo": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "inicia_en",
+                    "termina_en",
+                    "motivo"
+                ],
+                "title": "StoreScheduleBlock"
+            },
+            "StoreService": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "duracion_minutos": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2147483647
+                    },
+                    "precio": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "margen_minutos": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "maximo_perfumes": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "activo": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "nombre",
+                    "duracion_minutos",
+                    "precio",
+                    "margen_minutos",
+                    "maximo_perfumes"
+                ],
+                "title": "StoreService"
             },
             "StoreSessionRequest": {
                 "type": "object",
