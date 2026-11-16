@@ -15,25 +15,39 @@ import PrivacyNotice from './PrivacyNotice.vue'
  * notice, never a role or a store. With the 201 it signs in with the flow of #126 and returns to the route that the
  * visitor wanted to open. The password policy is the API's: a 422 marks each field with its message. The password
  * lives only in this form, and is cleared after each attempt.
+ *
+ * Each field says what it is for before the visitor writes (WCAG 3.3.5): the hint of the password repeats the rule of
+ * the API, `Password::defaults()`, which asks for 8 characters. The password can be shown to check it, and a box left
+ * unchecked takes the focus with its message.
  */
 const session = useSessionStore()
 const route = useRoute()
 const router = useRouter()
 
 const form = useTemplateRef<HTMLFormElement>('form')
+const consent = useTemplateRef<HTMLInputElement>('consent')
 const nombre = ref('')
 const correo = ref('')
 const contrasena = ref('')
+const showPassword = ref(false)
 const aceptaPrivacidad = ref(false)
 const problem = ref<ApiProblem | null>(null)
-const mustAccept = ref(false)
+const triedWithoutConsent = ref(false)
 const sending = ref(false)
 
+// The message of the box goes away as soon as the box is checked.
+const consentMissing = computed(() => triedWithoutConsent.value && !aceptaPrivacidad.value)
 // The box points to the notice and, when it has a message, to its message.
-const consentInvalid = computed(() => mustAccept.value || fieldMessages(problem.value, 'acepta_privacidad').length > 0)
+const consentInvalid = computed(() => consentMissing.value || fieldMessages(problem.value, 'acepta_privacidad').length > 0)
 const consentDescription = computed(() =>
   consentInvalid.value ? `aviso-privacidad ${fieldErrorId('acepta_privacidad')}` : 'aviso-privacidad',
 )
+
+// The sign-in returns to the same route as the registration.
+const signInLink = computed(() => ({
+  name: 'sign-in',
+  query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : {},
+}))
 
 async function submit(): Promise<void> {
   if (sending.value) {
@@ -41,9 +55,13 @@ async function submit(): Promise<void> {
   }
 
   problem.value = null
-  mustAccept.value = !aceptaPrivacidad.value
+  triedWithoutConsent.value = !aceptaPrivacidad.value
 
-  if (mustAccept.value) {
+  if (triedWithoutConsent.value) {
+    // The focus goes to the box, which reads its message (aria-describedby).
+    await nextTick()
+    consent.value?.focus()
+
     return
   }
 
@@ -73,7 +91,7 @@ async function submit(): Promise<void> {
   sending.value = false
 
   if (signInProblem) {
-    // The account exists: the sign-in shows its email and returns to the same route.
+    // The account exists: the sign-in shows its email, says that the account was created and returns to the same route.
     session.rememberEmail(correo.value)
     await router.replace({ name: 'sign-in', query: { redirect: redirectTarget(route.query.redirect) } })
 
@@ -85,78 +103,100 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <main class="register">
+  <div class="page register">
     <h1>Crear cuenta</h1>
-    <p>Con su cuenta de cliente puede reservar pruebas de olores y hacer pedidos.</p>
+    <p class="form-intro">
+      Con su cuenta de cliente puede reservar pruebas de olores y hacer pedidos. Todos los datos son obligatorios.
+    </p>
 
     <ProblemNotice v-if="problem" :problem="problem" />
 
-    <form ref="form" novalidate @submit.prevent="submit">
-      <label for="nombre">Nombre</label>
-      <input
-        id="nombre"
-        v-model="nombre"
-        name="nombre"
-        type="text"
-        autocomplete="name"
-        required
-        v-bind="fieldAttributes(problem, 'nombre')"
-      />
-      <FieldError :problem="problem" field="nombre" />
+    <form ref="form" class="form" novalidate @submit.prevent="submit">
+      <div class="form-field">
+        <label for="nombre">Nombre</label>
+        <p id="pista-nombre" class="field-hint">El nombre que verá la tienda en sus pedidos y citas.</p>
+        <input
+          id="nombre"
+          v-model="nombre"
+          name="nombre"
+          type="text"
+          autocomplete="name"
+          required
+          v-bind="fieldAttributes(problem, 'nombre', 'pista-nombre')"
+        />
+        <FieldError :problem="problem" field="nombre" />
+      </div>
 
-      <label for="correo">Correo</label>
-      <input
-        id="correo"
-        v-model="correo"
-        name="correo"
-        type="email"
-        autocomplete="email"
-        required
-        v-bind="fieldAttributes(problem, 'correo')"
-      />
-      <FieldError :problem="problem" field="correo" />
+      <div class="form-field">
+        <label for="correo">Correo</label>
+        <p id="pista-correo" class="field-hint">Con este correo iniciará sesión y recibirá los avisos de la tienda.</p>
+        <input
+          id="correo"
+          v-model="correo"
+          name="correo"
+          type="email"
+          autocomplete="email"
+          required
+          v-bind="fieldAttributes(problem, 'correo', 'pista-correo')"
+        />
+        <FieldError :problem="problem" field="correo" />
+      </div>
 
-      <label for="contrasena">Contraseña</label>
-      <input
-        id="contrasena"
-        v-model="contrasena"
-        name="contrasena"
-        type="password"
-        autocomplete="new-password"
-        required
-        v-bind="fieldAttributes(problem, 'contrasena')"
-      />
-      <FieldError :problem="problem" field="contrasena" />
+      <div class="form-field">
+        <label for="contrasena">Contraseña</label>
+        <p id="pista-contrasena" class="field-hint">
+          Al menos 8 caracteres. Una frase de varias palabras es fácil de recordar.
+        </p>
+        <input
+          id="contrasena"
+          v-model="contrasena"
+          name="contrasena"
+          :type="showPassword ? 'text' : 'password'"
+          autocomplete="new-password"
+          autocapitalize="none"
+          :spellcheck="false"
+          required
+          v-bind="fieldAttributes(problem, 'contrasena', 'pista-contrasena')"
+        />
+        <FieldError :problem="problem" field="contrasena" />
+        <label class="checkbox-field">
+          <input id="mostrar_contrasena" v-model="showPassword" type="checkbox" />
+          Mostrar la contraseña
+        </label>
+      </div>
 
       <PrivacyNotice id="aviso-privacidad" />
 
-      <label class="register__consent">
-        <input
-          id="acepta_privacidad"
-          v-model="aceptaPrivacidad"
-          name="acepta_privacidad"
-          type="checkbox"
-          required
-          :aria-invalid="consentInvalid ? 'true' : undefined"
-          :aria-describedby="consentDescription"
-        />
-        Leí y acepto el aviso de privacidad.
-      </label>
-      <p v-if="mustAccept" :id="fieldErrorId('acepta_privacidad')" class="field-error">
-        Debe aceptar el aviso de privacidad para crear la cuenta.
-      </p>
-      <FieldError v-else :problem="problem" field="acepta_privacidad" />
+      <div class="form-field">
+        <label class="checkbox-field">
+          <input
+            id="acepta_privacidad"
+            ref="consent"
+            v-model="aceptaPrivacidad"
+            name="acepta_privacidad"
+            type="checkbox"
+            required
+            :aria-invalid="consentInvalid ? 'true' : undefined"
+            :aria-describedby="consentDescription"
+          />
+          Leí y acepto el aviso de privacidad.
+        </label>
+        <p v-if="consentMissing" :id="fieldErrorId('acepta_privacidad')" class="field-error">
+          Debe aceptar el aviso de privacidad para crear la cuenta.
+        </p>
+        <FieldError v-else :problem="problem" field="acepta_privacidad" />
+      </div>
 
-      <button type="submit" :disabled="sending">
-        {{ sending ? 'Creando la cuenta…' : 'Crear cuenta' }}
-      </button>
+      <div class="form-actions">
+        <!-- aria-disabled and not disabled: the button keeps the focus while the request is on its way. -->
+        <button type="submit" :aria-disabled="sending ? 'true' : undefined">
+          {{ sending ? 'Creando la cuenta…' : 'Crear cuenta' }}
+        </button>
+      </div>
     </form>
 
     <p class="register__sign-in">
-      ¿Ya tiene cuenta?
-      <RouterLink :to="{ name: 'sign-in', query: route.query.redirect ? { redirect: route.query.redirect } : {} }">
-        Iniciar sesión
-      </RouterLink>
+      ¿Ya tiene cuenta? <RouterLink :to="signInLink">Iniciar sesión</RouterLink>
     </p>
-  </main>
+  </div>
 </template>

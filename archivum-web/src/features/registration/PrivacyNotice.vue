@@ -8,7 +8,7 @@ defineProps<{ id: string }>()
 </script>
 
 <template>
-  <section :id="id" class="privacy-notice" aria-labelledby="privacy-notice-title">
+  <section :id="id" class="privacy-notice prose" aria-labelledby="privacy-notice-title">
     <h2 id="privacy-notice-title">Aviso de privacidad</h2>
     <p>Para crear su cuenta, ArchivumParfums guarda estos datos, conforme a la Ley 8968:</p>
     <ul>

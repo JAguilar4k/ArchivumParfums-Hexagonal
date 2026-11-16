@@ -6,5 +6,6 @@ export const registrationRoutes: RouteRecordRaw[] = [
     path: '/crear-cuenta',
     name: 'register',
     component: () => import('./RegisterView.vue'),
+    meta: { title: 'Crear cuenta' },
   },
 ]

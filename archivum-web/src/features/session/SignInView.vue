@@ -13,8 +13,10 @@ const route = useRoute()
 const router = useRouter()
 
 const form = useTemplateRef<HTMLFormElement>('form')
-// A customer who just created the account finds its email already written (#194).
-const correo = ref(session.takeRememberedEmail())
+// A customer whose account was just created, but whose sign-in failed, finds its email already written (#194).
+const rememberedEmail = session.takeRememberedEmail()
+const accountCreated = rememberedEmail !== ''
+const correo = ref(rememberedEmail)
 const contrasena = ref('')
 const problem = ref<ApiProblem | null>(null)
 const sending = ref(false)
@@ -53,7 +55,8 @@ async function submit(): Promise<void> {
 <template>
   <div class="page sign-in">
     <h1>Iniciar sesión</h1>
-    <p class="form-intro">Escriba el correo y la contraseña de su cuenta.</p>
+    <p v-if="accountCreated" class="status-message">Se creó su cuenta. Escriba su contraseña para iniciar sesión.</p>
+    <p v-else class="form-intro">Escriba el correo y la contraseña de su cuenta.</p>
 
     <ProblemNotice v-if="problem" :problem="problem" />
 
