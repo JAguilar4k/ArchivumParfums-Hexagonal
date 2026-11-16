@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Src\Payments\Payments\Infrastructure\Persistence\Models\PaymentModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderLineModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
+use Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence\Models\ScheduleBlockModel;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Accounts\DemoAccounts;
 
@@ -50,7 +51,8 @@ final class MatrixResources
             $person = DB::table('members')->join('users', 'users.id', '=', 'members.user_id')
                 ->where('members.business_id', self::BUSINESS)->where('users.email', self::ACCOUNTS['colaborador'])->value('members.id');
             $packPlan = DB::table('decant_pack_plans')->where('business_id', self::BUSINESS)->orderBy('id')->value('id');
-            assert(is_object($variant) && is_string($bottle) && is_string($customer) && is_string($person) && is_string($packPlan));
+            $service = DB::table('services')->where('business_id', self::BUSINESS)->orderBy('id')->value('id');
+            assert(is_object($variant) && is_string($bottle) && is_string($customer) && is_string($person) && is_string($packPlan) && is_string($service));
 
             $order = OrderModel::factory()->create([
                 'business_id' => self::BUSINESS, 'customer_id' => $customer, 'status' => 'confirmed',
@@ -60,6 +62,7 @@ final class MatrixResources
                 'id' => (string) Str::uuid7(), 'business_id' => self::BUSINESS, 'order_id' => $order->id, 'kind' => 'bottle',
                 'perfume_variant_id' => $variant->id, 'quantity' => 1, 'unit_price' => 15000, 'status' => 'pending',
             ]);
+            $block = ScheduleBlockModel::factory()->create(['business_id' => self::BUSINESS]);
             $payment = PaymentModel::factory()->create([
                 'id' => (string) Str::uuid7(), 'business_id' => self::BUSINESS, 'order_id' => $order->id, 'status' => 'succeeded',
                 'gateway' => 'onvo', 'amount' => 7500, 'charged_currency' => 'CRC', 'charged_amount' => 7500,
@@ -76,6 +79,8 @@ final class MatrixResources
                 'pago' => $payment->id,
                 'persona' => $person,
                 'paquete' => $packPlan,
+                'servicio' => $service,
+                'bloqueo' => $block->id,
             ];
         });
     }
