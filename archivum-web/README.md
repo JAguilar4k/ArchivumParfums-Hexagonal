@@ -52,6 +52,7 @@ Vite solo expone al navegador las variables que empiezan con `VITE_`. Todas se d
 | Variable | Ejemplo | Para qué sirve |
 |---|---|---|
 | `VITE_API_URL` | `http://localhost:8000/api/v1` | Dirección base de la API, con el prefijo `/api/v1`. |
+| `VITE_DEFAULT_BUSINESS_SLUG` | `archivumparfums` | Tienda que abre la raíz del cliente (`/`); `archivumparfums` es la tienda piloto de los seeders. |
 
 Las variables se leen al compilar: después de cambiar `.env`, se reinicia `npm run dev` o se vuelve a ejecutar `npm run build`.
 
@@ -122,6 +123,22 @@ El store `session` de Pinia (`src/features/session/store.ts`, [#126](https://git
 ```
 
 Una ruta sin `meta.roles` es pública. El visitante que abre una ruta con roles va al inicio de sesión; una cuenta cuyo rol no está en la lista ve "Sin permiso". Los guardias solo ayudan a navegar: los permisos los decide la API (#102, #104).
+
+## Vitrina y recomendaciones
+
+Las páginas públicas de una tienda ([#128](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/128)) llevan su slug en la ruta y no piden sesión. La raíz (`/`) abre la tienda de `VITE_DEFAULT_BUSINESS_SLUG`.
+
+| Ruta | Vista | API |
+|---|---|---|
+| `/tiendas/:tienda` | Vitrina, paginada y con filtros | `GET /tiendas/{tienda}/perfumes` |
+| `/tiendas/:tienda/perfumes/:perfume` | Detalle: notas por capa, etiquetas, presentaciones y decants | `GET /tiendas/{tienda}/perfumes/{perfume}` |
+| `/tiendas/:tienda/recomendaciones` | Recomendador | `POST /tiendas/{tienda}/recomendaciones` |
+
+Las tres comparten el encabezado de la tienda (`StoreLayout`, con `GET /tiendas/{tienda}`): nombre, logo y lugar de las citas. Una tienda que no existe, o un perfume inactivo o de otra tienda, muestra "No encontrado".
+
+- **Filtros en la URL.** Texto, familia, nota, momento, clima, ocasión y precio máximo viven en el query (`?nota=vainilla&momento=noche`), así que una búsqueda se puede compartir y el botón de volver la recupera. Una búsqueda nueva empieza en la primera página; un filtro que la API rechaza con 422 se marca en su campo.
+- **Precios.** Se muestran tal como los manda la API, en colones enteros con separador de miles (`formatColones` de `src/shared/money.ts`). El navegador no calcula ningún precio.
+- **Recomendador.** Junto al campo de texto avisa que lo escrito se envía a un proveedor externo de IA y que no conviene incluir datos personales; la API igual reemplaza correos y teléfonos antes de enviarlo (R51). Mientras espera la respuesta, que puede tardar hasta 10 segundos, el botón queda deshabilitado. Cada perfume muestra su razón como texto (nunca como HTML), sus precios y un enlace al detalle, con "Recomendado con IA" o "Recomendado por reglas" según `origen`. Un 429 dice en cuánto tiempo volver a intentar.
 
 ## Estados de una vista
 
@@ -229,7 +246,8 @@ archivum-web/
 │   ├── api/              schema.ts (generado), client.ts, el cliente tipado de la API,
 │   │                     y problem.ts, que interpreta sus errores
 │   ├── features/         una carpeta por funcionalidad
-│   │   ├── home/         vista de inicio, sus rutas y sus pruebas
+│   │   ├── storefront/   perfil de la tienda, vitrina con filtros y detalle de un perfume
+│   │   ├── recommendations/  recomendador con IA o por reglas
 │   │   ├── session/      store de la sesión, guardias por rol, "Iniciar sesión" y menú
 │   │   └── errors/       rutas de "Sin permiso" y "No encontrado"
 │   └── shared/           lo que usan varias funcionalidades: config.ts, ProblemNotice,
@@ -241,7 +259,7 @@ archivum-web/
 
 El código se organiza por funcionalidad. Cada una vive en `src/features/<funcionalidad>` con sus vistas, sus componentes, sus stores de Pinia, un `routes.ts` con sus rutas y una carpeta `__tests__` con sus pruebas. Lo que usan varias funcionalidades va en `src/shared`. Para agregar una funcionalidad:
 
-1. Crear `src/features/<funcionalidad>/` con su vista y su `routes.ts`, como `src/features/home`.
+1. Crear `src/features/<funcionalidad>/` con su vista y su `routes.ts`, como `src/features/storefront`.
 2. Sumar sus rutas en `src/router/index.ts`, antes de `errorRoutes`, que atrapa toda ruta que no existe.
 3. Escribir sus pruebas en `src/features/<funcionalidad>/__tests__/`.
 
