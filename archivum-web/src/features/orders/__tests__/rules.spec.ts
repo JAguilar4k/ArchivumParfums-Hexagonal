@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { amountToPay, canCancel, canPay, statusLabel } from '../order'
+import { amountToPay, canCancel, canPay, isClosed, statusLabel } from '../order'
 import { orderOf } from './fixtures'
 
 describe('order rules of the views', () => {
@@ -35,6 +35,13 @@ describe('order rules of the views', () => {
     expect(canCancel(prepared)).toBe(false)
     expect(canCancel(orderOf({ estado: 'encargado' }))).toBe(false)
     expect(canCancel(orderOf({ estado: 'cancelado' }))).toBe(false)
+  })
+
+  it('closes a cancelled or expired order, which owes nothing', () => {
+    expect(isClosed(orderOf({ estado: 'cancelado' }))).toBe(true)
+    expect(isClosed(orderOf({ estado: 'vencido' }))).toBe(true)
+    expect(isClosed(orderOf())).toBe(false)
+    expect(isClosed(orderOf({ estado: 'entregado' }))).toBe(false)
   })
 
   it('names each status in Spanish', () => {

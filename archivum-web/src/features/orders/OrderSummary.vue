@@ -3,7 +3,7 @@ import { RouterLink } from 'vue-router'
 
 import MlAmount from '@/shared/MlAmount.vue'
 import { formatColones } from '@/shared/money'
-import { lineStatusLabel, statusLabel, type Order } from './order'
+import { isClosed, lineStatusLabel, statusLabel, type Order } from './order'
 
 /**
  * An order with the amounts exactly as the API calculated them (#130): the client adds nothing up. The time to pay is
@@ -38,7 +38,7 @@ const dateTime = new Intl.DateTimeFormat('es-CR', { dateStyle: 'long', timeStyle
         <dt>Pagado</dt>
         <dd>{{ formatColones(order.pagado) }}</dd>
       </div>
-      <div>
+      <div v-if="!isClosed(order)">
         <dt>Saldo</dt>
         <dd>{{ formatColones(order.saldo) }}</dd>
       </div>

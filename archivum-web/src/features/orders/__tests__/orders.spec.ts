@@ -159,6 +159,8 @@ describe('"Mis pedidos"', () => {
 
     expect(requests.filter((request) => request.method === 'POST')).toHaveLength(1)
     expect(wrapper.get('.orders__status').text()).toBe('Cancelado')
+    // A cancelled order owes nothing: its balance is not shown.
+    expect(wrapper.get('.orders__item').text()).not.toContain('Saldo')
     expect(wrapper.find('.cancel-order').exists()).toBe(false)
     expect(wrapper.get('.orders-view .results-summary').text()).toBe('Se canceló el pedido.')
     expect(document.activeElement).toBe(wrapper.get('.orders-view h1').element)

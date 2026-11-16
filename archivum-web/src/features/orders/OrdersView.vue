@@ -10,7 +10,7 @@ import LoadingState from '@/shared/LoadingState.vue'
 import { formatColones } from '@/shared/money'
 import { useApiData } from '@/shared/useApiData'
 import CancelOrderButton from './CancelOrderButton.vue'
-import { canCancel, canPay, orderTitle, statusLabel } from './order'
+import { canCancel, canPay, isClosed, orderTitle, statusLabel } from './order'
 import PayButton from './PayButton.vue'
 
 /**
@@ -90,7 +90,7 @@ watch(page, (current, previous) => {
               <dt>Pagado</dt>
               <dd>{{ formatColones(order.pagado) }}</dd>
             </div>
-            <div>
+            <div v-if="!isClosed(order)">
               <dt>Saldo</dt>
               <dd>{{ formatColones(order.saldo) }}</dd>
             </div>

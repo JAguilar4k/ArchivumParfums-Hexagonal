@@ -52,6 +52,14 @@ export function amountToPay(order: Order): number {
 }
 
 /**
+ * Whether the order ended without a delivery: cancelled, or expired without its payment. It owes nothing then, so the
+ * pages leave out its balance, which the API still reports as the part of the bottles.
+ */
+export function isClosed(order: Pick<Order, 'estado'>): boolean {
+  return order.estado === 'cancelado' || order.estado === 'vencido'
+}
+
+/**
  * Whether the customer may cancel the order, as the API admits it (#83): before it is ordered from the supplier and
  * before any decant is prepared. The API decides and answers 409 otherwise.
  */
