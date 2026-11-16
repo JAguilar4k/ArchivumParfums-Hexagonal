@@ -36,6 +36,17 @@ describe('help and glossary', () => {
     expect(wrapper.get('#ayuda-pedidos').element.parentElement?.textContent).toContain('Vencido sin pago')
   })
 
+  it('explains the account of a customer and links to its creation', async () => {
+    fakeApi({})
+
+    const { wrapper } = await open('/ayuda')
+    const section = wrapper.get('[aria-labelledby="ayuda-cuenta"]')
+
+    expect(wrapper.get('#ayuda-cuenta').text()).toBe('Su cuenta')
+    expect(section.get('a').attributes('href')).toBe('/crear-cuenta')
+    expect(section.text()).toContain('al menos 8 caracteres')
+  })
+
   it('opens from the footer of a store and goes to the term that a page links', async () => {
     fakeApi({
       [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),

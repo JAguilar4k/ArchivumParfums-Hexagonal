@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { RouterLink } from 'vue-router'
+
 /**
  * Help and glossary (#128): plain explanations of the pages and of the words of perfumery that they use. Each term
  * of the glossary has an id, so a page can link to it (`/ayuda#decant`).
@@ -35,6 +37,21 @@
         otros datos personales. Si ese servicio no responde, la tienda recomienda con sus propias reglas y la página lo
         indica.
       </p>
+    </section>
+
+    <section class="page-section prose" aria-labelledby="ayuda-cuenta">
+      <h2 id="ayuda-cuenta" tabindex="-1">Su cuenta</h2>
+      <p>
+        Para hacer pedidos necesita una cuenta de cliente. Puede
+        <RouterLink :to="{ name: 'register' }">crear una cuenta de cliente</RouterLink> con su nombre, su correo y una
+        contraseña de al menos 8 caracteres, después de leer y aceptar el aviso de privacidad. Al crearla, la tienda
+        inicia su sesión por usted.
+      </p>
+      <p>
+        «Mostrar la contraseña» le deja revisar lo que escribió. Su navegador o su gestor de contraseñas también puede
+        llenar el correo y la contraseña.
+      </p>
+      <p>Las cuentas del personal de la tienda no se crean aquí: las crea la persona dueña de la tienda.</p>
     </section>
 
     <section class="page-section prose" aria-labelledby="ayuda-pedidos">
