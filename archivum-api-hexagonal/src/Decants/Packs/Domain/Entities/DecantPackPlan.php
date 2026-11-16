@@ -20,12 +20,12 @@ final class DecantPackPlan
     private function __construct(
         public readonly DecantPackPlanId $id,
         public readonly BusinessId $businessId,
-        public readonly PlanName $name,
-        public readonly DecantCount $decants,
-        public readonly MlPerDecant $mlPerDecant,
-        public readonly PackPrice $price,
-        public readonly ValidityDays $validity,
-        public readonly ?MaxPricePerMl $maxPricePerMl,
+        public private(set) PlanName $name,
+        public private(set) DecantCount $decants,
+        public private(set) MlPerDecant $mlPerDecant,
+        public private(set) PackPrice $price,
+        public private(set) ValidityDays $validity,
+        public private(set) ?MaxPricePerMl $maxPricePerMl,
         public private(set) bool $isActive,
     ) {}
 
@@ -39,6 +39,20 @@ final class DecantPackPlan
     public static function reconstitute(DecantPackPlanId $id, BusinessId $businessId, PlanName $name, DecantCount $decants, MlPerDecant $mlPerDecant, PackPrice $price, ValidityDays $validity, ?MaxPricePerMl $maxPricePerMl, bool $isActive): self
     {
         return new self($id, $businessId, $name, $decants, $mlPerDecant, $price, $validity, $maxPricePerMl, $isActive);
+    }
+
+    /**
+     * Change what the offer sells from now on. The packs already bought keep the decants, the ml and the cap they
+     * copied when they were bought, so a revision never reaches them.
+     */
+    public function revise(PlanName $name, DecantCount $decants, MlPerDecant $mlPerDecant, PackPrice $price, ValidityDays $validity, ?MaxPricePerMl $maxPricePerMl): void
+    {
+        $this->name = $name;
+        $this->decants = $decants;
+        $this->mlPerDecant = $mlPerDecant;
+        $this->price = $price;
+        $this->validity = $validity;
+        $this->maxPricePerMl = $maxPricePerMl;
     }
 
     /** Take the offer off sale. It is not deleted: the packs bought from it keep pointing to it. */
