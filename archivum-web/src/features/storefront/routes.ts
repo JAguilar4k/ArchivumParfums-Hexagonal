@@ -16,8 +16,14 @@ export const storefrontRoutes: RouteRecordRaw[] = [
     path: '/tiendas/:tienda',
     component: () => import('./StoreLayout.vue'),
     children: [
-      { path: '', name: 'storefront', component: () => import('./ShowcaseView.vue') },
-      { path: 'perfumes/:perfume', name: 'perfume', component: () => import('./PerfumeDetailView.vue') },
+      { path: '', name: 'storefront', component: () => import('./ShowcaseView.vue'), meta: { title: 'Vitrina' } },
+      {
+        path: 'perfumes/:perfume',
+        name: 'perfume',
+        component: () => import('./PerfumeDetailView.vue'),
+        // The view replaces it with the name of the perfume once it arrives.
+        meta: { title: 'Perfume' },
+      },
     ],
   },
 ]

@@ -439,12 +439,174 @@ label {
   min-height: var(--target-size);
 }
 
+/* A line that screen readers announce, such as the count of a search: it keeps its place even when empty. */
+.results-summary {
+  font-weight: 600;
+}
+
+.results-summary:empty {
+  position: absolute;
+}
+
 /* Footer of every page, with the help (#128). */
 .app-footer {
   max-width: var(--page-width);
   margin-inline: auto;
   padding: 1rem;
   border-top: 1px solid var(--color-border);
+}
+
+/* Header of a store: logo, name, place of the appointments and its pages (#128). */
+.store {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.store-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.store-header__logo {
+  width: 4rem;
+  height: 4rem;
+  object-fit: contain;
+}
+
+.store-header__text {
+  flex: 1 1 16rem;
+}
+
+.store-header__name {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.store-header__place {
+  color: var(--color-text-muted);
+}
+
+.store-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  padding: 0;
+  list-style: none;
+}
+
+.store-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-size);
+}
+
+/* A trail of links from the store to the page (2.4.8). */
+.breadcrumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0;
+  list-style: none;
+}
+
+.breadcrumbs li {
+  display: inline-flex;
+  align-items: center;
+}
+
+.breadcrumbs li + li::before {
+  content: '›';
+  padding-inline: 0.5rem;
+  color: var(--color-text-muted);
+}
+
+.breadcrumbs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-size);
+}
+
+/* Filters of the showcase: as many columns as fit, one on a phone. */
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.filters__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 1.25rem 1.5rem;
+}
+
+/* Cards of perfumes. */
+.card-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.card__image {
+  width: 100%;
+  max-height: 12rem;
+  object-fit: contain;
+}
+
+.perfume-card__kind {
+  color: var(--color-text-muted);
+}
+
+.perfume-card__variants {
+  padding: 0;
+  list-style: none;
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.5rem;
+}
+
+/* Pairs of a name and its value, such as the notes of a perfume. */
+.facts {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.facts > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+}
+
+.facts dt {
+  font-weight: 700;
+}
+
+.facts dt::after {
+  content: ':';
+}
+
+.facts dd {
+  margin: 0;
 }
 
 /* Glossary of the help: each term in bold, its meaning below. */

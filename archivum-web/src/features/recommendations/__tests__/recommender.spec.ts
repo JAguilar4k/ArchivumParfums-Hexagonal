@@ -42,8 +42,11 @@ describe('recommender', () => {
 
     const { wrapper } = await open(`/tiendas/${STORE}/recomendaciones`)
 
+    expect(wrapper.get('h1').text()).toBe('Pedir una recomendación')
+    expect(document.title).toBe('Pedir una recomendación · ArchivumParfums')
     expect(wrapper.get('#aviso-ia').text()).toContain('proveedor externo de inteligencia artificial')
-    expect(wrapper.get('#texto-recomendacion').attributes('aria-describedby')).toBe('aviso-ia')
+    expect(wrapper.get('#pista-recomendacion').text()).toContain('Por ejemplo')
+    expect(wrapper.get('#texto-recomendacion').attributes('aria-describedby')).toBe('pista-recomendacion aviso-ia')
   })
 
   it('shows the perfumes of the AI with their reason as plain text and a link to the detail', async () => {
@@ -56,11 +59,12 @@ describe('recommender', () => {
     const { wrapper } = await ask('Algo con oud para la noche')
 
     expect(await requests[requests.length - 1]?.json()).toEqual({ texto: 'Algo con oud para la noche' })
-    expect(wrapper.get('.recommender__origin').text()).toBe('Recomendado con IA')
+    expect(wrapper.get('.recommender__origin').text()).toBe('Recomendado con inteligencia artificial.')
+    expect(wrapper.get('.results-summary').text()).toBe('Le recomendamos 1 perfume.')
     expect(wrapper.get('.recommendation__reason').text()).toBe('Tiene oud y es ideal <img src=x onerror=alert(1)> para la noche.')
     expect(wrapper.find('.recommendations img').exists()).toBe(false)
-    expect(wrapper.get('.recommendations h4 a').attributes('href')).toBe(`/tiendas/${STORE}/perfumes/p-1`)
-    expect(plain(wrapper.get('.recommendations').text())).toContain('50 ml · ₡85 000')
+    expect(wrapper.get('.recommendations h3 a').attributes('href')).toBe(`/tiendas/${STORE}/perfumes/p-1`)
+    expect(plain(wrapper.get('.recommendations').text())).toContain('Botella de 50 ml · ₡85 000')
   })
 
   it('says when the perfumes come from the rules', async () => {
@@ -71,10 +75,42 @@ describe('recommender', () => {
 
     const { wrapper } = await ask('Algo con oud')
 
-    expect(wrapper.get('.recommender__origin').text()).toBe('Recomendado por reglas')
+    expect(wrapper.get('.recommender__origin').text()).toBe(
+      'Recomendado con las reglas de la tienda, sin inteligencia artificial.',
+    )
   })
 
-  it('shows the wait, keeps the button disabled and sends the text only once', async () => {
+  it('asks for the text before sending it and takes the focus to the field', async () => {
+    const { requests } = fakeApi({ [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }) })
+    const { wrapper } = await open(`/tiendas/${STORE}/recomendaciones`)
+
+    await wrapper.get('.recommender form').trigger('submit')
+    await flushPromises()
+
+    const field = wrapper.get('#texto-recomendacion')
+    expect(requests.filter((request) => request.method === 'POST')).toHaveLength(0)
+    expect(wrapper.get('#error-texto').text()).toBe('Escriba qué le gusta para recomendarle perfumes.')
+    expect(field.attributes('aria-invalid')).toBe('true')
+    expect(field.attributes('aria-describedby')).toBe('pista-recomendacion aviso-ia error-texto')
+    expect(document.activeElement).toBe(field.element)
+  })
+
+  it('says when no perfume matches the description', async () => {
+    fakeApi({
+      [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
+      [`POST /tiendas/${STORE}/recomendaciones`]: () =>
+        json(200, { data: { ...recommendation('reglas', 'x').data, perfumes: [] } }),
+    })
+
+    const { wrapper } = await ask('Algo que no existe')
+
+    expect(wrapper.get('.results-summary').text()).toBe(
+      'No encontramos perfumes para esa descripción. Pruebe con otras palabras.',
+    )
+    expect(wrapper.find('.recommendations').exists()).toBe(false)
+  })
+
+  it('shows the wait, keeps the button busy and sends the text only once', async () => {
     let answer: (response: Response) => void = () => {}
     const { requests } = fakeApi({
       [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
@@ -87,15 +123,17 @@ describe('recommender', () => {
     await wrapper.get('.recommender form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.get('.recommender button').attributes('disabled')).toBeDefined()
-    expect(wrapper.get('[role="status"]').text()).toContain('Puede tardar unos segundos')
+    // aria-disabled and not disabled: the button keeps the focus while it waits.
+    expect(wrapper.get('.recommender button').attributes('aria-disabled')).toBe('true')
+    expect(wrapper.get('.recommender .loading-state').text()).toContain('Puede tardar unos segundos')
+    expect(wrapper.get('.recommender .loading-state').attributes('role')).toBe('status')
     expect(requests.filter((request) => request.method === 'POST')).toHaveLength(1)
 
     answer(json(200, recommendation('ia', 'Tiene oud.')))
     await flushPromises()
 
-    expect(wrapper.find('[role="status"]').exists()).toBe(false)
-    expect(wrapper.get('.recommender button').attributes('disabled')).toBeUndefined()
+    expect(wrapper.find('.recommender .loading-state').exists()).toBe(false)
+    expect(wrapper.get('.recommender button').attributes('aria-disabled')).toBeUndefined()
   })
 
   it('says when to try again after a 429', async () => {

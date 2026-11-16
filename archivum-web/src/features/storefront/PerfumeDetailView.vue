@@ -6,13 +6,16 @@ import { api } from '@/api/client'
 import { callApi } from '@/api/problem'
 import ErrorState from '@/shared/ErrorState.vue'
 import LoadingState from '@/shared/LoadingState.vue'
+import MlAmount from '@/shared/MlAmount.vue'
 import { formatColones } from '@/shared/money'
+import { usePageTitle } from '@/shared/pageChanges'
 import { useApiData } from '@/shared/useApiData'
-import { tagLabel } from './labels'
+import { concentrationLabel, tagLabel } from './labels'
 
 /**
  * The detail of a perfume of the showcase (#128). A perfume that is inactive or belongs to another store answers 404,
- * so it shows "No encontrado".
+ * so it shows "No encontrado". The tab and the heading take the name of the perfume, and a trail of links says where
+ * the page is in the store.
  */
 const route = useRoute()
 const tienda = computed(() => String(route.params.tienda))
@@ -27,6 +30,7 @@ const detail = useApiData(() =>
 )
 
 const perfume = computed(() => detail.data.value?.data ?? null)
+const name = computed(() => (perfume.value ? `${perfume.value.marca} ${perfume.value.nombre}` : null))
 
 const layers = computed(() =>
   perfume.value
@@ -38,64 +42,99 @@ const layers = computed(() =>
     : [],
 )
 
+usePageTitle(() => name.value)
+
 watch([tienda, perfumeId], () => void detail.reload(), { immediate: true })
 </script>
 
 <template>
-  <main class="perfume-detail">
+  <div class="page perfume-detail">
     <LoadingState v-if="detail.loading.value" message="Cargando el perfume…" />
     <ErrorState v-else-if="detail.problem.value" :problem="detail.problem.value" @retry="detail.reload" />
-    <article v-else-if="perfume">
-      <RouterLink :to="{ name: 'storefront', params: { tienda } }">Volver a la vitrina</RouterLink>
+    <article v-else-if="perfume" class="page" aria-labelledby="perfume-titulo">
+      <nav class="breadcrumbs" aria-label="Ubicación">
+        <ol>
+          <li><RouterLink :to="{ name: 'storefront', params: { tienda } }">Vitrina</RouterLink></li>
+          <li><span aria-current="page">{{ name }}</span></li>
+        </ol>
+      </nav>
 
-      <img v-if="perfume.foto_url" :src="perfume.foto_url" :alt="`${perfume.marca} ${perfume.nombre}`" />
-      <h2>{{ perfume.marca }} {{ perfume.nombre }}</h2>
-      <p class="perfume-detail__kind">
-        {{ [perfume.concentracion, perfume.genero, perfume.familia].filter(Boolean).join(' · ') }}
-      </p>
-      <p v-if="perfume.descripcion">{{ perfume.descripcion }}</p>
+      <h1 id="perfume-titulo">{{ name }}</h1>
+      <img v-if="perfume.foto_url" :src="perfume.foto_url" :alt="`Botella de ${name}`" class="perfume-detail__image" />
 
-      <section v-if="layers.length > 0" aria-labelledby="notes-title">
-        <h3 id="notes-title">Notas</h3>
-        <dl>
-          <template v-for="layer in layers" :key="layer.name">
+      <dl class="facts">
+        <div v-if="perfume.concentracion">
+          <dt>Concentración</dt>
+          <dd>{{ concentrationLabel(perfume.concentracion) }}</dd>
+        </div>
+        <div v-if="perfume.genero">
+          <dt>Género</dt>
+          <dd>{{ perfume.genero }}</dd>
+        </div>
+        <div v-if="perfume.familia">
+          <dt>Familia olfativa</dt>
+          <dd>{{ perfume.familia }}</dd>
+        </div>
+      </dl>
+
+      <div v-if="perfume.descripcion" class="prose">
+        <p>{{ perfume.descripcion }}</p>
+      </div>
+
+      <section v-if="layers.length > 0" class="page-section" aria-labelledby="notes-title">
+        <h2 id="notes-title">Notas</h2>
+        <p>
+          Las notas de salida se sienten al aplicarlo, las de corazón después de unos minutos y las de fondo son las que
+          duran al final. Vea también <RouterLink to="/ayuda#notas">qué son las notas de un perfume</RouterLink>.
+        </p>
+        <dl class="facts">
+          <div v-for="layer in layers" :key="layer.name">
             <dt>{{ layer.name }}</dt>
             <dd>{{ layer.notes.join(', ') }}</dd>
-          </template>
+          </div>
         </dl>
       </section>
 
-      <section aria-labelledby="tags-title">
-        <h3 id="tags-title">Cuándo usarlo</h3>
-        <dl>
-          <dt>Momento</dt>
-          <dd>{{ perfume.etiquetas.momento.map(tagLabel).join(', ') || 'Cualquiera' }}</dd>
-          <dt>Clima</dt>
-          <dd>{{ perfume.etiquetas.clima.map(tagLabel).join(', ') || 'Cualquiera' }}</dd>
-          <dt>Ocasión</dt>
-          <dd>{{ perfume.etiquetas.ocasion.join(', ') || 'Cualquiera' }}</dd>
+      <section class="page-section" aria-labelledby="tags-title">
+        <h2 id="tags-title">Cuándo usarlo</h2>
+        <dl class="facts">
+          <div>
+            <dt>Momento del día</dt>
+            <dd>{{ perfume.etiquetas.momento.map(tagLabel).join(', ') || 'Cualquiera' }}</dd>
+          </div>
+          <div>
+            <dt>Clima</dt>
+            <dd>{{ perfume.etiquetas.clima.map(tagLabel).join(', ') || 'Cualquiera' }}</dd>
+          </div>
+          <div>
+            <dt>Ocasión</dt>
+            <dd>{{ perfume.etiquetas.ocasion.join(', ') || 'Cualquiera' }}</dd>
+          </div>
         </dl>
       </section>
 
-      <section aria-labelledby="variants-title">
-        <h3 id="variants-title">Presentaciones</h3>
+      <section class="page-section" aria-labelledby="variants-title">
+        <h2 id="variants-title">Presentaciones</h2>
         <ul v-if="perfume.presentaciones.length > 0" class="variants">
           <li v-for="variant in perfume.presentaciones" :key="variant.ml">
-            Botella de {{ variant.ml }} ml · {{ formatColones(variant.precio_venta) }}
+            Botella de <MlAmount :amount="variant.ml" /> · {{ formatColones(variant.precio_venta) }}
           </li>
         </ul>
         <p v-else>Por ahora no hay botellas a la venta.</p>
       </section>
 
-      <section aria-labelledby="decants-title">
-        <h3 id="decants-title">Decants disponibles</h3>
+      <section class="page-section" aria-labelledby="decants-title">
+        <h2 id="decants-title">Decants disponibles</h2>
+        <p>
+          Un decant es una cantidad pequeña del perfume, en un frasco aparte, para probarlo antes de comprar la botella.
+        </p>
         <ul v-if="perfume.decants.length > 0" class="decants">
           <li v-for="decant in perfume.decants" :key="`${decant.botella_id}-${decant.ml}`">
-            Decant de {{ decant.ml }} ml · {{ formatColones(decant.precio) }}
+            Decant de <MlAmount :amount="decant.ml" /> · {{ formatColones(decant.precio) }}
           </li>
         </ul>
         <p v-else>Por ahora no hay decants disponibles.</p>
       </section>
     </article>
-  </main>
+  </div>
 </template>

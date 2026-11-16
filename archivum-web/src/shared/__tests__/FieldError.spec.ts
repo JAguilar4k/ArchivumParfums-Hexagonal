@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { mount, type VueWrapper } from '@vue/test-utils'
 
-import { interpretResponse } from '@/api/problem'
+import { fieldAttributes, interpretResponse } from '@/api/problem'
 import ExampleForm from './ExampleForm.vue'
 
 function validationProblem(errores: Record<string, string[]>) {
@@ -47,5 +47,18 @@ describe('field errors of a 422', () => {
     expect(wrapper.get('#nombre').attributes('aria-invalid')).toBeUndefined()
     expect(wrapper.find('#error-nombre').exists()).toBe(false)
     expect(document.activeElement).toBe(correo.element)
+  })
+})
+
+describe('fieldAttributes', () => {
+  it('points to the help text of a field, and to its messages after it when it is invalid', () => {
+    const problem = validationProblem({ correo: ['El correo ya está registrado.'] })
+
+    expect(fieldAttributes(null, 'correo', 'pista-correo')).toEqual({ 'aria-describedby': 'pista-correo' })
+    expect(fieldAttributes(problem, 'correo', 'pista-correo')).toEqual({
+      'aria-invalid': 'true',
+      'aria-describedby': 'pista-correo error-correo',
+    })
+    expect(fieldAttributes(problem, 'nombre')).toEqual({})
   })
 })

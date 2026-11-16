@@ -5,6 +5,13 @@ export const recommendationRoutes: RouteRecordRaw[] = [
   {
     path: '/tiendas/:tienda/recomendaciones',
     component: () => import('@/features/storefront/StoreLayout.vue'),
-    children: [{ path: '', name: 'recommendations', component: () => import('./RecommenderView.vue') }],
+    children: [
+      {
+        path: '',
+        name: 'recommendations',
+        component: () => import('./RecommenderView.vue'),
+        meta: { title: 'Pedir una recomendación' },
+      },
+    ],
   },
 ]

@@ -5,9 +5,8 @@ import { RouterLink, useRoute } from 'vue-router'
 import { api } from '@/api/client'
 import { callApi, fieldAttributes, focusFirstInvalidField, type ApiProblem } from '@/api/problem'
 import type { components } from '@/api/schema'
-import EmptyState from '@/shared/EmptyState.vue'
 import FieldError from '@/shared/FieldError.vue'
-import LoadingState from '@/shared/LoadingState.vue'
+import MlAmount from '@/shared/MlAmount.vue'
 import ProblemNotice from '@/shared/ProblemNotice.vue'
 import { formatColones } from '@/shared/money'
 
@@ -16,9 +15,13 @@ type Recommendation = components['schemas']['RecommendationResource']
 /**
  * The recommender of a store (#128): the visitor describes what they like and the API answers perfumes of the
  * showcase with a reason, from the AI or from the rules when the AI fails (#120). The reason is plain text.
+ * A line that screen readers announce says when the search starts and how it ended, because the answer can take
+ * some seconds and appears below the form.
  */
 const route = useRoute()
 const tienda = computed(() => String(route.params.tienda))
+
+const EMPTY_TEXT = 'Escriba qué le gusta para recomendarle perfumes.'
 
 const form = useTemplateRef<HTMLFormElement>('form')
 const texto = ref('')
@@ -27,17 +30,44 @@ const problem = ref<ApiProblem | null>(null)
 const recommendation = shallowRef<Recommendation | null>(null)
 
 const originLabel = computed(() =>
-  recommendation.value?.origen === 'ia' ? 'Recomendado con IA' : 'Recomendado por reglas',
+  recommendation.value?.origen === 'ia'
+    ? 'Recomendado con inteligencia artificial.'
+    : 'Recomendado con las reglas de la tienda, sin inteligencia artificial.',
 )
+
+const status = computed(() => {
+  if (sending.value) {
+    return 'Buscando perfumes para usted. Puede tardar unos segundos…'
+  }
+
+  if (!recommendation.value) {
+    return ''
+  }
+
+  const count = recommendation.value.perfumes.length
+
+  if (count === 0) {
+    return 'No encontramos perfumes para esa descripción. Pruebe con otras palabras.'
+  }
+
+  return count === 1 ? 'Le recomendamos 1 perfume.' : `Le recomendamos ${count} perfumes.`
+})
 
 async function recommend(): Promise<void> {
   // The answer can take up to 10 seconds: a second click must not send the text again.
-  if (sending.value || !texto.value.trim()) {
+  if (sending.value) {
+    return
+  }
+
+  if (!texto.value.trim()) {
+    await showProblem(localProblem(EMPTY_TEXT))
+
     return
   }
 
   sending.value = true
   problem.value = null
+  recommendation.value = null
 
   const outcome = await callApi(() =>
     api.POST('/tiendas/{tienda}/recomendaciones', {
@@ -48,70 +78,99 @@ async function recommend(): Promise<void> {
 
   sending.value = false
   recommendation.value = outcome.data?.data ?? null
-  problem.value = outcome.problem
 
   if (outcome.problem) {
-    await nextTick()
+    await showProblem(outcome.problem)
+  }
+}
 
-    if (form.value) {
-      focusFirstInvalidField(form.value, outcome.problem)
-    }
+async function showProblem(found: ApiProblem): Promise<void> {
+  problem.value = found
+  await nextTick()
+
+  if (form.value) {
+    focusFirstInvalidField(form.value, found)
+  }
+}
+
+/** A problem of the form that the page finds before asking the API, shown like a 422. */
+function localProblem(message: string): ApiProblem {
+  return {
+    kind: 'validation',
+    status: null,
+    type: null,
+    message,
+    fieldErrors: { texto: [message] },
+    requestId: null,
+    retryAfterSeconds: null,
   }
 }
 </script>
 
 <template>
-  <main class="recommender">
-    <h2>Pedir una recomendación</h2>
+  <div class="page recommender">
+    <h1>Pedir una recomendación</h1>
+    <p class="form-intro">
+      Describa con sus palabras el perfume que busca. Le sugerimos hasta cinco perfumes de esta tienda y le decimos por
+      qué.
+    </p>
 
-    <form ref="form" @submit.prevent="recommend">
-      <label for="texto-recomendacion">Describa lo que le gusta</label>
-      <textarea
-        id="texto-recomendacion"
-        v-model="texto"
-        name="texto"
-        rows="4"
-        placeholder="Por ejemplo: algo fresco y cítrico para el día, que no cueste más de ₡60 000."
-        aria-describedby="aviso-ia"
-        v-bind="fieldAttributes(problem, 'texto')"
-      ></textarea>
-      <p id="aviso-ia" class="recommender__notice">
-        Lo que escriba se envía a un proveedor externo de inteligencia artificial. No incluya datos personales como su
-        nombre, correo o teléfono.
-      </p>
-      <FieldError :problem="problem" field="texto" />
+    <form ref="form" class="form" novalidate @submit.prevent="recommend">
+      <div class="form-field">
+        <label for="texto-recomendacion">Describa lo que le gusta</label>
+        <p id="pista-recomendacion" class="field-hint">
+          Puede hablar de notas, momento del día, clima, ocasión y cuánto quiere gastar, en hasta 1000 caracteres. Por
+          ejemplo: algo fresco y cítrico para el día, que no cueste más de ₡60 000.
+        </p>
+        <textarea
+          id="texto-recomendacion"
+          v-model="texto"
+          name="texto"
+          rows="4"
+          v-bind="fieldAttributes(problem, 'texto', 'pista-recomendacion aviso-ia')"
+        ></textarea>
+        <FieldError :problem="problem" field="texto" />
+        <p id="aviso-ia" class="field-hint recommender__notice">
+          Lo que escriba se envía a un proveedor externo de inteligencia artificial. No incluya datos personales como su
+          nombre, correo o teléfono.
+        </p>
+      </div>
 
-      <button type="submit" :disabled="sending || !texto.trim()">
-        {{ sending ? 'Buscando…' : 'Recomendar' }}
-      </button>
+      <div class="form-actions">
+        <!-- aria-disabled and not disabled: the button keeps the focus while the request is on its way. -->
+        <button type="submit" :aria-disabled="sending ? 'true' : undefined">
+          {{ sending ? 'Buscando…' : 'Recomendar' }}
+        </button>
+      </div>
     </form>
 
-    <LoadingState v-if="sending" message="Buscando perfumes para usted. Puede tardar unos segundos…" />
-    <ProblemNotice v-else-if="problem" :problem="problem" />
-    <template v-else-if="recommendation">
-      <EmptyState
-        v-if="recommendation.perfumes.length === 0"
-        message="No encontramos perfumes para esa descripción. Pruebe con otras palabras."
-      />
-      <section v-else aria-labelledby="results-title">
-        <h3 id="results-title">Le recomendamos</h3>
-        <p class="recommender__origin">{{ originLabel }}</p>
-        <ul class="recommendations">
-          <li v-for="perfume in recommendation.perfumes" :key="perfume.id">
-            <h4>
-              <RouterLink :to="{ name: 'perfume', params: { tienda, perfume: perfume.id } }">
-                {{ perfume.marca }} {{ perfume.nombre }}
-              </RouterLink>
-            </h4>
-            <p class="recommendation__reason">{{ perfume.razon }}</p>
-            <ul>
-              <li v-for="variant in perfume.presentaciones" :key="variant.ml">
-                {{ variant.ml }} ml · {{ formatColones(variant.precio_venta) }}
-              </li>
-            </ul>
-          </li>
-        </ul>
-      </section>
-    </template>
-  </main>
+    <!-- Always in the page, so screen readers announce the wait and the answer. -->
+    <p :class="sending ? 'loading-state' : 'results-summary'" role="status">{{ status }}</p>
+
+    <!-- A field with a problem already says it next to the field. -->
+    <ProblemNotice v-if="problem && problem.kind !== 'validation'" :problem="problem" />
+    <section
+      v-else-if="recommendation && recommendation.perfumes.length > 0"
+      class="page-section"
+      aria-labelledby="results-title"
+    >
+      <h2 id="results-title">Le recomendamos</h2>
+      <p class="recommender__origin">{{ originLabel }}</p>
+      <ul class="card-list recommendations">
+        <li v-for="perfume in recommendation.perfumes" :key="perfume.id" class="card">
+          <h3>
+            <RouterLink :to="{ name: 'perfume', params: { tienda, perfume: perfume.id } }" class="action-link">
+              {{ perfume.marca }} {{ perfume.nombre }}
+            </RouterLink>
+          </h3>
+          <p class="recommendation__reason">{{ perfume.razon }}</p>
+          <ul class="perfume-card__variants">
+            <li v-for="variant in perfume.presentaciones" :key="variant.ml">
+              Botella de <MlAmount :amount="variant.ml" /> · {{ formatColones(variant.precio_venta) }}
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </section>
+  </div>
 </template>

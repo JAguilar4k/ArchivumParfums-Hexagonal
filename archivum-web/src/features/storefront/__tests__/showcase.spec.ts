@@ -31,15 +31,33 @@ describe('showcase', () => {
 
     const { wrapper } = await open(`/tiendas/${STORE}`)
 
-    expect(wrapper.get('.store-header h1').text()).toBe('ArchivumParfums')
-    expect(wrapper.get('.store-header__logo').attributes('alt')).toBe('Logo de ArchivumParfums')
+    expect(wrapper.get('.store-header__name').text()).toBe('ArchivumParfums')
+    // The name follows the logo, so the logo is not read twice.
+    expect(wrapper.get('.store-header__logo').attributes('alt')).toBe('')
+    expect(wrapper.get('h1').text()).toBe('Vitrina')
+    expect(document.title).toBe('Vitrina · ArchivumParfums')
     expect(wrapper.get('.store-header__place').text()).toContain('Escazú, San Rafael')
 
     const card = wrapper.get('.perfume-card')
     expect(card.get('h3 a').text()).toBe('Maison Archivum Oud Nocturno')
     expect(card.get('h3 a').attributes('href')).toBe(`/tiendas/${STORE}/perfumes/p-1`)
-    expect(plain(card.text())).toContain('50 ml · ₡85 000')
-    expect(plain(card.text())).toContain('100 ml · ₡125 000')
+    expect(plain(card.text())).toContain('Botella de 50 ml · ₡85 000')
+    expect(plain(card.text())).toContain('Botella de 100 ml · ₡125 000')
+    expect(card.get('abbr').attributes('title')).toBe('mililitros')
+    expect(wrapper.get('.results-summary').text()).toBe('Se encontró 1 perfume.')
+  })
+
+  it('describes each filter with an example', async () => {
+    fakeApi({
+      [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
+      [`GET /tiendas/${STORE}/perfumes`]: () => json(200, page([oud])),
+    })
+
+    const { wrapper } = await open(`/tiendas/${STORE}`)
+
+    expect(wrapper.get('label[for="texto"]').text()).toBe('Marca o nombre')
+    expect(wrapper.get('#texto').attributes('aria-describedby')).toBe('pista-texto')
+    expect(wrapper.get('#pista-precio_maximo').text()).toContain('Solo números')
   })
 
   it('sends the filters of the URL to the API and fills the form with them', async () => {
@@ -83,7 +101,25 @@ describe('showcase', () => {
     const { wrapper } = await open(`/tiendas/${STORE}?nota=vainilla`)
 
     expect(wrapper.get('.pagination').text()).toContain('Página 1 de 3')
+    expect(wrapper.get('.pagination a').text()).toBe('Página siguiente')
     expect(wrapper.get('.pagination a').attributes('href')).toBe(`/tiendas/${STORE}?nota=vainilla&pagina=2`)
+    expect(wrapper.get('.results-summary').text()).toBe('Se encontró 1 perfume. Página 1 de 3.')
+  })
+
+  it('moves the focus to the list after a change of page, because the link used may disappear', async () => {
+    fakeApi({
+      [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
+      [`GET /tiendas/${STORE}/perfumes`]: (request) =>
+        new URL(request.url).searchParams.get('pagina') === '2' ? json(200, page([oud], 2, 2)) : json(200, page([oud], 1, 2)),
+    })
+    const { wrapper, router } = await open(`/tiendas/${STORE}`)
+
+    await wrapper.get('.pagination a').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ pagina: '2' })
+    expect(wrapper.get('.pagination a').text()).toBe('Página anterior')
+    expect(document.activeElement?.id).toBe('perfumes-titulo')
   })
 
   it('says when no perfume matches the search', async () => {
@@ -94,7 +130,8 @@ describe('showcase', () => {
 
     const { wrapper } = await open(`/tiendas/${STORE}?texto=nada`)
 
-    expect(wrapper.text()).toContain('No hay perfumes que coincidan con la búsqueda.')
+    expect(wrapper.get('.results-summary').text()).toContain('No hay perfumes que coincidan con la búsqueda.')
+    expect(wrapper.find('.card-list').exists()).toBe(false)
   })
 
   it('marks the filter that the API rejects', async () => {
