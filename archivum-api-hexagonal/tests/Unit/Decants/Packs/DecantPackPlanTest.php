@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Src\Decants\Packs\Domain\Entities\DecantPackPlan;
+use Src\Decants\Packs\Domain\Exceptions\DecantSizeNotSoldException;
 use Src\Decants\Packs\Domain\ValueObjects\DecantCount;
 use Src\Decants\Packs\Domain\ValueObjects\DecantPackPlanId;
 use Src\Decants\Packs\Domain\ValueObjects\MaxPricePerMl;
@@ -91,6 +92,36 @@ it('R32: deactivating an offer keeps it, and it can go back on sale', function (
     $plan->reactivate();
 
     expect($plan->isActive)->toBeTrue();
+});
+
+it('R4: defines the ml of an offer only from the decant sizes of the store', function () {
+    expect(MlPerDecant::soldBy(5, [2, 5, 10])->value)->toBe(5)
+        ->and(MlPerDecant::soldBy(3, [3])->value)->toBe(3)
+        ->and(fn () => MlPerDecant::soldBy(7, [10, 2, 5]))->toThrow(DecantSizeNotSoldException::class, 'packs.size_not_sold')
+        ->and(fn () => MlPerDecant::soldBy(0, [2, 5, 10]))->toThrow(InvalidValueException::class, 'packs.ml_invalid');
+
+    try {
+        MlPerDecant::soldBy(7, [10, 2, 5]);
+    } catch (DecantSizeNotSoldException $exception) {
+        expect($exception->parameters())->toBe(['sizes' => '2, 5, 10']);
+    }
+});
+
+it('R32: revises everything the offer sells and keeps its identity, its business and whether it is on sale', function () {
+    $plan = domainPackPlan();
+    $plan->deactivate();
+
+    $plan->revise(new PlanName('Diez de 2 ml'), new DecantCount(10), new MlPerDecant(2), new PackPrice(25000), new ValidityDays(90), null);
+
+    expect($plan->id->value)->toBe('0192f0c4-0000-7000-9000-000000000101')
+        ->and($plan->businessId->value)->toBe('0192f0c4-0000-7000-9000-000000000002')
+        ->and($plan->name->value)->toBe('Diez de 2 ml')
+        ->and($plan->decants->value)->toBe(10)
+        ->and($plan->mlPerDecant->value)->toBe(2)
+        ->and($plan->price->amount)->toBe(25000)
+        ->and($plan->validity->days)->toBe(90)
+        ->and($plan->maxPricePerMl)->toBeNull()
+        ->and($plan->isActive)->toBeFalse();
 });
 
 it('rebuilds an offer from its stored state', function () {

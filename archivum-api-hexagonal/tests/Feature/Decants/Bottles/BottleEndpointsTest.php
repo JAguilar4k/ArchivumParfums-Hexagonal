@@ -88,8 +88,8 @@ it('records a signed manual adjustment with its author and updated bottle', func
     $bottle = DecantBottleModel::factory()->create(['business_id' => $business->business->id]);
     $url = '/api/v1/panel/botellas/'.$bottle->id;
 
-    postJson($url.'/ajustes', ['ml' => -20, 'motivo' => 'Conteo físico'])->assertCreated()->assertJsonPath('data.botella.ml_restantes', 80)->assertJsonPath('data.movimiento.tipo', 'ajuste')->assertJsonPath('data.movimiento.ml', -20)->assertJsonPath('data.movimiento.hecho_por', $business->owner->name);
-    getJson($url.'/movimientos')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.motivo', 'Conteo físico');
+    postJson($url.'/ajustes', ['ml' => -20, 'motivo' => 'Conteo físico'])->assertCreated()->assertJsonPath('data.botella.ml_restantes', 80)->assertJsonPath('data.movimiento.tipo', 'ajuste')->assertJsonPath('data.movimiento.ml', -20)->assertJsonPath('data.movimiento.hecho_por', $business->owner->name)->assertJsonPath('data.movimiento.canjeado', false);
+    getJson($url.'/movimientos')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.motivo', 'Conteo físico')->assertJsonPath('data.0.canjeado', false);
     $this->scopeQueriesTo($business->business->id);
     assertDatabaseHas('decant_movements', ['decant_bottle_id' => $bottle->id, 'type' => 'adjustment', 'ml' => -20, 'user_id' => $business->owner->id]);
 });

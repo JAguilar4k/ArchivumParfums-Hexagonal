@@ -8,8 +8,10 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
+use Src\Decants\Packs\Application\Contracts\PackPayments;
 use Src\Payments\Payments\Application\Contracts\BusinessScope;
 use Src\Payments\Payments\Application\Contracts\OutgoingRefunds;
+use Src\Payments\Payments\Application\Contracts\PayablePackReader;
 use Src\Payments\Payments\Application\Contracts\PayableReader;
 use Src\Payments\Payments\Application\Contracts\PaymentBusinesses;
 use Src\Payments\Payments\Application\Contracts\PaymentRecorders;
@@ -32,6 +34,8 @@ use Src\Payments\Payments\Domain\Contracts\RefundRepository;
 use Src\Payments\Payments\Domain\Entities\Payment;
 use Src\Payments\Payments\Infrastructure\Businesses\BusinessesPaymentRecorders;
 use Src\Payments\Payments\Infrastructure\Console\ReconcilePaymentsConsoleCommand;
+use Src\Payments\Payments\Infrastructure\Decants\DecantsPayablePackReader;
+use Src\Payments\Payments\Infrastructure\Decants\PaymentPackPayments;
 use Src\Payments\Payments\Infrastructure\Gateways\Onvo\OnvoGateway;
 use Src\Payments\Payments\Infrastructure\Gateways\PayPal\PayPalGateway;
 use Src\Payments\Payments\Infrastructure\GatewaySelection\BusinessExchangeRates;
@@ -62,6 +66,8 @@ final class PaymentsServiceProvider extends ServiceProvider
         PaymentGateways::class => ConfiguredPaymentGateways::class,
         ExchangeRates::class => BusinessExchangeRates::class,
         PayableReader::class => SalesPayableReader::class,
+        PayablePackReader::class => DecantsPayablePackReader::class,
+        PackPayments::class => PaymentPackPayments::class,
         RefundRepository::class => DatabaseRefundRepository::class,
         RefundRequests::class => PaymentRefundRequests::class,
         OrderPayments::class => PaymentOrderPayments::class,
