@@ -44,39 +44,47 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <main class="sign-in">
+  <div class="page sign-in">
     <h1>Iniciar sesión</h1>
+    <p class="form-intro">Escriba el correo y la contraseña de su cuenta.</p>
 
     <ProblemNotice v-if="problem" :problem="problem" />
 
-    <form ref="form" novalidate @submit.prevent="submit">
-      <label for="correo">Correo</label>
-      <input
-        id="correo"
-        v-model="correo"
-        name="correo"
-        type="email"
-        autocomplete="email"
-        required
-        v-bind="fieldAttributes(problem, 'correo')"
-      />
-      <FieldError :problem="problem" field="correo" />
+    <form ref="form" class="form" novalidate @submit.prevent="submit">
+      <div class="form-field">
+        <label for="correo">Correo</label>
+        <input
+          id="correo"
+          v-model="correo"
+          name="correo"
+          type="email"
+          autocomplete="email"
+          required
+          v-bind="fieldAttributes(problem, 'correo')"
+        />
+        <FieldError :problem="problem" field="correo" />
+      </div>
 
-      <label for="contrasena">Contraseña</label>
-      <input
-        id="contrasena"
-        v-model="contrasena"
-        name="contrasena"
-        type="password"
-        autocomplete="current-password"
-        required
-        v-bind="fieldAttributes(problem, 'contrasena')"
-      />
-      <FieldError :problem="problem" field="contrasena" />
+      <div class="form-field">
+        <label for="contrasena">Contraseña</label>
+        <input
+          id="contrasena"
+          v-model="contrasena"
+          name="contrasena"
+          type="password"
+          autocomplete="current-password"
+          required
+          v-bind="fieldAttributes(problem, 'contrasena')"
+        />
+        <FieldError :problem="problem" field="contrasena" />
+      </div>
 
-      <button type="submit" :disabled="sending">
-        {{ sending ? 'Ingresando…' : 'Iniciar sesión' }}
-      </button>
+      <div class="form-actions">
+        <!-- aria-disabled and not disabled: the button keeps the focus while the request is on its way. -->
+        <button type="submit" :aria-disabled="sending ? 'true' : undefined">
+          {{ sending ? 'Ingresando…' : 'Iniciar sesión' }}
+        </button>
+      </div>
     </form>
-  </main>
+  </div>
 </template>

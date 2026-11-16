@@ -15,8 +15,8 @@ async function signOut(): Promise<void> {
 <template>
   <nav class="session-menu" aria-label="Sesión">
     <template v-if="session.isSignedIn">
-      <span>{{ session.account?.nombre }}</span>
-      <button type="button" @click="signOut">Cerrar sesión</button>
+      <span class="session-menu__name">{{ session.account?.nombre }}</span>
+      <button type="button" class="button--secondary" @click="signOut">Cerrar sesión</button>
     </template>
     <RouterLink v-else :to="{ name: 'sign-in' }">Iniciar sesión</RouterLink>
   </nav>
