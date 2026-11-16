@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
+
+import { createApiClient } from '../client'
 
 import {
   callApi,
@@ -213,6 +215,18 @@ describe('callApi', () => {
 
     expect(outcome.data).toBeNull()
     expect(outcome.problem).toMatchObject({ kind: 'conflict' })
+  })
+
+  it('types the data from the successful response of the contract', async () => {
+    const client = createApiClient({
+      baseUrl: 'https://api.example.test/api/v1',
+      fetch: async () => new Response(JSON.stringify({ nombre: 'ArchivumParfums', version: 'v1' }), { status: 200 }),
+    })
+
+    const outcome = await callApi(() => client.GET('/'))
+
+    expectTypeOf(outcome.data).toEqualTypeOf<{ nombre: string; version: 'v1' } | null>()
+    expect(outcome.data).toEqual({ nombre: 'ArchivumParfums', version: 'v1' })
   })
 
   it('returns a network problem instead of throwing', async () => {

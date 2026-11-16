@@ -102,9 +102,12 @@ export function interpretException(exception: unknown): ApiProblem {
 export type ApiOutcome<T> = { data: T; problem: null } | { data: null; problem: ApiProblem }
 
 /** What a call of the api client returns (`FetchResponse` of openapi-fetch). */
-type ApiResult<T> =
-  | { data: T; error?: never; response: Response }
+type ApiResult =
+  | { data: unknown; error?: never; response: Response }
   | { data?: never; error: unknown; response: Response }
+
+/** The data of the successful branch of an `ApiResult`. */
+type SuccessData<R> = R extends { data: infer D; error?: never } ? D : never
 
 /**
  * Runs a call of the api client and returns its data, or the problem to show.
@@ -114,12 +117,14 @@ type ApiResult<T> =
  * const { data, problem } = await callApi(() => api.GET('/tiendas/{tienda}', { params }))
  * ```
  */
-export async function callApi<T>(call: () => Promise<ApiResult<T>>): Promise<ApiOutcome<T>> {
+export async function callApi<R extends ApiResult>(
+  call: () => Promise<R>,
+): Promise<ApiOutcome<SuccessData<R>>> {
   try {
     const result = await call()
 
     if (result.response.ok) {
-      return { data: result.data as T, problem: null }
+      return { data: result.data as SuccessData<R>, problem: null }
     }
 
     return { data: null, problem: interpretResponse(result.response, result.error) }
