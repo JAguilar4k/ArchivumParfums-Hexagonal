@@ -6577,7 +6577,11 @@
                         "type": "string"
                     },
                     "rol": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "dueno",
+                            "colaborador"
+                        ]
                     },
                     "atiende_citas": {
                         "type": "boolean"
@@ -7280,7 +7284,10 @@
                         "maxLength": 1000
                     },
                     "notas": {
-                        "type": "object",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "salida": {
                                 "type": [
@@ -7318,7 +7325,10 @@
                         }
                     },
                     "etiquetas": {
-                        "type": "object",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "momento": {
                                 "type": [
@@ -7921,6 +7931,26 @@
                 ],
                 "title": "SessionTokenResource"
             },
+            "ShowcaseDecantResource": {
+                "type": "object",
+                "properties": {
+                    "botella_id": {
+                        "type": "string"
+                    },
+                    "ml": {
+                        "type": "integer"
+                    },
+                    "precio": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "botella_id",
+                    "ml",
+                    "precio"
+                ],
+                "title": "ShowcaseDecantResource"
+            },
             "ShowcasePerfume": {
                 "type": "object",
                 "properties": {
@@ -7977,7 +8007,9 @@
                     },
                     "presentaciones": {
                         "type": "array",
-                        "items": {}
+                        "items": {
+                            "$ref": "#/components/schemas/ShowcaseVariantResource"
+                        }
                     }
                 },
                 "required": [
@@ -8088,11 +8120,15 @@
                     },
                     "presentaciones": {
                         "type": "array",
-                        "items": {}
+                        "items": {
+                            "$ref": "#/components/schemas/ShowcaseVariantResource"
+                        }
                     },
                     "decants": {
                         "type": "array",
-                        "items": {}
+                        "items": {
+                            "$ref": "#/components/schemas/ShowcaseDecantResource"
+                        }
                     }
                 },
                 "required": [
@@ -8110,6 +8146,26 @@
                     "decants"
                 ],
                 "title": "ShowcasePerfumeDetail"
+            },
+            "ShowcaseVariantResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "ml": {
+                        "type": "integer"
+                    },
+                    "precio_venta": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "ml",
+                    "precio_venta"
+                ],
+                "title": "ShowcaseVariantResource"
             },
             "StoreAccountRequest": {
                 "type": "object",
@@ -8425,7 +8481,10 @@
                         "maxLength": 1000
                     },
                     "notas": {
-                        "type": "object",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "salida": {
                                 "type": [
@@ -8463,7 +8522,10 @@
                         }
                     },
                     "etiquetas": {
-                        "type": "object",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "momento": {
                                 "type": [

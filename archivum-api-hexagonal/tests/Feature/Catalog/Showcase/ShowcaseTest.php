@@ -3,12 +3,14 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Src\Catalog\Perfumes\Domain\ValueObjects\Climate;
 use Src\Catalog\Perfumes\Domain\ValueObjects\NoteLayer;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeNote;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeTag;
 use Src\Catalog\Perfumes\Domain\ValueObjects\TimeOfDay;
+use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\TwoBusinesses;
 use Tests\Support\Catalog\StoredPerfumes;
 use Tests\Support\RefreshDatabaseAsOwner;
@@ -66,12 +68,19 @@ it('shows each perfume with its public fields and only the presentations that ca
     $byName = array_column($data, null, 'nombre');
     $oud = $byName['Oud Wood'];
     $mixed = $byName['Mixto'];
+    $idOf = fn (string $perfumeId, int $ml): string => (string) app(BusinessTransaction::class)->run(
+        TwoBusinesses::idOf(TwoBusinesses::FIRST),
+        fn (): mixed => DB::table('perfume_variants')->where('perfume_id', $perfumeId)->where('size_ml', $ml)->value('id'),
+    );
 
     expect(array_keys($oud))->toBe(['id', 'marca', 'nombre', 'concentracion', 'familia', 'foto_url', 'etiquetas', 'presentaciones'])
         ->and($oud['foto_url'])->toBe(Storage::disk('public')->url('perfumes/oud.png'))
         ->and($oud['etiquetas'])->toBe(['momento' => ['noche'], 'clima' => ['frio'], 'ocasion' => ['Cena']])
-        ->and($oud['presentaciones'])->toBe([['ml' => 50, 'precio_venta' => 185000], ['ml' => 100, 'precio_venta' => 295000]])
-        ->and($mixed['presentaciones'])->toBe([['ml' => 30, 'precio_venta' => 60000]])
+        ->and($oud['presentaciones'])->toBe([
+            ['id' => $idOf($oud['id'], 50), 'ml' => 50, 'precio_venta' => 185000],
+            ['id' => $idOf($oud['id'], 100), 'ml' => 100, 'precio_venta' => 295000],
+        ])
+        ->and($mixed['presentaciones'])->toBe([['id' => $idOf($mixed['id'], 30), 'ml' => 30, 'precio_venta' => 60000]])
         ->and($mixed['foto_url'])->toBeNull();
 });
 
