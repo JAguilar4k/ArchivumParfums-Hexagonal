@@ -5484,6 +5484,340 @@
                 }
             }
         },
+        "/panel/servicios": {
+            "get": {
+                "operationId": "scheduling.services.index",
+                "summary": "List every service of the business of the session, active and inactive, ordered by name",
+                "tags": [
+                    "Service"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PanelService`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PanelService"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "scheduling.services.store",
+                "summary": "Register a service in the business of the session",
+                "tags": [
+                    "Service"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreService"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`PanelService`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelService"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
+        "/panel/servicios/{servicio}": {
+            "get": {
+                "operationId": "scheduling.services.show",
+                "summary": "Show one service of the business of the session",
+                "tags": [
+                    "Service"
+                ],
+                "parameters": [
+                    {
+                        "name": "servicio",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`PanelService`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelService"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "patch": {
+                "operationId": "scheduling.services.update",
+                "summary": "Change the fields sent of a service of the business of the session, also to deactivate or reactivate it",
+                "tags": [
+                    "Service"
+                ],
+                "parameters": [
+                    {
+                        "name": "servicio",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchService"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PanelService`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelService"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/sesiones": {
             "post": {
                 "operationId": "accounts.sessions.store",
@@ -7114,6 +7448,42 @@
                 ],
                 "title": "PanelPerfumeVariant"
             },
+            "PanelService": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "duracion_minutos": {
+                        "type": "integer"
+                    },
+                    "precio": {
+                        "type": "integer"
+                    },
+                    "margen_minutos": {
+                        "type": "integer"
+                    },
+                    "maximo_perfumes": {
+                        "type": "integer"
+                    },
+                    "activo": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "duracion_minutos",
+                    "precio",
+                    "margen_minutos",
+                    "maximo_perfumes",
+                    "activo"
+                ],
+                "title": "PanelService"
+            },
             "PanelSoldPack": {
                 "type": "object",
                 "properties": {
@@ -7390,6 +7760,39 @@
                     }
                 },
                 "title": "PatchPerfumeVariant"
+            },
+            "PatchService": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "duracion_minutos": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2147483647
+                    },
+                    "precio": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "margen_minutos": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "maximo_perfumes": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "activo": {
+                        "type": "boolean"
+                    }
+                },
+                "title": "PatchService"
             },
             "PaymentNoticeResource": {
                 "type": "object",
@@ -8567,6 +8970,46 @@
                     "texto"
                 ],
                 "title": "StoreRecommendation"
+            },
+            "StoreService": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "duracion_minutos": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 2147483647
+                    },
+                    "precio": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "margen_minutos": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "maximo_perfumes": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 2147483647
+                    },
+                    "activo": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "nombre",
+                    "duracion_minutos",
+                    "precio",
+                    "margen_minutos",
+                    "maximo_perfumes"
+                ],
+                "title": "StoreService"
             },
             "StoreSessionRequest": {
                 "type": "object",
