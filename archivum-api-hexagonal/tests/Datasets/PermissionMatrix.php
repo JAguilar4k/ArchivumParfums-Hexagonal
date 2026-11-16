@@ -66,6 +66,10 @@ function permissionMatrixRows(): array
             'agregar a una persona' => ['POST', 'api/v1/panel/personal', [], ownerOnly(422)],
             'ver a una persona' => ['GET', 'api/v1/panel/personal/{persona}', [], ownerOnly(200)],
             'editar a una persona' => ['PATCH', 'api/v1/panel/personal/{persona}', [], ownerOnly(200)],
+            'listar los bloqueos' => ['GET', 'api/v1/panel/bloqueos', ['desde' => '2026-11-01', 'hasta' => '2026-12-01'], ownerOnly(200)],
+            'crear un bloqueo' => ['POST', 'api/v1/panel/bloqueos', [], ownerOnly(422)],
+            'editar un bloqueo' => ['PATCH', 'api/v1/panel/bloqueos/{bloqueo}', [], ownerOnly(200)],
+            'quitar un bloqueo' => ['DELETE', 'api/v1/panel/bloqueos/{bloqueo}', [], ownerOnly(204)],
         ],
         'catálogo, importación, botellas, proveedores y órdenes de compra' => [
             'listar perfumes' => ['GET', 'api/v1/panel/perfumes', [], ownerOnly(200)],
