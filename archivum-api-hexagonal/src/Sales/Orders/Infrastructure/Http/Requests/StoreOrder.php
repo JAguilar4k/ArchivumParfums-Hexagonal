@@ -25,18 +25,19 @@ final class StoreOrder extends FormRequest
             'lineas.*.botella_id' => ['required_without:lineas.*.presentacion_id', 'prohibits:lineas.*.presentacion_id', 'uuid'],
             'lineas.*.cantidad' => ['required_with:lineas.*.presentacion_id', 'integer', 'min:1', 'max:'.Colones::MAX],
             'lineas.*.ml' => ['required_with:lineas.*.botella_id', 'integer', 'min:1', 'max:'.Colones::MAX],
+            'lineas.*.paquete_id' => ['sometimes', 'nullable', 'uuid', 'prohibits:lineas.*.presentacion_id'],
         ];
     }
 
     /** @return array<string,string> */
     public function attributes(): array
     {
-        return ['lineas' => __('orders.lineas'), 'lineas.*.presentacion_id' => 'presentación', 'lineas.*.botella_id' => 'botella', 'lineas.*.ml' => 'mililitros', 'lineas.*.cantidad' => 'cantidad'];
+        return ['lineas' => __('orders.lineas'), 'lineas.*.presentacion_id' => 'presentación', 'lineas.*.botella_id' => 'botella', 'lineas.*.ml' => 'mililitros', 'lineas.*.cantidad' => 'cantidad', 'lineas.*.paquete_id' => 'paquete'];
     }
 
     public function toCommand(): PlaceOrderCommand
     {
-        /** @var list<array{presentacion_id?:string,botella_id?:string,cantidad?:int,ml?:int}> $input */
+        /** @var list<array{presentacion_id?:string,botella_id?:string,cantidad?:int,ml?:int,paquete_id?:string}> $input */
         $input = $this->validated('lineas');
         $lines = [];
 
@@ -44,7 +45,7 @@ final class StoreOrder extends FormRequest
             if (isset($line['presentacion_id'], $line['cantidad'])) {
                 $lines[] = ['kind' => 'bottle', 'reference' => $line['presentacion_id'], 'ml' => null, 'quantity' => (int) $line['cantidad']];
             } elseif (isset($line['botella_id'], $line['ml'])) {
-                $lines[] = ['kind' => 'decant', 'reference' => $line['botella_id'], 'ml' => (int) $line['ml'], 'quantity' => 1];
+                $lines[] = ['kind' => 'decant', 'reference' => $line['botella_id'], 'ml' => (int) $line['ml'], 'quantity' => 1, 'pack' => $line['paquete_id'] ?? null];
             } else {
                 throw new LogicException('A validated order line lacks its product or quantity.');
             }

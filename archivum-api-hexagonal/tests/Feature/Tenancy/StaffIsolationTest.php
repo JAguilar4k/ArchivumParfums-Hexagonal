@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Decants\Bottles\Infrastructure\Persistence\Models\DecantBottleModel;
+use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackModel;
+use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackPlanModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
 use Src\Scheduling\Services\Infrastructure\Persistence\Models\ServiceModel;
 use Src\Shared\Domain\Contracts\BusinessContext;
@@ -37,6 +39,8 @@ function panelListings(): array
         'list the bottles' => ['/api/v1/panel/botellas', exampleBottle(...)],
         'list the orders' => ['/api/v1/panel/pedidos', exampleOrder(...)],
         'list the services' => ['/api/v1/panel/servicios', exampleService(...)],
+        'list the offers of decant packs' => ['/api/v1/panel/paquetes', examplePackPlan(...)],
+        'list the sold decant packs' => ['/api/v1/panel/paquetes-vendidos', exampleSoldPack(...)],
     ];
 }
 
@@ -66,6 +70,7 @@ function panelResourcesById(): array
         'mark a line unavailable' => ['POST', '/api/v1/panel/pedidos/{id}/lineas/'.MISSING_RESOURCE.'/no-disponible', [], 'orders', exampleOrder(...)],
         'show a service' => ['GET', '/api/v1/panel/servicios', [], 'services', exampleService(...)],
         'edit a service' => ['PATCH', '/api/v1/panel/servicios', ['nombre' => 'Nombre nuevo', 'activo' => false], 'services', exampleService(...)],
+        'edit an offer of decant packs' => ['PATCH', '/api/v1/panel/paquetes', ['precio' => 1, 'activo' => false], 'decant_pack_plans', examplePackPlan(...)],
     ];
 }
 
@@ -101,6 +106,9 @@ function panelCreations(): array
         'create a service' => ['/api/v1/panel/servicios', fn (string $businessId): array => [
             'nombre' => 'Cata guiada', 'duracion_minutos' => 30, 'precio' => 0, 'margen_minutos' => 10, 'maximo_perfumes' => 3,
         ], 'services'],
+        'define an offer of decant packs' => ['/api/v1/panel/paquetes', fn (string $businessId): array => [
+            'nombre' => 'Descubrimiento', 'cantidad_decants' => 5, 'ml_por_decant' => 5, 'precio' => 40000, 'vigencia_dias' => 180,
+        ], 'decant_pack_plans'],
     ];
 }
 
@@ -130,6 +138,16 @@ function exampleOrder(string $businessId): string
 function exampleService(string $businessId): string
 {
     return ServiceModel::factory()->create(['business_id' => $businessId])->id;
+}
+
+function examplePackPlan(string $businessId): string
+{
+    return DecantPackPlanModel::factory()->create(['business_id' => $businessId])->id;
+}
+
+function exampleSoldPack(string $businessId): string
+{
+    return DecantPackModel::factory()->create(['business_id' => $businessId])->id;
 }
 
 function panelResourcePath(string $path, string $id): string
