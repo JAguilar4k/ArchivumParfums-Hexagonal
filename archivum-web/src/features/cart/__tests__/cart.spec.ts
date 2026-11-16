@@ -76,6 +76,10 @@ describe('cart', () => {
     expect(text).toContain('Subtotal₡134 500')
     expect(text).toContain('Por cobrar ahora₡72 000')
     expect(text).toContain('Saldo₡134 500')
+    // The time ends with "a. m." or "p. m.", so the sentence goes on after a comma and never shows two periods.
+    expect(plain(wrapper.get('.order-summary__deadline').text())).toMatch(
+      /^Si no se paga antes del .+ [ap]\. m\., el pedido vence y sus decants vuelven/,
+    )
   })
 
   it('keeps the cart after a reload and asks a visitor to sign in before creating the order', async () => {
