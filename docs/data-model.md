@@ -182,6 +182,7 @@ erDiagram
         integer max_price_per_ml
         varchar status
         timestamptz expires_at
+        varchar idempotency_key
     }
     decant_pack_redemptions {
         uuid id PK
@@ -446,7 +447,7 @@ Cada fila es un servicio que la tienda ofrece agendar, con su duración, su prec
 - Llaves candidatas: `id` y `(id, business_id)` (`services_id_business_id_unique`), que es el destino de las llaves foráneas compuestas de `appointments` (#59).
 - Índice `services_business_id_is_active_index` sobre `(business_id, is_active)`: el panel lista activos e inactivos de una tienda.
 - Política de fila: `services_business_isolation`, igual que `members`; la habilita `enable_row_level_security_on_scheduling_tables`.
-- El servicio inicial es «Prueba de olores»: 45 min, ₡0, 15 min de margen y hasta 5 perfumes (R11). Los sembradores lo crean en cada tienda de demostración.
+- El servicio inicial es «Prueba de olores»: 45 min, ₡0, 15 min de margen y hasta 5 perfumes (R11). Los sembradores lo crean en cada tienda de demostración a partir de #53.
 
 ### business_hours
 
@@ -544,7 +545,7 @@ Cada fila registra un cambio de ml de una botella (R8). No se borra ni se modifi
 | `reason` | `text` | Opcional salvo en ajustes: `decant_movements_reason_check` exige texto no vacío |
 | `created_at` | `timestamptz` | Obligatoria; por defecto `CURRENT_TIMESTAMP`; no hay `updated_at` |
 
-Índice `(business_id, decant_bottle_id, created_at)` para el historial, que la API ordena por fecha e identificador descendentes. La seguridad de fila está habilitada y forzada con dos políticas: `decant_movements_business_read` solo permite `SELECT` de la tienda actual y `decant_movements_business_insert` solo permite `INSERT` en ella. Se revocan `UPDATE`, `DELETE` y `TRUNCATE` al rol de la aplicación. La llave a `users` está justificada en la [lista blanca](#lista-blanca-de-businesskeystest).
+Índice `(business_id, decant_bottle_id, created_at)` para el historial, que la API ordena por fecha e identificador descendentes. La API marca con `canjeado` los movimientos de una línea pagada con un paquete, leyendo `order_lines.decant_pack_id`; no hay una columna para eso (#146). La seguridad de fila está habilitada y forzada con dos políticas: `decant_movements_business_read` solo permite `SELECT` de la tienda actual y `decant_movements_business_insert` solo permite `INSERT` en ella. Se revocan `UPDATE`, `DELETE` y `TRUNCATE` al rol de la aplicación. La llave a `users` está justificada en la [lista blanca](#lista-blanca-de-businesskeystest).
 
 ### decant_pack_plans
 
@@ -583,12 +584,13 @@ Cada fila es un paquete que compró un cliente (R33). Copia de la oferta lo que 
 | `max_price_per_ml` | `integer` | Opcional; el tope de la oferta al comprar; `decant_packs_max_price_per_ml_check`: mayor que 0 |
 | `status` | `varchar(20)` | Por defecto `pending_payment`; `decant_packs_status_check`: `pending_payment` con todos sus decants, `active` con al menos uno, `exhausted` sin ninguno o `expired` |
 | `expires_at` | `timestamptz` | El plazo de pago mientras espera su pago y el fin de su vigencia desde que se activa |
+| `idempotency_key` | `varchar(100)` | Opcional; la clave que el cliente envió con la compra en el encabezado `Idempotency-Key` (#145) |
 | `created_at`, `updated_at` | `timestamptz` | |
 
-- Llaves únicas: `id` y `(id, business_id)`.
+- Llaves únicas: `id`, `(id, business_id)` y `(business_id, customer_id, idempotency_key)`, que impide que una clave compre dos paquetes, también con dos compras simultáneas (#145). PostgreSQL no compara los `NULL`, así que las compras sin clave no chocan entre sí.
 - Índices `(business_id, customer_id, status)` para los paquetes del cliente y `(business_id, status, expires_at)` para los vencimientos (#159).
 - Política `decant_packs_business_isolation`, habilitada y forzada.
-- El canje de #147 descuenta un decant con un `UPDATE` condicional sobre esta fila, y el `CHECK` impide un saldo negativo aunque un camino se salte esa condición.
+- El canje descuenta un decant con un `UPDATE` condicional sobre esta fila, que exige `active`, vigencia y decants restantes y pasa el paquete a `exhausted` al llegar a 0 en la misma sentencia (#147). Los `CHECK` impiden un saldo negativo aunque un camino se salte esa condición.
 
 ### decant_pack_redemptions
 
@@ -605,6 +607,7 @@ Cada fila es un decant de un paquete canjeado en una línea de un pedido (R34).
 - Llaves únicas: `id` y `(business_id, order_line_id)`: una línea del pedido canjea un solo decant.
 - Índice `(business_id, decant_pack_id)` para los canjes de un paquete.
 - Política `decant_pack_redemptions_business_isolation`, habilitada y forzada.
+- La fila se crea en la transacción del pedido, después de guardar su línea, y se borra cuando el pedido se cancela y el decant vuelve a su paquete (#146). Así `remaining_decants` es siempre `total_decants` menos las filas del paquete; lo que pasó con esa línea queda en el historial de la botella, con su reserva y su liberación.
 
 ### orders
 
@@ -659,7 +662,7 @@ Cada fila es un intento de cobro de un pedido o de un paquete de decants. La int
 | `id` | `uuid` | Llave primaria y clave del intento usada por el adaptador |
 | `business_id` | `uuid` | Llave foránea a `businesses` |
 | `order_id` | `uuid` | Opcional; llave foránea compuesta a `orders(id, business_id)`; `payments_payable_check` exige exactamente uno entre `order_id` y `decant_pack_id` |
-| `decant_pack_id` | `uuid` | Opcional; llave foránea compuesta a `decant_packs(id, business_id)`, incorporada con #143 |
+| `decant_pack_id` | `uuid` | Opcional; llave foránea compuesta a `decant_packs(id, business_id)`, incorporada con #143; el pago de la compra de un paquete la usa desde #145 |
 | `purpose` | `varchar(16)` | `payments_purpose_check`: `deposit`, `balance` o `full` |
 | `amount` | `integer` | Principal en colones; `payments_amount_check`: mayor que 0 |
 | `gateway` | `varchar(16)` | `payments_gateway_check`: `onvo`, `paypal` o `manual`; `manual` es el pago del saldo que un dueño registra en la entrega (#98) |
@@ -754,7 +757,6 @@ Existen en el diagrama, pero su detalle llega en el pull request de la migració
 
 | Grupo | Tablas | Llega con |
 |---|---|---|
-| Horarios y servicios | `services`, `business_hours`, `staff_schedules`, `schedule_blocks` | #52 (M08) |
 | Citas | `appointments`, `appointment_perfumes`, `appointment_reminders` | #59 (M09) |
 | Lista de espera | `waitlist_entries` | M19 |
 | Proveedores | `suppliers`, `supplier_prices`, `catalog_imports`, `purchase_orders`, `purchase_order_lines` | M23 |
@@ -774,6 +776,10 @@ Se revisa tabla por tabla. Una dependencia funcional `A → B` significa que A d
 | `perfume_notes` | Una nota por fila, no una lista de notas | Llave de una sola columna; `(business_id, perfume_id, layer, note)` es una llave candidata y ninguna columna depende de una parte de ella | La capa y la nota describen la fila. Nada del perfume se copia aquí |
 | `perfume_tags` | Una etiqueta por fila, no una lista | Llave de una sola columna; `(business_id, perfume_id, kind, value)` es una llave candidata y ninguna columna depende de una parte de ella | El tipo y el valor describen la etiqueta. Nada del perfume se copia aquí |
 | `perfume_variants` | Un tamaño por fila | Llave de una sola columna; `(business_id, perfume_id, size_ml)` es una llave candidata y los precios dependen de los tres, no de uno solo | `size_ml` y los dos precios describen la presentación. El nombre y la marca no se copian aquí. `sale_price` es la excepción justificada abajo |
+| `services` | Un servicio por fila; sin listas | Llave de una sola columna; `(id, business_id)` es una llave candidata y `id` ya determina `business_id` | Nombre, duración, precio, margen, máximo de perfumes y estado describen al servicio. Nada de la tienda se copia aquí |
+| `business_hours` | Un tramo por fila: un día con varios tramos tiene varias filas, no una lista de horas | Llave de una sola columna | El día, la apertura y el cierre describen el tramo. Nada de la tienda se copia aquí |
+| `staff_schedules` | Un tramo de una persona por fila | Llave de una sola columna | El día, el inicio y el fin describen el tramo de esa persona. Nada del miembro se copia aquí; `business_id` se repite por la llave foránea compuesta, como se justifica abajo |
+| `schedule_blocks` | Un bloqueo con un solo rango por fila | Llave de una sola columna | El rango, el motivo, el origen y el identificador externo describen el bloqueo. Un `member_id` nulo significa toda la tienda y no copia ningún dato de ella |
 | `decant_bottles` | Una botella física y sus ml enteros por fila | Llave de una sola columna; `(id, business_id)` permite referencias de la misma tienda | Capacidad, fecha y notas describen la botella; `remaining_ml` y `reserved_ml` son la excepción de concurrencia justificada abajo |
 | `decant_movements` | Un movimiento por fila, sin una lista de movimientos en la botella | Llave de una sola columna | Tipo, ml, fecha, motivo y referencias describen ese movimiento; no se copia el nombre del autor |
 | `decant_pack_plans` | Una oferta por fila | Llave de una sola columna | Nombre, cantidades, precio, vigencia, tope y estado describen la oferta |

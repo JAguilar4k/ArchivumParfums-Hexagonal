@@ -17,6 +17,9 @@ interface PaymentRepository
 
     public function pending(Payable $payable, PaymentPurpose $purpose): ?Payment;
 
+    /** The last attempt made to pay an order or a decant pack of the business, whatever its status. */
+    public function last(Payable $payable): ?Payment;
+
     /** Find the payment of the business that a reference of the provider names: its charge, checkout or capture. */
     public function findByReference(string $gateway, string $reference): ?Payment;
 
@@ -29,9 +32,9 @@ interface PaymentRepository
     public function saveIfPending(Payment $payment): bool;
 
     /**
-     * Save a payment whose charge the provider confirmed after its order was cancelled or expired (#192), only while its
-     * row is still pending or expired: the late charge changes the payment, and registers its refund, only once. Answer
-     * false when the row was neither, and then nothing changes.
+     * Save a payment whose charge the provider confirmed after its order was cancelled or expired, or after its pack
+     * expired (#192), only while its row is still pending or expired: the late charge changes the payment, and
+     * registers its refund, only once. Answer false when the row was neither, and then nothing changes.
      */
     public function saveIfPendingOrExpired(Payment $payment): bool;
 }

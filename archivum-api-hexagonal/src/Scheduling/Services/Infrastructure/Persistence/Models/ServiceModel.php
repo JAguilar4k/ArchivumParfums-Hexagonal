@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Src\Scheduling\Services\Infrastructure\Persistence\Models;
 
-use Database\Factories\ServiceModelFactory;
+use Database\Factories\ServiceFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -24,19 +25,17 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $max_perfumes
  * @property bool $is_active
  */
-#[UseFactory(ServiceModelFactory::class)]
+#[Table('services')]
+#[Fillable(['id', 'business_id', 'name', 'duration_minutes', 'price', 'buffer_minutes', 'max_perfumes', 'is_active'])]
+#[UseFactory(ServiceFactory::class)]
 final class ServiceModel extends Model
 {
-    /** @use HasFactory<ServiceModelFactory> */
+    /** @use HasFactory<ServiceFactory> */
     use HasFactory, HasUuids;
 
-    /** @var string */
-    protected $table = 'services';
-
-    /** @var list<string> */
-    protected $fillable = ['id', 'business_id', 'name', 'duration_minutes', 'price', 'buffer_minutes', 'max_perfumes', 'is_active'];
-
     /**
+     * Cast the integer and boolean columns to native types.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -48,13 +47,5 @@ final class ServiceModel extends Model
             'max_perfumes' => 'integer',
             'is_active' => 'boolean',
         ];
-    }
-
-    /**
-     * @return Factory<ServiceModel>
-     */
-    protected static function newFactory(): Factory
-    {
-        return ServiceModelFactory::new();
     }
 }
