@@ -4,30 +4,39 @@ declare(strict_types=1);
 
 namespace Src\Scheduling\StaffSchedules\Infrastructure\Persistence\Models;
 
-use Database\Factories\StaffScheduleModelFactory;
+use Database\Factories\StaffScheduleFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-#[UseFactory(StaffScheduleModelFactory::class)]
-class StaffScheduleModel extends Model
+/**
+ * @property string $id
+ * @property string $business_id
+ * @property string $member_id
+ * @property int $weekday
+ * @property string $starts_at
+ * @property string $ends_at
+ */
+#[Table('staff_schedules')]
+#[Fillable(['id', 'business_id', 'member_id', 'weekday', 'starts_at', 'ends_at'])]
+#[UseFactory(StaffScheduleFactory::class)]
+final class StaffScheduleModel extends Model
 {
-    /** @use HasFactory<StaffScheduleModelFactory> */
+    /** @use HasFactory<StaffScheduleFactory> */
     use HasFactory, HasUuids;
 
-    protected $table = 'staff_schedules';
-
-    protected $fillable = ['id', 'business_id', 'member_id', 'weekday', 'starts_at', 'ends_at'];
-
-    protected $casts = ['weekday' => 'integer'];
-
     /**
-     * @return Factory<StaffScheduleModel>
+     * Cast the weekday to a native integer. The local hours stay as the text PostgreSQL returns for a time.
+     *
+     * @return array<string, string>
      */
-    protected static function newFactory(): Factory
+    protected function casts(): array
     {
-        return StaffScheduleModelFactory::new();
+        return [
+            'weekday' => 'integer',
+        ];
     }
 }

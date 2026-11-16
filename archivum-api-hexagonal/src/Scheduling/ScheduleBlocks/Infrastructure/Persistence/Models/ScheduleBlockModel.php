@@ -4,30 +4,43 @@ declare(strict_types=1);
 
 namespace Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence\Models;
 
-use Database\Factories\ScheduleBlockModelFactory;
+use Database\Factories\ScheduleBlockFactory;
+use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\Table;
 use Illuminate\Database\Eloquent\Attributes\UseFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
-use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
-#[UseFactory(ScheduleBlockModelFactory::class)]
-class ScheduleBlockModel extends Model
+/**
+ * @property string $id
+ * @property string $business_id
+ * @property string|null $member_id
+ * @property Carbon $starts_at
+ * @property Carbon $ends_at
+ * @property string $reason
+ * @property string $source
+ * @property string|null $external_id
+ */
+#[Table('schedule_blocks')]
+#[Fillable(['id', 'business_id', 'member_id', 'starts_at', 'ends_at', 'reason', 'source', 'external_id'])]
+#[UseFactory(ScheduleBlockFactory::class)]
+final class ScheduleBlockModel extends Model
 {
-    /** @use HasFactory<ScheduleBlockModelFactory> */
+    /** @use HasFactory<ScheduleBlockFactory> */
     use HasFactory, HasUuids;
 
-    protected $table = 'schedule_blocks';
-
-    protected $fillable = ['id', 'business_id', 'member_id', 'starts_at', 'ends_at', 'reason', 'source', 'external_id'];
-
-    protected $casts = ['starts_at' => 'datetime', 'ends_at' => 'datetime'];
-
     /**
-     * @return Factory<ScheduleBlockModel>
+     * Cast the two instants of the block to dates.
+     *
+     * @return array<string, string>
      */
-    protected static function newFactory(): Factory
+    protected function casts(): array
     {
-        return ScheduleBlockModelFactory::new();
+        return [
+            'starts_at' => 'datetime',
+            'ends_at' => 'datetime',
+        ];
     }
 }
