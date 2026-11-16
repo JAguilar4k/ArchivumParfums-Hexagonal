@@ -18,6 +18,12 @@ use Src\Decants\Packs\Infrastructure\PacksServiceProvider;
 use Src\Payments\Payments\Infrastructure\PaymentsServiceProvider;
 use Src\Recommendations\Recommender\Infrastructure\RecommenderServiceProvider;
 use Src\Sales\Orders\Infrastructure\OrdersServiceProvider;
+use Src\Scheduling\Appointments\Infrastructure\AppointmentsServiceProvider;
+use Src\Scheduling\Availability\Infrastructure\AvailabilityServiceProvider;
+use Src\Scheduling\BusinessHours\Infrastructure\BusinessHoursServiceProvider;
+use Src\Scheduling\ScheduleBlocks\Infrastructure\ScheduleBlocksServiceProvider;
+use Src\Scheduling\Services\Infrastructure\ServicesServiceProvider;
+use Src\Scheduling\StaffSchedules\Infrastructure\StaffSchedulesServiceProvider;
 use Src\Shared\Infrastructure\RateLimitsServiceProvider;
 use Src\Shared\Infrastructure\SharedServiceProvider;
 
@@ -40,4 +46,10 @@ return [
     OrdersServiceProvider::class,
     PaymentsServiceProvider::class,
     RecommenderServiceProvider::class,
+    ServicesServiceProvider::class,
+    BusinessHoursServiceProvider::class,
+    StaffSchedulesServiceProvider::class,
+    ScheduleBlocksServiceProvider::class,
+    AvailabilityServiceProvider::class,
+    AppointmentsServiceProvider::class,
 ];

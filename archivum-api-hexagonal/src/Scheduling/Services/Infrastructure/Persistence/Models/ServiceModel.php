@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
+ * A service of one business exactly as the table stores it: the columns are named in English, as every column of the
+ * database, and the API names them in Spanish through its resource.
+ *
  * @property string $id
  * @property string $business_id
  * @property string $name
