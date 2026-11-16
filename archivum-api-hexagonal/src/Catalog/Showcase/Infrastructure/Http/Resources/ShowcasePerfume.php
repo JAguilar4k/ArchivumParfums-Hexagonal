@@ -8,7 +8,6 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Src\Catalog\Perfumes\Infrastructure\Http\PerfumeVocabulary;
 use Src\Catalog\Showcase\Application\DTOs\ShowcaseItem;
-use Src\Catalog\Showcase\Application\DTOs\ShowcaseVariant;
 
 /**
  * @property-read ShowcaseItem $resource
@@ -40,10 +39,7 @@ final class ShowcasePerfume extends JsonResource
                 'clima' => array_map(PerfumeVocabulary::climateOf(...), $this->item->tags['climate']),
                 'ocasion' => $this->item->tags['occasion'],
             ],
-            'presentaciones' => array_map(fn (ShowcaseVariant $variant): array => [
-                'ml' => $variant->ml,
-                'precio_venta' => $variant->price,
-            ], $this->item->variants),
+            'presentaciones' => ShowcaseVariantResource::collection($this->item->variants),
         ];
     }
 }
