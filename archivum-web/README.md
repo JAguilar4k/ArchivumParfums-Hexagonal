@@ -101,7 +101,60 @@ const { data, error } = await api.GET('/tiendas/{tienda}/perfumes', {
 })
 ```
 
-La sesión ([#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)) registra una vez cómo leer su token con `setTokenProvider(() => token)`; mientras no lo haga, las peticiones salen sin token.
+La sesión ([#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)) registra una vez cómo leer su token con `setTokenProvider(() => token)` y qué hacer ante un 401 con `setUnauthenticatedHandler`; mientras no lo haga, las peticiones salen sin token.
+
+## Sesión y permisos de navegación
+
+El store `session` de Pinia (`src/features/session/store.ts`, [#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)) guarda el token, su `vence_en` y la cuenta con su rol y su tienda:
+
+- **Iniciar sesión:** `POST /sesiones` y luego `GET /cuenta`. Unas credenciales incorrectas responden 401 `credenciales-invalidas` y la vista "Iniciar sesión" (`/iniciar-sesion`) muestra su mensaje; un 422 marca los campos.
+- **Dónde vive el token:** en `sessionStorage` (se pierde al cerrar la pestaña), nunca en la URL ni en los registros. La contraseña no se guarda en ningún lado.
+- **Renovación:** `POST /sesiones/actual/renovacion` cinco minutos antes de `vence_en`; si no hay respuesta, se reintenta cada 30 segundos mientras el token siga vigente.
+- **Un 401 con token** (vencido o revocado, que ya no se puede renovar) borra la sesión y lleva al inicio de sesión, que después regresa a la ruta que estaba abierta. Un 401 sin token, como una contraseña equivocada, no termina ninguna sesión.
+- **Cerrar sesión:** `DELETE /sesiones/actual`, y se borran el token y la cuenta del navegador.
+
+`installSession(router)` en `main.ts` conecta la sesión con el router. Cada ruta declara en `meta.roles` quién puede abrirla, y una ruta hija hereda los roles de su padre:
+
+```ts
+{ path: '/cuenta/citas', component: MyAppointmentsView, meta: { roles: ['cliente'] } }
+{ path: '/panel', meta: { roles: ['dueno'] }, children: [...] }
+{ path: '/panel/agenda', component: AgendaView, meta: { roles: ['dueno', 'colaborador'] } }
+```
+
+Una ruta sin `meta.roles` es pública. El visitante que abre una ruta con roles va al inicio de sesión; una cuenta cuyo rol no está en la lista ve "Sin permiso". Los guardias solo ayudan a navegar: los permisos los decide la API (#102, #104).
+
+## Estados de una vista
+
+Toda vista que pide datos muestra tres estados con los componentes de `src/shared`: `LoadingState` mientras espera, `ErrorState` si falla (con el aviso de `ProblemNotice` y, si tiene sentido, el botón "Intentar de nuevo") y `EmptyState` si no hay nada que mostrar. `useApiData` lleva esos estados:
+
+```vue
+<script setup lang="ts">
+import { onMounted } from 'vue'
+
+import { api } from '@/api/client'
+import { callApi } from '@/api/problem'
+import EmptyState from '@/shared/EmptyState.vue'
+import ErrorState from '@/shared/ErrorState.vue'
+import LoadingState from '@/shared/LoadingState.vue'
+import { useApiData } from '@/shared/useApiData'
+
+const perfumes = useApiData(
+  () => callApi(() => api.GET('/tiendas/{tienda}/perfumes', { params: { path: { tienda: 'archivum' } } })),
+  (page) => page.data.length === 0,
+)
+
+onMounted(perfumes.reload)
+</script>
+
+<template>
+  <LoadingState v-if="perfumes.loading.value" />
+  <ErrorState v-else-if="perfumes.problem.value" :problem="perfumes.problem.value" @retry="perfumes.reload" />
+  <EmptyState v-else-if="perfumes.empty.value" message="La tienda todavía no publica perfumes." />
+  <ul v-else-if="perfumes.data.value">...</ul>
+</template>
+```
+
+`src/shared/__tests__/ExampleListView.vue` es el ejemplo completo, con sus pruebas.
 
 ## Errores de la API
 
@@ -155,16 +208,18 @@ archivum-web/
 ├── env.d.ts              tipos de las variables de entorno
 ├── index.html
 ├── src/
-│   ├── main.ts           crea la aplicación con Pinia y Vue Router
+│   ├── main.ts           crea la aplicación con Pinia, la sesión y Vue Router
 │   ├── App.vue
 │   ├── router/index.ts   junta las rutas de cada funcionalidad
 │   ├── api/              schema.ts (generado), client.ts, el cliente tipado de la API,
 │   │                     y problem.ts, que interpreta sus errores
 │   ├── features/         una carpeta por funcionalidad
 │   │   ├── home/         vista de inicio, sus rutas y sus pruebas
+│   │   ├── session/      store de la sesión, guardias por rol, "Iniciar sesión" y menú
 │   │   └── errors/       rutas de "Sin permiso" y "No encontrado"
 │   └── shared/           lo que usan varias funcionalidades: config.ts, ProblemNotice,
-│                         FieldError y las vistas "Sin permiso" y "No encontrado"
+│                         FieldError, las vistas "Sin permiso" y "No encontrado",
+│                         LoadingState, ErrorState, EmptyState y useApiData
 └── vite.config.ts
 ```
 
