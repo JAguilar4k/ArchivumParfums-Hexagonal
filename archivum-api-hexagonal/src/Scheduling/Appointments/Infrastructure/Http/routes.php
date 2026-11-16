@@ -26,6 +26,13 @@ Route::prefix('cuenta/citas')->middleware(['auth:sanctum', 'abilities:customer:o
 
 // The panel books for a customer of its own store: the ability of the owner of the matrix of #102 keeps a collaborator
 // and a customer out, and business:staff pins the transaction to the store of the session.
+// The panel marks the attendance of a confirmed appointment: the owner of any appointment of its store and the staff
+// of the ones it attends, with the ability the matrix of #102 gives to both and the store pinned by business:staff.
+Route::post('panel/citas/{cita}/asistencia', [PanelAppointmentController::class, 'attendance'])
+    ->whereUuid('cita')
+    ->middleware(['auth:sanctum', 'abilities:appointments:attendance', 'business:staff'])
+    ->name('scheduling.business.appointments.attendance');
+
 Route::post('panel/citas', [PanelAppointmentController::class, 'store'])
     ->middleware(['auth:sanctum', 'abilities:appointments:book-for-customer', 'business:staff'])
     ->name('scheduling.business.appointments.store');

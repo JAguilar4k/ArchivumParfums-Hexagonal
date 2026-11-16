@@ -4405,6 +4405,110 @@
                 ]
             }
         },
+        "/panel/citas/{cita}/asistencia": {
+            "post": {
+                "operationId": "scheduling.business.appointments.attendance",
+                "summary": "Mark a confirmed appointment of the store of the session as attended or as not attended (#138). The route carries\nthe ability the matrix of #102 gives to the owner and to the staff, and the use case keeps a collaborator to its\nown appointments: one of another person answers as one that does not exist",
+                "tags": [
+                    "PanelAppointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "cita",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RecordAttendanceRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`CustomerAppointmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CustomerAppointmentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/panel/citas": {
             "post": {
                 "operationId": "scheduling.business.appointments.store",
@@ -9409,7 +9513,11 @@
                         "type": "string"
                     },
                     "origen": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "manual",
+                            "google"
+                        ]
                     }
                 },
                 "required": [
@@ -10326,6 +10434,18 @@
                     "precio_venta"
                 ],
                 "title": "RecommendedVariantResource"
+            },
+            "RecordAttendanceRequest": {
+                "type": "object",
+                "properties": {
+                    "asistio": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "asistio"
+                ],
+                "title": "RecordAttendanceRequest"
             },
             "RefundResource": {
                 "type": "object",

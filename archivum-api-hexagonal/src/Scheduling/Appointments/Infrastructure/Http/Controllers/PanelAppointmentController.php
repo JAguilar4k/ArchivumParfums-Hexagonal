@@ -6,10 +6,13 @@ namespace Src\Scheduling\Appointments\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
+use Src\Accounts\Sessions\Domain\ValueObjects\Ability;
 use Src\Scheduling\Appointments\Application\UseCases\BookAppointment;
 use Src\Scheduling\Appointments\Application\UseCases\CancelAppointment;
+use Src\Scheduling\Appointments\Application\UseCases\RecordAttendance;
 use Src\Scheduling\Appointments\Application\UseCases\RescheduleAppointment;
 use Src\Scheduling\Appointments\Infrastructure\Http\Requests\CancelAppointmentRequest;
+use Src\Scheduling\Appointments\Infrastructure\Http\Requests\RecordAttendanceRequest;
 use Src\Scheduling\Appointments\Infrastructure\Http\Requests\RescheduleAppointmentRequest;
 use Src\Scheduling\Appointments\Infrastructure\Http\Requests\StorePanelAppointment;
 use Src\Scheduling\Appointments\Infrastructure\Http\Resources\BookedAppointmentResource;
@@ -18,6 +21,23 @@ use Src\Shared\Domain\Exceptions\InvalidValueException;
 
 final readonly class PanelAppointmentController
 {
+    /**
+     * Mark a confirmed appointment of the store of the session as attended or as not attended (#138). The route carries
+     * the ability the matrix of #102 gives to the owner and to the staff, and the use case keeps a collaborator to its
+     * own appointments: one of another person answers as one that does not exist.
+     */
+    public function attendance(RecordAttendanceRequest $request, string $cita, RecordAttendance $attendance): CustomerAppointmentResource
+    {
+        $user = $request->user();
+        $seesEveryPerson = $user?->tokenCan(Ability::AppointmentsViewAll->value) ?? false;
+
+        return new CustomerAppointmentResource($attendance->execute(
+            $request->toCommand($cita),
+            (string) $user?->getAuthIdentifier(),
+            $seesEveryPerson,
+        ));
+    }
+
     /**
      * Book a trial appointment for a customer of the store of the session. The route carries the ability the matrix of
      * #102 gives only to the owner, and business:staff pins the transaction to the store of the session, so a store
