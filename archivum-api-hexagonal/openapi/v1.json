@@ -5405,6 +5405,68 @@
                 }
             }
         },
+        "/tiendas/{tienda}/servicios": {
+            "get": {
+                "operationId": "scheduling.public.services.index",
+                "summary": "List the active services of the business of the address, without a session",
+                "tags": [
+                    "PublicService"
+                ],
+                "parameters": [
+                    {
+                        "name": "tienda",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PublicService`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PublicService"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/tiendas/{tienda}/recomendaciones": {
             "post": {
                 "operationId": "recommendations.store",
@@ -8038,6 +8100,34 @@
                     "precio_maximo_por_ml"
                 ],
                 "title": "PublicPackPlan"
+            },
+            "PublicService": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "duracion_minutos": {
+                        "type": "integer"
+                    },
+                    "precio": {
+                        "type": "integer"
+                    },
+                    "maximo_perfumes": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "duracion_minutos",
+                    "precio",
+                    "maximo_perfumes"
+                ],
+                "title": "PublicService"
             },
             "PurchasedPackResource": {
                 "type": "object",

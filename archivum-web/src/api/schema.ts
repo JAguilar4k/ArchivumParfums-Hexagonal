@@ -719,6 +719,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tiendas/{tienda}/servicios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the active services of the business of the address, without a session */
+        get: operations["scheduling.public.services.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tiendas/{tienda}/recomendaciones": {
         parameters: {
             query?: never;
@@ -1253,6 +1270,14 @@ export interface components {
             precio: number;
             vigencia_dias: number;
             precio_maximo_por_ml: number | null;
+        };
+        /** PublicService */
+        PublicService: {
+            id: string;
+            nombre: string;
+            duracion_minutos: number;
+            precio: number;
+            maximo_perfumes: number;
         };
         /** PurchasedPackResource */
         PurchasedPackResource: {
@@ -5045,6 +5070,48 @@ export interface operations {
                 content: {
                     "application/json": {
                         data: components["schemas"]["PublicPackPlan"][];
+                    };
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.public.services.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tienda: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PublicService` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PublicService"][];
                     };
                 };
             };
