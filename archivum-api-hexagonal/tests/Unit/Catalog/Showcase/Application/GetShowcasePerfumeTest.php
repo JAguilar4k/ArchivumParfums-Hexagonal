@@ -30,7 +30,7 @@ function detailReader(): ShowcaseReader
                     SHOWCASE_PERFUME, 'Maison Noctis', 'Oud Nocturno', 'EDP', 'unisex', 'Amaderada', null, 'perfumes/oud.png', null,
                     ['top' => ['Cardamomo'], 'heart' => [], 'base' => ['Oud']],
                     ['time_of_day' => ['night'], 'climate' => ['cold'], 'occasion' => []],
-                    [new ShowcaseVariant(50, 185000)],
+                    [new ShowcaseVariant('0192f0c4-0000-7000-9000-000000000101', 50, 185000)],
                 )
                 : null;
         }

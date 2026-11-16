@@ -24,7 +24,7 @@ En producción, `RedirectToHttps` responde 308 a una petición por HTTP. El 308 
 
 ## CORS
 
-`config/cors.php` toma el origen permitido de `config/archivum.php`, que lo lee de `ARCHIVUM_WEB_ORIGIN`. Otro origen no recibe `Access-Control-Allow-Origin`.
+`config/cors.php` toma el origen permitido de `config/archivum.php`, que lo lee de `ARCHIVUM_WEB_ORIGIN`. Otro origen no recibe `Access-Control-Allow-Origin`. El navegador puede leer `X-Request-Id` y `Retry-After` (`exposed_headers`), y archivum-web puede enviar su propio `X-Request-Id`, porque los encabezados permitidos quedan en `*`, el valor del framework (#127).
 
 ## Errores
 

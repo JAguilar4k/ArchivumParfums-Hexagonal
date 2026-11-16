@@ -82,14 +82,15 @@ it('shows, without authentication, the detail of a perfume with its notes by lay
         ->assertJsonPath('data.etiquetas', ['momento' => ['noche'], 'clima' => ['frio'], 'ocasion' => ['Cena']]);
 });
 
-it('shows only the presentations that are active and have a sale price, with their milliliters and price in whole colones', function () {
+it('shows only the presentations that are active and have a sale price, with the identity that an order names, their milliliters and price in whole colones', function () {
     $visible = detailScenario()['visible'];
+    $idOf = fn (int $ml): string => array_values(array_filter($visible->variants, fn ($variant): bool => $variant->size->value === $ml))[0]->id->value;
 
     $presentations = getJson(showcaseDetailUrl(TwoBusinesses::FIRST, $visible->id->value))->assertOk()->json('data.presentaciones');
 
     expect($presentations)->toBe([
-        ['ml' => 30, 'precio_venta' => 60000],
-        ['ml' => 100, 'precio_venta' => 295000],
+        ['id' => $idOf(30), 'ml' => 30, 'precio_venta' => 60000],
+        ['id' => $idOf(100), 'ml' => 100, 'precio_venta' => 295000],
     ]);
 });
 
