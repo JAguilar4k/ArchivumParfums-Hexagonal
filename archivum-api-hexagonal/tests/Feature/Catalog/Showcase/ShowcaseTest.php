@@ -3,13 +3,14 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Src\Catalog\Perfumes\Domain\Entities\Perfume;
 use Src\Catalog\Perfumes\Domain\ValueObjects\Climate;
 use Src\Catalog\Perfumes\Domain\ValueObjects\NoteLayer;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeNote;
 use Src\Catalog\Perfumes\Domain\ValueObjects\PerfumeTag;
 use Src\Catalog\Perfumes\Domain\ValueObjects\TimeOfDay;
+use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\TwoBusinesses;
 use Tests\Support\Catalog\StoredPerfumes;
 use Tests\Support\RefreshDatabaseAsOwner;
@@ -35,7 +36,7 @@ beforeEach(function () {
     $second = TwoBusinesses::idOf(TwoBusinesses::SECOND);
 
     // Visible: active, with an active presentation that has a sale price.
-    $this->oudWood = StoredPerfumes::create($first, 'Tom Ford', 'Oud Wood', 'EDP', variants: [[50, 185000, 185000], [100, 295000, 295000]], photoPath: 'perfumes/oud.png');
+    StoredPerfumes::create($first, 'Tom Ford', 'Oud Wood', 'EDP', variants: [[50, 185000, 185000], [100, 295000, 295000]], photoPath: 'perfumes/oud.png');
     StoredPerfumes::create(
         $first, 'Casa Aurora', 'Alba de Azahar', 'EDT', variants: [[50, 98000, 98000]], family: 'Floral',
         notes: [new PerfumeNote(NoteLayer::Top, 'Neroli'), new PerfumeNote(NoteLayer::Heart, 'Azahar')],
@@ -47,7 +48,7 @@ beforeEach(function () {
         tags: [PerfumeTag::timeOfDay(TimeOfDay::Day), PerfumeTag::timeOfDay(TimeOfDay::Afternoon), PerfumeTag::climate(Climate::Warm), PerfumeTag::occasion('Playa')],
     );
     // Visible, but only with the presentation that can be sold.
-    $this->mixed = StoredPerfumes::create($first, 'Zeta', 'Mixto', 'EDP', variants: [[30, 60000, 60000], [60, null, null], [90, 70000, 70000]], inactiveSizes: [90]);
+    StoredPerfumes::create($first, 'Zeta', 'Mixto', 'EDP', variants: [[30, 60000, 60000], [60, null, null], [90, 70000, 70000]], inactiveSizes: [90]);
     // Hidden: inactive, without presentations, without a sale price, and with every presentation inactive.
     StoredPerfumes::create($first, 'Oculto', 'Inactivo', active: false, variants: [[50, 50000, 50000]]);
     StoredPerfumes::create($first, 'Oculto', 'Sin presentaciones');
@@ -67,16 +68,19 @@ it('shows each perfume with its public fields and only the presentations that ca
     $byName = array_column($data, null, 'nombre');
     $oud = $byName['Oud Wood'];
     $mixed = $byName['Mixto'];
-    $idOf = fn (Perfume $perfume, int $ml): string => array_values(array_filter($perfume->variants, fn ($variant): bool => $variant->size->value === $ml))[0]->id->value;
+    $idOf = fn (string $perfumeId, int $ml): string => (string) app(BusinessTransaction::class)->run(
+        TwoBusinesses::idOf(TwoBusinesses::FIRST),
+        fn (): mixed => DB::table('perfume_variants')->where('perfume_id', $perfumeId)->where('size_ml', $ml)->value('id'),
+    );
 
     expect(array_keys($oud))->toBe(['id', 'marca', 'nombre', 'concentracion', 'familia', 'foto_url', 'etiquetas', 'presentaciones'])
         ->and($oud['foto_url'])->toBe(Storage::disk('public')->url('perfumes/oud.png'))
         ->and($oud['etiquetas'])->toBe(['momento' => ['noche'], 'clima' => ['frio'], 'ocasion' => ['Cena']])
         ->and($oud['presentaciones'])->toBe([
-            ['id' => $idOf($this->oudWood, 50), 'ml' => 50, 'precio_venta' => 185000],
-            ['id' => $idOf($this->oudWood, 100), 'ml' => 100, 'precio_venta' => 295000],
+            ['id' => $idOf($oud['id'], 50), 'ml' => 50, 'precio_venta' => 185000],
+            ['id' => $idOf($oud['id'], 100), 'ml' => 100, 'precio_venta' => 295000],
         ])
-        ->and($mixed['presentaciones'])->toBe([['id' => $idOf($this->mixed, 30), 'ml' => 30, 'precio_venta' => 60000]])
+        ->and($mixed['presentaciones'])->toBe([['id' => $idOf($mixed['id'], 30), 'ml' => 30, 'precio_venta' => 60000]])
         ->and($mixed['foto_url'])->toBeNull();
 });
 
