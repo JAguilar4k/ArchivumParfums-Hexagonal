@@ -194,6 +194,17 @@ watch(
         <p v-else>Por ahora no hay decants disponibles.</p>
       </section>
 
+      <section class="page-section" aria-labelledby="try-title">
+        <h2 id="try-title">Probarlo en la tienda</h2>
+        <p>En una cita de prueba lo huele y lo prueba en la piel, con la ayuda de una persona de la tienda.</p>
+        <RouterLink
+          :to="{ name: 'book-appointment', params: { tienda }, query: { perfumes: perfume.id } }"
+          class="action-link"
+        >
+          Reservar una cita para probar {{ name }}
+        </RouterLink>
+      </section>
+
       <!-- Always in the page, so screen readers announce each product added. -->
       <p class="results-summary perfume-detail__added" role="status">
         <template v-if="added">
