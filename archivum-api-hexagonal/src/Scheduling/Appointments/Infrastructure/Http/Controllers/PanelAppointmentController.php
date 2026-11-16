@@ -22,10 +22,16 @@ final readonly class PanelAppointmentController
      * Book a trial appointment for a customer of the store of the session. The route carries the ability the matrix of
      * #102 gives only to the owner, and business:staff pins the transaction to the store of the session, so a store
      * named in the body never changes the store of the appointment.
+     *
+     * @throws ValidationException when a field of the request cannot be booked
      */
     public function store(StorePanelAppointment $request, BookAppointment $bookAppointment): JsonResponse
     {
-        $appointment = $bookAppointment->execute($request->toCommand());
+        try {
+            $appointment = $bookAppointment->execute($request->toCommand());
+        } catch (InvalidValueException $exception) {
+            throw $this->invalid($exception);
+        }
 
         // The customer reads the appointment in its own listing; the panel has no detail of an appointment until #137,
         // so the answer carries no Location yet.
@@ -57,16 +63,19 @@ final readonly class PanelAppointmentController
     }
 
     /**
-     * The 422 of a value the move refused, under the field of the request it comes from; an invalid value of any other
-     * kind keeps its own answer.
+     * The 422 of a value the booking or the move refused, under the field of the request it comes from; an invalid
+     * value of any other kind keeps its own answer.
      */
     private function invalid(InvalidValueException $exception): ValidationException
     {
         $field = match ($exception->translationKey()) {
             'scheduling.booking.invalid_start', 'scheduling.booking.outside_window',
             'scheduling.availability.invalid_date' => 'inicia_en',
-            'scheduling.availability.service_not_bookable' => 'servicio_id',
-            'scheduling.availability.person_not_available' => 'persona_id',
+            'scheduling.booking.customer_unavailable' => 'cliente_id',
+            'scheduling.booking.service_unavailable', 'scheduling.availability.service_not_bookable' => 'servicio_id',
+            'scheduling.booking.person_unavailable', 'scheduling.availability.person_not_available' => 'persona_id',
+            'scheduling.booking.perfume_unavailable', 'scheduling.appointment.repeated_perfume',
+            'scheduling.appointment.too_many_perfumes' => 'perfumes',
             default => throw $exception,
         };
 

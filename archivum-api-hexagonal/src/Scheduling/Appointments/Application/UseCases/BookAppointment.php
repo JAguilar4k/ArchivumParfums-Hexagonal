@@ -115,13 +115,13 @@ final readonly class BookAppointment
      * The customer the appointment belongs to: the record the panel chose, which must be of the store, or the record
      * of the account of the session, created the first time that account books here.
      *
-     * @throws ValidationException when the panel named a customer of another store
+     * @throws InvalidValueException when the panel named a customer of another store
      */
     private function customer(BookAppointmentCommand $command): CustomerId
     {
         if ($command->customerId !== null) {
             return $this->customers->ofStore($command->customerId)
-                ?? throw ValidationException::withMessages(['cliente_id' => __('scheduling.booking.customer_unavailable')]);
+                ?? throw new InvalidValueException('scheduling.booking.customer_unavailable');
         }
 
         return $this->customers->findOrCreate((string) $command->userId);
