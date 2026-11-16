@@ -66,6 +66,8 @@ function permissionMatrixRows(): array
             'agregar a una persona' => ['POST', 'api/v1/panel/personal', [], ownerOnly(422)],
             'ver a una persona' => ['GET', 'api/v1/panel/personal/{persona}', [], ownerOnly(200)],
             'editar a una persona' => ['PATCH', 'api/v1/panel/personal/{persona}', [], ownerOnly(200)],
+            'ver el horario de una persona' => ['GET', 'api/v1/panel/personal/{persona}/horario', [], ownerOnly(200)],
+            'cambiar el horario de una persona' => ['PUT', 'api/v1/panel/personal/{persona}/horario', [], ownerOnly(422), fn (): array => ['tramos' => []]],
         ],
         'catálogo, importación, botellas, proveedores y órdenes de compra' => [
             'listar perfumes' => ['GET', 'api/v1/panel/perfumes', [], ownerOnly(200)],
