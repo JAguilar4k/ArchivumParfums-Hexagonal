@@ -1415,6 +1415,100 @@
                 ]
             }
         },
+        "/tiendas/{tienda}/citas": {
+            "post": {
+                "operationId": "scheduling.customer.appointments.store",
+                "summary": "Book a trial appointment of the customer of the session in the store of the address",
+                "tags": [
+                    "CustomerAppointment"
+                ],
+                "parameters": [
+                    {
+                        "name": "tienda",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreAppointment"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`BookedAppointmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/BookedAppointmentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/tiendas/{tienda}/pedidos": {
             "post": {
                 "operationId": "sales.customer.orders.store",
@@ -7472,6 +7566,74 @@
                 ],
                 "title": "AvailableSlotResource"
             },
+            "BookedAppointmentResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "estado": {
+                        "type": "string"
+                    },
+                    "servicio": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre"
+                        ]
+                    },
+                    "persona": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            },
+                            "nombre": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "id",
+                            "nombre"
+                        ]
+                    },
+                    "inicia_en": {
+                        "type": "string"
+                    },
+                    "termina_en": {
+                        "type": "string"
+                    },
+                    "lugar_cita": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "perfumes": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "required": [
+                    "id",
+                    "estado",
+                    "servicio",
+                    "persona",
+                    "inicia_en",
+                    "termina_en",
+                    "lugar_cita",
+                    "perfumes"
+                ],
+                "title": "BookedAppointmentResource"
+            },
             "BusinessProfileResource": {
                 "type": "object",
                 "properties": {
@@ -9639,6 +9801,38 @@
                     "acepta_privacidad"
                 ],
                 "title": "StoreAccountRequest"
+            },
+            "StoreAppointment": {
+                "type": "object",
+                "properties": {
+                    "servicio_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "inicia_en": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+                    },
+                    "persona_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "perfumes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                },
+                "required": [
+                    "servicio_id",
+                    "inicia_en"
+                ],
+                "title": "StoreAppointment"
             },
             "StoreBusinessLogo": {
                 "type": "object",
