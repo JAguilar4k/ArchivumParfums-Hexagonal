@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tiendas/{tienda}/disponibilidad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the free slots of one service on one day of the store of the address, without a session */
+        get: operations["scheduling.availability.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/panel/horario": {
         parameters: {
             query?: never;
@@ -771,6 +788,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/panel/bloqueos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the blocks of the business of the session that cross the range asked for */
+        get: operations["scheduling.schedule_blocks.index"];
+        put?: never;
+        /** Block a range of the agenda, for one person or for the whole store */
+        post: operations["scheduling.schedule_blocks.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/panel/bloqueos/{bloqueo}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a block of the agenda */
+        delete: operations["scheduling.schedule_blocks.destroy"];
+        options?: never;
+        head?: never;
+        /** Change the fields sent of a block of the agenda */
+        patch: operations["scheduling.schedule_blocks.update"];
+        trace?: never;
+    };
     "/panel/servicios": {
         parameters: {
             query?: never;
@@ -916,6 +969,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/panel/personal/{persona}/horario": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Show the working hours of one person of the staff of the session business */
+        get: operations["scheduling.staff_schedules.show"];
+        /** Replace the whole working hours of one person of the staff of the session business, in one transaction */
+        put: operations["scheduling.staff_schedules.replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -924,6 +995,12 @@ export interface components {
         AdjustBottle: {
             ml: number;
             motivo: string;
+        };
+        /** AvailableSlotResource */
+        AvailableSlotResource: {
+            inicia_en: string;
+            termina_en: string;
+            personas: unknown[];
         };
         /** BusinessProfileResource */
         BusinessProfileResource: {
@@ -1138,6 +1215,15 @@ export interface components {
             precio_manual: number | null;
             activa: boolean;
         };
+        /** PanelScheduleBlock */
+        PanelScheduleBlock: {
+            id: string;
+            persona_id: string | null;
+            inicia_en: string;
+            termina_en: string;
+            motivo: string;
+            origen: string;
+        };
         /** PanelService */
         PanelService: {
             id: string;
@@ -1163,6 +1249,14 @@ export interface components {
             ml_por_decant: number;
             estado: string;
             vence_en: string;
+        };
+        /** PanelStaffSchedule */
+        PanelStaffSchedule: {
+            tramos: {
+                dia_semana: string;
+                inicio: string;
+                fin: string;
+            }[];
         };
         /** PasswordResetRequestedResource */
         PasswordResetRequestedResource: {
@@ -1208,6 +1302,16 @@ export interface components {
             ml?: number;
             precio_manual?: number | null;
             activa?: boolean;
+        };
+        /** PatchScheduleBlock */
+        PatchScheduleBlock: {
+            /** Format: uuid */
+            persona_id?: string | null;
+            /** Format: date-time */
+            inicia_en?: string;
+            /** Format: date-time */
+            termina_en?: string;
+            motivo?: string;
         };
         /** PatchService */
         PatchService: {
@@ -1368,6 +1472,14 @@ export interface components {
         };
         /** ReplaceBusinessHours */
         ReplaceBusinessHours: {
+            tramos: {
+                dia_semana: number;
+                inicio: string;
+                fin: string;
+            }[];
+        };
+        /** ReplaceStaffSchedule */
+        ReplaceStaffSchedule: {
             tramos: {
                 dia_semana: number;
                 inicio: string;
@@ -1542,6 +1654,16 @@ export interface components {
         StoreRecommendation: {
             texto: string;
         };
+        /** StoreScheduleBlock */
+        StoreScheduleBlock: {
+            /** Format: uuid */
+            persona_id?: string | null;
+            /** Format: date-time */
+            inicia_en: string;
+            /** Format: date-time */
+            termina_en: string;
+            motivo: string;
+        };
         /** StoreService */
         StoreService: {
             nombre: string;
@@ -1690,6 +1812,61 @@ export interface operations {
                         /** @constant */
                         version: "v1";
                     };
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.availability.index": {
+        parameters: {
+            query: {
+                servicio: string;
+                fecha: string;
+                persona?: string | null;
+            };
+            header?: never;
+            path: {
+                tienda: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `AvailableSlotResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AvailableSlotResource"][];
+                    };
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
                 };
             };
             /** @description Error interno */
@@ -5335,6 +5512,259 @@ export interface operations {
             };
         };
     };
+    "scheduling.schedule_blocks.index": {
+        parameters: {
+            query: {
+                desde: string;
+                hasta: string;
+                persona?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PanelScheduleBlock` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelScheduleBlock"][];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.schedule_blocks.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreScheduleBlock"];
+            };
+        };
+        responses: {
+            /** @description `PanelScheduleBlock` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelScheduleBlock"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.schedule_blocks.destroy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bloqueo: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.schedule_blocks.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                bloqueo: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchScheduleBlock"];
+            };
+        };
+        responses: {
+            /** @description `PanelScheduleBlock` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelScheduleBlock"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
     "scheduling.services.index": {
         parameters: {
             query?: never;
@@ -5897,6 +6327,139 @@ export interface operations {
             };
             /** @description Acción no permitida */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.staff_schedules.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                persona: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `PanelStaffSchedule` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelStaffSchedule"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.staff_schedules.replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                persona: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceStaffSchedule"];
+            };
+        };
+        responses: {
+            /** @description `PanelStaffSchedule` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelStaffSchedule"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
