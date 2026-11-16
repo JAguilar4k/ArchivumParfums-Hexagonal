@@ -7,7 +7,6 @@ namespace Src\Scheduling\Appointments\Application\UseCases;
 use DateTimeImmutable;
 use DateTimeZone;
 use Exception;
-use Illuminate\Validation\ValidationException;
 use Src\Scheduling\Appointments\Application\Contracts\AppointmentCustomers;
 use Src\Scheduling\Appointments\Application\Contracts\BookingAgenda;
 use Src\Scheduling\Appointments\Application\Contracts\BookingCatalog;
@@ -47,7 +46,7 @@ final readonly class BookAppointment
     /**
      * Book the appointment and answer it as the API shows it.
      *
-     * @throws ValidationException when a field of the request is not bookable
+     * @throws InvalidValueException when a field of the request is not bookable
      * @throws AppointmentSlotTakenException when the slot is no longer free
      */
     public function execute(BookAppointmentCommand $command): BookedAppointment
@@ -63,7 +62,7 @@ final readonly class BookAppointment
         $service = $this->catalog->service($serviceId);
 
         if ($service === null) {
-            throw ValidationException::withMessages(['servicio_id' => __('scheduling.booking.service_unavailable')]);
+            throw new InvalidValueException('scheduling.booking.service_unavailable');
         }
 
         $person = $command->memberId === null
@@ -71,7 +70,7 @@ final readonly class BookAppointment
             : $this->catalog->person($this->memberId($command->memberId));
 
         if ($command->memberId !== null && $person === null) {
-            throw ValidationException::withMessages(['persona_id' => __('scheduling.booking.person_unavailable')]);
+            throw new InvalidValueException('scheduling.booking.person_unavailable');
         }
 
         $perfumes = $this->perfumes($command->perfumes, $service->maxPerfumes);
@@ -165,24 +164,24 @@ final readonly class BookAppointment
      * @param  list<string>  $ids
      * @return array<string, string>
      *
-     * @throws ValidationException when a perfume is repeated, missing or inactive in the store
+     * @throws InvalidValueException when a perfume is repeated, missing or inactive in the store
      */
     private function perfumes(array $ids, int $maxPerfumes): array
     {
         $unique = array_values(array_unique($ids));
 
         if (count($unique) !== count($ids)) {
-            throw ValidationException::withMessages(['perfumes' => __('scheduling.appointment.repeated_perfume')]);
+            throw new InvalidValueException('scheduling.appointment.repeated_perfume');
         }
 
         if (count($unique) > $maxPerfumes) {
-            throw ValidationException::withMessages(['perfumes' => __('scheduling.appointment.too_many_perfumes', ['max' => $maxPerfumes])]);
+            throw new InvalidValueException('scheduling.appointment.too_many_perfumes', ['max' => $maxPerfumes]);
         }
 
         $available = $this->catalog->perfumes($unique);
 
         if (count($available) !== count($unique)) {
-            throw ValidationException::withMessages(['perfumes' => __('scheduling.booking.perfume_unavailable')]);
+            throw new InvalidValueException('scheduling.booking.perfume_unavailable');
         }
 
         $ordered = [];
@@ -201,17 +200,17 @@ final readonly class BookAppointment
         $lastDay = $now->setTime(0, 0)->modify("+{$terms->bookingHorizonDays} days");
 
         if ($startsAt < $now->modify("+{$terms->minimumNoticeHours} hours") || $day > $lastDay) {
-            throw ValidationException::withMessages(['inicia_en' => __('scheduling.booking.outside_window')]);
+            throw new InvalidValueException('scheduling.booking.outside_window');
         }
     }
 
-    /** @throws ValidationException when the text is not an ISO 8601 instant with its offset */
+    /** @throws InvalidValueException when the text is not an ISO 8601 instant with its offset */
     private function startsAt(string $startsAt): DateTimeImmutable
     {
         try {
             return new DateTimeImmutable($startsAt);
         } catch (Exception) {
-            throw ValidationException::withMessages(['inicia_en' => __('scheduling.booking.invalid_start')]);
+            throw new InvalidValueException('scheduling.booking.invalid_start');
         }
     }
 
@@ -221,23 +220,23 @@ final readonly class BookAppointment
         return $instant->setTimezone(new DateTimeZone((string) config('database.connections.pgsql.timezone', 'UTC')));
     }
 
-    /** @throws ValidationException */
+    /** @throws InvalidValueException */
     private function serviceId(string $serviceId): ServiceId
     {
         try {
             return new ServiceId($serviceId);
         } catch (InvalidValueException) {
-            throw ValidationException::withMessages(['servicio_id' => __('scheduling.booking.service_unavailable')]);
+            throw new InvalidValueException('scheduling.booking.service_unavailable');
         }
     }
 
-    /** @throws ValidationException */
+    /** @throws InvalidValueException */
     private function memberId(string $memberId): MemberId
     {
         try {
             return new MemberId($memberId);
         } catch (InvalidValueException) {
-            throw ValidationException::withMessages(['persona_id' => __('scheduling.booking.person_unavailable')]);
+            throw new InvalidValueException('scheduling.booking.person_unavailable');
         }
     }
 }
