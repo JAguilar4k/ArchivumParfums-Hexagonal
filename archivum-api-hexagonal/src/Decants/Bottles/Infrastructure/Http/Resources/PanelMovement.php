@@ -30,6 +30,7 @@ final class PanelMovement extends JsonResource
             'fecha' => new DateTimeImmutable($this->movement->date)->format(DATE_ATOM),
             'hecho_por' => $this->movement->author,
             'linea_pedido_id' => $this->movement->orderLineId,
+            'canjeado' => $this->movement->redeemed,
         ];
     }
 }

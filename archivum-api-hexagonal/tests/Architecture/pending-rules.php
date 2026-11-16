@@ -20,7 +20,6 @@ declare(strict_types=1);
 return [
     'R1' => 'avance-1: #33, #42, #43',
     'R2' => 'entrega-final: #175',
-    'R4' => 'avance-1: #33',
     'R5' => 'avance-1: #36, #37, #39, #40, #48, #49',
     'R6' => 'entrega-final: #173, #174, #195',
     'R11' => 'avance-1: #51, #52, #53, #54',
