@@ -40,13 +40,15 @@ export function lineStatusLabel(status: OrderLine['estado']): string {
  * its payment, and the balance once it is ready. The API decides: this only shows or hides the button.
  */
 export function canPay(order: Order): boolean {
-  return (order.estado === 'pendiente_de_pago' && order.por_cobrar_ahora > order.pagado) ||
-    (order.estado === 'listo' && order.saldo > 0)
+  return (order.estado === 'pendiente_de_pago' && order.por_cobrar_ahora > 0) || (order.estado === 'listo' && order.saldo > 0)
 }
 
-/** What the next payment charges, from the amounts of the API: what is due now, or the balance. */
+/**
+ * What the next payment charges, from the amounts of the API: what is still due now, or the balance. `por_cobrar_ahora`
+ * already leaves out what is paid (due now − paid, as `StartPayment` charges it), so nothing is subtracted here.
+ */
 export function amountToPay(order: Order): number {
-  return order.estado === 'pendiente_de_pago' ? order.por_cobrar_ahora - order.pagado : order.saldo
+  return order.estado === 'pendiente_de_pago' ? order.por_cobrar_ahora : order.saldo
 }
 
 /**

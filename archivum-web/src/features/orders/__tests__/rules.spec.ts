@@ -14,6 +14,18 @@ describe('order rules of the views', () => {
     expect(canPay(orderOf({ estado: 'confirmado', por_cobrar_ahora: 0, saldo: 0 }))).toBe(false)
   })
 
+  it('charges what the API still asks for now, even after a part of it was paid', () => {
+    // por_cobrar_ahora already leaves out what is paid: the API answers due now − paid.
+    const partlyPaid = orderOf({ por_cobrar_ahora: 42000, pagado: 30000 })
+    const mostlyPaid = orderOf({ por_cobrar_ahora: 20000, pagado: 52000 })
+
+    expect(canPay(partlyPaid)).toBe(true)
+    expect(amountToPay(partlyPaid)).toBe(42000)
+    expect(canPay(mostlyPaid)).toBe(true)
+    expect(amountToPay(mostlyPaid)).toBe(20000)
+    expect(canPay(orderOf({ por_cobrar_ahora: 0, pagado: 72000 }))).toBe(false)
+  })
+
   it('offers to cancel before the order is ordered or a decant is prepared', () => {
     const prepared = orderOf({ estado: 'confirmado' })
     prepared.lineas[1]!.estado = 'preparada'
