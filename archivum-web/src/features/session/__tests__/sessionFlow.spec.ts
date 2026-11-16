@@ -8,6 +8,7 @@ import { api, setUnauthenticatedHandler } from '@/api/client'
 import App from '@/App.vue'
 import { errorRoutes } from '@/features/errors/routes'
 import { orderRoutes } from '@/features/orders/routes'
+import { registrationRoutes } from '@/features/registration/routes'
 import { installSession } from '../install'
 import { sessionRoutes } from '../routes'
 import { STORAGE_KEY, useSessionStore } from '../store'
@@ -26,6 +27,7 @@ async function start(path: string) {
       ...sessionRoutes,
       { path: '/cuenta/citas', name: 'my-appointments', component: { render: () => null }, meta: { roles: ['cliente'] } },
       ...orderRoutes,
+      ...registrationRoutes,
       ...errorRoutes,
     ],
   })
