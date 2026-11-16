@@ -6,6 +6,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
+use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Src\Decants\Bottles\Infrastructure\Persistence\Models\DecantBottleModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackPlanModel;
@@ -67,6 +68,8 @@ function panelResourcesById(): array
         'process order refunds' => ['POST', '/api/v1/panel/pedidos/{id}/reembolsos', [], 'orders', exampleOrder(...)],
         'mark a line unavailable' => ['POST', '/api/v1/panel/pedidos/{id}/lineas/'.MISSING_RESOURCE.'/no-disponible', [], 'orders', exampleOrder(...)],
         'edit an offer of decant packs' => ['PATCH', '/api/v1/panel/paquetes', ['precio' => 1, 'activo' => false], 'decant_pack_plans', examplePackPlan(...)],
+        'read the hours of a person' => ['GET', '/api/v1/panel/personal/{id}/horario', [], 'members', exampleStaffMember(...)],
+        'replace the hours of a person' => ['PUT', '/api/v1/panel/personal/{id}/horario', ['tramos' => [['dia_semana' => 1, 'inicio' => '09:00', 'fin' => '10:00']]], 'members', exampleStaffMember(...)],
     ];
 }
 
@@ -135,6 +138,12 @@ function examplePackPlan(string $businessId): string
 function exampleSoldPack(string $businessId): string
 {
     return DecantPackModel::factory()->create(['business_id' => $businessId])->id;
+}
+
+/** Create a person of the staff who attends appointments in a business with its factory and return the identifier. */
+function exampleStaffMember(string $businessId): string
+{
+    return MemberModel::factory()->staff()->create(['business_id' => $businessId, 'attends_appointments' => true])->id;
 }
 
 function panelResourcePath(string $path, string $id): string
