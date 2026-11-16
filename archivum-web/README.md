@@ -156,6 +156,20 @@ onMounted(perfumes.reload)
 
 `src/shared/__tests__/ExampleListView.vue` es el ejemplo completo, con sus pruebas.
 
+## Accesibilidad
+
+El cliente apunta a WCAG 2.2 en el nivel AAA ([#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)). La base vale para todas las vistas:
+
+- **Estilos** (`src/styles/base.css`): texto con contraste de al menos 7:1 y bordes de los controles con 3:1; interlineado de 1.5, párrafos de hasta 70 caracteres y texto alineado a la izquierda; botones, campos y enlaces sueltos de al menos 44 × 44 px; anillo de foco de 3 px; sin animaciones cuando el sistema pide menos movimiento, y los colores del sistema en el modo de contraste alto. Las medidas van en `rem`, así que la página crece con el texto hasta el 200 % y se reacomoda desde 320 px de ancho.
+- **Marco de la página** (`App.vue`): el enlace "Saltar al contenido", la cabecera con la sesión y un solo `main` (`#contenido`). Las vistas no declaran otro `main`.
+- **Título y foco al navegar** (`src/shared/pageChanges.ts`): cada ruta declara `meta.title`. Al cambiar de página, la pestaña toma ese título ("Iniciar sesión · ArchivumParfums"), el foco pasa al contenido principal y un anunciador con `role="status"` lee el nombre de la página. Un cambio solo de la consulta (una búsqueda o una página de resultados) deja el foco donde estaba. `usePageTitle()` precisa el título cuando llegan los datos, como el nombre de un perfume.
+- **Botones que esperan una respuesta**: llevan `aria-disabled="true"` en lugar de `disabled`, para que el foco no se pierda, y la función ignora el segundo clic.
+- **Avisos**: los errores usan `role="alert"`; los demás mensajes, una región `.status-message` con `role="status"` que existe desde el principio, para que el lector de pantalla la lea al cambiar.
+
+Clases de apoyo: `page` (columna de una vista), `form`, `form-field`, `field-hint`, `form-actions`, `checkbox-field` (casilla con su texto, toda clicable), `action-link` (enlace fuera de una oración, con la altura de un botón), `button` y `button--secondary`, `prose` (bloques de texto, con dos líneas y media entre párrafos) y `visually-hidden`.
+
+Para revisar una vista a mano: recorrerla solo con el teclado (Tab, Mayús+Tab, Enter y Espacio), ampliarla al 200 % y verla a 320 px de ancho.
+
 ## Errores de la API
 
 Ninguna vista muestra el JSON de un error. `src/api/problem.ts` ([#127](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/127)) interpreta cada respuesta fallida y devuelve un `ApiProblem` con su tipo (`kind`), el texto en español que se muestra, los mensajes de cada campo y el identificador de la solicitud:
@@ -208,8 +222,9 @@ archivum-web/
 ├── env.d.ts              tipos de las variables de entorno
 ├── index.html
 ├── src/
-│   ├── main.ts           crea la aplicación con Pinia, la sesión y Vue Router
-│   ├── App.vue
+│   ├── main.ts           crea la aplicación con Pinia, la sesión, los estilos y Vue Router
+│   ├── App.vue           marco de la página: "Saltar al contenido", cabecera, main y anunciador
+│   ├── styles/base.css   estilos base para WCAG 2.2 AAA
 │   ├── router/index.ts   junta las rutas de cada funcionalidad
 │   ├── api/              schema.ts (generado), client.ts, el cliente tipado de la API,
 │   │                     y problem.ts, que interpreta sus errores
@@ -219,7 +234,8 @@ archivum-web/
 │   │   └── errors/       rutas de "Sin permiso" y "No encontrado"
 │   └── shared/           lo que usan varias funcionalidades: config.ts, ProblemNotice,
 │                         FieldError, las vistas "Sin permiso" y "No encontrado",
-│                         LoadingState, ErrorState, EmptyState y useApiData
+│                         LoadingState, ErrorState, EmptyState, useApiData y
+│                         pageChanges.ts (título y foco al navegar)
 └── vite.config.ts
 ```
 
