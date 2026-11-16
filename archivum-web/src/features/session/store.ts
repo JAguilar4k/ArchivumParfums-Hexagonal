@@ -39,6 +39,8 @@ export const useSessionStore = defineStore('session', () => {
   const expiresAt = ref<string | null>(null)
   const account = ref<Account | null>(null)
   let renewalTimer: ReturnType<typeof setTimeout> | null = null
+  // The email of an account just created whose sign-in failed (#194). Only in memory: never in storage or the URL.
+  let rememberedEmail: string | null = null
 
   const isSignedIn = computed(() => token.value !== null && account.value !== null)
   const role = computed<Role | null>(() => account.value?.rol ?? null)
@@ -106,6 +108,19 @@ export const useSessionStore = defineStore('session', () => {
     expiresAt.value = renewed.data.data.vence_en
     save()
     scheduleRenewal()
+  }
+
+  /** Keeps an email for the sign-in to show, once, when a new account could not sign in by itself (#194). */
+  function rememberEmail(correo: string): void {
+    rememberedEmail = correo
+  }
+
+  /** The remembered email, which is forgotten as it is read. */
+  function takeRememberedEmail(): string {
+    const correo = rememberedEmail ?? ''
+    rememberedEmail = null
+
+    return correo
   }
 
   /** Takes back the session of this tab after a reload, unless it expired. */
@@ -179,5 +194,18 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
-  return { token, expiresAt, account, isSignedIn, role, signIn, signOut, renew, restore, clear }
+  return {
+    token,
+    expiresAt,
+    account,
+    isSignedIn,
+    role,
+    signIn,
+    signOut,
+    renew,
+    restore,
+    clear,
+    rememberEmail,
+    takeRememberedEmail,
+  }
 })
