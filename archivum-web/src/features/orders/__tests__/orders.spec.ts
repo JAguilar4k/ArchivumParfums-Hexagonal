@@ -125,6 +125,16 @@ describe('"Mis pedidos"', () => {
     expect(second?.find('.pay-order').exists()).toBe(false)
   })
 
+  it('shows what a pending order charges now, which is the amount of its "Pagar"', async () => {
+    fakeApi({ 'GET /cuenta/pedidos': () => json(200, page([orderOf()])) })
+
+    const { wrapper } = await open('/cuenta/pedidos', 'cliente')
+    const item = wrapper.get('.orders__item')
+
+    expect(plain(item.text())).toContain('EstadoPendiente de pagoPor cobrar ahora₡72 000Pagado₡0Saldo')
+    expect(plain(item.get('.pay-order > button').text())).toBe('Pagar ₡72 000')
+  })
+
   it('cancels an order after the customer confirms, and reads the list again', async () => {
     let cancelled = false
     const { requests } = fakeApi({

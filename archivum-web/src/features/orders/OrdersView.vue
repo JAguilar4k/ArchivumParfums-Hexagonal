@@ -81,6 +81,11 @@ watch(page, (current, previous) => {
               <dt>Estado</dt>
               <dd class="orders__status">{{ statusLabel(order.estado) }}</dd>
             </div>
+            <!-- While the order waits for its payment, "Pagar" charges this amount and not the balance. -->
+            <div v-if="order.estado === 'pendiente_de_pago'">
+              <dt>Por cobrar ahora</dt>
+              <dd>{{ formatColones(order.por_cobrar_ahora) }}</dd>
+            </div>
             <div>
               <dt>Pagado</dt>
               <dd>{{ formatColones(order.pagado) }}</dd>
