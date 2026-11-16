@@ -46,7 +46,9 @@ describe('"procesando"', () => {
 
     expect(wrapper.find('.payment-processing__waiting').exists()).toBe(false)
     expect(wrapper.get('.payment-processing__done').text()).toBe('Pago confirmado.')
-    expect(wrapper.get('.order-summary__status').text()).toBe('Estado: Confirmado')
+    expect(wrapper.get('.order-summary__status').text()).toBe('Confirmado')
+    // One status line says each state, so screen readers announce it.
+    expect(wrapper.get('.payment-processing__done').attributes('role')).toBe('status')
     expect(sessionStorage.getItem(PENDING_PAYMENT_KEY)).toBeNull()
 
     await waitPolls(2)
@@ -113,7 +115,9 @@ describe('"procesando"', () => {
     const { wrapper } = await open('/pagos/procesando', 'cliente')
     await waitPolls(2)
 
-    expect(wrapper.findAll('.payment-processing h1').map((title) => title.text())).toContain('No encontrado')
+    // The page keeps its only heading of level 1 and says the problem in its status line.
+    expect(wrapper.findAll('.payment-processing h1').map((title) => title.text())).toEqual(['Pago del pedido'])
+    expect(wrapper.get('.payment-processing__failed').text()).toContain('No encontramos el pedido de este pago.')
     expect(requests).toHaveLength(1)
   })
 

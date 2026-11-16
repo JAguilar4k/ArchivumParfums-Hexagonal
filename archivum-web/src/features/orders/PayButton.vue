@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { nextTick, ref, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { api } from '@/api/client'
@@ -12,16 +12,19 @@ import { savePendingPayment } from './pendingPayment'
 
 /**
  * Starts the online payment of an order (#130) with `POST /cuenta/pedidos/{pedido}/pagos`, which charges what the
- * API saved, never an amount of the browser. The button is disabled from the first click, so a double click sends
- * one request; the API also answers a repeated request with the payment that is still pending (#92). A gateway that
- * charges in dollars (PayPal) first shows the amount that the API reports.
+ * API saved, never an amount of the browser. The button is busy from the first click (aria-disabled, so it keeps the
+ * focus), so a double click sends one request; the API also answers a repeated request with the payment that is still
+ * pending (#92). A hint says beforehand that the payment opens the page of the gateway (WCAG 3.2.5). A gateway that
+ * charges in dollars (PayPal) first shows the amount that the API reports, and the focus goes to "Continuar al pago",
+ * which reads that amount. `describedBy` names the order in a list of orders.
  */
-const props = defineProps<{ order: Order }>()
+const props = defineProps<{ order: Order; describedBy?: string }>()
 
 const router = useRouter()
 const paying = ref(false)
 const problem = ref<ApiProblem | null>(null)
 const foreignCharge = ref<Payment | null>(null)
+const continueButton = useTemplateRef<HTMLButtonElement>('continueButton')
 
 async function pay(): Promise<void> {
   if (paying.value) {
@@ -47,6 +50,8 @@ async function pay(): Promise<void> {
 
   if (payment.url_pago && payment.moneda_cobrada !== 'CRC') {
     foreignCharge.value = payment
+    await nextTick()
+    continueButton.value?.focus()
 
     return
   }
@@ -64,14 +69,29 @@ async function goToGateway(payment: Payment): Promise<void> {
 
 <template>
   <div class="pay-order">
-    <button type="button" :disabled="paying" @click="pay">Pagar {{ formatColones(amountToPay(order)) }}</button>
-    <div v-if="foreignCharge" class="pay-order__foreign" role="status">
-      <p>
+    <button
+      type="button"
+      :aria-disabled="paying ? 'true' : undefined"
+      :aria-describedby="[describedBy, `pista-pago-${order.id}`].filter(Boolean).join(' ')"
+      @click="pay"
+    >
+      Pagar {{ formatColones(amountToPay(order)) }}
+    </button>
+    <p :id="`pista-pago-${order.id}`" class="field-hint">Se abre la página segura de la pasarela de pago.</p>
+    <div v-if="foreignCharge" class="pay-order__foreign">
+      <p :id="`cobro-${order.id}`">
         Esta pasarela cobra en dólares: se le cobrarán
         <strong>{{ formatCharge(foreignCharge.monto_cobrado, foreignCharge.moneda_cobrada) }}</strong>
         por {{ formatColones(foreignCharge.monto) }}.
       </p>
-      <button type="button" @click="goToGateway(foreignCharge)">Continuar al pago</button>
+      <button
+        ref="continueButton"
+        type="button"
+        :aria-describedby="`cobro-${order.id}`"
+        @click="goToGateway(foreignCharge)"
+      >
+        Continuar al pago
+      </button>
     </div>
     <ProblemNotice v-if="problem" :problem="problem" />
   </div>

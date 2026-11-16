@@ -51,12 +51,12 @@ describe('cart', () => {
     await router.push(`/tiendas/${STORE}/carrito`)
     await flushPromises()
 
-    expect(wrapper.findAll('.cart-line__text').map((line) => line.text())).toEqual([
+    expect(wrapper.findAll('.cart-line__text').map((line) => plain(line.text()))).toEqual([
       'Maison Archivum Oud Nocturno · botella de 100 ml',
       'Maison Archivum Oud Nocturno · decant de 5 ml',
     ])
 
-    await wrapper.get('.cart > button').trigger('click')
+    await wrapper.get('.cart > .form-actions > button').trigger('click')
     await flushPromises()
 
     const sent = requests.find((request) => request.method === 'POST')
@@ -72,7 +72,7 @@ describe('cart', () => {
     expect(localStorage.getItem(CART_STORAGE_PREFIX + STORE)).toBeNull()
 
     const text = plain(wrapper.get('.order-summary').text())
-    expect(text).toContain('Estado: Pendiente de pago')
+    expect(text).toContain('EstadoPendiente de pago')
     expect(text).toContain('Subtotal₡134 500')
     expect(text).toContain('Por cobrar ahora₡72 000')
     expect(text).toContain('Saldo₡134 500')
@@ -85,10 +85,28 @@ describe('cart', () => {
     const { wrapper } = await open(`/tiendas/${STORE}/carrito`)
 
     expect(wrapper.findAll('.cart-line')).toHaveLength(2)
-    expect(wrapper.find('.cart > button').exists()).toBe(false)
+    expect(wrapper.find('.cart > .form-actions > button').exists()).toBe(false)
     expect(wrapper.get('.cart a[href^="/iniciar-sesion"]').attributes('href')).toBe(
       `/iniciar-sesion?redirect=/tiendas/${STORE}/carrito`,
     )
+  })
+
+  it('announces a removed line and takes the focus to the title, because its button disappears', async () => {
+    withCart(inCart)
+    fakeApi({ [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }) })
+    const { wrapper } = await open(`/tiendas/${STORE}/carrito`, 'cliente')
+
+    const remove = wrapper.findAll('.cart-line button')[1]
+    expect(remove?.attributes('aria-label')).toBe('Quitar Maison Archivum Oud Nocturno, decant de 5 mililitros')
+
+    await remove?.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('.cart-line')).toHaveLength(1)
+    expect(wrapper.get('.cart .results-summary').text()).toBe(
+      'Se quitó del carrito: Maison Archivum Oud Nocturno, decant de 5 mililitros.',
+    )
+    expect(document.activeElement).toBe(wrapper.get('.cart h1').element)
   })
 
   it('marks the decant whose bottle ran out of ml when the API answers 409', async () => {
@@ -102,7 +120,7 @@ describe('cart', () => {
     })
     const { wrapper, router } = await open(`/tiendas/${STORE}/carrito`, 'cliente')
 
-    await wrapper.get('.cart > button').trigger('click')
+    await wrapper.get('.cart > .form-actions > button').trigger('click')
     await flushPromises()
 
     const [bottleLine, decantLine] = wrapper.findAll('.cart-line')
@@ -110,7 +128,7 @@ describe('cart', () => {
     expect(wrapper.get('.problem-notice').text()).toContain('La botella no tiene suficientes ml disponibles')
     expect(bottleLine?.find('.cart-line__error').exists()).toBe(false)
     expect(decantLine?.get('.cart-line__error').text()).toBe('Ya no quedan ml suficientes en esta botella para este decant.')
-    expect(wrapper.get('.cart > button').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('.cart > .form-actions > button').attributes('aria-disabled')).toBeUndefined()
   })
 
   it('marks each line that a 422 names by its position', async () => {
@@ -124,12 +142,12 @@ describe('cart', () => {
     })
     const { wrapper } = await open(`/tiendas/${STORE}/carrito`, 'cliente')
 
-    await wrapper.get('.cart > button').trigger('click')
+    await wrapper.get('.cart > .form-actions > button').trigger('click')
     await flushPromises()
 
     const [bottleLine, decantLine] = wrapper.findAll('.cart-line')
     expect(bottleLine?.get('.cart-line__error').text()).toBe('Ese producto no está disponible para pedirlo.')
-    expect(bottleLine?.get('input').attributes('aria-describedby')).toBe('error-linea-0')
+    expect(bottleLine?.get('input').attributes('aria-describedby')).toBe('linea-0 error-linea-0')
     expect(decantLine?.find('.cart-line__error').exists()).toBe(false)
   })
 })

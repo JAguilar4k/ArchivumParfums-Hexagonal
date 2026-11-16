@@ -5,6 +5,6 @@ export const cartRoutes: RouteRecordRaw[] = [
   {
     path: '/tiendas/:tienda/carrito',
     component: () => import('@/features/storefront/StoreLayout.vue'),
-    children: [{ path: '', name: 'cart', component: () => import('./CartView.vue') }],
+    children: [{ path: '', name: 'cart', component: () => import('./CartView.vue'), meta: { title: 'Carrito' } }],
   },
 ]

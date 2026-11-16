@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import { api } from '@/api/client'
 import { callApi, type ApiProblem } from '@/api/problem'
-import ProblemNotice from '@/shared/ProblemNotice.vue'
 import { statusLabel, type Order } from './order'
 import OrderSummary from './OrderSummary.vue'
 import { clearPendingPayment, POLL_DURATION_MS, POLL_INTERVAL_MS, readPendingPayment } from './pendingPayment'
@@ -14,6 +13,8 @@ import { clearPendingPayment, POLL_DURATION_MS, POLL_INTERVAL_MS, readPendingPay
  * `GET /cuenta/pedidos/{pedido}` until the API credits the payment, which happens only with a verified notice of the
  * gateway (#94) or the reconciliation (#96). It never reads the parameters of the address: a "success" in the URL
  * changes nothing. After 2 min it says that the payment is still in process and that "Mis pedidos" will show it.
+ * Every state is said in one line that is always in the page, so screen readers announce each change, and a problem
+ * is said there too, without a second heading of level 1.
  */
 type State = 'waiting' | 'confirmed' | 'closed' | 'timeout' | 'missing' | 'failed'
 
@@ -23,6 +24,47 @@ const order = ref<Order | null>(null)
 const problem = ref<ApiProblem | null>(null)
 let timer: ReturnType<typeof setTimeout> | null = null
 let elapsed = 0
+
+const STATE_CLASSES: Record<State, string> = {
+  waiting: 'payment-processing__waiting',
+  confirmed: 'payment-processing__done',
+  closed: 'payment-processing__closed',
+  timeout: 'payment-processing__timeout',
+  missing: 'payment-processing__missing',
+  failed: 'payment-processing__failed',
+}
+
+const statusText = computed(() => {
+  switch (state.value) {
+    case 'waiting':
+      return 'Procesando su pago…'
+    case 'confirmed':
+      return 'Pago confirmado.'
+    case 'closed':
+      return order.value ? `El pedido está «${statusLabel(order.value.estado)}», así que el pago no se aplicó.` : ''
+    case 'timeout':
+      return 'Su pago sigue en proceso. Verá su estado en «Mis pedidos» cuando la pasarela lo confirme.'
+    case 'missing':
+      return 'No hay un pago en curso en esta pestaña. Revise el estado de sus pedidos en «Mis pedidos».'
+    case 'failed':
+      return failureText(problem.value)
+  }
+
+  return ''
+})
+
+/** The problem of the order in one sentence: "No encontrado" and "Sin permiso" have no page of their own here. */
+function failureText(found: ApiProblem | null): string {
+  if (found?.kind === 'not-found') {
+    return 'No encontramos el pedido de este pago. Revise sus pedidos en «Mis pedidos».'
+  }
+
+  if (found?.kind === 'forbidden') {
+    return 'Su cuenta no tiene permiso para ver el pedido de este pago.'
+  }
+
+  return found?.message ?? ''
+}
 
 async function check(): Promise<void> {
   if (!pending) {
@@ -79,26 +121,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="payment-processing">
+  <div class="page payment-processing">
     <h1>Pago del pedido</h1>
-    <div v-if="state === 'waiting'" class="payment-processing__waiting" role="status">
-      <p>Procesando su pago…</p>
-      <p>Esta página se actualiza sola cuando la pasarela confirme el pago a la tienda.</p>
-    </div>
-    <template v-else-if="state === 'confirmed' && order">
-      <p class="payment-processing__done" role="status">Pago confirmado.</p>
-      <OrderSummary :order="order" />
-    </template>
-    <p v-else-if="state === 'closed' && order" class="payment-processing__closed" role="status">
-      El pedido está «{{ statusLabel(order.estado) }}», así que el pago no se aplicó.
+    <p class="payment-processing__status" :class="STATE_CLASSES[state]" role="status">{{ statusText }}</p>
+    <p v-if="state === 'waiting'" class="payment-processing__hint">
+      Esta página se actualiza sola cuando la pasarela confirme el pago a la tienda. Puede tardar hasta 2 minutos.
     </p>
-    <p v-else-if="state === 'timeout'" class="payment-processing__timeout" role="status">
-      Su pago sigue en proceso. Verá su estado en «Mis pedidos» cuando la pasarela lo confirme.
-    </p>
-    <p v-else-if="state === 'missing'" class="payment-processing__missing">
-      No hay un pago en curso en esta pestaña. Revise el estado de sus pedidos en «Mis pedidos».
-    </p>
-    <ProblemNotice v-else-if="problem" :problem="problem" />
-    <RouterLink :to="{ name: 'orders' }">Ver mis pedidos</RouterLink>
-  </main>
+    <OrderSummary v-if="state === 'confirmed' && order" :order="order" />
+    <RouterLink :to="{ name: 'orders' }" class="action-link">Ver mis pedidos</RouterLink>
+  </div>
 </template>

@@ -9,18 +9,19 @@ export const orderRoutes: RouteRecordRaw[] = [
     path: '/cuenta/pedidos',
     name: 'orders',
     component: () => import('./OrdersView.vue'),
-    meta: { roles: ['cliente'] },
+    meta: { roles: ['cliente'], title: 'Mis pedidos' },
   },
   {
     path: '/cuenta/pedidos/:pedido',
     name: 'order',
     component: () => import('./OrderView.vue'),
-    meta: { roles: ['cliente'] },
+    // The view replaces it with the date of the order once it arrives.
+    meta: { roles: ['cliente'], title: 'Pedido' },
   },
   {
     path: '/pagos/procesando',
     name: 'payment-processing',
     component: () => import('./PaymentProcessingView.vue'),
-    meta: { roles: ['cliente'] },
+    meta: { roles: ['cliente'], title: 'Pago del pedido' },
   },
 ]

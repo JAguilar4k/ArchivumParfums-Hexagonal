@@ -25,7 +25,7 @@ describe('an order', () => {
 
     const { wrapper } = await open(ORDER_PATH, 'cliente')
 
-    expect(wrapper.get('.order-summary__status').text()).toBe('Estado: Confirmado')
+    expect(wrapper.get('.order-summary__status').text()).toBe('Confirmado')
     expect(wrapper.get('.order-view__free').text()).toBe('No hay nada que cobrar ahora: el pedido quedó confirmado.')
     expect(wrapper.find('.pay-order').exists()).toBe(false)
   })
@@ -46,7 +46,8 @@ describe('an order', () => {
     await flushPromises()
 
     expect(requests.filter((request) => request.method === 'POST')).toHaveLength(1)
-    expect(button.attributes('disabled')).toBeDefined()
+    // aria-disabled and not disabled: the button keeps the focus while it waits.
+    expect(button.attributes('aria-disabled')).toBe('true')
 
     answer(json(201, { data: paymentOf() }))
     await flushPromises()
@@ -92,7 +93,7 @@ describe('an order', () => {
     await flushPromises()
 
     expect(wrapper.get('.pay-order .problem-notice').text()).toBe('El pedido no admite ese pago.')
-    expect(wrapper.get('.pay-order > button').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('.pay-order > button').attributes('aria-disabled')).toBeUndefined()
     expect(leaveTo).not.toHaveBeenCalled()
   })
 
@@ -114,10 +115,13 @@ describe('"Mis pedidos"', () => {
     const { wrapper } = await open('/cuenta/pedidos', 'cliente')
     const [first, second] = wrapper.findAll('.orders__item')
 
-    expect(plain(first?.text() ?? '')).toContain('Listo para entregar · Pagado ₡72 000 · Saldo ₡62 500')
+    expect(plain(first?.text() ?? '')).toContain('EstadoListo para entregarPagado₡72 000Saldo₡62 500')
     expect(plain(first?.get('.pay-order > button').text() ?? '')).toBe('Pagar ₡62 500')
     expect(first?.find('.cancel-order').exists()).toBe(false)
-    expect(plain(second?.text() ?? '')).toContain('Entregado · Pagado ₡134 500 · Saldo ₡0')
+    expect(plain(second?.text() ?? '')).toContain('EstadoEntregadoPagado₡134 500Saldo₡0')
+    // Each order is named by its date and time, so two links never say the same (WCAG 2.4.9).
+    expect(first?.get('h2 a').text()).toMatch(/^Pedido del /)
+    expect(first?.get('.pay-order > button').attributes('aria-describedby')).toBe('pedido-o-2 pista-pago-o-2')
     expect(second?.find('.pay-order').exists()).toBe(false)
   })
 
@@ -135,7 +139,10 @@ describe('"Mis pedidos"', () => {
     const { wrapper } = await open('/cuenta/pedidos', 'cliente')
 
     await wrapper.get('.cancel-order button').trigger('click')
-    expect(wrapper.get('.cancel-order p').text()).toBe('¿Seguro que quiere cancelar este pedido?')
+    await flushPromises()
+    expect(wrapper.get('.cancel-order p').text()).toContain('¿Seguro que quiere cancelar este pedido?')
+    // The question takes the place of the button: the focus goes to the choice that changes nothing.
+    expect(document.activeElement?.textContent?.trim()).toBe('No, mantener el pedido')
 
     await wrapper.get('.cancel-order button').trigger('click')
     await flushPromises()
@@ -143,6 +150,21 @@ describe('"Mis pedidos"', () => {
     expect(requests.filter((request) => request.method === 'POST')).toHaveLength(1)
     expect(wrapper.get('.orders__status').text()).toBe('Cancelado')
     expect(wrapper.find('.cancel-order').exists()).toBe(false)
+    expect(wrapper.get('.orders-view .results-summary').text()).toBe('Se canceló el pedido.')
+    expect(document.activeElement).toBe(wrapper.get('.orders-view h1').element)
+  })
+
+  it('keeps the order when the customer says no, and gives the focus back to "Cancelar el pedido"', async () => {
+    const { requests } = fakeApi({ 'GET /cuenta/pedidos': () => json(200, page([orderOf()])) })
+    const { wrapper } = await open('/cuenta/pedidos', 'cliente')
+
+    await wrapper.get('.cancel-order button').trigger('click')
+    await flushPromises()
+    await wrapper.findAll('.cancel-order button')[1]?.trigger('click')
+    await flushPromises()
+
+    expect(requests.filter((request) => request.method === 'POST')).toHaveLength(0)
+    expect(document.activeElement?.textContent?.trim()).toBe('Cancelar el pedido')
   })
 
   it('says so when there are no orders yet', async () => {
@@ -150,7 +172,7 @@ describe('"Mis pedidos"', () => {
 
     const { wrapper } = await open('/cuenta/pedidos', 'cliente')
 
-    expect(wrapper.get('.empty-state').text()).toBe('Todavía no tiene pedidos.')
+    expect(wrapper.get('.empty-state p').text()).toBe('Todavía no tiene pedidos.')
   })
 
   it('sends a visitor to the sign-in and the staff to "Sin permiso"', async () => {

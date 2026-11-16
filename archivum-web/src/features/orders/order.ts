@@ -56,3 +56,13 @@ export function amountToPay(order: Order): number {
 export function canCancel(order: Order): boolean {
   return ['pendiente_de_pago', 'confirmado'].includes(order.estado) && !order.lineas.some((line) => line.estado === 'preparada')
 }
+
+const ORDER_DATE = new Intl.DateTimeFormat('es-CR', { dateStyle: 'medium', timeStyle: 'short' })
+
+/**
+ * The name of an order in the pages: its date and time, so two orders never share it (WCAG 2.4.9). The list links
+ * each order with it, and the page of the order takes it as its title.
+ */
+export function orderTitle(order: Pick<Order, 'creado_en'>): string {
+  return `Pedido del ${ORDER_DATE.format(new Date(order.creado_en))}`
+}

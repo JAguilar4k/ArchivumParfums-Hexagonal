@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import { api } from '@/api/client'
@@ -10,12 +10,14 @@ import LoadingState from '@/shared/LoadingState.vue'
 import { formatColones } from '@/shared/money'
 import { useApiData } from '@/shared/useApiData'
 import CancelOrderButton from './CancelOrderButton.vue'
-import { canCancel, canPay, statusLabel } from './order'
+import { canCancel, canPay, orderTitle, statusLabel } from './order'
 import PayButton from './PayButton.vue'
 
 /**
  * "Mis pedidos" (#130), from `GET /cuenta/pedidos`: each order with its status in Spanish, what is paid and the
  * balance, and the payment or the cancellation when the API admits them. The page lives in the URL (`?pagina=`).
+ * After a cancellation or a change of page the list loads again, so the focus goes to the title and a line that
+ * screen readers announce says what happened.
  */
 const route = useRoute()
 const page = computed(() => {
@@ -30,43 +32,90 @@ const orders = useApiData(
 )
 
 const meta = computed(() => orders.data.value?.meta ?? null)
-const date = new Intl.DateTimeFormat('es-CR', { dateStyle: 'medium' })
+const heading = useTemplateRef<HTMLElement>('heading')
+const notice = ref('')
 
-watch(page, () => void orders.reload(), { immediate: true })
+async function reloadAndFocus(message: string): Promise<void> {
+  notice.value = message
+  await orders.reload()
+  await nextTick()
+  heading.value?.focus()
+}
+
+watch(page, (current, previous) => {
+  if (previous === undefined) {
+    void orders.reload()
+
+    return
+  }
+
+  void reloadAndFocus(meta.value ? `Página ${current} de ${meta.value.last_page}.` : '')
+}, { immediate: true })
 </script>
 
 <template>
-  <main class="orders-view">
-    <h1>Mis pedidos</h1>
+  <div class="page orders-view">
+    <h1 ref="heading" tabindex="-1">Mis pedidos</h1>
+    <!-- Always in the page, so screen readers announce a cancellation or a new page. -->
+    <p class="results-summary" role="status">{{ notice }}</p>
+
     <LoadingState v-if="orders.loading.value" message="Cargando sus pedidos…" />
     <ErrorState v-else-if="orders.problem.value" :problem="orders.problem.value" @retry="orders.reload" />
-    <EmptyState v-else-if="orders.empty.value" message="Todavía no tiene pedidos." />
+    <EmptyState v-else-if="orders.empty.value" message="Todavía no tiene pedidos.">
+      <RouterLink to="/" class="action-link">Ver la vitrina</RouterLink>
+    </EmptyState>
     <template v-else-if="orders.data.value">
-      <ul class="orders">
-        <li v-for="order in orders.data.value.data" :key="order.id" class="orders__item">
-          <RouterLink :to="{ name: 'order', params: { pedido: order.id } }">
-            Pedido del {{ date.format(new Date(order.creado_en)) }} en {{ order.tienda.nombre ?? 'la tienda' }}
-          </RouterLink>
-          <p>
-            <span class="orders__status">{{ statusLabel(order.estado) }}</span> · Pagado
-            {{ formatColones(order.pagado) }} · Saldo {{ formatColones(order.saldo) }}
-          </p>
-          <PayButton v-if="canPay(order)" :order="order" />
-          <CancelOrderButton v-if="canCancel(order)" :order="order" @cancelled="orders.reload" />
+      <ul class="card-list orders">
+        <li v-for="order in orders.data.value.data" :key="order.id" class="card orders__item">
+          <h2 :id="`pedido-${order.id}`">
+            <RouterLink :to="{ name: 'order', params: { pedido: order.id } }" class="action-link">
+              {{ orderTitle(order) }}
+            </RouterLink>
+          </h2>
+          <dl class="facts">
+            <div>
+              <dt>Tienda</dt>
+              <dd>{{ order.tienda.nombre ?? 'La tienda' }}</dd>
+            </div>
+            <div>
+              <dt>Estado</dt>
+              <dd class="orders__status">{{ statusLabel(order.estado) }}</dd>
+            </div>
+            <div>
+              <dt>Pagado</dt>
+              <dd>{{ formatColones(order.pagado) }}</dd>
+            </div>
+            <div>
+              <dt>Saldo</dt>
+              <dd>{{ formatColones(order.saldo) }}</dd>
+            </div>
+          </dl>
+          <PayButton v-if="canPay(order)" :order="order" :described-by="`pedido-${order.id}`" />
+          <CancelOrderButton
+            v-if="canCancel(order)"
+            :order="order"
+            :described-by="`pedido-${order.id}`"
+            @cancelled="reloadAndFocus('Se canceló el pedido.')"
+          />
         </li>
       </ul>
-      <nav v-if="meta && meta.last_page > 1" class="pagination" aria-label="Páginas">
-        <RouterLink v-if="meta.current_page > 1" :to="{ name: 'orders', query: { pagina: meta.current_page - 1 } }">
-          Anterior
+      <nav v-if="meta && meta.last_page > 1" class="pagination" aria-label="Páginas de sus pedidos">
+        <RouterLink
+          v-if="meta.current_page > 1"
+          :to="{ name: 'orders', query: { pagina: meta.current_page - 1 } }"
+          class="action-link"
+        >
+          Página anterior
         </RouterLink>
         <span>Página {{ meta.current_page }} de {{ meta.last_page }}</span>
         <RouterLink
           v-if="meta.current_page < meta.last_page"
           :to="{ name: 'orders', query: { pagina: meta.current_page + 1 } }"
+          class="action-link"
         >
-          Siguiente
+          Página siguiente
         </RouterLink>
       </nav>
     </template>
-  </main>
+  </div>
 </template>

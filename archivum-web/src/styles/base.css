@@ -625,6 +625,75 @@ label {
   margin: 0;
 }
 
+/* Cart, orders and payments (#130). */
+.cart__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.cart-line__quantity input {
+  max-width: 8rem;
+}
+
+.variants,
+.decants {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.variants li,
+.decants li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.pay-order,
+.pay-order__foreign,
+.cancel-order,
+.cancel-order__confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+/* The time to pay an order: in bold, because after it the order expires (2.2.6). */
+.order-summary__deadline {
+  font-weight: 700;
+}
+
+.payment-processing__status {
+  padding: 1rem 1.25rem;
+  border-inline-start: 0.375rem solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-info-background);
+  font-weight: 600;
+}
+
+.payment-processing__status:empty {
+  position: absolute;
+  padding: 0;
+  border: 0;
+}
+
+.payment-processing__done {
+  border-inline-start-color: var(--color-success);
+  background: var(--color-success-background);
+}
+
+.payment-processing__failed {
+  border-inline-start-color: var(--color-error);
+  background: var(--color-error-background);
+}
+
 /* No motion when the system asks for less (2.3.3). */
 @media (prefers-reduced-motion: reduce) {
   *,
