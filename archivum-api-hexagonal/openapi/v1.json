@@ -114,6 +114,152 @@
                 }
             }
         },
+        "/panel/horario": {
+            "get": {
+                "operationId": "scheduling.business_hours.show",
+                "summary": "Show the opening hours of the business of the session, ordered by weekday and opening hour",
+                "tags": [
+                    "BusinessHours"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`PanelBusinessHours`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelBusinessHours"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "scheduling.business_hours.replace",
+                "summary": "Replace the whole opening hours of the business of the session in one transaction",
+                "tags": [
+                    "BusinessHours"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReplaceBusinessHours"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PanelBusinessHours`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelBusinessHours"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/panel/tienda/logo": {
             "post": {
                 "operationId": "businesses.logo.store",
@@ -6879,6 +7025,37 @@
                 ],
                 "title": "PanelBottle"
             },
+            "PanelBusinessHours": {
+                "type": "object",
+                "properties": {
+                    "tramos": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "dia_semana": {
+                                    "type": "string"
+                                },
+                                "inicio": {
+                                    "type": "string"
+                                },
+                                "fin": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "dia_semana",
+                                "inicio",
+                                "fin"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "tramos"
+                ],
+                "title": "PanelBusinessHours"
+            },
             "PanelDecantPackPlan": {
                 "type": "object",
                 "properties": {
@@ -7899,6 +8076,39 @@
                     "consulta_pendiente"
                 ],
                 "title": "RefundResource"
+            },
+            "ReplaceBusinessHours": {
+                "type": "object",
+                "properties": {
+                    "tramos": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "dia_semana": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 7
+                                },
+                                "inicio": {
+                                    "type": "string"
+                                },
+                                "fin": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "dia_semana",
+                                "inicio",
+                                "fin"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "tramos"
+                ],
+                "title": "ReplaceBusinessHours"
             },
             "SessionTokenResource": {
                 "type": "object",
