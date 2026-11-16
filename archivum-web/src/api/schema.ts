@@ -1202,6 +1202,7 @@ export interface components {
             tienda: {
                 id: string;
                 nombre: string;
+                slug: string;
             };
             estado: string;
             servicio: {

@@ -76,6 +76,7 @@ final readonly class PostgresCustomerAppointments implements CustomerAppointment
             ->select([
                 'appointments.*',
                 'businesses.name as business_name',
+                'businesses.slug as business_slug',
                 'businesses.location_text as business_place',
                 'services.name as service_name',
                 'users.name as member_name',
@@ -117,6 +118,7 @@ final readonly class PostgresCustomerAppointments implements CustomerAppointment
                 (string) $row->getAttribute('status'),
                 (string) $row->getAttribute('business_id'),
                 (string) $row->getAttribute('business_name'),
+                (string) $row->getAttribute('business_slug'),
                 (string) $row->getAttribute('service_id'),
                 (string) $row->getAttribute('service_name'),
                 (string) $row->getAttribute('member_id'),
