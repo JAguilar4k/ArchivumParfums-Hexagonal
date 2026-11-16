@@ -15,6 +15,13 @@ interface DecantPackPlanRepository
     /** Persist a new offer, or the changes of an existing one, in the business of the operation. */
     public function save(DecantPackPlan $plan): void;
 
-    /** Find an offer of the business of the operation. */
-    public function find(DecantPackPlanId $id): ?DecantPackPlan;
+    /** Find an offer of the business of the operation; for update, it stays locked until the transaction ends. */
+    public function find(DecantPackPlanId $id, bool $forUpdate = false): ?DecantPackPlan;
+
+    /**
+     * List every offer of the business of the operation, on sale or not, by name.
+     *
+     * @return list<DecantPackPlan>
+     */
+    public function all(): array;
 }
