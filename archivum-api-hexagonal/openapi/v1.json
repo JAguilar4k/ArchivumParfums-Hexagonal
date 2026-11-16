@@ -8819,7 +8819,11 @@
                         "type": "string"
                     },
                     "rol": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "dueno",
+                            "colaborador"
+                        ]
                     },
                     "atiende_citas": {
                         "type": "boolean"
@@ -9409,7 +9413,11 @@
                         "type": "string"
                     },
                     "origen": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "manual",
+                            "google"
+                        ]
                     }
                 },
                 "required": [
@@ -9655,7 +9663,10 @@
                         "maxLength": 1000
                     },
                     "notas": {
-                        "type": "object",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "salida": {
                                 "type": [
@@ -9693,7 +9704,10 @@
                         }
                     },
                     "etiquetas": {
-                        "type": "object",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "momento": {
                                 "type": [
@@ -11080,7 +11094,10 @@
                         "maxLength": 1000
                     },
                     "notas": {
-                        "type": "object",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "salida": {
                                 "type": [
@@ -11118,7 +11135,10 @@
                         }
                     },
                     "etiquetas": {
-                        "type": "object",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "momento": {
                                 "type": [
