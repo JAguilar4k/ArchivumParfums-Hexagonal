@@ -79,15 +79,21 @@ final readonly class CustomerAppointmentController
     /**
      * Move one appointment of the customer to another free slot. The middleware resolved the store of that appointment
      * only because it belongs to the session, so one of another customer is not found before the use case runs.
+     *
+     * @throws ValidationException when the new start cannot be booked
      */
     public function reschedule(RescheduleAppointmentRequest $request, string $cita, RescheduleAppointment $reschedule): CustomerAppointmentResource
     {
-        return new CustomerAppointmentResource($reschedule->execute($request->toCommand($cita)));
+        try {
+            return new CustomerAppointmentResource($reschedule->execute($request->toCommand($cita)));
+        } catch (InvalidValueException $exception) {
+            throw $this->invalid($exception);
+        }
     }
 
     /**
-     * The 422 of a value the booking refused, under the field of the request it comes from; an invalid value of any
-     * other kind keeps its own answer.
+     * The 422 of a value the booking or the move refused, under the field of the request it comes from; an invalid
+     * value of any other kind keeps its own answer.
      */
     private function invalid(InvalidValueException $exception): ValidationException
     {

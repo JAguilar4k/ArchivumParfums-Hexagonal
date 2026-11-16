@@ -7,7 +7,6 @@ namespace Src\Scheduling\Appointments\Application\UseCases;
 use DateTimeImmutable;
 use DateTimeZone;
 use Exception;
-use Illuminate\Validation\ValidationException;
 use Src\Scheduling\Appointments\Application\Contracts\BookingCatalog;
 use Src\Scheduling\Appointments\Application\Contracts\CustomerAppointments;
 use Src\Scheduling\Appointments\Application\DTOs\AppointmentView;
@@ -40,7 +39,7 @@ final readonly class RescheduleAppointment
      * Move the appointment and answer it as the API shows it.
      *
      * @throws AppointmentNotFoundException when the appointment is not of the store of the context
-     * @throws ValidationException when the new start is malformed or outside the booking window
+     * @throws InvalidValueException when the new start is malformed or outside the booking window
      * @throws AppointmentSlotTakenException when the slot is not free
      */
     public function execute(RescheduleAppointmentCommand $command): AppointmentView
@@ -111,17 +110,17 @@ final readonly class RescheduleAppointment
         $lastDay = $now->setTime(0, 0)->modify("+{$terms->bookingHorizonDays} days");
 
         if ($startsAt < $now->modify("+{$terms->minimumNoticeHours} hours") || $day > $lastDay) {
-            throw ValidationException::withMessages(['inicia_en' => __('scheduling.booking.outside_window')]);
+            throw new InvalidValueException('scheduling.booking.outside_window');
         }
     }
 
-    /** @throws ValidationException when the text is not an ISO 8601 instant with its offset */
+    /** @throws InvalidValueException when the text is not an ISO 8601 instant with its offset */
     private function startsAt(string $startsAt): DateTimeImmutable
     {
         try {
             return new DateTimeImmutable($startsAt);
         } catch (Exception) {
-            throw ValidationException::withMessages(['inicia_en' => __('scheduling.booking.invalid_start')]);
+            throw new InvalidValueException('scheduling.booking.invalid_start');
         }
     }
 
