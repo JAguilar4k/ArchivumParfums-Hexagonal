@@ -162,6 +162,20 @@ export function fieldAttributes(
 }
 
 /**
+ * The same for a group of options, such as a `fieldset` of radio buttons: the group points to its hints and to its
+ * messages, and each option keeps its own name. A group takes no `aria-invalid`, which belongs to the controls.
+ */
+export function groupAttributes(
+  problem: ApiProblem | null,
+  field: string,
+  hintIds?: string,
+): { 'aria-describedby'?: string } {
+  const { 'aria-describedby': describedBy } = fieldAttributes(problem, field, hintIds)
+
+  return describedBy ? { 'aria-describedby': describedBy } : {}
+}
+
+/**
  * Moves the focus to the first control of the form, in the order of the page,
  * whose `name` has messages. Returns whether it found one.
  */

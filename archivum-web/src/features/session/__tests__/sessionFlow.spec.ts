@@ -25,7 +25,7 @@ async function start(path: string) {
     routes: [
       { path: '/', name: 'home', component: { render: () => null } },
       ...sessionRoutes,
-      { path: '/cuenta/citas', name: 'my-appointments', component: { render: () => null }, meta: { roles: ['cliente'] } },
+      { path: '/cuenta/citas', name: 'appointments', component: { render: () => null }, meta: { roles: ['cliente'] } },
       ...orderRoutes,
       ...registrationRoutes,
       ...errorRoutes,
@@ -112,7 +112,7 @@ describe('session flow', () => {
     )
     fakeApi({ 'GET /cuenta': () => problem(401, 'no-autenticado', 'Debe iniciar sesión para realizar esta acción.') })
     const { router } = await start('/cuenta/citas')
-    expect(router.currentRoute.value.name).toBe('my-appointments')
+    expect(router.currentRoute.value.name).toBe('appointments')
 
     await api.GET('/cuenta')
     await flushPromises()

@@ -658,7 +658,8 @@ label {
 .pay-order,
 .pay-order__foreign,
 .cancel-order,
-.cancel-order__confirm {
+.cancel-order__confirm,
+.cancel-appointment {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -700,6 +701,99 @@ label {
   border: 2px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
+}
+
+/* Trial appointments (#129). */
+
+/* A group of options with its question as the legend, such as the hours of a day. */
+.choice-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  max-width: 40rem;
+  margin: 0;
+  padding: 1rem 1.25rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.choice-group legend {
+  padding-inline: 0.25rem;
+  font-weight: 700;
+}
+
+.choice-group__options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* An option and its text: the whole label is the target, at least 44 px tall. */
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: var(--target-size);
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.choice__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.choice__detail {
+  color: var(--color-text-muted);
+}
+
+.sub-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.sub-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-size);
+}
+
+.perfume-picker__count {
+  font-weight: 700;
+}
+
+.perfume-picker__chosen,
+.perfume-picker__results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.perfume-picker__chosen li,
+.perfume-picker__results li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.perfume-picker__brand {
+  display: block;
+  color: var(--color-text-muted);
+}
+
+.appointment-view__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
 }
 
 /* No motion when the system asks for less (2.3.3). */
