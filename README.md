@@ -134,7 +134,7 @@ Crea una cuenta de prueba de [ONVO](https://docs.onvopay.com/authentication) y u
 | `ONVO_SECRET_KEY` | Llave secreta de prueba, con prefijo `onvo_test_`; obligatoria al usar ONVO. |
 | `ONVO_PUBLISHABLE_KEY` | Reservada para una integración del navegador; el checkout hospedado actual no la necesita. |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Credenciales de la aplicación **sandbox** vendedora. El host REST queda fijado al sandbox en `config/payments.php`. |
-| `PAYMENTS_RETURN_URL`, `PAYMENTS_CANCEL_URL` | URLs propias de regreso, por ejemplo la dirección local de `/api/v1`. Solo sirven para navegación; no cambian el estado del pago. |
+| `PAYMENTS_RETURN_URL`, `PAYMENTS_CANCEL_URL` | URLs propias de regreso: la vista "procesando" de `archivum-web` (`/pagos/procesando`, #130) y "Mis pedidos" (`/cuenta/pedidos`). Solo sirven para navegación; no cambian el estado del pago. |
 | `ONVO_WEBHOOK_SECRET`, `PAYPAL_WEBHOOK_ID` | Preparación del puerto de verificación de Avance 2. Para este corte pueden quedar vacíos; no hay endpoint de webhook habilitado. |
 
 Después de editar `.env`, ejecuta `php artisan config:clear`. No copies tokens OAuth, contraseñas de cuentas ni secretos a capturas, al informe o a GitHub. Los adaptadores rechazan una configuración fuera de los ambientes de prueba admitidos.
