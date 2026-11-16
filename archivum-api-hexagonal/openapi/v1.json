@@ -6577,7 +6577,11 @@
                         "type": "string"
                     },
                     "rol": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "dueno",
+                            "colaborador"
+                        ]
                     },
                     "atiende_citas": {
                         "type": "boolean"
@@ -7280,7 +7284,10 @@
                         "maxLength": 1000
                     },
                     "notas": {
-                        "type": "object",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "salida": {
                                 "type": [
@@ -7318,7 +7325,10 @@
                         }
                     },
                     "etiquetas": {
-                        "type": "object",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "momento": {
                                 "type": [
@@ -8425,7 +8435,10 @@
                         "maxLength": 1000
                     },
                     "notas": {
-                        "type": "object",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "salida": {
                                 "type": [
@@ -8463,7 +8476,10 @@
                         }
                     },
                     "etiquetas": {
-                        "type": "object",
+                        "type": [
+                            "object",
+                            "null"
+                        ],
                         "properties": {
                             "momento": {
                                 "type": [
