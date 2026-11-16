@@ -197,3 +197,18 @@ Un traslape falla con el SQLSTATE `23P01` y el nombre de la restricción en el m
 El dominio, en PHP, decide las reglas del negocio. PostgreSQL garantiza la integridad de los datos, el aislamiento entre tiendas, la concurrencia (citas sin traslape con `EXCLUDE`; ml de botellas y saldo de paquetes con `UPDATE` condicional y `CHECK`) y las consultas por conjuntos. Ningún caso de uso se duplica en PL/pgSQL.
 
 Todo objeto de la base se usa desde `Infrastructure/Persistence`, detrás de un puerto. El dominio y los casos de uso no saben que existen.
+
+## Citas de prueba (#59)
+
+- `appointments`: `id` uuidv7, `business_id`, `service_id`, `customer_id`, `member_id`, `starts_at`, `ends_at`,
+  `blocked_until`, `status`, `hold_expires_at`, `cancelled_at`, `cancel_reason` y marcas de tiempo. Llave Ãºnica
+  `(id, business_id)` y llaves forÃ¡neas compuestas hacia `services`, `customers` y `members`. `CHECK`
+  `appointments_ends_at_check`, `appointments_blocked_until_check`, `appointments_status_check` y
+  `appointments_hold_expires_at_check`. El Ã­ndice GiST de la restricciÃ³n `appointments_member_slot_exclusion` cubre
+  `(business_id, member_id, tstzrange(starts_at, blocked_until))` para las filas `held` y `confirmed`; ademÃ¡s hay
+  Ã­ndices por `(business_id, starts_at)` y `(business_id, customer_id, starts_at)`.
+- `appointment_perfumes`: `id`, `business_id`, `appointment_id`, `perfume_id` y marcas de tiempo, Ãºnica por
+  `(business_id, appointment_id, perfume_id)`, con llaves compuestas hacia `appointments` (borrado en cascada) y
+  `perfumes`.
+- Ambas tablas tienen `ENABLE` y `FORCE ROW LEVEL SECURITY` con la polÃ­tica `<tabla>_business_isolation` de #32.
+  `btree_gist` se crea con `IF NOT EXISTS` y ninguna reversiÃ³n la borra, como en #52.
