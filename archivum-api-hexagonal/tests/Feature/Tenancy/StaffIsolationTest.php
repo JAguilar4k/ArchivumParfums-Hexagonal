@@ -38,12 +38,9 @@ function panelListings(): array
         'list the perfumes' => ['/api/v1/panel/perfumes', examplePerfume(...)],
         'list the bottles' => ['/api/v1/panel/botellas', exampleBottle(...)],
         'list the orders' => ['/api/v1/panel/pedidos', exampleOrder(...)],
-<<<<<<< HEAD
         'list the services' => ['/api/v1/panel/servicios', exampleService(...)],
-=======
         'list the offers of decant packs' => ['/api/v1/panel/paquetes', examplePackPlan(...)],
         'list the sold decant packs' => ['/api/v1/panel/paquetes-vendidos', exampleSoldPack(...)],
->>>>>>> feat/60-persistencia-citas
     ];
 }
 
