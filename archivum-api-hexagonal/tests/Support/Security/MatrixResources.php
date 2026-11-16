@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Src\Payments\Payments\Infrastructure\Persistence\Models\PaymentModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderLineModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
+use Src\Scheduling\Appointments\Infrastructure\Persistence\Models\AppointmentModel;
 use Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence\Models\ScheduleBlockModel;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Accounts\DemoAccounts;
@@ -63,6 +64,9 @@ final class MatrixResources
                 'perfume_variant_id' => $variant->id, 'quantity' => 1, 'unit_price' => 15000, 'status' => 'pending',
             ]);
             $block = ScheduleBlockModel::factory()->create(['business_id' => self::BUSINESS]);
+            $appointment = AppointmentModel::factory()->create([
+                'business_id' => self::BUSINESS, 'service_id' => $service, 'customer_id' => $customer, 'member_id' => $person,
+            ]);
             $payment = PaymentModel::factory()->create([
                 'id' => (string) Str::uuid7(), 'business_id' => self::BUSINESS, 'order_id' => $order->id, 'status' => 'succeeded',
                 'gateway' => 'onvo', 'amount' => 7500, 'charged_currency' => 'CRC', 'charged_amount' => 7500,
@@ -81,6 +85,7 @@ final class MatrixResources
                 'paquete' => $packPlan,
                 'servicio' => $service,
                 'bloqueo' => $block->id,
+                'cita' => $appointment->id,
             ];
         });
     }
