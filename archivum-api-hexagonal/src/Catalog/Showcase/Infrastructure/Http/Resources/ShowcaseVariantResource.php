@@ -20,13 +20,15 @@ final class ShowcaseVariantResource extends JsonResource
     }
 
     /**
-     * Expose the milliliters and the sale price in whole colones, so the contract types them for archivum-web (#128).
+     * Expose the identity, which the cart of archivum-web sends as `presentacion_id` (#130), the milliliters and the sale
+     * price in whole colones, so the contract types them for archivum-web (#128).
      *
      * @return array<string, mixed>
      */
     public function toArray(Request $request): array
     {
         return [
+            'id' => $this->variant->id,
             'ml' => $this->variant->ml,
             'precio_venta' => $this->variant->price,
         ];
