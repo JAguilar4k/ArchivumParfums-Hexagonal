@@ -439,6 +439,30 @@ label {
   min-height: var(--target-size);
 }
 
+/* Footer of every page, with the help (#128). */
+.app-footer {
+  max-width: var(--page-width);
+  margin-inline: auto;
+  padding: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
+/* Glossary of the help: each term in bold, its meaning below. */
+.glossary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.glossary dt {
+  margin-top: 1rem;
+  font-weight: 700;
+}
+
+.glossary dd {
+  margin: 0;
+}
+
 /* No motion when the system asks for less (2.3.3). */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -5,8 +5,10 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import type { components } from '@/api/schema'
 import App from '@/App.vue'
 import { errorRoutes } from '@/features/errors/routes'
+import { helpRoutes } from '@/features/help/routes'
 import { recommendationRoutes } from '@/features/recommendations/routes'
 import { sessionRoutes } from '@/features/session/routes'
+import { installPageChanges } from '@/shared/pageChanges'
 import { storefrontRoutes } from '../routes'
 
 export const STORE = 'archivumparfums'
@@ -49,15 +51,16 @@ export function page(data: unknown[], currentPage = 1, lastPage = 1) {
   }
 }
 
-/** Opens a path of the client with every public route, like main.ts does. */
+/** Opens a path of the client with every public route and the titles and focus of each page, like main.ts does. */
 export async function open(path: string) {
   const pinia = createPinia()
   setActivePinia(pinia)
 
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [...storefrontRoutes, ...recommendationRoutes, ...sessionRoutes, ...errorRoutes],
+    routes: [...storefrontRoutes, ...recommendationRoutes, ...sessionRoutes, ...helpRoutes, ...errorRoutes],
   })
+  installPageChanges(router)
   await router.push(path)
 
   const wrapper = mount(App, { global: { plugins: [pinia, router] }, attachTo: document.body })
