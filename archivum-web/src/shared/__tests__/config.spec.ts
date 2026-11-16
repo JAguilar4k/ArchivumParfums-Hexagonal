@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { apiUrl } from '../config'
+import { apiUrl, defaultBusinessSlug } from '../config'
 
 describe('apiUrl', () => {
   it('returns the API address from VITE_API_URL', () => {
@@ -17,5 +17,17 @@ describe('apiUrl', () => {
 
   it.each([undefined, '', '   '])('fails when VITE_API_URL is %j', (value) => {
     expect(() => apiUrl({ VITE_API_URL: value })).toThrow('VITE_API_URL is not set')
+  })
+})
+
+describe('defaultBusinessSlug', () => {
+  it('returns the slug of the store that the root opens', () => {
+    expect(defaultBusinessSlug({ VITE_DEFAULT_BUSINESS_SLUG: ' archivumparfums ' })).toBe('archivumparfums')
+  })
+
+  it.each([undefined, '', '   '])('fails when VITE_DEFAULT_BUSINESS_SLUG is %j', (value) => {
+    expect(() => defaultBusinessSlug({ VITE_DEFAULT_BUSINESS_SLUG: value })).toThrow(
+      'VITE_DEFAULT_BUSINESS_SLUG is not set',
+    )
   })
 })

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
+use function Pest\Laravel\call;
 use function Pest\Laravel\get;
 use function Pest\Laravel\getJson;
 
@@ -73,7 +74,17 @@ it('adds the identifier to every log entry of the request', function () {
     unlink($path);
 });
 
-it('exposes the header to the web client through cors', function () {
+it('exposes the header and Retry-After to the web client through cors', function () {
     getJson('/api/v1', ['Origin' => 'http://localhost:5173'])
-        ->assertHeader('Access-Control-Expose-Headers', REQUEST_ID_HEADER);
+        ->assertHeader('Access-Control-Expose-Headers', REQUEST_ID_HEADER.', Retry-After');
+});
+
+it('lets the web client send its own identifier through cors', function () {
+    $preflight = call('OPTIONS', '/api/v1/sesiones', server: [
+        'HTTP_ORIGIN' => 'http://localhost:5173',
+        'HTTP_ACCESS_CONTROL_REQUEST_METHOD' => 'POST',
+        'HTTP_ACCESS_CONTROL_REQUEST_HEADERS' => 'content-type, x-request-id',
+    ]);
+
+    expect(strtolower((string) $preflight->headers->get('Access-Control-Allow-Headers')))->toContain('x-request-id');
 });

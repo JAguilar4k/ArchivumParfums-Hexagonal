@@ -9,7 +9,8 @@ return [
     'allowed_origins' => [],
     'allowed_origins_patterns' => ['#^'.preg_quote(config()->string('archivum.web_origin'), '#').'$#'],
 
-    // The web client shows the request identifier when it reports an error.
-    'exposed_headers' => ['X-Request-Id'],
+    // The web client shows the request identifier when it reports an error and, on a 429, how long to wait (#127).
+    // The allowed request headers keep the framework default ('*'), so the client can send its own X-Request-Id.
+    'exposed_headers' => ['X-Request-Id', 'Retry-After'],
 
 ];
