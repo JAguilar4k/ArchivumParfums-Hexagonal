@@ -19,7 +19,7 @@ const detail = {
   foto_url: null,
   notas: { salida: ['Bergamota'], corazon: ['Rosa', 'Oud'], fondo: ['Vainilla', 'Ámbar'] },
   etiquetas: { momento: ['noche'], clima: ['frio', 'templado'], ocasion: ['cena'] },
-  presentaciones: [{ ml: 100, precio_venta: 125000 }],
+  presentaciones: [{ id: 'p-1-100', ml: 100, precio_venta: 125000 }],
   decants: [{ botella_id: 'b-1', ml: 5, precio: 9500 }],
 }
 

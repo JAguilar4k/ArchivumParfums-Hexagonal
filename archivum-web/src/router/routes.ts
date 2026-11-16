@@ -1,5 +1,6 @@
 import type { RouteRecordRaw } from 'vue-router'
 
+import { cartRoutes } from '@/features/cart/routes'
 import { errorRoutes } from '@/features/errors/routes'
 import { helpRoutes } from '@/features/help/routes'
 import { orderRoutes } from '@/features/orders/routes'
@@ -12,6 +13,7 @@ import { storefrontRoutes } from '@/features/storefront/routes'
 export const routes: RouteRecordRaw[] = [
   ...storefrontRoutes,
   ...recommendationRoutes,
+  ...cartRoutes,
   ...orderRoutes,
   ...sessionRoutes,
   ...helpRoutes,

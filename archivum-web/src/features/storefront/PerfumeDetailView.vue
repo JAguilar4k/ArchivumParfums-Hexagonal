@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
 import { api } from '@/api/client'
 import { callApi } from '@/api/problem'
+import type { components } from '@/api/schema'
+import { useCartStore } from '@/features/cart/store'
 import ErrorState from '@/shared/ErrorState.vue'
 import LoadingState from '@/shared/LoadingState.vue'
 import MlAmount from '@/shared/MlAmount.vue'
@@ -15,7 +17,8 @@ import { concentrationLabel, tagLabel } from './labels'
 /**
  * The detail of a perfume of the showcase (#128). A perfume that is inactive or belongs to another store answers 404,
  * so it shows "No encontrado". The tab and the heading take the name of the perfume, and a trail of links says where
- * the page is in the store.
+ * the page is in the store. Each presentation and each decant goes to the cart of the store (#130), and a line that
+ * screen readers announce says what was added.
  */
 const route = useRoute()
 const tienda = computed(() => String(route.params.tienda))
@@ -44,7 +47,47 @@ const layers = computed(() =>
 
 usePageTitle(() => name.value)
 
-watch([tienda, perfumeId], () => void detail.reload(), { immediate: true })
+const cart = useCartStore()
+const added = ref<{ what: string; ml: number } | null>(null)
+
+function addBottle(variant: components['schemas']['ShowcaseVariantResource']): void {
+  if (!perfume.value || !name.value) {
+    return
+  }
+
+  cart.addBottle(tienda.value, {
+    perfumeId: perfume.value.id,
+    perfume: name.value,
+    presentationId: variant.id,
+    ml: variant.ml,
+    price: variant.precio_venta,
+  })
+  added.value = { what: 'la botella', ml: variant.ml }
+}
+
+function addDecant(decant: components['schemas']['ShowcaseDecantResource']): void {
+  if (!perfume.value || !name.value) {
+    return
+  }
+
+  cart.addDecant(tienda.value, {
+    perfumeId: perfume.value.id,
+    perfume: name.value,
+    bottleId: decant.botella_id,
+    ml: decant.ml,
+    price: decant.precio,
+  })
+  added.value = { what: 'el decant', ml: decant.ml }
+}
+
+watch(
+  [tienda, perfumeId],
+  () => {
+    added.value = null
+    void detail.reload()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -116,8 +159,16 @@ watch([tienda, perfumeId], () => void detail.reload(), { immediate: true })
       <section class="page-section" aria-labelledby="variants-title">
         <h2 id="variants-title">Presentaciones</h2>
         <ul v-if="perfume.presentaciones.length > 0" class="variants">
-          <li v-for="variant in perfume.presentaciones" :key="variant.ml">
-            Botella de <MlAmount :amount="variant.ml" /> · {{ formatColones(variant.precio_venta) }}
+          <li v-for="variant in perfume.presentaciones" :key="variant.id">
+            <span>Botella de <MlAmount :amount="variant.ml" /> · {{ formatColones(variant.precio_venta) }}</span>
+            <!-- The visible text starts the name, which says which presentation it adds (WCAG 2.5.3). -->
+            <button
+              type="button"
+              :aria-label="`Agregar al carrito la botella de ${variant.ml} mililitros`"
+              @click="addBottle(variant)"
+            >
+              Agregar al carrito
+            </button>
           </li>
         </ul>
         <p v-else>Por ahora no hay botellas a la venta.</p>
@@ -130,11 +181,26 @@ watch([tienda, perfumeId], () => void detail.reload(), { immediate: true })
         </p>
         <ul v-if="perfume.decants.length > 0" class="decants">
           <li v-for="decant in perfume.decants" :key="`${decant.botella_id}-${decant.ml}`">
-            Decant de <MlAmount :amount="decant.ml" /> · {{ formatColones(decant.precio) }}
+            <span>Decant de <MlAmount :amount="decant.ml" /> · {{ formatColones(decant.precio) }}</span>
+            <button
+              type="button"
+              :aria-label="`Agregar al carrito el decant de ${decant.ml} mililitros`"
+              @click="addDecant(decant)"
+            >
+              Agregar al carrito
+            </button>
           </li>
         </ul>
         <p v-else>Por ahora no hay decants disponibles.</p>
       </section>
+
+      <!-- Always in the page, so screen readers announce each product added. -->
+      <p class="results-summary perfume-detail__added" role="status">
+        <template v-if="added">
+          Se agregó al carrito {{ added.what }} de <MlAmount :amount="added.ml" />.
+          <RouterLink :to="{ name: 'cart', params: { tienda } }">Ver el carrito</RouterLink>
+        </template>
+      </p>
     </article>
   </div>
 </template>

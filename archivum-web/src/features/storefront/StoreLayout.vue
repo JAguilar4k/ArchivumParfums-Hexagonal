@@ -4,14 +4,15 @@ import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 import { api } from '@/api/client'
 import { callApi } from '@/api/problem'
+import { useCartStore } from '@/features/cart/store'
 import ErrorState from '@/shared/ErrorState.vue'
 import LoadingState from '@/shared/LoadingState.vue'
 import { useApiData } from '@/shared/useApiData'
 
 /**
- * The public pages of a store (#128): its profile on top and, below, the showcase, the detail of a perfume or the
- * recommender. A store that does not exist shows "No encontrado" instead. The name of the store is not a heading:
- * the heading of level 1 is the name of each page, as in the title of the tab.
+ * The public pages of a store (#128): its profile on top and, below, the showcase, the detail of a perfume, the
+ * recommender or the cart (#130). A store that does not exist shows "No encontrado" instead. The name of the store is
+ * not a heading: the heading of level 1 is the name of each page, as in the title of the tab.
  */
 const route = useRoute()
 const tienda = computed(() => String(route.params.tienda))
@@ -20,7 +21,16 @@ const profile = useApiData(() =>
   callApi(() => api.GET('/tiendas/{tienda}', { params: { path: { tienda: tienda.value } } })),
 )
 
-watch(tienda, () => void profile.reload(), { immediate: true })
+const cart = useCartStore()
+
+watch(
+  tienda,
+  (slug) => {
+    cart.load(slug)
+    void profile.reload()
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -40,6 +50,7 @@ watch(tienda, () => void profile.reload(), { immediate: true })
         <ul>
           <li><RouterLink :to="{ name: 'storefront', params: { tienda } }">Vitrina</RouterLink></li>
           <li><RouterLink :to="{ name: 'recommendations', params: { tienda } }">Pedir una recomendación</RouterLink></li>
+          <li><RouterLink :to="{ name: 'cart', params: { tienda } }">Carrito ({{ cart.count(tienda) }})</RouterLink></li>
         </ul>
       </nav>
     </header>
