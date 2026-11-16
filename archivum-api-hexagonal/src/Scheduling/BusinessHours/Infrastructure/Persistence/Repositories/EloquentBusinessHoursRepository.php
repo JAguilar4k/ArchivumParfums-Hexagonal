@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Scheduling\BusinessHours\Infrastructure\Persistence;
+namespace Src\Scheduling\BusinessHours\Infrastructure\Persistence\Repositories;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
