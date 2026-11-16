@@ -128,6 +128,28 @@ describe('createApiClient', () => {
     expect((failure as DOMException).name).toBe('AbortError')
   })
 
+  it('tells the session when the API rejects its token with a 401', async () => {
+    const fetch = respondWith(401, { status: 401 }, 'application/problem+json')
+    const onUnauthenticated = vi.fn()
+    const client = createApiClient({ baseUrl, fetch, token: () => '1|vencido', onUnauthenticated })
+
+    await client.GET('/cuenta')
+
+    expect(onUnauthenticated).toHaveBeenCalledOnce()
+  })
+
+  it('does not end any session on a 401 to a request without a token, like a wrong password', async () => {
+    const fetch = respondWith(401, { status: 401 }, 'application/problem+json')
+    const onUnauthenticated = vi.fn()
+    const client = createApiClient({ baseUrl, fetch, onUnauthenticated })
+
+    await client.POST('/sesiones', {
+      body: { correo: 'duena@example.test', contrasena: 'otra', dispositivo: 'web' },
+    })
+
+    expect(onUnauthenticated).not.toHaveBeenCalled()
+  })
+
   it('returns an error response as the RFC 9457 problem', async () => {
     const problem: Problem = {
       type: 'https://archivum.test/problemas/no-encontrado',
