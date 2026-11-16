@@ -25,6 +25,17 @@ describe('help and glossary', () => {
     expect(wrapper.get('#ml abbr').attributes('title')).toBe('mililitros')
   })
 
+  it('explains the orders, the payments and the states of an order', async () => {
+    fakeApi({})
+
+    const { wrapper } = await open('/ayuda')
+    const terms = wrapper.findAll('.glossary dt').map((term) => term.attributes('id'))
+
+    expect(wrapper.get('#ayuda-pedidos').text()).toBe('Pedidos y pagos')
+    expect(terms).toEqual(expect.arrayContaining(['bajo-pedido', 'pasarela-de-pago', 'por-cobrar-ahora', 'saldo']))
+    expect(wrapper.get('#ayuda-pedidos').element.parentElement?.textContent).toContain('Vencido sin pago')
+  })
+
   it('opens from the footer of a store and goes to the term that a page links', async () => {
     fakeApi({
       [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
