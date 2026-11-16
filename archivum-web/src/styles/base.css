@@ -694,6 +694,14 @@ label {
   background: var(--color-error-background);
 }
 
+/* Registration: the privacy notice, framed inside the form so that it reads as one block (#194). */
+.privacy-notice {
+  padding: 1rem 1.25rem;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
 /* No motion when the system asks for less (2.3.3). */
 @media (prefers-reduced-motion: reduce) {
   *,

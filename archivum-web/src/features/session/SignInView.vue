@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { nextTick, ref, useTemplateRef } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, nextTick, ref, useTemplateRef } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { fieldAttributes, focusFirstInvalidField, type ApiProblem } from '@/api/problem'
 import FieldError from '@/shared/FieldError.vue'
@@ -13,10 +13,19 @@ const route = useRoute()
 const router = useRouter()
 
 const form = useTemplateRef<HTMLFormElement>('form')
-const correo = ref('')
+// A customer whose account was just created, but whose sign-in failed, finds its email already written (#194).
+const rememberedEmail = session.takeRememberedEmail()
+const accountCreated = rememberedEmail !== ''
+const correo = ref(rememberedEmail)
 const contrasena = ref('')
 const problem = ref<ApiProblem | null>(null)
 const sending = ref(false)
+
+// The registration returns to the same route as the sign-in.
+const registerLink = computed(() => ({
+  name: 'register',
+  query: typeof route.query.redirect === 'string' ? { redirect: route.query.redirect } : {},
+}))
 
 async function submit(): Promise<void> {
   if (sending.value) {
@@ -46,7 +55,8 @@ async function submit(): Promise<void> {
 <template>
   <div class="page sign-in">
     <h1>Iniciar sesión</h1>
-    <p class="form-intro">Escriba el correo y la contraseña de su cuenta.</p>
+    <p v-if="accountCreated" class="status-message">Se creó su cuenta. Escriba su contraseña para iniciar sesión.</p>
+    <p v-else class="form-intro">Escriba el correo y la contraseña de su cuenta.</p>
 
     <ProblemNotice v-if="problem" :problem="problem" />
 
@@ -86,5 +96,9 @@ async function submit(): Promise<void> {
         </button>
       </div>
     </form>
+
+    <p class="sign-in__register">
+      ¿Todavía no tiene cuenta? <RouterLink :to="registerLink">Crear una cuenta de cliente</RouterLink>
+    </p>
   </div>
 </template>

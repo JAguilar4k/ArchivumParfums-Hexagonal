@@ -124,6 +124,16 @@ El store `session` de Pinia (`src/features/session/store.ts`, [#126](https://git
 
 Una ruta sin `meta.roles` es pública. El visitante que abre una ruta con roles va al inicio de sesión; una cuenta cuyo rol no está en la lista ve "Sin permiso". Los guardias solo ayudan a navegar: los permisos los decide la API (#102, #104).
 
+### Crear cuenta
+
+La vista "Crear cuenta" (`/crear-cuenta`, `src/features/registration`, [#194](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/194)) registra una cuenta de cliente con `POST /cuentas`: envía `nombre`, `correo`, `contrasena` y `acepta_privacidad`, nunca un rol ni una tienda.
+
+- **Aviso de privacidad.** `PrivacyNotice.vue` dice qué datos guarda la cuenta, para qué y quién los ve, como los lista `docs/privacy.md` (#110). La casilla de aceptación empieza sin marcar y, sin marcarla, el formulario no se envía. La API registra la fecha y la versión aceptada (`ARCHIVUM_PRIVACY_NOTICE_VERSION`): si el texto cambia, esa versión también.
+- **Errores.** La política de contraseñas la decide la API: un 422 marca cada campo con su mensaje, conserva lo escrito salvo la contraseña y lleva el foco al primer campo con error. Mientras la solicitud está en curso el botón lleva `aria-disabled`: conserva el foco y un segundo clic no manda otro registro.
+- **Después del 201** se inicia sesión como en "Iniciar sesión" y se regresa a la ruta que el visitante quería abrir (`?redirect=`), o a la vitrina. Si la cuenta se creó pero el inicio de sesión falla, se abre "Iniciar sesión" con el correo ya escrito y el aviso "Se creó su cuenta": el correo pasa en memoria, nunca por la URL ni por el almacenamiento.
+- **Accesibilidad (AAA).** Cada campo tiene una pista antes del control, ligada con `aria-describedby`: para qué sirven el nombre y el correo, y la regla de la contraseña de la API (al menos 8 caracteres, `Password::defaults()`); si la API cambia esa regla, se cambia la pista. "Mostrar la contraseña" deja revisarla. Si se envía sin marcar la casilla, el foco va a la casilla, que lee su mensaje, y el mensaje se va al marcarla. El aviso de privacidad va enmarcado dentro del formulario, y "Ayuda y glosario" explica la cuenta en "Su cuenta".
+- La contraseña solo vive en el formulario y en las dos solicitudes. "Iniciar sesión" enlaza a "Crear cuenta" con la misma ruta de regreso, y una cuenta con sesión que abre cualquiera de las dos vuelve al inicio.
+
 ## Vitrina y recomendaciones
 
 Las páginas públicas de una tienda ([#128](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/128)) llevan su slug en la ruta y no piden sesión. La raíz (`/`) abre la tienda de `VITE_DEFAULT_BUSINESS_SLUG`.
@@ -279,6 +289,7 @@ archivum-web/
 │   │   ├── orders/       pedidos del cliente, pago, cancelación y "procesando"
 │   │   ├── help/         "Ayuda y glosario"
 │   │   ├── session/      store de la sesión, guardias por rol, "Iniciar sesión" y menú
+│   │   ├── registration/ "Crear cuenta" con el aviso de privacidad
 │   │   └── errors/       rutas de "Sin permiso" y "No encontrado"
 │   └── shared/           lo que usan varias funcionalidades: config.ts, money.ts,
 │                         navigation.ts, ProblemNotice,

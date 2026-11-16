@@ -12,11 +12,12 @@ export interface SessionState {
 /**
  * Decides where a navigation goes (#126): a visitor who opens a route with
  * roles goes to the sign-in, and comes back to it after signing in; a signed-in
- * account whose role is not listed sees "Sin permiso". The guards only help the
+ * account whose role is not listed sees "Sin permiso", and one that opens the
+ * sign-in or the registration (#194) goes home. The guards only help the
  * navigation: the API decides the permissions (#102, #104).
  */
 export function sessionGuard(to: RouteLocationNormalized, session: SessionState): true | RouteLocationRaw {
-  if (to.name === 'sign-in' && session.isSignedIn) {
+  if ((to.name === 'sign-in' || to.name === 'register') && session.isSignedIn) {
     return { name: 'home' }
   }
 

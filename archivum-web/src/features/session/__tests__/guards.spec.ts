@@ -9,6 +9,7 @@ const empty = { render: () => null }
 const routes: RouteRecordRaw[] = [
   { path: '/', name: 'home', component: empty },
   { path: '/iniciar-sesion', name: 'sign-in', component: empty },
+  { path: '/crear-cuenta', name: 'register', component: empty },
   { path: '/sin-permiso', name: 'forbidden', component: empty },
   { path: '/cuenta/citas', name: 'my-appointments', component: empty, meta: { roles: ['cliente'] } },
   {
@@ -64,8 +65,10 @@ describe('sessionGuard', () => {
     expect((await navigate('/panel/agenda', signedInAs('dueno'))).name).toBe('agenda')
   })
 
-  it('sends a signed-in account away from the sign-in', async () => {
+  it('sends a signed-in account away from the sign-in and the registration', async () => {
     expect((await navigate('/iniciar-sesion', signedInAs('cliente'))).name).toBe('home')
+    expect((await navigate('/crear-cuenta', signedInAs('cliente'))).name).toBe('home')
+    expect((await navigate('/crear-cuenta', signedInAs(null))).name).toBe('register')
   })
 })
 
