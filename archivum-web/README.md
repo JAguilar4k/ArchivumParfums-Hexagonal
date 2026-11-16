@@ -103,6 +103,50 @@ const { data, error } = await api.GET('/tiendas/{tienda}/perfumes', {
 
 La sesión ([#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)) registra una vez cómo leer su token con `setTokenProvider(() => token)`; mientras no lo haga, las peticiones salen sin token.
 
+## Errores de la API
+
+Ninguna vista muestra el JSON de un error. `src/api/problem.ts` ([#127](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/127)) interpreta cada respuesta fallida y devuelve un `ApiProblem` con su tipo (`kind`), el texto en español que se muestra, los mensajes de cada campo y el identificador de la solicitud:
+
+| Respuesta | `kind` | Qué se muestra |
+|---|---|---|
+| 422 `datos-invalidos` | `validation` | El `detail` y, junto a cada control, los mensajes de su campo en `errores`; el foco va al primer campo con error. |
+| 401 | `unauthenticated` | Lo atiende la sesión (#126). |
+| 403 | `forbidden` | La vista "Sin permiso". |
+| 404 | `not-found` | La vista "No encontrado". |
+| 409 `conflicto` y cualquier otro problema | `conflict`, `other` | El `detail`, o el `title` si no trae `detail`. |
+| 429 | `rate-limited` | En cuánto tiempo volver a intentar, según `Retry-After`. |
+| 500 `error-interno` o una respuesta que no es `application/problem+json` | `internal` | Un mensaje genérico con el identificador de la solicitud para soporte. |
+| Sin respuesta (falla de red) | `network` | Un mensaje genérico con el identificador de la solicitud para soporte. |
+
+El cliente envía su propio `X-Request-Id` (un UUID nuevo en cada solicitud), así que conoce el identificador aunque no llegue respuesta: una solicitud sin respuesta lanza `NetworkError` con él. Con respuesta, el identificador sale de `instance` (`urn:uuid:...`) o del encabezado `X-Request-Id`, que la API expone por CORS junto con `Retry-After`.
+
+`callApi` hace la llamada y nunca lanza: devuelve los datos o el problema. `ProblemNotice` muestra el problema en un aviso con `role="alert"`, o la vista que corresponde a un 403 o un 404:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+
+import { api } from '@/api/client'
+import { callApi, type ApiProblem } from '@/api/problem'
+import ProblemNotice from '@/shared/ProblemNotice.vue'
+
+const problem = ref<ApiProblem | null>(null)
+
+async function load() {
+  const result = await callApi(() =>
+    api.GET('/tiendas/{tienda}', { params: { path: { tienda: 'archivum' } } }),
+  )
+  problem.value = result.problem
+}
+</script>
+
+<template>
+  <ProblemNotice v-if="problem" :problem="problem" />
+</template>
+```
+
+En un formulario, cada control lleva `name` igual a su campo de la API y `v-bind="fieldAttributes(problem, 'correo')"` (`aria-invalid` y `aria-describedby`), y `<FieldError :problem="problem" field="correo" />` muestra sus mensajes. Después de un 422, `focusFirstInvalidField(form, problem)` lleva el foco al primer control con error. `src/shared/__tests__/ExampleForm.vue` es un ejemplo completo.
+
 ## Estructura
 
 ```
@@ -114,17 +158,20 @@ archivum-web/
 │   ├── main.ts           crea la aplicación con Pinia y Vue Router
 │   ├── App.vue
 │   ├── router/index.ts   junta las rutas de cada funcionalidad
-│   ├── api/              schema.ts (generado) y client.ts, el cliente tipado de la API
+│   ├── api/              schema.ts (generado), client.ts, el cliente tipado de la API,
+│   │                     y problem.ts, que interpreta sus errores
 │   ├── features/         una carpeta por funcionalidad
-│   │   └── home/         vista de inicio, sus rutas y sus pruebas
-│   └── shared/           lo que usan varias funcionalidades, como config.ts
+│   │   ├── home/         vista de inicio, sus rutas y sus pruebas
+│   │   └── errors/       rutas de "Sin permiso" y "No encontrado"
+│   └── shared/           lo que usan varias funcionalidades: config.ts, ProblemNotice,
+│                         FieldError y las vistas "Sin permiso" y "No encontrado"
 └── vite.config.ts
 ```
 
 El código se organiza por funcionalidad. Cada una vive en `src/features/<funcionalidad>` con sus vistas, sus componentes, sus stores de Pinia, un `routes.ts` con sus rutas y una carpeta `__tests__` con sus pruebas. Lo que usan varias funcionalidades va en `src/shared`. Para agregar una funcionalidad:
 
 1. Crear `src/features/<funcionalidad>/` con su vista y su `routes.ts`, como `src/features/home`.
-2. Sumar sus rutas en `src/router/index.ts`.
+2. Sumar sus rutas en `src/router/index.ts`, antes de `errorRoutes`, que atrapa toda ruta que no existe.
 3. Escribir sus pruebas en `src/features/<funcionalidad>/__tests__/`.
 
 ## Idioma

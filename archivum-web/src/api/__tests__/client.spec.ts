@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { api, createApiClient, setTokenProvider, type Problem } from '../client'
+import { NetworkError } from '../problem'
 
 const baseUrl = 'https://api.example.test/api/v1'
 
@@ -83,6 +84,48 @@ describe('createApiClient', () => {
       contrasena: 'secreto',
       dispositivo: 'web',
     })
+  })
+
+  it('sends its own X-Request-Id, a new UUID on every request', async () => {
+    const fetch = respondWith(200, { nombre: 'ArchivumParfums', version: 'v1' })
+    const client = createApiClient({ baseUrl, fetch })
+
+    await client.GET('/')
+    await client.GET('/')
+
+    const first = fetch.mock.calls[0]?.[0].headers.get('X-Request-Id')
+    const second = fetch.mock.calls[1]?.[0].headers.get('X-Request-Id')
+    expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+    expect(second).toMatch(/^[0-9a-f-]{36}$/)
+    expect(second).not.toBe(first)
+  })
+
+  it('throws NetworkError with the identifier it sent when no response arrives', async () => {
+    const fetch = vi.fn(async (request: Request) => {
+      void request
+
+      throw new TypeError('Failed to fetch')
+    })
+    const client = createApiClient({ baseUrl, fetch })
+
+    const failure = await client.GET('/').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(NetworkError)
+    expect((failure as NetworkError).requestId).toBe(fetch.mock.calls[0]?.[0].headers.get('X-Request-Id'))
+  })
+
+  it('lets a cancelled request fail as an AbortError, not as a network failure', async () => {
+    const fetch = vi.fn(async (request: Request) => {
+      void request
+
+      throw new DOMException('The operation was aborted.', 'AbortError')
+    })
+    const client = createApiClient({ baseUrl, fetch })
+
+    const failure = await client.GET('/').catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(DOMException)
+    expect((failure as DOMException).name).toBe('AbortError')
   })
 
   it('returns an error response as the RFC 9457 problem', async () => {

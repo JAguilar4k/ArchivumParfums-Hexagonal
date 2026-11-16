@@ -1,6 +1,7 @@
 import createClient from 'openapi-fetch'
 
 import { apiUrl } from '@/shared/config'
+import { NetworkError, newRequestId, REQUEST_ID_HEADER } from './problem'
 import type { components, paths } from './schema'
 
 /** RFC 9457 problem that the API returns on every error (`application/problem+json`). */
@@ -25,6 +26,10 @@ export interface ApiClientOptions {
  * HTTP client typed from openapi/v1.json: routes, parameters, bodies and
  * responses come from src/api/schema.ts, so a call the contract does not
  * allow fails `npm run type-check`.
+ *
+ * Every request carries its own `X-Request-Id`, so the client knows the
+ * identifier even when no response arrives; a request without a response
+ * throws `NetworkError` with it (#127).
  */
 export function createApiClient(options: ApiClientOptions = {}) {
   const client = createClient<paths>({
@@ -44,7 +49,19 @@ export function createApiClient(options: ApiClientOptions = {}) {
         request.headers.set('Authorization', `Bearer ${value}`)
       }
 
+      if (!request.headers.has(REQUEST_ID_HEADER)) {
+        request.headers.set(REQUEST_ID_HEADER, newRequestId())
+      }
+
       return request
+    },
+    onError({ request, error }) {
+      // A request that the view cancelled on purpose is not a network failure.
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return undefined
+      }
+
+      return new NetworkError(request.headers.get(REQUEST_ID_HEADER), error)
     },
   })
 
