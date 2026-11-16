@@ -7500,7 +7500,11 @@
                         "type": "string"
                     },
                     "origen": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": [
+                            "manual",
+                            "google"
+                        ]
                     }
                 },
                 "required": [
