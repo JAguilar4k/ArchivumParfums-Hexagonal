@@ -1,14 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
 import { errorRoutes } from '@/features/errors/routes'
-import { homeRoutes } from '@/features/home/routes'
+import { recommendationRoutes } from '@/features/recommendations/routes'
 import { sessionRoutes } from '@/features/session/routes'
+import { storefrontRoutes } from '@/features/storefront/routes'
 
 // Each feature exports its own routes from src/features/<feature>/routes.ts.
 // errorRoutes goes last, because it catches every path that nothing else matches.
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
-  routes: [...homeRoutes, ...sessionRoutes, ...errorRoutes],
+  routes: [...storefrontRoutes, ...recommendationRoutes, ...sessionRoutes, ...errorRoutes],
   // A new page starts at the top, and back returns to where it was. A change of the query alone (a search, a page
   // of results) keeps the place: the view moves the focus if it needs to.
   scrollBehavior(to, from, savedPosition) {
