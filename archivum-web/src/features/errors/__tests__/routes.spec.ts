@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import App from '@/App.vue'
 import { homeRoutes } from '@/features/home/routes'
+import { sessionRoutes } from '@/features/session/routes'
 import { errorRoutes } from '../routes'
 
 async function visit(path: string) {
-  const router = createRouter({ history: createMemoryHistory(), routes: [...homeRoutes, ...errorRoutes] })
+  const router = createRouter({ history: createMemoryHistory(), routes: [...homeRoutes, ...sessionRoutes, ...errorRoutes] })
   await router.push(path)
 
-  const wrapper = mount(App, { global: { plugins: [router] } })
+  const wrapper = mount(App, { global: { plugins: [createPinia(), router] } })
   await flushPromises()
 
   return { wrapper, router }

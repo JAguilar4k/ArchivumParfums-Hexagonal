@@ -101,7 +101,74 @@ const { data, error } = await api.GET('/tiendas/{tienda}/perfumes', {
 })
 ```
 
-La sesión ([#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)) registra una vez cómo leer su token con `setTokenProvider(() => token)`; mientras no lo haga, las peticiones salen sin token.
+La sesión ([#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)) registra una vez cómo leer su token con `setTokenProvider(() => token)` y qué hacer ante un 401 con `setUnauthenticatedHandler`; mientras no lo haga, las peticiones salen sin token.
+
+## Sesión y permisos de navegación
+
+El store `session` de Pinia (`src/features/session/store.ts`, [#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)) guarda el token, su `vence_en` y la cuenta con su rol y su tienda:
+
+- **Iniciar sesión:** `POST /sesiones` y luego `GET /cuenta`. Unas credenciales incorrectas responden 401 `credenciales-invalidas` y la vista "Iniciar sesión" (`/iniciar-sesion`) muestra su mensaje; un 422 marca los campos.
+- **Dónde vive el token:** en `sessionStorage` (se pierde al cerrar la pestaña), nunca en la URL ni en los registros. La contraseña no se guarda en ningún lado.
+- **Renovación:** `POST /sesiones/actual/renovacion` cinco minutos antes de `vence_en`; si no hay respuesta, se reintenta cada 30 segundos mientras el token siga vigente.
+- **Un 401 con token** (vencido o revocado, que ya no se puede renovar) borra la sesión y lleva al inicio de sesión, que después regresa a la ruta que estaba abierta. Un 401 sin token, como una contraseña equivocada, no termina ninguna sesión.
+- **Cerrar sesión:** `DELETE /sesiones/actual`, y se borran el token y la cuenta del navegador.
+
+`installSession(router)` en `main.ts` conecta la sesión con el router. Cada ruta declara en `meta.roles` quién puede abrirla, y una ruta hija hereda los roles de su padre:
+
+```ts
+{ path: '/cuenta/citas', component: MyAppointmentsView, meta: { roles: ['cliente'] } }
+{ path: '/panel', meta: { roles: ['dueno'] }, children: [...] }
+{ path: '/panel/agenda', component: AgendaView, meta: { roles: ['dueno', 'colaborador'] } }
+```
+
+Una ruta sin `meta.roles` es pública. El visitante que abre una ruta con roles va al inicio de sesión; una cuenta cuyo rol no está en la lista ve "Sin permiso". Los guardias solo ayudan a navegar: los permisos los decide la API (#102, #104).
+
+## Estados de una vista
+
+Toda vista que pide datos muestra tres estados con los componentes de `src/shared`: `LoadingState` mientras espera, `ErrorState` si falla (con el aviso de `ProblemNotice` y, si tiene sentido, el botón "Intentar de nuevo") y `EmptyState` si no hay nada que mostrar. `useApiData` lleva esos estados:
+
+```vue
+<script setup lang="ts">
+import { onMounted } from 'vue'
+
+import { api } from '@/api/client'
+import { callApi } from '@/api/problem'
+import EmptyState from '@/shared/EmptyState.vue'
+import ErrorState from '@/shared/ErrorState.vue'
+import LoadingState from '@/shared/LoadingState.vue'
+import { useApiData } from '@/shared/useApiData'
+
+const perfumes = useApiData(
+  () => callApi(() => api.GET('/tiendas/{tienda}/perfumes', { params: { path: { tienda: 'archivum' } } })),
+  (page) => page.data.length === 0,
+)
+
+onMounted(perfumes.reload)
+</script>
+
+<template>
+  <LoadingState v-if="perfumes.loading.value" />
+  <ErrorState v-else-if="perfumes.problem.value" :problem="perfumes.problem.value" @retry="perfumes.reload" />
+  <EmptyState v-else-if="perfumes.empty.value" message="La tienda todavía no publica perfumes." />
+  <ul v-else-if="perfumes.data.value">...</ul>
+</template>
+```
+
+`src/shared/__tests__/ExampleListView.vue` es el ejemplo completo, con sus pruebas.
+
+## Accesibilidad
+
+El cliente apunta a WCAG 2.2 en el nivel AAA ([#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)). La base vale para todas las vistas:
+
+- **Estilos** (`src/styles/base.css`): texto con contraste de al menos 7:1 y bordes de los controles con 3:1; interlineado de 1.5, párrafos de hasta 70 caracteres y texto alineado a la izquierda; botones, campos y enlaces sueltos de al menos 44 × 44 px; anillo de foco de 3 px; sin animaciones cuando el sistema pide menos movimiento, y los colores del sistema en el modo de contraste alto. Las medidas van en `rem`, así que la página crece con el texto hasta el 200 % y se reacomoda desde 320 px de ancho.
+- **Marco de la página** (`App.vue`): el enlace "Saltar al contenido", la cabecera con la sesión y un solo `main` (`#contenido`). Las vistas no declaran otro `main`.
+- **Título y foco al navegar** (`src/shared/pageChanges.ts`): cada ruta declara `meta.title`. Al cambiar de página, la pestaña toma ese título ("Iniciar sesión · ArchivumParfums"), el foco pasa al contenido principal y un anunciador con `role="status"` lee el nombre de la página. Un cambio solo de la consulta (una búsqueda o una página de resultados) deja el foco donde estaba. `usePageTitle()` precisa el título cuando llegan los datos, como el nombre de un perfume.
+- **Botones que esperan una respuesta**: llevan `aria-disabled="true"` en lugar de `disabled`, para que el foco no se pierda, y la función ignora el segundo clic.
+- **Avisos**: los errores usan `role="alert"`; los demás mensajes, una región `.status-message` con `role="status"` que existe desde el principio, para que el lector de pantalla la lea al cambiar.
+
+Clases de apoyo: `page` (columna de una vista), `form`, `form-field`, `field-hint`, `form-actions`, `checkbox-field` (casilla con su texto, toda clicable), `action-link` (enlace fuera de una oración, con la altura de un botón), `button` y `button--secondary`, `prose` (bloques de texto, con dos líneas y media entre párrafos) y `visually-hidden`.
+
+Para revisar una vista a mano: recorrerla solo con el teclado (Tab, Mayús+Tab, Enter y Espacio), ampliarla al 200 % y verla a 320 px de ancho.
 
 ## Errores de la API
 
@@ -155,16 +222,20 @@ archivum-web/
 ├── env.d.ts              tipos de las variables de entorno
 ├── index.html
 ├── src/
-│   ├── main.ts           crea la aplicación con Pinia y Vue Router
-│   ├── App.vue
+│   ├── main.ts           crea la aplicación con Pinia, la sesión, los estilos y Vue Router
+│   ├── App.vue           marco de la página: "Saltar al contenido", cabecera, main y anunciador
+│   ├── styles/base.css   estilos base para WCAG 2.2 AAA
 │   ├── router/index.ts   junta las rutas de cada funcionalidad
 │   ├── api/              schema.ts (generado), client.ts, el cliente tipado de la API,
 │   │                     y problem.ts, que interpreta sus errores
 │   ├── features/         una carpeta por funcionalidad
 │   │   ├── home/         vista de inicio, sus rutas y sus pruebas
+│   │   ├── session/      store de la sesión, guardias por rol, "Iniciar sesión" y menú
 │   │   └── errors/       rutas de "Sin permiso" y "No encontrado"
 │   └── shared/           lo que usan varias funcionalidades: config.ts, ProblemNotice,
-│                         FieldError y las vistas "Sin permiso" y "No encontrado"
+│                         FieldError, las vistas "Sin permiso" y "No encontrado",
+│                         LoadingState, ErrorState, EmptyState, useApiData y
+│                         pageChanges.ts (título y foco al navegar)
 └── vite.config.ts
 ```
 

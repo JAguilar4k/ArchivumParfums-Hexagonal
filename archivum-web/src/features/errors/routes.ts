@@ -11,10 +11,12 @@ export const errorRoutes: RouteRecordRaw[] = [
     path: '/sin-permiso',
     name: 'forbidden',
     component: () => import('@/shared/ForbiddenView.vue'),
+    meta: { title: 'Sin permiso' },
   },
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',
     component: () => import('@/shared/NotFoundView.vue'),
+    meta: { title: 'No encontrado' },
   },
 ]
