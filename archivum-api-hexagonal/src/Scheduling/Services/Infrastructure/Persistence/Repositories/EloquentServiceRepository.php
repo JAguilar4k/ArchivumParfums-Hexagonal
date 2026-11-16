@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Scheduling\Services\Infrastructure\Persistence;
+namespace Src\Scheduling\Services\Infrastructure\Persistence\Repositories;
 
 use Illuminate\Support\Str;
 use Src\Scheduling\Services\Domain\Contracts\ServiceRepository;
