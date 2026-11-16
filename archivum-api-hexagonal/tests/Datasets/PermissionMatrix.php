@@ -30,6 +30,16 @@ function ownerOnly(int $ownerStatus): array
 }
 
 /**
+ * Statuses of an endpoint the owner and the staff reach, each one over its own rows.
+ *
+ * @return array<string, int>
+ */
+function ownerAndStaff(int $status): array
+{
+    return ['dueno' => $status, 'colaborador' => $status, 'cliente' => 403, 'visitante' => 401];
+}
+
+/**
  * Statuses of an endpoint only a customer reaches, on their own resources.
  *
  * @return array<string, int>
@@ -98,6 +108,7 @@ function permissionMatrixRows(): array
         'ver citas' => [
             'listar mis citas' => ['GET', 'api/v1/cuenta/citas', [], customerOnly(200)],
             'ver mi cita' => ['GET', 'api/v1/cuenta/citas/{cita}', [], customerOnly(200)],
+            'ver la agenda del personal' => ['GET', 'api/v1/panel/citas', [], ownerAndStaff(200)],
         ],
         'reservar, reprogramar o cancelar citas' => [
             'reservar una cita' => ['POST', 'api/v1/tiendas/{tienda}/citas', [], customerOnly(422)],

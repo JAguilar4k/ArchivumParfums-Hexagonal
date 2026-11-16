@@ -13,6 +13,8 @@ return [
     'appointment.invalid_business' => 'La cita no pertenece a esta tienda.',
     'appointment.slot_taken' => 'Ese horario ya no está disponible.',
     'appointment.not_found' => 'La cita no existe.',
+    'agenda.invalid_range' => 'La fecha final de la agenda no puede ser anterior a la inicial.',
+    'agenda.range_too_long' => 'La agenda se consulta como máximo en un rango de 31 días.',
     'service.not_found' => 'El servicio no existe.',
     'schedule_block.not_found' => 'El bloqueo no existe.',
     'schedule_block.member_not_found' => 'La persona no pertenece al personal de la tienda.',

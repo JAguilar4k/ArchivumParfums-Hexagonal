@@ -5,19 +5,44 @@ declare(strict_types=1);
 namespace Src\Scheduling\Appointments\Infrastructure\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Validation\ValidationException;
+use Src\Accounts\Sessions\Domain\ValueObjects\Ability;
 use Src\Scheduling\Appointments\Application\UseCases\BookAppointment;
 use Src\Scheduling\Appointments\Application\UseCases\CancelAppointment;
+use Src\Scheduling\Appointments\Application\UseCases\ListStaffAgenda;
 use Src\Scheduling\Appointments\Application\UseCases\RescheduleAppointment;
 use Src\Scheduling\Appointments\Infrastructure\Http\Requests\CancelAppointmentRequest;
+use Src\Scheduling\Appointments\Infrastructure\Http\Requests\IndexStaffAgenda;
 use Src\Scheduling\Appointments\Infrastructure\Http\Requests\RescheduleAppointmentRequest;
 use Src\Scheduling\Appointments\Infrastructure\Http\Requests\StorePanelAppointment;
 use Src\Scheduling\Appointments\Infrastructure\Http\Resources\BookedAppointmentResource;
 use Src\Scheduling\Appointments\Infrastructure\Http\Resources\CustomerAppointmentResource;
+use Src\Scheduling\Appointments\Infrastructure\Http\Resources\StaffAppointmentResource;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 
 final readonly class PanelAppointmentController
 {
+    /**
+     * List the agenda of the store of the session (#137): the owner sees every appointment and may narrow it to one
+     * person, and a collaborator sees only its own even when the query names another person, because the person comes
+     * from the session and never from the request.
+     */
+    public function index(IndexStaffAgenda $request, ListStaffAgenda $agenda): AnonymousResourceCollection
+    {
+        $user = $request->user();
+        $seesEveryPerson = $user?->tokenCan(Ability::AppointmentsViewAll->value) ?? false;
+
+        return StaffAppointmentResource::collection($agenda->execute(
+            (string) $user?->getAuthIdentifier(),
+            $seesEveryPerson,
+            $request->from(),
+            $request->to(),
+            $request->memberId(),
+            $request->status(),
+        ));
+    }
+
     /**
      * Book a trial appointment for a customer of the store of the session. The route carries the ability the matrix of
      * #102 gives only to the owner, and business:staff pins the transaction to the store of the session, so a store
@@ -33,8 +58,8 @@ final readonly class PanelAppointmentController
             throw $this->invalid($exception);
         }
 
-        // The customer reads the appointment in its own listing; the panel has no detail of an appointment until #137,
-        // so the answer carries no Location yet.
+        // The customer reads the appointment in its own listing; the panel lists the agenda (#137) but still has no
+        // detail of one appointment, so the answer carries no Location yet.
         return (new BookedAppointmentResource($appointment))->response($request)->setStatusCode(201);
     }
 
