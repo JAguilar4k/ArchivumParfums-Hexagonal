@@ -1,15 +1,16 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
+import { vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
+import { setUnauthenticatedHandler } from '@/api/client'
 import type { components } from '@/api/schema'
 import App from '@/App.vue'
-import { errorRoutes } from '@/features/errors/routes'
-import { helpRoutes } from '@/features/help/routes'
-import { recommendationRoutes } from '@/features/recommendations/routes'
-import { sessionRoutes } from '@/features/session/routes'
+import { installSession } from '@/features/session/install'
+import { STORAGE_KEY, useSessionStore, type Role } from '@/features/session/store'
+import { accountOf } from '@/features/session/__tests__/accounts'
+import { routes } from '@/router/routes'
 import { installPageChanges } from '@/shared/pageChanges'
-import { storefrontRoutes } from '../routes'
 
 export const STORE = 'archivumparfums'
 
@@ -30,7 +31,7 @@ export function showcasePerfume(id: string, nombre: string, prices: Array<[numbe
     familia: 'Amaderada',
     foto_url: null,
     etiquetas: { momento: ['noche'], clima: ['frio'], ocasion: ['cena'] },
-    presentaciones: prices.map(([ml, precio_venta]) => ({ ml, precio_venta })),
+    presentaciones: prices.map(([ml, precio_venta]) => ({ id: `${id}-${ml}`, ml, precio_venta })),
   }
 }
 
@@ -51,15 +52,21 @@ export function page(data: unknown[], currentPage = 1, lastPage = 1) {
   }
 }
 
-/** Opens a path of the client with every public route and the titles and focus of each page, like main.ts does. */
-export async function open(path: string) {
+/**
+ * Opens a path of the client with every route, the session guard and the titles and focus of each page, like main.ts
+ * does. With a role, the tab already has a session of an account with that role.
+ */
+export async function open(path: string, signedInAs?: Role) {
+  if (signedInAs) {
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ token: '1|prueba', expiresAt, account: accountOf(signedInAs) }))
+  }
+
   const pinia = createPinia()
   setActivePinia(pinia)
 
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [...storefrontRoutes, ...recommendationRoutes, ...sessionRoutes, ...helpRoutes, ...errorRoutes],
-  })
+  const router = createRouter({ history: createMemoryHistory(), routes })
+  installSession(router)
   installPageChanges(router)
   await router.push(path)
 
@@ -72,4 +79,14 @@ export async function open(path: string) {
 /** The same text without the narrow spaces of the thousands separator, to compare prices. */
 export function plain(text: string): string {
   return text.replace(/\s/g, ' ')
+}
+
+/** Undoes what `open` and fakeApi left: the session, the storage, fetch and the page. */
+export function cleanUp(): void {
+  useSessionStore().clear()
+  setUnauthenticatedHandler(() => {})
+  localStorage.clear()
+  sessionStorage.clear()
+  vi.unstubAllGlobals()
+  document.body.innerHTML = ''
 }

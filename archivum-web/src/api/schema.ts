@@ -1314,6 +1314,7 @@ export interface components {
         };
         /** ShowcaseVariantResource */
         ShowcaseVariantResource: {
+            id: string;
             ml: number;
             precio_venta: number;
         };

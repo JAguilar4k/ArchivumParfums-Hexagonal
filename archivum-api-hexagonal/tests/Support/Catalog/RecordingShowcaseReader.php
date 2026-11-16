@@ -22,8 +22,8 @@ final class RecordingShowcaseReader implements ShowcaseReader
         $tags = ['time_of_day' => ['night'], 'climate' => ['cold'], 'occasion' => ['Cena']];
 
         return new ShowcasePage([
-            new ShowcaseItem('0192f0c4-0000-7000-9000-000000000001', 'Tom Ford', 'Oud Wood', 'EDP', 'Amaderada', 'perfumes/oud.png', null, $tags, [new ShowcaseVariant(50, 185000)]),
-            new ShowcaseItem('0192f0c4-0000-7000-9000-000000000002', 'Casa Aurora', 'Alba de Azahar', null, null, null, null, $tags, [new ShowcaseVariant(50, 98000)]),
+            new ShowcaseItem('0192f0c4-0000-7000-9000-000000000001', 'Tom Ford', 'Oud Wood', 'EDP', 'Amaderada', 'perfumes/oud.png', null, $tags, [new ShowcaseVariant('0192f0c4-0000-7000-9000-000000000101', 50, 185000)]),
+            new ShowcaseItem('0192f0c4-0000-7000-9000-000000000002', 'Casa Aurora', 'Alba de Azahar', null, null, null, null, $tags, [new ShowcaseVariant('0192f0c4-0000-7000-9000-000000000102', 50, 98000)]),
         ], 2, 1, 20);
     }
 

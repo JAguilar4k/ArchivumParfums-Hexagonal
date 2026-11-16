@@ -8150,6 +8150,9 @@
             "ShowcaseVariantResource": {
                 "type": "object",
                 "properties": {
+                    "id": {
+                        "type": "string"
+                    },
                     "ml": {
                         "type": "integer"
                     },
@@ -8158,6 +8161,7 @@
                     }
                 },
                 "required": [
+                    "id",
                     "ml",
                     "precio_venta"
                 ],
