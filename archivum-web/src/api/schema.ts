@@ -269,7 +269,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Move one appointment of the customer to another free slot. The middleware resolved the store of that appointment
+         *     only because it belongs to the session, so one of another customer is not found before the use case runs
+         */
+        patch: operations["scheduling.customer.appointments.reschedule"];
         trace?: never;
     };
     "/tiendas/{tienda}/pedidos": {
@@ -521,6 +525,26 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/panel/citas/{cita}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Move a confirmed appointment of the store of the session. The route carries the owner ability of the permission
+         *     matrix of #102, so a collaborator never reaches it, and business:staff keeps the appointment of another store out
+         */
+        patch: operations["scheduling.business.appointments.reschedule"];
         trace?: never;
     };
     "/cuenta/contrasena": {
@@ -1574,6 +1598,10 @@ export interface components {
                 inicio: string;
                 fin: string;
             }[];
+        };
+        /** RescheduleAppointmentRequest */
+        RescheduleAppointmentRequest: {
+            inicia_en: string;
         };
         /** SessionTokenResource */
         SessionTokenResource: {
@@ -2970,6 +2998,70 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.customer.appointments.reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cita: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescheduleAppointmentRequest"];
+            };
+        };
+        responses: {
+            /** @description `CustomerAppointmentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CustomerAppointmentResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
                 };
             };
             /** @description Error interno */
@@ -4430,6 +4522,79 @@ export interface operations {
             };
             /** @description Conflicto */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.business.appointments.reschedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cita: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RescheduleAppointmentRequest"];
+            };
+        };
+        responses: {
+            /** @description `CustomerAppointmentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CustomerAppointmentResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
