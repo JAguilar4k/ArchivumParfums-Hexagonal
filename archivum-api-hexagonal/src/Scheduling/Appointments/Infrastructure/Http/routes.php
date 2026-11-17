@@ -23,9 +23,10 @@ Route::prefix('cuenta/citas')->middleware(['auth:sanctum', 'abilities:customer:o
         Route::patch('/{cita}', 'reschedule')->whereUuid('cita')->middleware('business:account')->name('reschedule');
     });
 
-// The panel moves the appointments of its own store: the ability of the owner of the matrix of #102 keeps a
-// collaborator out, and business:staff pins the transaction to the store of the session, so another store is a 404.
+// The panel moves the appointments of its own store with appointments:book-for-customer, the ability the matrix of
+// section 9 gives to book, move or cancel for a customer: only the owner has it, so a collaborator gets a 403, and
+// business:staff pins the transaction to the store of the session, so another store is a 404.
 Route::patch('panel/citas/{cita}', [PanelAppointmentController::class, 'reschedule'])
     ->whereUuid('cita')
-    ->middleware(['auth:sanctum', 'abilities:appointments:view-all', 'business:staff'])
+    ->middleware(['auth:sanctum', 'abilities:appointments:book-for-customer', 'business:staff'])
     ->name('scheduling.business.appointments.reschedule');
