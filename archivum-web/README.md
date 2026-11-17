@@ -119,7 +119,7 @@ El store `session` de Pinia (`src/features/session/store.ts`, [#126](https://git
 `installSession(router)` en `main.ts` conecta la sesión con el router. Cada ruta declara en `meta.roles` quién puede abrirla, y una ruta hija hereda los roles de su padre:
 
 ```ts
-{ path: '/cuenta/citas', component: MyAppointmentsView, meta: { roles: ['cliente'] } }
+{ path: '/cuenta/citas', component: AppointmentsView, meta: { roles: ['cliente'] } }
 { path: '/panel', meta: { roles: ['dueno'] }, children: [...] }
 { path: '/panel/agenda', component: AgendaView, meta: { roles: ['dueno', 'colaborador'] } }
 ```
@@ -153,7 +153,7 @@ Las tres comparten el encabezado de la tienda (`StoreLayout`, con `GET /tiendas/
 - **Vitrina.** Cada filtro lleva una pista con un ejemplo, unida al campo con `aria-describedby`. Una línea con `role="status"` anuncia cuántos perfumes se encontraron, y después de cambiar de página el foco pasa al título de la lista ("Perfumes"), porque el enlace usado puede desaparecer. Los enlaces de las páginas dicen "Página anterior" y "Página siguiente".
 - **Detalle.** Una ruta de enlaces (`nav` "Ubicación": Vitrina › perfume) dice dónde está la página. La concentración nunca va abreviada sola ("Eau de Parfum (EDP)") y cada cantidad marca "ml" como abreviatura de mililitros (`MlAmount`).
 - **Recomendador.** Junto al campo de texto da un ejemplo y avisa que lo escrito se envía a un proveedor externo de inteligencia artificial y que no conviene incluir datos personales; la API igual reemplaza correos y teléfonos antes de enviarlo (R51). Un texto vacío no se envía: el campo se marca y toma el foco. Mientras espera la respuesta, que puede tardar hasta 10 segundos, el botón queda ocupado (`aria-disabled`) y una línea con `role="status"` anuncia la espera y después cuántos perfumes recomienda. Cada perfume muestra su razón como texto (nunca como HTML), sus precios y un enlace al detalle, con "Recomendado con inteligencia artificial" o "Recomendado con las reglas de la tienda" según `origen`. Un 429 dice en cuánto tiempo volver a intentar.
-- **Ayuda y glosario** (`/ayuda`, en `src/features/help`). Explica cómo buscar, cómo pedir una recomendación y cómo funcionan los pedidos y los pagos (#130), y define las palabras de perfumería y de los pedidos: bajo pedido, concentración, decant, familia olfativa, notas, pasarela de pago, por cobrar ahora, presentación, saldo, ml, ₡ e inteligencia artificial. Cada término tiene un id, así que una página puede enlazarlo (`/ayuda#notas`) y el foco llega a ese término. El pie de todas las páginas enlaza la ayuda.
+- **Ayuda y glosario** (`/ayuda`, en `src/features/help`). Explica cómo buscar, cómo pedir una recomendación, cómo funcionan los pedidos y los pagos (#130) y las citas de prueba con sus estados (#129), y define las palabras de perfumería y de los pedidos: bajo pedido, concentración, decant, familia olfativa, notas, pasarela de pago, por cobrar ahora, presentación, prueba de olores, saldo, ml, ₡ e inteligencia artificial. Cada término tiene un id, así que una página puede enlazarlo (`/ayuda#notas`) y el foco llega a ese término. El pie de todas las páginas enlaza la ayuda.
 
 ## Carrito, pedidos y pagos
 
@@ -175,6 +175,27 @@ Las rutas de `/cuenta` y `/pagos` piden una sesión con el rol `cliente`.
 - **Procesando.** La pasarela regresa a `PAYMENTS_RETURN_URL` de la API (por defecto `http://localhost:5173/pagos/procesando`), que no nombra el pedido: antes de salir, el cliente guarda en `sessionStorage` cuál pedido pagó y cuánto llevaba pagado. La vista consulta el pedido cada 3 s durante 2 min hasta que la API acredita el pago, lo que solo pasa con un aviso verificado de la pasarela o con la conciliación (#94, #96). Nunca lee los parámetros de la dirección: un `?estado=exito` no cambia nada. Pasados los 2 min, dice que el pago sigue en proceso y que su estado se verá en "Mis pedidos". Un pago cancelado en la pasarela vuelve a `PAYMENTS_CANCEL_URL`, "Mis pedidos".
 - **Mis pedidos** muestra el estado en español, lo pagado y el saldo (salvo en un pedido cancelado o vencido), y ofrece pagar o cancelar cuando la API lo admite. Mientras un pedido espera su pago, también muestra lo que se cobra ahora, que es el monto de su "Pagar". La API decide: si rechaza la cancelación, se muestra su 409.
 - **Accesibilidad (AAA).** Cada pedido se nombra por su fecha y hora ("Pedido del 16 nov 2026, 10:42"), así que dos enlaces nunca dicen lo mismo, y su página tiene una ruta de enlaces (Mis pedidos › pedido). En una lista, "Pagar" y "Cancelar el pedido" leen el pedido al que pertenecen. "Cancelar el pedido" pregunta antes y lleva el foco a "No, mantener el pedido". Cuando un botón desaparece (quitar una línea del carrito o cancelar un pedido), el foco pasa al título de la página y una línea con `role="status"` dice qué pasó. "Procesando" dice cada estado en una sola línea con `role="status"`. El pedido muestra en negrita hasta cuándo se puede pagar (R25) y enlaza la ayuda sobre los montos y los estados.
+
+## Citas de prueba
+
+El cliente reserva, cambia de hora y cancela sus citas de prueba de olores ([#129](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/129)). La API decide qué horas están libres, quién atiende y hasta cuándo se puede cambiar una cita; el navegador solo muestra lo que responde.
+
+| Ruta | Vista | API |
+|---|---|---|
+| `/tiendas/:tienda/citas/nueva` | Reservar una cita de prueba | `GET /tiendas/{tienda}/servicios`, `GET /tiendas/{tienda}/disponibilidad`, `POST /tiendas/{tienda}/citas` |
+| `/cuenta/citas` y `/cuenta/citas/pasadas` | "Mis citas", próximas y pasadas | `GET /cuenta/citas?periodo=proximas` o `pasadas` |
+| `/cuenta/citas/:cita` | Una cita, con "Cambiar la hora" y "Cancelar la cita" | `GET /cuenta/citas/{cita}`, `POST .../cancelacion` |
+| `/cuenta/citas/:cita/reprogramar` | Cambiar la hora de la cita | `GET /tiendas/{tienda}/disponibilidad`, `PATCH /cuenta/citas/{cita}` |
+
+Las rutas de `/cuenta/citas` piden una sesión con el rol `cliente`. Reservar es una página de la tienda, abierta a todos: el visitante elige antes de iniciar sesión, y el personal de una tienda lee que las citas se reservan con una cuenta de cliente.
+
+- **Reservar.** Con un solo servicio, la página lo nombra con su duración y su precio; con varios, se elige uno. Después del día, "Ver los horarios libres" pide `GET /tiendas/{tienda}/disponibilidad` y muestra cada hora con quién puede atenderla: el navegador nunca calcula un horario. Si una hora la atienden varias personas, se puede elegir una; si no, la API asigna a quien tenga menos citas ese día. Los perfumes se buscan en la vitrina y se eligen hasta el máximo del servicio (`maximo_perfumes`).
+- **Horario tomado.** Un 409 deja el mensaje de la API ("Ese horario ya no está disponible."), vuelve a pedir los horarios del mismo día y lleva el foco a la primera hora que queda. El servicio, el día, la persona y los perfumes se conservan. Un 422 marca su campo, también el grupo de los perfumes.
+- **Visitante.** "Inicie sesión para reservar" guarda la elección en la ruta de regreso (`servicio`, `fecha`, `inicio`, `persona` y `perfumes`); al volver, la página la recupera y pide otra vez los horarios de ese día. El detalle de un perfume ofrece "Reservar una cita para probar" con ese perfume ya elegido.
+- **Hora de la tienda.** Las horas se leen tal como las escribe la API, con el desfase de la tienda: `2026-11-21T09:00:00-06:00` es "9:00 a. m." en cualquier zona del navegador (`src/features/appointments/time.ts`). El primer día que se puede elegir es hoy en la zona del perfil de la tienda (`zona_horaria`).
+- **Mis citas** separa las próximas de las pasadas y escribe el estado en español ("No asistió" para `no_asistio`). Una cita confirmada o apartada que todavía no empieza ofrece "Cambiar la hora" y "Cancelar la cita". El plazo para hacerlo lo decide la API: el cliente no repite esa regla y muestra el mensaje de su 409.
+- **Cambiar la hora** abre con los horarios libres del día de la cita, de la misma persona y en la misma tienda (`tienda.slug` de la cita), y se puede pedir otro día. Envía solo la hora nueva (`inicia_en`); un 409 vuelve a pedir los horarios, como al reservar.
+- **Accesibilidad (AAA).** Cada cita se nombra por su día y su hora ("Cita del sábado, 21 de noviembre de 2026, 9:00 a. m."), y su página tiene una ruta de enlaces (Mis citas › cita). En "Mis citas", todo estado distinto de confirmada se suma al enlace, así que una hora reservada otra vez después de cancelarla no repite su texto. Las horas son un grupo de opciones con su leyenda, y cada opción entera, con su texto, es el objetivo de 44 px. Cuántos horarios hay y cuántos perfumes se eligieron se anuncia con `role="status"`; al quitar un perfume, el foco pasa al conteo. "Cancelar la cita" pregunta antes y lleva el foco a "No, mantener la cita"; después de cancelar, el foco pasa al título y un aviso dice que se canceló. "Ayuda y glosario" explica las citas y cada estado.
 
 ## Estados de una vista
 
@@ -218,11 +239,11 @@ El cliente apunta a WCAG 2.2 en el nivel AAA ([#126](https://github.com/JAguilar
 - **Título y foco al navegar** (`src/shared/pageChanges.ts`): cada ruta declara `meta.title`. Al cambiar de página, la pestaña toma ese título ("Iniciar sesión · ArchivumParfums"), el foco pasa al contenido principal y un anunciador con `role="status"` lee el nombre de la página. Un cambio solo de la consulta (una búsqueda o una página de resultados) deja el foco donde estaba. `usePageTitle()` precisa el título cuando llegan los datos, como el nombre de un perfume.
 - **Botones que esperan una respuesta**: llevan `aria-disabled="true"` en lugar de `disabled`, para que el foco no se pierda, y la función ignora el segundo clic.
 - **Avisos**: los errores usan `role="alert"`; los demás mensajes, una región `.status-message` o `.results-summary` con `role="status"` que existe desde el principio, para que el lector de pantalla la lea al cambiar.
-- **Ayuda en los campos** ([#128](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/128)): una pista con `field-hint` y un id, que `fieldAttributes(problem, campo, 'pista-campo')` une al control junto con su error.
+- **Ayuda en los campos** ([#128](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/128)): una pista con `field-hint` y un id, que `fieldAttributes(problem, campo, 'pista-campo')` une al control junto con su error. En un grupo de opciones (`fieldset`), `groupAttributes(problem, campo, 'pista-campo')` une la pista y el error al grupo, sin `aria-invalid`, que un `fieldset` no admite (#129).
 - **Palabras difíciles y abreviaturas** (#128): la página "Ayuda y glosario" las explica y el pie de cada página la enlaza. Las abreviaturas se escriben completas la primera vez o con `<abbr title="…">`.
 - **Enlaces a una parte de una página** (#128): con `#id` en la ruta, el foco va a ese elemento, que lleva `tabindex="-1"`, en lugar del inicio del contenido.
 
-Clases de apoyo: `page` (columna de una vista), `page-section`, `form`, `form-field`, `field-hint`, `form-actions`, `checkbox-field` (casilla con su texto, toda clicable), `action-link` (enlace fuera de una oración, con la altura de un botón), `button` y `button--secondary`, `prose` (bloques de texto, con dos líneas y media entre párrafos), `results-summary`, `card-list` y `card`, `breadcrumbs`, `facts` (pares de nombre y valor), `glossary` y `visually-hidden`.
+Clases de apoyo: `page` (columna de una vista), `page-section`, `form`, `form-field`, `field-hint`, `form-actions`, `checkbox-field` (casilla con su texto, toda clicable), `choice-group` y `choice` (grupo de opciones de radio, cada una clicable con su texto y su detalle), `sub-nav` (enlaces entre páginas hermanas, como "Próximas" y "Pasadas"), `action-link` (enlace fuera de una oración, con la altura de un botón), `button` y `button--secondary`, `prose` (bloques de texto, con dos líneas y media entre párrafos), `results-summary`, `card-list` y `card`, `breadcrumbs`, `facts` (pares de nombre y valor), `glossary` y `visually-hidden`.
 
 Para revisar una vista a mano: recorrerla solo con el teclado (Tab, Mayús+Tab, Enter y Espacio), ampliarla al 200 % y verla a 320 px de ancho.
 
@@ -289,6 +310,7 @@ archivum-web/
 │   │   ├── recommendations/  recomendador con IA o por reglas
 │   │   ├── cart/         carrito de cada tienda y creación del pedido
 │   │   ├── orders/       pedidos del cliente, pago, cancelación y "procesando"
+│   │   ├── appointments/ citas de prueba: reservar, "Mis citas", cambiar la hora y cancelar
 │   │   ├── help/         "Ayuda y glosario"
 │   │   ├── session/      store de la sesión, guardias por rol, "Iniciar sesión" y menú
 │   │   ├── registration/ "Crear cuenta" con el aviso de privacidad

@@ -8592,11 +8592,15 @@
                             },
                             "nombre": {
                                 "type": "string"
+                            },
+                            "slug": {
+                                "type": "string"
                             }
                         },
                         "required": [
                             "id",
-                            "nombre"
+                            "nombre",
+                            "slug"
                         ]
                     },
                     "estado": {

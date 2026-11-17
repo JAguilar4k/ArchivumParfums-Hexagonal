@@ -30,8 +30,9 @@ final class CustomerAppointmentResource extends JsonResource
     }
 
     /**
-     * Expose the appointment as the customer reads it: the store, the state in Spanish, the service, the person, the
-     * two ends with the offset of the store, the place and the perfumes to try.
+     * Expose the appointment as the customer reads it: the store with its slug, which the addresses of the store need to
+     * look for another slot (#129), the state in Spanish, the service, the person, the two ends with the offset of the
+     * store, the place and the perfumes to try.
      *
      * @return array<string, mixed>
      */
@@ -39,7 +40,11 @@ final class CustomerAppointmentResource extends JsonResource
     {
         return [
             'id' => $this->appointment->id,
-            'tienda' => ['id' => $this->appointment->businessId, 'nombre' => $this->appointment->businessName],
+            'tienda' => [
+                'id' => $this->appointment->businessId,
+                'nombre' => $this->appointment->businessName,
+                'slug' => $this->appointment->businessSlug,
+            ],
             'estado' => self::STATUSES[$this->appointment->status] ?? $this->appointment->status,
             'servicio' => ['id' => $this->appointment->serviceId, 'nombre' => $this->appointment->serviceName],
             'persona' => ['id' => $this->appointment->memberId, 'nombre' => $this->appointment->memberName],

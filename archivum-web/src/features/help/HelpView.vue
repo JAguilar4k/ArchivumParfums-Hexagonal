@@ -94,6 +94,42 @@ import { RouterLink } from 'vue-router'
       </dl>
     </section>
 
+    <section class="page-section prose" aria-labelledby="ayuda-citas">
+      <h2 id="ayuda-citas" tabindex="-1">Citas de prueba</h2>
+      <p>
+        En una <RouterLink to="/ayuda#prueba-de-olores">prueba de olores</RouterLink> usted huele y prueba en la piel los
+        perfumes que quiera, con la ayuda de una persona de la tienda. Para reservarla, elija el día, pulse «Ver los
+        horarios libres» y escoja una hora de la lista. Las horas son siempre las de la tienda, aunque usted esté en otro
+        país.
+      </p>
+      <p>
+        Puede escoger quién le atiende o dejar que la tienda asigne a la persona con menos citas ese día. También puede
+        elegir los perfumes que quiere probar, para que la tienda los tenga listos. Para reservar necesita iniciar sesión
+        con una cuenta de cliente; si inicia sesión a mitad de la reserva, vuelve a ella con lo que ya había elegido.
+      </p>
+      <p>
+        Si otra persona reserva la misma hora antes que usted, la página se lo dice y le muestra otra vez los horarios que
+        quedan libres. En «Mis citas» puede cambiar la hora de una cita o cancelarla, hasta el plazo que da la tienda. Si
+        el plazo ya pasó, la página se lo explica.
+      </p>
+
+      <h3 id="estados-de-la-cita" tabindex="-1">Estados de una cita</h3>
+      <dl class="glossary">
+        <dt>Confirmada</dt>
+        <dd>La cita está reservada y la tienda la espera.</dd>
+        <dt>Apartada para usted</dt>
+        <dd>La tienda le guarda un espacio que se liberó, por un tiempo corto.</dd>
+        <dt>Cancelada</dt>
+        <dd>La cita se canceló y su espacio quedó libre.</dd>
+        <dt>Atendida</dt>
+        <dd>La cita ya se hizo.</dd>
+        <dt>No asistió</dt>
+        <dd>La persona no llegó a la cita.</dd>
+        <dt>Vencida</dt>
+        <dd>Pasó el tiempo para aceptar un espacio apartado.</dd>
+      </dl>
+    </section>
+
     <section class="page-section" aria-labelledby="glosario">
       <h2 id="glosario" tabindex="-1">Glosario</h2>
       <dl class="glossary">
@@ -132,6 +168,12 @@ import { RouterLink } from 'vue-router'
 
         <dt id="presentacion" tabindex="-1">Presentación</dt>
         <dd>Un tamaño de botella sellada de un perfume, con su precio.</dd>
+
+        <dt id="prueba-de-olores" tabindex="-1">Prueba de olores</dt>
+        <dd>
+          Una cita en la tienda para oler y probar en la piel los perfumes que usted elija, con la ayuda de una persona de
+          la tienda. También se le llama cita de prueba.
+        </dd>
 
         <dt id="saldo" tabindex="-1">Saldo</dt>
         <dd>

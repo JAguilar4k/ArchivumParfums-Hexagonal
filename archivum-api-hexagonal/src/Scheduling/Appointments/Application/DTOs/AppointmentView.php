@@ -17,6 +17,7 @@ final readonly class AppointmentView
         public string $status,
         public string $businessId,
         public string $businessName,
+        public string $businessSlug,
         public string $serviceId,
         public string $serviceName,
         public string $memberId,

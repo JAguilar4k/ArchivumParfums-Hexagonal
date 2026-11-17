@@ -106,6 +106,7 @@ test('lists the upcoming appointments of the customer in every store, the closes
 
     expect(array_column($response->json('data'), 'id'))->toBe([$sooner, $later])
         ->and($response->json('data.0.tienda.nombre'))->toBe('Perfumería Norte')
+        ->and($response->json('data.0.tienda.slug'))->toBe($second['business']->slug)
         ->and($response->json('data.0.estado'))->toBe('confirmada')
         ->and($response->json('data.0.servicio.nombre'))->toBe('Prueba guiada')
         ->and($response->json('data.0.persona.nombre'))->toBe('Ana Solís')
@@ -144,7 +145,8 @@ test('reads one appointment of the customer and hides the ones of other customer
 
     getJson('/api/v1/cuenta/citas/'.$own)->assertOk()
         ->assertJsonPath('data.id', $own)
-        ->assertJsonPath('data.tienda.nombre', 'Perfumería Centro');
+        ->assertJsonPath('data.tienda.nombre', 'Perfumería Centro')
+        ->assertJsonPath('data.tienda.slug', $store['business']->slug);
 
     getJson('/api/v1/cuenta/citas/'.$foreignAppointment)->assertNotFound()
         ->assertJsonPath('status', 404);
