@@ -18,6 +18,12 @@ use Src\Shared\Domain\ValueObjects\Colones;
 
 final class Order
 {
+    /**
+     * Largest number of lines of an order, as the guide repo limits its orders: each line is quoted and reserved in
+     * the transaction that places the order, so one request cannot keep the database busy with thousands of lines.
+     */
+    public const int MAX_LINES = 20;
+
     /** @param list<OrderLine> $lines */
     private function __construct(
         public readonly OrderId $id,
@@ -40,6 +46,10 @@ final class Order
     {
         if ($lines === []) {
             throw new InvalidValueException('orders.empty');
+        }
+
+        if (count($lines) > self::MAX_LINES) {
+            throw new InvalidValueException('orders.too_many_lines', ['max' => self::MAX_LINES]);
         }
 
         $amounts = OrderAmounts::calculate($lines, depositPercent: $depositPercent);

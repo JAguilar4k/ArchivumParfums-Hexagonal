@@ -92,6 +92,22 @@ describe('showcase', () => {
     expect(requests[requests.length - 1]?.url).not.toContain('pagina')
   })
 
+  it('searches by the maximum price written in its number field', async () => {
+    const { requests } = fakeApi({
+      [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
+      [`GET /tiendas/${STORE}/perfumes`]: () => json(200, page([oud])),
+    })
+    const { wrapper, router } = await open(`/tiendas/${STORE}`)
+
+    await wrapper.get('#nota').setValue('vainilla')
+    await wrapper.get('#precio_maximo').setValue('150000')
+    await wrapper.get('form.filters').trigger('submit')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ nota: 'vainilla', precio_maximo: '150000' })
+    expect(requests[requests.length - 1]?.url).toContain('precio_maximo=150000')
+  })
+
   it('links the next page keeping the filters', async () => {
     fakeApi({
       [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
