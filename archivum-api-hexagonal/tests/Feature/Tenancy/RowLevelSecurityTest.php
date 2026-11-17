@@ -140,6 +140,7 @@ it('adds no policy but the isolation one and the read of the definer functions',
     );
 
     expect($others)->toEqual([
+        (object) ['tablename' => 'appointments', 'policyname' => 'appointments_definer_read', 'cmd' => 'SELECT', 'roles' => "{{$owner}}", 'qual' => 'true', 'with_check' => null],
         (object) ['tablename' => 'customers', 'policyname' => 'customers_definer_read', 'cmd' => 'SELECT', 'roles' => "{{$owner}}", 'qual' => 'true', 'with_check' => null],
         (object) ['tablename' => 'decant_movements', 'policyname' => 'decant_movements_business_insert', 'cmd' => 'INSERT', 'roles' => '{public}', 'qual' => null, 'with_check' => POLICY_EXPRESSION],
         (object) ['tablename' => 'decant_movements', 'policyname' => 'decant_movements_business_read', 'cmd' => 'SELECT', 'roles' => '{public}', 'qual' => POLICY_EXPRESSION, 'with_check' => null],

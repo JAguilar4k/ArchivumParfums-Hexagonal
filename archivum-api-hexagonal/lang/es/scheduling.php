@@ -12,6 +12,7 @@ return [
     'appointment.invalid_block' => 'El margen de la cita no puede terminar antes que la cita.',
     'appointment.invalid_business' => 'La cita no pertenece a esta tienda.',
     'appointment.slot_taken' => 'Ese horario ya no está disponible.',
+    'appointment.not_found' => 'La cita no existe.',
     'service.not_found' => 'El servicio no existe.',
     'schedule_block.not_found' => 'El bloqueo no existe.',
     'schedule_block.member_not_found' => 'La persona no pertenece al personal de la tienda.',

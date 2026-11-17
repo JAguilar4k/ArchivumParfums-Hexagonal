@@ -148,7 +148,7 @@ Hay preguntas que se responden antes de saber la tienda: al ingresar, de qué ti
 
 Las cuatro son `SECURITY DEFINER` con `search_path` vacío y nombres calificados, propiedad de `archivum_owner` y con `EXECUTE` solo para `archivum_app`. Devuelven identificadores y el rol, nunca filas completas. Como `FORCE` también somete a `archivum_owner`, las tablas que consultan agregan la política de solo lectura `<tabla>_definer_read`, `FOR SELECT TO archivum_owner USING (true)`; `archivum_app` sigue sin ver filas sin tienda.
 
-`fn_customer_resource_business` acepta una lista cerrada de tipos y rechaza cualquier otro con el SQLSTATE `22023`. Hoy solo conoce `customer`, la ficha del cliente en una tienda; cada esquema con recursos del cliente agrega el suyo a la función, al enum `CustomerResourceType` y a `CustomerBusinessContext::RESOURCES`: `appointment` con #59 y `order` con #78. El mecanismo está registrado en el [ADR 0011](adr/0011-customer-routes-resolve-the-business-through-definer-functions.md).
+`fn_customer_resource_business` acepta una lista cerrada de tipos y rechaza cualquier otro con el SQLSTATE `22023`. Conoce `customer`, la ficha del cliente en una tienda, y los recursos que cada esquema le agregó junto con el enum `CustomerResourceType` y `CustomerBusinessContext::RESOURCES`: `order` con #78, `payment` con #88 y `appointment` con #64. Cada tabla que la función lee lleva su política `<tabla>_definer_read`. El mecanismo está registrado en el [ADR 0011](adr/0011-customer-routes-resolve-the-business-through-definer-functions.md).
 
 `php artisan migrate:fresh` borra las tablas pero no las funciones. Por eso cada migración elimina sus funciones antes de crearlas.
 

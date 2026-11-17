@@ -95,6 +95,10 @@ function permissionMatrixRows(): array
             'ver los movimientos de una botella' => ['GET', 'api/v1/panel/botellas/{botella}/movimientos', [], ownerOnly(200)],
             'ajustar una botella' => ['POST', 'api/v1/panel/botellas/{botella}/ajustes', ['ml' => -1, 'motivo' => 'Prueba de la matriz de permisos'], ownerOnly(201)],
         ],
+        'ver citas' => [
+            'listar mis citas' => ['GET', 'api/v1/cuenta/citas', [], customerOnly(200)],
+            'ver mi cita' => ['GET', 'api/v1/cuenta/citas/{cita}', [], customerOnly(200)],
+        ],
         'pedidos' => [
             'listar los pedidos de la tienda' => ['GET', 'api/v1/panel/pedidos', [], ownerOnly(200)],
             'ver un pedido de la tienda' => ['GET', 'api/v1/panel/pedidos/{pedido}', [], ownerOnly(200)],
