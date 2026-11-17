@@ -126,7 +126,7 @@ test('accepts the same slot for another person and over a cancelled or expired a
     insertAppointment($ids, [
         'status' => 'cancelled',
         'cancelled_at' => '2026-12-01 09:00:00-06',
-        'cancel_reason' => 'La clienta avisÃ³',
+        'cancel_reason' => 'La clienta avisó',
     ]);
     insertAppointment($ids, ['status' => 'expired']);
 
