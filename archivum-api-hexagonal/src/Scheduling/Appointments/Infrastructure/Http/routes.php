@@ -21,12 +21,16 @@ Route::prefix('cuenta/citas')->middleware(['auth:sanctum', 'abilities:customer:o
         Route::get('/', 'index')->name('index');
         Route::get('/{cita}', 'show')->whereUuid('cita')->middleware('business:account')->name('show');
         Route::patch('/{cita}', 'reschedule')->whereUuid('cita')->middleware('business:account')->name('reschedule');
+        Route::post('/{cita}/cancelacion', 'cancel')->whereUuid('cita')->middleware('business:account')->name('cancel');
     });
 
-// The panel moves the appointments of its own store with appointments:book-for-customer, the ability the matrix of
-// section 9 gives to book, move or cancel for a customer: only the owner has it, so a collaborator gets a 403, and
-// business:staff pins the transaction to the store of the session, so another store is a 404.
-Route::patch('panel/citas/{cita}', [PanelAppointmentController::class, 'reschedule'])
-    ->whereUuid('cita')
-    ->middleware(['auth:sanctum', 'abilities:appointments:book-for-customer', 'business:staff'])
-    ->name('scheduling.business.appointments.reschedule');
+// The panel moves and cancels the appointments of its own store with appointments:book-for-customer, the ability the
+// matrix of section 9 gives to book, move or cancel for a customer: only the owner has it, so a collaborator gets a
+// 403, and business:staff pins the transaction to the store of the session, so another store is a 404.
+Route::prefix('panel/citas')->middleware(['auth:sanctum', 'abilities:appointments:book-for-customer', 'business:staff'])
+    ->name('scheduling.business.appointments.')
+    ->controller(PanelAppointmentController::class)
+    ->group(function (): void {
+        Route::patch('/{cita}', 'reschedule')->whereUuid('cita')->name('reschedule');
+        Route::post('/{cita}/cancelacion', 'cancel')->whereUuid('cita')->name('cancel');
+    });

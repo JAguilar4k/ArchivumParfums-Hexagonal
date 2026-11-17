@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Src\Scheduling\Appointments\Infrastructure\Http\Controllers;
 
 use Illuminate\Validation\ValidationException;
+use Src\Scheduling\Appointments\Application\UseCases\CancelAppointment;
 use Src\Scheduling\Appointments\Application\UseCases\RescheduleAppointment;
+use Src\Scheduling\Appointments\Infrastructure\Http\Requests\CancelAppointmentRequest;
 use Src\Scheduling\Appointments\Infrastructure\Http\Requests\RescheduleAppointmentRequest;
 use Src\Scheduling\Appointments\Infrastructure\Http\Resources\CustomerAppointmentResource;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
@@ -25,6 +27,15 @@ final readonly class PanelAppointmentController
         } catch (InvalidValueException $exception) {
             throw $this->invalid($exception);
         }
+    }
+
+    /**
+     * Cancel a confirmed appointment of the store of the session. The store has no deadline of its own in the
+     * specification, so it may cancel until the appointment starts.
+     */
+    public function cancel(CancelAppointmentRequest $request, string $cita, CancelAppointment $cancel): CustomerAppointmentResource
+    {
+        return new CustomerAppointmentResource($cancel->execute($request->toCommand($cita, customerDeadline: false)));
     }
 
     /**

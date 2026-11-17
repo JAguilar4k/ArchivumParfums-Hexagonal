@@ -276,6 +276,23 @@ export interface paths {
         patch: operations["scheduling.customer.appointments.reschedule"];
         trace?: never;
     };
+    "/cuenta/citas/{cita}/cancelacion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel one appointment of the customer before the deadline the store gives */
+        post: operations["scheduling.customer.appointments.cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tiendas/{tienda}/pedidos": {
         parameters: {
             query?: never;
@@ -545,6 +562,26 @@ export interface paths {
          *     matrix of #102, so a collaborator never reaches it, and business:staff keeps the appointment of another store out
          */
         patch: operations["scheduling.business.appointments.reschedule"];
+        trace?: never;
+    };
+    "/panel/citas/{cita}/cancelacion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a confirmed appointment of the store of the session. The store has no deadline of its own in the
+         *     specification, so it may cancel until the appointment starts
+         */
+        post: operations["scheduling.business.appointments.cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/cuenta/contrasena": {
@@ -1113,6 +1150,10 @@ export interface components {
                 pasarela_por_defecto: string;
                 tipo_cambio_usd: number | null;
             };
+        };
+        /** CancelAppointmentRequest */
+        CancelAppointmentRequest: {
+            motivo?: string | null;
         };
         /** ConfirmPasswordReset */
         ConfirmPasswordReset: {
@@ -3090,6 +3131,70 @@ export interface operations {
             };
         };
     };
+    "scheduling.customer.appointments.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cita: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CancelAppointmentRequest"];
+            };
+        };
+        responses: {
+            /** @description `CustomerAppointmentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CustomerAppointmentResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
     "sales.customer.orders.store": {
         parameters: {
             query?: never;
@@ -4576,6 +4681,79 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RescheduleAppointmentRequest"];
+            };
+        };
+        responses: {
+            /** @description `CustomerAppointmentResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["CustomerAppointmentResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.business.appointments.cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                cita: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CancelAppointmentRequest"];
             };
         };
         responses: {
