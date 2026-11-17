@@ -11,6 +11,7 @@ use Src\Decants\Bottles\Infrastructure\Persistence\Models\DecantBottleModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackPlanModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
+use Src\Scheduling\Appointments\Infrastructure\Persistence\Models\AppointmentModel;
 use Src\Scheduling\BusinessHours\Infrastructure\Persistence\Models\BusinessHoursModel;
 use Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence\Models\ScheduleBlockModel;
 use Src\Scheduling\Services\Infrastructure\Persistence\Models\ServiceModel;
@@ -80,6 +81,7 @@ function panelResourcesById(): array
         'replace the hours of a person' => ['PUT', '/api/v1/panel/personal/{id}/horario', ['tramos' => [['dia_semana' => 1, 'inicio' => '09:00', 'fin' => '10:00']]], 'members', exampleStaffMember(...)],
         'edit a block of the agenda' => ['PATCH', '/api/v1/panel/bloqueos', ['motivo' => 'Inventario'], 'schedule_blocks', exampleBlock(...)],
         'delete a block of the agenda' => ['DELETE', '/api/v1/panel/bloqueos', [], 'schedule_blocks', exampleBlock(...)],
+        'reschedule an appointment of the store' => ['PATCH', '/api/v1/panel/citas', ['inicia_en' => '2026-12-01T10:00:00-06:00'], 'appointments', exampleAppointment(...)],
     ];
 }
 
@@ -196,6 +198,12 @@ function exampleStaffMember(string $businessId): string
 function exampleBlock(string $businessId): string
 {
     return ScheduleBlockModel::factory()->create(['business_id' => $businessId])->id;
+}
+
+/** Create an appointment with its factory, which also creates its service, customer and person in the business. */
+function exampleAppointment(string $businessId): string
+{
+    return AppointmentModel::factory()->create(['business_id' => $businessId])->id;
 }
 
 function panelResourcePath(string $path, string $id): string
