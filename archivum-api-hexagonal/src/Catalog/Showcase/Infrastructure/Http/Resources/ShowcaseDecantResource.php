@@ -20,8 +20,9 @@ final class ShowcaseDecantResource extends JsonResource
     }
 
     /**
-     * Expose the bottle, the milliliters and the price in whole colones, so the contract types them for archivum-web
-     * (#128).
+     * Expose the bottle, the milliliters of its presentation, the milliliters of the decant and the price in whole
+     * colones, so the contract types them for archivum-web (#128). The presentation tells apart two offers of the same
+     * size from bottles of different presentations, whose prices differ (R3).
      *
      * @return array<string, mixed>
      */
@@ -29,6 +30,7 @@ final class ShowcaseDecantResource extends JsonResource
     {
         return [
             'botella_id' => $this->decant->bottleId,
+            'presentacion_ml' => $this->decant->presentationMl,
             'ml' => $this->decant->ml,
             'precio' => $this->decant->price,
         ];

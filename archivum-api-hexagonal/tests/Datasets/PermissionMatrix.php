@@ -62,6 +62,8 @@ function permissionMatrixRows(): array
             'ver el perfil' => ['GET', 'api/v1/panel/tienda', [], ownerOnly(200)],
             'editar el perfil' => ['PATCH', 'api/v1/panel/tienda', [], ownerOnly(200)],
             'subir el logo' => ['POST', 'api/v1/panel/tienda/logo', [], ownerOnly(422)],
+            'ver el horario de la tienda' => ['GET', 'api/v1/panel/horario', [], ownerOnly(200)],
+            'reemplazar el horario de la tienda' => ['PUT', 'api/v1/panel/horario', [], ownerOnly(422)],
             'listar el personal' => ['GET', 'api/v1/panel/personal', [], ownerOnly(200)],
             'agregar a una persona' => ['POST', 'api/v1/panel/personal', [], ownerOnly(422)],
             'ver a una persona' => ['GET', 'api/v1/panel/personal/{persona}', [], ownerOnly(200)],

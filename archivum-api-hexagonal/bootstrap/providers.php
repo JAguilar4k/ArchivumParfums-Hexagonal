@@ -19,6 +19,7 @@ use Src\Payments\Payments\Infrastructure\PaymentsServiceProvider;
 use Src\Recommendations\Recommender\Infrastructure\RecommenderServiceProvider;
 use Src\Sales\Orders\Infrastructure\OrdersServiceProvider;
 use Src\Scheduling\Appointments\Infrastructure\AppointmentsServiceProvider;
+use Src\Scheduling\BusinessHours\Infrastructure\BusinessHoursServiceProvider;
 use Src\Scheduling\ScheduleBlocks\Infrastructure\ScheduleBlocksServiceProvider;
 use Src\Scheduling\Services\Infrastructure\ServicesServiceProvider;
 use Src\Shared\Infrastructure\RateLimitsServiceProvider;
@@ -44,6 +45,7 @@ return [
     PaymentsServiceProvider::class,
     RecommenderServiceProvider::class,
     ServicesServiceProvider::class,
+    BusinessHoursServiceProvider::class,
     ScheduleBlocksServiceProvider::class,
     AppointmentsServiceProvider::class,
 ];
