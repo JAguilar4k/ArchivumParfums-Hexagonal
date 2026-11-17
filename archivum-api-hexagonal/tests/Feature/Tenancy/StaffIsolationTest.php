@@ -82,6 +82,7 @@ function panelResourcesById(): array
         'edit a block of the agenda' => ['PATCH', '/api/v1/panel/bloqueos', ['motivo' => 'Inventario'], 'schedule_blocks', exampleBlock(...)],
         'delete a block of the agenda' => ['DELETE', '/api/v1/panel/bloqueos', [], 'schedule_blocks', exampleBlock(...)],
         'reschedule an appointment of the store' => ['PATCH', '/api/v1/panel/citas', ['inicia_en' => '2026-12-01T10:00:00-06:00'], 'appointments', exampleAppointment(...)],
+        'cancel an appointment of the store' => ['POST', '/api/v1/panel/citas/{id}/cancelacion', ['motivo' => 'La clienta avisó'], 'appointments', exampleAppointment(...)],
     ];
 }
 
