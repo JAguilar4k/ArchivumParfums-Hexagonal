@@ -221,6 +221,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tiendas/{tienda}/citas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Book a trial appointment of the customer of the session in the store of the address */
+        post: operations["scheduling.customer.appointments.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tiendas/{tienda}/pedidos": {
         parameters: {
             query?: never;
@@ -1002,6 +1019,23 @@ export interface components {
             termina_en: string;
             personas: unknown[];
         };
+        /** BookedAppointmentResource */
+        BookedAppointmentResource: {
+            id: string;
+            estado: string;
+            servicio: {
+                id: string;
+                nombre: string;
+            };
+            persona: {
+                id: string;
+                nombre: string;
+            };
+            inicia_en: string;
+            termina_en: string;
+            lugar_cita: string | null;
+            perfumes: unknown[];
+        };
         /** BusinessProfileResource */
         BusinessProfileResource: {
             id: string;
@@ -1554,6 +1588,15 @@ export interface components {
             contrasena: string;
             /** @enum {unknown} */
             acepta_privacidad: "yes" | "on" | "1" | 1 | "true" | true;
+        };
+        /** StoreAppointment */
+        StoreAppointment: {
+            /** Format: uuid */
+            servicio_id: string;
+            inicia_en: string;
+            /** Format: uuid */
+            persona_id?: string | null;
+            perfumes?: string[];
         };
         /** StoreBusinessLogo */
         StoreBusinessLogo: {
@@ -2694,6 +2737,70 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.customer.appointments.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tienda: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreAppointment"];
+            };
+        };
+        responses: {
+            /** @description `BookedAppointmentResource` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["BookedAppointmentResource"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
                 };
             };
             /** @description Error interno */

@@ -30,4 +30,9 @@ return [
     'availability.person_not_available' => 'Esa persona no atiende citas en esta tienda.',
     'availability.invalid_date' => 'La fecha debe tener el formato AAAA-MM-DD.',
     'availability.invalid_range' => 'El tramo de disponibilidad no puede terminar antes de empezar.',
+    'booking.invalid_start' => 'El inicio de la cita debe ser una fecha ISO 8601 con su desplazamiento.',
+    'booking.outside_window' => 'La cita debe reservarse dentro de la anticipación y el horizonte de la tienda.',
+    'booking.service_unavailable' => 'El servicio no está disponible para reservar en esta tienda.',
+    'booking.person_unavailable' => 'Esa persona no atiende citas en esta tienda.',
+    'booking.perfume_unavailable' => 'Alguno de los perfumes no está disponible en esta tienda.',
 ];
