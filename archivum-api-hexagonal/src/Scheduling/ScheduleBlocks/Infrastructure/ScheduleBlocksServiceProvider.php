@@ -6,7 +6,7 @@ namespace Src\Scheduling\ScheduleBlocks\Infrastructure;
 
 use Illuminate\Support\ServiceProvider;
 use Src\Scheduling\ScheduleBlocks\Domain\Contracts\ScheduleBlockRepository;
-use Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence\EloquentScheduleBlockRepository;
+use Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence\Repositories\EloquentScheduleBlockRepository;
 
 final class ScheduleBlocksServiceProvider extends ServiceProvider
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Scheduling\Services\Infrastructure\Persistence;
+namespace Src\Scheduling\Services\Infrastructure\Persistence\Queries;
 
 use Src\Scheduling\Services\Application\Contracts\BookableServices;
 use Src\Scheduling\Services\Application\DTOs\BookableService;

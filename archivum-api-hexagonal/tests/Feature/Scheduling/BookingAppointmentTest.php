@@ -12,6 +12,10 @@ use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Models\PerfumeModel;
+use Src\Scheduling\Appointments\Domain\Contracts\AppointmentRepository;
+use Src\Scheduling\Appointments\Domain\Entities\Appointment;
+use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentId;
+use Src\Scheduling\Appointments\Infrastructure\Persistence\Repositories\EloquentAppointmentRepository;
 use Src\Scheduling\BusinessHours\Infrastructure\Persistence\Models\BusinessHoursModel;
 use Src\Scheduling\Services\Infrastructure\Persistence\Models\ServiceModel;
 use Src\Scheduling\StaffSchedules\Infrastructure\Persistence\Models\StaffScheduleModel;
@@ -308,6 +312,46 @@ test('creates the customer record of the account the first time it books in the 
 
     $row = DB::table('appointments')->where('id', $response->json('data.id'))->first();
     expect($row?->customer_id)->toBe($customer?->id);
+});
+
+test('leaves no customer record behind when the booking loses its slot as it is saved', function (): void {
+    $scenario = bookingScenario();
+    $user = UserModel::factory()->create(['name' => 'Elena Vargas']);
+    Sanctum::actingAs($user, Ability::namesGrantedTo(AccountRole::Customer));
+
+    // Another booking takes the slot between the availability and the insert, so the exclusion constraint refuses this one.
+    $takeTheSlot = function () use ($scenario): void {
+        bookingCompetitor($scenario, $scenario['first'], '09:00', '10:00', '10:15');
+    };
+
+    app()->bind(AppointmentRepository::class, fn (): AppointmentRepository => new readonly class(app(EloquentAppointmentRepository::class), $takeTheSlot) implements AppointmentRepository
+    {
+        /** @param  Closure(): void  $takeTheSlot */
+        public function __construct(private AppointmentRepository $repository, private Closure $takeTheSlot) {}
+
+        public function nextId(): AppointmentId
+        {
+            return $this->repository->nextId();
+        }
+
+        public function find(AppointmentId $id): ?Appointment
+        {
+            return $this->repository->find($id);
+        }
+
+        public function save(Appointment $appointment): void
+        {
+            ($this->takeTheSlot)();
+            $this->repository->save($appointment);
+        }
+    });
+
+    postJson(bookingUrl($scenario), bookingBody($scenario, person: $scenario['first']))->assertConflict()
+        ->assertJsonPath('detail', 'Ese horario ya no está disponible.');
+
+    scopeBookingTo($scenario['business']->id);
+
+    expect(CustomerModel::query()->where('business_id', $scenario['business']->id)->where('user_id', $user->id)->exists())->toBeFalse();
 });
 
 test('refuses a booking without a session and one of the staff of the store', function (): void {

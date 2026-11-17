@@ -52,6 +52,9 @@ final readonly class CustomerAppointmentController
         $userId = (string) $request->user()?->getAuthIdentifier();
         $period = $request->period();
 
+        // The pattern of «Mis pedidos» in CustomerOrderController::index(): the use case is resolved again under the scope
+        // of each business and the page is cut in memory once every appointment of every store has been read. #141,
+        // which counts the queries of the listings, reviews it for both.
         app()->instance(BusinessContext::class, $context);
 
         $parts = $context->eachBusiness(fn (): array => app(ListMyAppointments::class)->execute($userId, $period));

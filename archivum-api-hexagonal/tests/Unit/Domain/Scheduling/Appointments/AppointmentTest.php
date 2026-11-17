@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Src\Scheduling\Appointments\Domain\Entities\Appointment;
 use Src\Scheduling\Appointments\Domain\Exceptions\AppointmentChangeNotAllowedException;
 use Src\Scheduling\Appointments\Domain\Exceptions\InvalidAppointmentTransitionException;
+use Src\Scheduling\Appointments\Domain\Exceptions\RepeatedPerfumeException;
 use Src\Scheduling\Appointments\Domain\Exceptions\TooManyPerfumesException;
 use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentId;
 use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentStatus;
@@ -42,6 +43,12 @@ function bookedAppointment(): Appointment
     return Appointment::book(...appointmentArgs());
 }
 
+/** An offer of the waiting list for the same slot, held until the day before. */
+function offeredAppointment(): Appointment
+{
+    return Appointment::offer(...appointmentArgs(), holdExpiresAt: new DateTimeImmutable('2026-11-19T10:00:00-06:00'));
+}
+
 test('books a confirmed appointment and calculates its end and its blocked range', function (): void {
     $appointment = bookedAppointment();
 
@@ -72,21 +79,31 @@ test('refuses a perfume chosen twice', function (): void {
     ];
 
     expect(fn () => Appointment::book(...$args))
-        ->toThrow(InvalidValueException::class, 'scheduling.appointment.repeated_perfume');
+        ->toThrow(RepeatedPerfumeException::class, 'scheduling.appointment.repeated_perfume');
+});
+
+test('offers a slot of the waiting list held until its deadline, blocking it like a booking', function (): void {
+    $appointment = offeredAppointment();
+
+    expect($appointment->status())->toBe(AppointmentStatus::Held)
+        ->and($appointment->holdExpiresAt()?->format(DATE_ATOM))->toBe('2026-11-19T10:00:00-06:00')
+        ->and($appointment->endsAt()->format(DATE_ATOM))->toBe('2026-11-20T17:45:00-06:00')
+        ->and($appointment->blockedUntil()->format(DATE_ATOM))->toBe('2026-11-20T18:00:00-06:00')
+        ->and($appointment->status()->occupiesSlot())->toBeTrue();
 });
 
 test('walks the states of section six and refuses the transitions it does not allow', function (): void {
-    $appointment = bookedAppointment();
-
-    $appointment->hold(new DateTimeImmutable('2026-11-19T10:00:00-06:00'));
-
-    expect($appointment->status())->toBe(AppointmentStatus::Held)
-        ->and($appointment->holdExpiresAt())->not->toBeNull();
-
+    $appointment = offeredAppointment();
     $appointment->confirm();
 
     expect($appointment->status())->toBe(AppointmentStatus::Confirmed)
         ->and($appointment->holdExpiresAt())->toBeNull();
+
+    // Held only starts with an offer of the waiting list: a confirmed appointment has no way back to held, and the
+    // transitions that only a held appointment has are refused.
+    expect(get_class_methods($appointment))->not->toContain('hold')
+        ->and(fn () => $appointment->confirm())->toThrow(InvalidAppointmentTransitionException::class)
+        ->and(fn () => $appointment->expire())->toThrow(InvalidAppointmentTransitionException::class);
 
     $appointment->complete();
 
@@ -100,12 +117,13 @@ test('walks the states of section six and refuses the transitions it does not al
         ->toThrow(InvalidAppointmentTransitionException::class);
 });
 
-test('holds an offer and lets it expire', function (): void {
-    $appointment = bookedAppointment();
-    $appointment->hold(new DateTimeImmutable('2026-11-19T10:00:00-06:00'));
+test('lets an offer expire, which frees the slot and cannot be confirmed anymore', function (): void {
+    $appointment = offeredAppointment();
     $appointment->expire();
 
-    expect($appointment->status())->toBe(AppointmentStatus::Expired);
+    expect($appointment->status())->toBe(AppointmentStatus::Expired)
+        ->and($appointment->holdExpiresAt())->toBeNull()
+        ->and($appointment->status()->occupiesSlot())->toBeFalse();
 
     expect(fn () => $appointment->confirm())->toThrow(InvalidAppointmentTransitionException::class);
 });

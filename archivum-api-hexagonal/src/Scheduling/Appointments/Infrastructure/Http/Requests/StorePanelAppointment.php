@@ -50,13 +50,12 @@ final class StorePanelAppointment extends FormRequest
         /** @var list<string> $perfumes */
         $perfumes = $this->validated('perfumes', []);
 
-        return new BookAppointmentCommand(
-            userId: null,
+        return BookAppointmentCommand::forCustomer(
+            customerId: $this->string('cliente_id')->toString(),
             serviceId: $this->string('servicio_id')->toString(),
             startsAt: $this->string('inicia_en')->toString(),
             memberId: $this->filled('persona_id') ? $this->string('persona_id')->toString() : null,
             perfumes: $perfumes,
-            customerId: $this->string('cliente_id')->toString(),
         );
     }
 }

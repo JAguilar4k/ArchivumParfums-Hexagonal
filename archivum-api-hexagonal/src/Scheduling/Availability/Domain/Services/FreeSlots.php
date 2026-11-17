@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Scheduling\Availability\Domain;
+namespace Src\Scheduling\Availability\Domain\Services;
 
 use Src\Scheduling\Availability\Domain\ValueObjects\FreeSlot;
 use Src\Scheduling\Availability\Domain\ValueObjects\MinuteRange;

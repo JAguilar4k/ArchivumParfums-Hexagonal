@@ -28,13 +28,14 @@ function appointmentsZone(): DateTimeZone
 }
 
 /**
- * A store where the account is a customer, with a service, a person who attends appointments and a perfume.
+ * A store where the account is a customer, with a service, a person who attends appointments and a perfume. The slug
+ * comes from the name the test gives, so two stores of a test never draw the same one from the factory.
  *
  * @return array{business: BusinessModel, customer: string, service: string, member: string, perfume: string}
  */
 function appointmentStore(UserModel $user, string $name): array
 {
-    $business = BusinessModel::factory()->create(['name' => $name, 'location_text' => 'Escazú, frente al parque']);
+    $business = BusinessModel::factory()->create(['name' => $name, 'slug' => Str::slug($name), 'location_text' => 'Escazú, frente al parque']);
     app(BusinessTransaction::class)->scope($business->id);
 
     $staff = UserModel::factory()->create(['name' => 'Ana Solís']);
