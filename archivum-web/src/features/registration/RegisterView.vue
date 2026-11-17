@@ -16,9 +16,9 @@ import PrivacyNotice from './PrivacyNotice.vue'
  * visitor wanted to open. The password policy is the API's: a 422 marks each field with its message. The password
  * lives only in this form, and is cleared after each attempt.
  *
- * Each field says what it is for before the visitor writes (WCAG 3.3.5): the hint of the password repeats the rule of
- * the API, `Password::defaults()`, which asks for 8 characters. The password can be shown to check it, and a box left
- * unchecked takes the focus with its message.
+ * Each field says what it is for before the visitor writes (WCAG 3.3.5). The hint of the password gives advice and
+ * repeats no rule: the policy is the API's (#194), and its 422 says next to the field what the password lacks. The
+ * password can be shown to check it, and a box left unchecked takes the focus with its message.
  */
 const session = useSessionStore()
 const route = useRoute()
@@ -145,7 +145,8 @@ async function submit(): Promise<void> {
       <div class="form-field">
         <label for="contrasena">Contraseña</label>
         <p id="pista-contrasena" class="field-hint">
-          Al menos 8 caracteres. Una frase de varias palabras es fácil de recordar.
+          Una frase de varias palabras es fácil de recordar y difícil de adivinar. Si la contraseña no es válida,
+          al crear la cuenta se indica aquí qué le falta.
         </p>
         <input
           id="contrasena"
