@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Src\Scheduling\Appointments\Domain\Entities\Appointment;
 use Src\Scheduling\Appointments\Domain\Exceptions\AppointmentChangeNotAllowedException;
 use Src\Scheduling\Appointments\Domain\Exceptions\InvalidAppointmentTransitionException;
+use Src\Scheduling\Appointments\Domain\Exceptions\RepeatedPerfumeException;
 use Src\Scheduling\Appointments\Domain\Exceptions\TooManyPerfumesException;
 use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentId;
 use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentStatus;
@@ -78,7 +79,7 @@ test('refuses a perfume chosen twice', function (): void {
     ];
 
     expect(fn () => Appointment::book(...$args))
-        ->toThrow(InvalidValueException::class, 'scheduling.appointment.repeated_perfume');
+        ->toThrow(RepeatedPerfumeException::class, 'scheduling.appointment.repeated_perfume');
 });
 
 test('offers a slot of the waiting list held until its deadline, blocking it like a booking', function (): void {

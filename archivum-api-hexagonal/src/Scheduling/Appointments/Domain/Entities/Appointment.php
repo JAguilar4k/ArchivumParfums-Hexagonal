@@ -7,6 +7,7 @@ namespace Src\Scheduling\Appointments\Domain\Entities;
 use DateTimeImmutable;
 use Src\Scheduling\Appointments\Domain\Exceptions\AppointmentChangeNotAllowedException;
 use Src\Scheduling\Appointments\Domain\Exceptions\InvalidAppointmentTransitionException;
+use Src\Scheduling\Appointments\Domain\Exceptions\RepeatedPerfumeException;
 use Src\Scheduling\Appointments\Domain\Exceptions\TooManyPerfumesException;
 use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentId;
 use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentStatus;
@@ -53,6 +54,7 @@ final class Appointment
      * @param  list<PerfumeId>  $perfumes
      *
      * @throws TooManyPerfumesException
+     * @throws RepeatedPerfumeException
      */
     public static function book(
         AppointmentId $id,
@@ -90,6 +92,7 @@ final class Appointment
      * @param  list<PerfumeId>  $perfumes
      *
      * @throws TooManyPerfumesException
+     * @throws RepeatedPerfumeException
      */
     public static function offer(
         AppointmentId $id,
@@ -290,6 +293,7 @@ final class Appointment
      * @param  list<PerfumeId>  $perfumes
      *
      * @throws TooManyPerfumesException
+     * @throws RepeatedPerfumeException
      */
     private static function start(
         AppointmentId $id,
@@ -349,6 +353,7 @@ final class Appointment
      * @param  list<PerfumeId>  $perfumes
      *
      * @throws TooManyPerfumesException
+     * @throws RepeatedPerfumeException
      */
     private static function assertPerfumes(array $perfumes, int $maxPerfumes): void
     {
@@ -359,7 +364,7 @@ final class Appointment
         $values = array_map(fn (PerfumeId $perfume): string => $perfume->value, $perfumes);
 
         if (count(array_unique($values)) !== count($values)) {
-            throw new InvalidValueException('scheduling.appointment.repeated_perfume');
+            throw RepeatedPerfumeException::create();
         }
     }
 }
