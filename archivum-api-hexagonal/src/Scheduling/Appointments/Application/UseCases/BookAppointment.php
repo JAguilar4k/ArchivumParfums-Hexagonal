@@ -23,6 +23,7 @@ use Src\Scheduling\Availability\Application\DTOs\AvailablePerson;
 use Src\Scheduling\Availability\Application\DTOs\AvailableSlot;
 use Src\Scheduling\Availability\Application\UseCases\GetAvailability;
 use Src\Shared\Domain\Contracts\BusinessContext;
+use Src\Shared\Domain\Contracts\TransactionRunner;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\ValueObjects\MemberId;
 
@@ -41,10 +42,13 @@ final readonly class BookAppointment
         private AppointmentCustomers $customers,
         private GetAvailability $availability,
         private BusinessContext $business,
+        private TransactionRunner $transaction,
     ) {}
 
     /**
-     * Book the appointment and answer it as the API shows it.
+     * Book the appointment and answer it as the API shows it. The customer record the account gets in the store and the
+     * appointment are written in one transaction, so a booking that loses its slot as it is saved leaves no customer
+     * behind.
      *
      * @throws InvalidValueException when a field of the request is not bookable
      * @throws AppointmentSlotTakenException when the slot is no longer free
@@ -77,20 +81,24 @@ final readonly class BookAppointment
         $slot = $this->slot($service->id, $day, $command->memberId, $startsAt);
         $person ??= $this->leastBusy($slot->people, $day);
 
-        $appointment = Appointment::book(
-            $this->appointments->nextId(),
-            $this->business->current(),
-            new ServiceId($service->id),
-            $this->customers->findOrCreate($command->userId),
-            new MemberId($person->id),
-            $startsAt,
-            $service->durationMinutes,
-            $service->bufferMinutes,
-            array_map(fn (string $id): PerfumeId => new PerfumeId($id), array_keys($perfumes)),
-            $service->maxPerfumes,
-        );
+        $appointment = $this->transaction->run(function () use ($command, $service, $person, $startsAt, $perfumes): Appointment {
+            $appointment = Appointment::book(
+                $this->appointments->nextId(),
+                $this->business->current(),
+                new ServiceId($service->id),
+                $this->customers->findOrCreate($command->userId),
+                new MemberId($person->id),
+                $startsAt,
+                $service->durationMinutes,
+                $service->bufferMinutes,
+                array_map(fn (string $id): PerfumeId => new PerfumeId($id), array_keys($perfumes)),
+                $service->maxPerfumes,
+            );
 
-        $this->appointments->save($appointment);
+            $this->appointments->save($appointment);
+
+            return $appointment;
+        });
 
         return new BookedAppointment(
             $appointment->id->value,
