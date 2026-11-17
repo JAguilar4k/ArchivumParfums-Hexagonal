@@ -6,17 +6,16 @@ namespace Src\Scheduling\Appointments\Application\UseCases;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use Exception;
 use Src\Scheduling\Appointments\Application\Contracts\AppointmentCustomers;
 use Src\Scheduling\Appointments\Application\Contracts\BookingAgenda;
 use Src\Scheduling\Appointments\Application\Contracts\BookingCatalog;
 use Src\Scheduling\Appointments\Application\DTOs\BookAppointmentCommand;
 use Src\Scheduling\Appointments\Application\DTOs\BookedAppointment;
-use Src\Scheduling\Appointments\Application\DTOs\BookingTerms;
 use Src\Scheduling\Appointments\Application\DTOs\PersonOption;
 use Src\Scheduling\Appointments\Domain\Contracts\AppointmentRepository;
 use Src\Scheduling\Appointments\Domain\Entities\Appointment;
 use Src\Scheduling\Appointments\Domain\Exceptions\AppointmentSlotTakenException;
+use Src\Scheduling\Appointments\Domain\ValueObjects\BookingWindow;
 use Src\Scheduling\Appointments\Domain\ValueObjects\PerfumeId;
 use Src\Scheduling\Appointments\Domain\ValueObjects\ServiceId;
 use Src\Scheduling\Availability\Application\DTOs\AvailablePerson;
@@ -57,10 +56,11 @@ final readonly class BookAppointment
     {
         $terms = $this->catalog->terms();
         $zone = new DateTimeZone($terms->timezone);
-        $startsAt = $this->startsAt($command->startsAt);
-        $day = $startsAt->setTimezone($zone)->setTime(0, 0);
+        $window = BookingWindow::of(new DateTimeImmutable('now', $zone), $terms->minimumNoticeHours, $terms->bookingHorizonDays, $zone);
+        $startsAt = BookingWindow::startFrom($command->startsAt);
+        $day = $window->dayOf($startsAt);
 
-        $this->assertInsideWindow($startsAt, $day, $terms, $zone);
+        $window->assertAllows($startsAt);
 
         $serviceId = $this->serviceId($command->serviceId);
         $service = $this->catalog->service($serviceId);
@@ -199,27 +199,6 @@ final readonly class BookAppointment
         }
 
         return $ordered;
-    }
-
-    /** The instant must fall between the notice the store gives and the end of its horizon. */
-    private function assertInsideWindow(DateTimeImmutable $startsAt, DateTimeImmutable $day, BookingTerms $terms, DateTimeZone $zone): void
-    {
-        $now = new DateTimeImmutable('now', $zone);
-        $lastDay = $now->setTime(0, 0)->modify("+{$terms->bookingHorizonDays} days");
-
-        if ($startsAt < $now->modify("+{$terms->minimumNoticeHours} hours") || $day > $lastDay) {
-            throw new InvalidValueException('scheduling.booking.outside_window');
-        }
-    }
-
-    /** @throws InvalidValueException when the text is not an ISO 8601 instant with its offset */
-    private function startsAt(string $startsAt): DateTimeImmutable
-    {
-        try {
-            return new DateTimeImmutable($startsAt);
-        } catch (Exception) {
-            throw new InvalidValueException('scheduling.booking.invalid_start');
-        }
     }
 
     /** @throws InvalidValueException */

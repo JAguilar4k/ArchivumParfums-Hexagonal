@@ -6,17 +6,16 @@ namespace Src\Scheduling\Appointments\Application\UseCases;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use Exception;
 use Src\Scheduling\Appointments\Application\Contracts\BookingCatalog;
 use Src\Scheduling\Appointments\Application\Contracts\CustomerAppointments;
 use Src\Scheduling\Appointments\Application\DTOs\AppointmentView;
-use Src\Scheduling\Appointments\Application\DTOs\BookingTerms;
 use Src\Scheduling\Appointments\Application\DTOs\RescheduleAppointmentCommand;
 use Src\Scheduling\Appointments\Domain\Contracts\AppointmentRepository;
 use Src\Scheduling\Appointments\Domain\Entities\Appointment;
 use Src\Scheduling\Appointments\Domain\Exceptions\AppointmentNotFoundException;
 use Src\Scheduling\Appointments\Domain\Exceptions\AppointmentSlotTakenException;
 use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentId;
+use Src\Scheduling\Appointments\Domain\ValueObjects\BookingWindow;
 use Src\Scheduling\Availability\Application\UseCases\GetAvailability;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 
@@ -46,19 +45,17 @@ final readonly class RescheduleAppointment
     {
         $terms = $this->catalog->terms();
         $zone = new DateTimeZone($terms->timezone);
-        $startsAt = $this->startsAt($command->startsAt);
-        $day = $startsAt->setTimezone($zone)->setTime(0, 0);
+        $now = new DateTimeImmutable('now', $zone);
+        $window = BookingWindow::of($now, $terms->minimumNoticeHours, $terms->bookingHorizonDays, $zone);
+        $startsAt = BookingWindow::startFrom($command->startsAt);
+        $day = $window->dayOf($startsAt);
 
         $appointment = $this->appointment($command->appointmentId);
 
-        $this->assertInsideWindow($startsAt, $day, $terms, $zone);
+        $window->assertAllows($startsAt);
 
         // The aggregate refuses a state it cannot move and a change asked after the deadline the store gives.
-        $appointment->reschedule(
-            $this->forStorage($startsAt),
-            new DateTimeImmutable('now', $zone),
-            $terms->changeCutoffHours,
-        );
+        $appointment->reschedule($startsAt, $now, $terms->changeCutoffHours);
 
         $this->assertSlotIsFree($appointment, $day, $startsAt);
 
@@ -101,32 +98,5 @@ final readonly class RescheduleAppointment
         }
 
         throw AppointmentSlotTakenException::create();
-    }
-
-    /** The instant must fall between the notice the store gives and the end of its horizon. */
-    private function assertInsideWindow(DateTimeImmutable $startsAt, DateTimeImmutable $day, BookingTerms $terms, DateTimeZone $zone): void
-    {
-        $now = new DateTimeImmutable('now', $zone);
-        $lastDay = $now->setTime(0, 0)->modify("+{$terms->bookingHorizonDays} days");
-
-        if ($startsAt < $now->modify("+{$terms->minimumNoticeHours} hours") || $day > $lastDay) {
-            throw new InvalidValueException('scheduling.booking.outside_window');
-        }
-    }
-
-    /** @throws InvalidValueException when the text is not an ISO 8601 instant with its offset */
-    private function startsAt(string $startsAt): DateTimeImmutable
-    {
-        try {
-            return new DateTimeImmutable($startsAt);
-        } catch (Exception) {
-            throw new InvalidValueException('scheduling.booking.invalid_start');
-        }
-    }
-
-    /** The instant as the connection stores it, so the slot compares the same way the reader of #61 reads it. */
-    private function forStorage(DateTimeImmutable $instant): DateTimeImmutable
-    {
-        return $instant->setTimezone(new DateTimeZone((string) config('database.connections.pgsql.timezone', 'UTC')));
     }
 }
