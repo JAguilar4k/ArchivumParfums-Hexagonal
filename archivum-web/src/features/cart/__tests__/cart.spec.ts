@@ -20,7 +20,7 @@ const detail = {
   notas: { salida: [], corazon: [], fondo: [] },
   etiquetas: { momento: [], clima: [], ocasion: [] },
   presentaciones: [{ id: 'p-1-100', ml: 100, precio_venta: 125000 }],
-  decants: [{ botella_id: 'b-1', ml: 5, precio: 9500 }],
+  decants: [{ botella_id: 'b-1', presentacion_ml: 100, ml: 5, precio: 9500 }],
 }
 
 const inCart: CartLine[] = [
