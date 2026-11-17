@@ -1223,7 +1223,8 @@ export interface components {
             inicia_en: string;
             termina_en: string;
             motivo: string;
-            origen: string;
+            /** @enum {string} */
+            origen: "manual" | "google";
         };
         /** PanelService */
         PanelService: {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence;
+namespace Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence\Repositories;
 
 use DateTimeImmutable;
 use Illuminate\Support\Str;

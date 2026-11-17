@@ -12,6 +12,7 @@ use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackPlanModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
 use Src\Scheduling\BusinessHours\Infrastructure\Persistence\Models\BusinessHoursModel;
+use Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence\Models\ScheduleBlockModel;
 use Src\Scheduling\Services\Infrastructure\Persistence\Models\ServiceModel;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\Exceptions\NotFoundException;
@@ -44,6 +45,7 @@ function panelListings(): array
         'list the services' => ['/api/v1/panel/servicios', exampleService(...)],
         'list the offers of decant packs' => ['/api/v1/panel/paquetes', examplePackPlan(...)],
         'list the sold decant packs' => ['/api/v1/panel/paquetes-vendidos', exampleSoldPack(...)],
+        'list the blocks of the agenda' => ['/api/v1/panel/bloqueos?desde=2000-01-01&hasta=2100-01-01', exampleBlock(...)],
     ];
 }
 
@@ -76,6 +78,8 @@ function panelResourcesById(): array
         'edit an offer of decant packs' => ['PATCH', '/api/v1/panel/paquetes', ['precio' => 1, 'activo' => false], 'decant_pack_plans', examplePackPlan(...)],
         'read the hours of a person' => ['GET', '/api/v1/panel/personal/{id}/horario', [], 'members', exampleStaffMember(...)],
         'replace the hours of a person' => ['PUT', '/api/v1/panel/personal/{id}/horario', ['tramos' => [['dia_semana' => 1, 'inicio' => '09:00', 'fin' => '10:00']]], 'members', exampleStaffMember(...)],
+        'edit a block of the agenda' => ['PATCH', '/api/v1/panel/bloqueos', ['motivo' => 'Inventario'], 'schedule_blocks', exampleBlock(...)],
+        'delete a block of the agenda' => ['DELETE', '/api/v1/panel/bloqueos', [], 'schedule_blocks', exampleBlock(...)],
     ];
 }
 
@@ -129,6 +133,9 @@ function panelCreations(): array
         'define an offer of decant packs' => ['/api/v1/panel/paquetes', fn (string $businessId): array => [
             'nombre' => 'Descubrimiento', 'cantidad_decants' => 5, 'ml_por_decant' => 5, 'precio' => 40000, 'vigencia_dias' => 180,
         ], 'decant_pack_plans'],
+        'create a block of the agenda' => ['/api/v1/panel/bloqueos', fn (string $businessId): array => [
+            'inicia_en' => '2026-12-01T09:00:00-06:00', 'termina_en' => '2026-12-01T10:00:00-06:00', 'motivo' => 'Inventario',
+        ], 'schedule_blocks'],
     ];
 }
 
@@ -183,6 +190,12 @@ function exampleOpeningHours(string $businessId): string
 function exampleStaffMember(string $businessId): string
 {
     return MemberModel::factory()->staff()->create(['business_id' => $businessId, 'attends_appointments' => true])->id;
+}
+
+/** Create a block of the whole business with its factory and return its identifier. */
+function exampleBlock(string $businessId): string
+{
+    return ScheduleBlockModel::factory()->create(['business_id' => $businessId])->id;
 }
 
 function panelResourcePath(string $path, string $id): string
