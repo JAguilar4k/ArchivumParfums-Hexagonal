@@ -19,6 +19,11 @@ import { concentrationLabel, tagLabel } from './labels'
  * so it shows "No encontrado". The tab and the heading take the name of the perfume, and a trail of links says where
  * the page is in the store. Each presentation and each decant goes to the cart of the store (#130), and a line that
  * screen readers announce says what was added.
+ *
+ * The API offers the decants of each open bottle. Two bottles of the same presentation offer the same decant at the
+ * same price, so the page shows it once, from the first bottle that the API lists. Bottles of different presentations
+ * offer the same size at different prices (R3), so then each decant names the presentation of its bottle, in its text
+ * and in the name of its button.
  */
 const route = useRoute()
 const tienda = computed(() => String(route.params.tienda))
@@ -47,8 +52,35 @@ const layers = computed(() =>
 
 usePageTitle(() => name.value)
 
+type Decant = components['schemas']['ShowcaseDecantResource']
+
+/** One decant per size and presentation of its bottle, from the smallest. */
+const decants = computed(() => {
+  const offers = new Map<string, Decant>()
+
+  for (const decant of perfume.value?.decants ?? []) {
+    const key = `${decant.presentacion_ml}:${decant.ml}`
+
+    if (!offers.has(key)) {
+      offers.set(key, decant)
+    }
+  }
+
+  return [...offers.values()].sort((a, b) => a.ml - b.ml || a.presentacion_ml - b.presentacion_ml)
+})
+
+/** Whether the decants come from bottles of more than one presentation, so each one must name it. */
+const fromSeveralPresentations = computed(() => new Set(decants.value.map((decant) => decant.presentacion_ml)).size > 1)
+
+/** A decant as a screen reader says it, with "mililitros" in words and its bottle when it tells two offers apart. */
+function spokenDecant(decant: Decant): string {
+  const bottle = fromSeveralPresentations.value ? ` de la botella de ${decant.presentacion_ml} mililitros` : ''
+
+  return `el decant de ${decant.ml} mililitros${bottle}`
+}
+
 const cart = useCartStore()
-const added = ref<{ what: string; ml: number } | null>(null)
+const added = ref<{ what: string; ml: number; bottleMl: number | null } | null>(null)
 
 function addBottle(variant: components['schemas']['ShowcaseVariantResource']): void {
   if (!perfume.value || !name.value) {
@@ -62,10 +94,10 @@ function addBottle(variant: components['schemas']['ShowcaseVariantResource']): v
     ml: variant.ml,
     price: variant.precio_venta,
   })
-  added.value = { what: 'la botella', ml: variant.ml }
+  added.value = { what: 'la botella', ml: variant.ml, bottleMl: null }
 }
 
-function addDecant(decant: components['schemas']['ShowcaseDecantResource']): void {
+function addDecant(decant: Decant): void {
   if (!perfume.value || !name.value) {
     return
   }
@@ -77,7 +109,7 @@ function addDecant(decant: components['schemas']['ShowcaseDecantResource']): voi
     ml: decant.ml,
     price: decant.precio,
   })
-  added.value = { what: 'el decant', ml: decant.ml }
+  added.value = { what: 'el decant', ml: decant.ml, bottleMl: fromSeveralPresentations.value ? decant.presentacion_ml : null }
 }
 
 watch(
@@ -179,14 +211,16 @@ watch(
         <p>
           Un decant es una cantidad pequeña del perfume, en un frasco aparte, para probarlo antes de comprar la botella.
         </p>
-        <ul v-if="perfume.decants.length > 0" class="decants">
-          <li v-for="decant in perfume.decants" :key="`${decant.botella_id}-${decant.ml}`">
-            <span>Decant de <MlAmount :amount="decant.ml" /> · {{ formatColones(decant.precio) }}</span>
-            <button
-              type="button"
-              :aria-label="`Agregar al carrito el decant de ${decant.ml} mililitros`"
-              @click="addDecant(decant)"
-            >
+        <ul v-if="decants.length > 0" class="decants">
+          <li v-for="decant in decants" :key="`${decant.presentacion_ml}-${decant.ml}`">
+            <span>
+              Decant de <MlAmount :amount="decant.ml" /><template v-if="fromSeveralPresentations">
+                de la botella de <MlAmount :amount="decant.presentacion_ml"
+              /></template>
+              · {{ formatColones(decant.precio) }}
+            </span>
+            <!-- The visible text starts the name, which says which decant it adds (WCAG 2.5.3). -->
+            <button type="button" :aria-label="`Agregar al carrito ${spokenDecant(decant)}`" @click="addDecant(decant)">
               Agregar al carrito
             </button>
           </li>
@@ -197,7 +231,9 @@ watch(
       <!-- Always in the page, so screen readers announce each product added. -->
       <p class="results-summary perfume-detail__added" role="status">
         <template v-if="added">
-          Se agregó al carrito {{ added.what }} de <MlAmount :amount="added.ml" />.
+          Se agregó al carrito {{ added.what }} de <MlAmount :amount="added.ml" /><template v-if="added.bottleMl">
+            de la botella de <MlAmount :amount="added.bottleMl"
+          /></template>.
           <RouterLink :to="{ name: 'cart', params: { tienda } }">Ver el carrito</RouterLink>
         </template>
       </p>
