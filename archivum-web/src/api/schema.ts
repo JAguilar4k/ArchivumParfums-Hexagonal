@@ -38,6 +38,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/panel/horario": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Show the opening hours of the business of the session, ordered by weekday and opening hour */
+        get: operations["scheduling.business_hours.show"];
+        /** Replace the whole opening hours of the business of the session in one transaction */
+        put: operations["scheduling.business_hours.replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/panel/tienda/logo": {
         parameters: {
             query?: never;
@@ -1078,6 +1096,14 @@ export interface components {
             abierta_en: string;
             notas: string | null;
         };
+        /** PanelBusinessHours */
+        PanelBusinessHours: {
+            tramos: {
+                dia_semana: string;
+                inicio: string;
+                fin: string;
+            }[];
+        };
         /** PanelDecantPackPlan */
         PanelDecantPackPlan: {
             id: string;
@@ -1367,6 +1393,14 @@ export interface components {
             estado: "confirmado" | "fallido" | "pendiente";
             consulta_pendiente: boolean;
         };
+        /** ReplaceBusinessHours */
+        ReplaceBusinessHours: {
+            tramos: {
+                dia_semana: number;
+                inicio: string;
+                fin: string;
+            }[];
+        };
         /** ReplaceStaffSchedule */
         ReplaceStaffSchedule: {
             tramos: {
@@ -1385,6 +1419,7 @@ export interface components {
         /** ShowcaseDecantResource */
         ShowcaseDecantResource: {
             botella_id: string;
+            presentacion_ml: number;
             ml: number;
             precio: number;
         };
@@ -1703,6 +1738,117 @@ export interface operations {
                         /** @constant */
                         version: "v1";
                     };
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.business_hours.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `PanelBusinessHours` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelBusinessHours"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.business_hours.replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceBusinessHours"];
+            };
+        };
+        responses: {
+            /** @description `PanelBusinessHours` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelBusinessHours"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
                 };
             };
             /** @description Error interno */
