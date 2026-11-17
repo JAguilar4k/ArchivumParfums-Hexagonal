@@ -6,11 +6,13 @@ namespace Src\Scheduling\Appointments\Infrastructure\Persistence\Repositories;
 
 use DateTimeImmutable;
 use DateTimeZone;
+use Illuminate\Database\DeadlockException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use PDOException;
 use Src\Scheduling\Appointments\Domain\Contracts\AppointmentRepository;
 use Src\Scheduling\Appointments\Domain\Entities\Appointment;
 use Src\Scheduling\Appointments\Domain\Exceptions\AppointmentSlotTakenException;
@@ -25,6 +27,7 @@ use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\ValueObjects\BusinessId;
 use Src\Shared\Domain\ValueObjects\MemberId;
+use Throwable;
 
 /**
  * Data mapper between the appointment aggregate and its two tables. Every read and every write is pinned to the
@@ -34,6 +37,9 @@ final readonly class EloquentAppointmentRepository implements AppointmentReposit
 {
     /** SQLSTATE PostgreSQL answers when the exclusion constraint of the slot rejects the row. */
     private const string EXCLUSION_VIOLATION = '23P01';
+
+    /** SQLSTATE PostgreSQL answers when it breaks a deadlock, such as two inserts of the same slot waiting on each other. */
+    private const string DEADLOCK_DETECTED = '40P01';
 
     /** Receive the business of the request the appointment belongs to. */
     public function __construct(private BusinessContext $business) {}
@@ -52,7 +58,10 @@ final readonly class EloquentAppointmentRepository implements AppointmentReposit
 
     /**
      * A PostgreSQL error aborts the transaction it runs in, so the exclusion failure is translated once the
-     * transaction has been rolled back and the connection is usable again.
+     * transaction has been rolled back and the connection is usable again. Two bookings of the same slot can also wait
+     * on each other while the constraint decides which one keeps it, and PostgreSQL breaks that deadlock by failing one
+     * of them: that one runs its transaction once more, when the other has already taken the slot or let it go, so the
+     * second try answers the conflict or stores the appointment. A second deadlock stays as it is, like any other error.
      */
     public function save(Appointment $appointment): void
     {
@@ -61,17 +70,36 @@ final readonly class EloquentAppointmentRepository implements AppointmentReposit
         }
 
         try {
-            DB::transaction(function () use ($appointment): void {
-                $this->writeAppointment($appointment);
-                $this->writePerfumes($appointment);
-            });
-        } catch (QueryException $exception) {
-            if ($this->isExclusionViolation($exception)) {
-                throw AppointmentSlotTakenException::create();
+            $this->write($appointment);
+        } catch (QueryException|DeadlockException $exception) {
+            if (! $this->hasState($exception, self::DEADLOCK_DETECTED)) {
+                throw $this->translated($exception);
             }
 
-            throw $exception;
+            try {
+                $this->write($appointment);
+            } catch (QueryException|DeadlockException $again) {
+                throw $this->translated($again);
+            }
         }
+    }
+
+    /**
+     * Write the appointment and its perfumes in their own transaction. Inside the transaction of the request it is a
+     * savepoint, and Laravel answers a deadlock there with a DeadlockException once it has rolled the savepoint back.
+     */
+    private function write(Appointment $appointment): void
+    {
+        DB::transaction(function () use ($appointment): void {
+            $this->writeAppointment($appointment);
+            $this->writePerfumes($appointment);
+        });
+    }
+
+    /** The conflict of the domain when the exclusion constraint refused the slot; any other error stays as it is. */
+    private function translated(PDOException $exception): PDOException|AppointmentSlotTakenException
+    {
+        return $this->hasState($exception, self::EXCLUSION_VIOLATION) ? AppointmentSlotTakenException::create() : $exception;
     }
 
     /** Store the row of the appointment, inserting it the first time and updating it afterwards. */
@@ -157,10 +185,18 @@ final readonly class EloquentAppointmentRepository implements AppointmentReposit
         );
     }
 
-    /** Whether PostgreSQL rejected the row because the slot of that person is already blocked. */
-    private function isExclusionViolation(QueryException $exception): bool
+    /**
+     * Whether PostgreSQL answered the SQLSTATE. Laravel wraps a deadlock in one more DeadlockException at every savepoint
+     * it rolls back, such as the one updateOrCreate() opens for its insert, so the state is looked up along the chain.
+     */
+    private function hasState(Throwable $exception, string $state): bool
     {
-        return $exception->getCode() === self::EXCLUSION_VIOLATION
-            || $exception->getPrevious()?->getCode() === self::EXCLUSION_VIOLATION;
+        for ($cause = $exception; $cause !== null; $cause = $cause->getPrevious()) {
+            if ($cause->getCode() === $state) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

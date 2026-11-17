@@ -184,6 +184,8 @@ Dos tramos de horario del mismo día no se traslapan (#52), y dos citas activas 
 
 Un traslape falla con el SQLSTATE `23P01` y el nombre de la restricción en el mensaje; la API lo traduce a un 409 `conflicto` (#60). Las tablas de horarios guardan horas locales en `time`, mientras que `appointments` usará `tstzrange` porque sus rangos son instantes (#59).
 
+Dos reservas simultáneas del mismo espacio pueden, además, esperarse una a la otra mientras la restricción decide cuál se queda con él. PostgreSQL rompe ese interbloqueo haciendo fallar una de ellas con el SQLSTATE `40P01`, y `EloquentAppointmentRepository` repite una vez la transacción de esa cita (#63): para entonces la otra ya tomó el espacio o lo soltó, así que el segundo intento responde el 409 o guarda la cita. Un segundo interbloqueo, como cualquier otro error de la base, sigue como `error-interno` (#60). `AppointmentPersistenceTest` fija los tres casos y `BookingConcurrencyTest` corre la carrera con dos procesos.
+
 
 ### Cómo agregar una tabla de una tienda
 
