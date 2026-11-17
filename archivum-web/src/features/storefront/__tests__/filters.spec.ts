@@ -21,6 +21,12 @@ describe('filters', () => {
     expect(queryFromForm(form)).toEqual({ texto: 'oud', clima: 'frio', precio_maximo: '90000' })
   })
 
+  it('put in the URL the maximum price that v-model gives as a number', () => {
+    const form = { ...formFromQuery({}), precio_maximo: 150000 }
+
+    expect(queryFromForm(form)).toEqual({ precio_maximo: '150000' })
+  })
+
   it('send to the API the filters of the URL and the page after the first one', () => {
     expect(
       showcaseQuery({ texto: 'oud', familia: 'Amaderada', nota: 'vainilla', ocasion: 'cena', momento: 'noche', clima: 'frio', precio_maximo: '90000', pagina: '2' }),

@@ -84,6 +84,13 @@ it('rejects an empty order', function () {
     expect(fn () => salesOrder([]))->toThrow(InvalidValueException::class, 'orders.empty');
 });
 
+it('takes up to the largest number of lines and rejects one more', function () {
+    $lines = array_map(fn (int $index): OrderLine => salesBottle(id: 'line-'.$index), range(1, Order::MAX_LINES));
+
+    expect(salesOrder($lines)->lines)->toHaveCount(Order::MAX_LINES);
+    expect(fn () => salesOrder([...$lines, salesBottle(id: 'line-extra')]))->toThrow(InvalidValueException::class, 'orders.too_many_lines');
+});
+
 it('keeps the agreed line price after preparing or changing order state', function () {
     $order = salesOrder([salesDecant(1200)]);
     $order->recordPayment(1200);
