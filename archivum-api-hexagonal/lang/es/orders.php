@@ -5,6 +5,7 @@ declare(strict_types=1);
 return [
     'not_found' => 'Ese pedido o esa línea no existe.',
     'empty' => 'El pedido debe llevar al menos una línea.',
+    'too_many_lines' => 'El pedido puede llevar hasta :max líneas.',
     'invalid_line' => 'La línea del pedido no es válida.',
     'invalid_deposit' => 'El porcentaje del depósito no es válido.',
     'invalid_business' => 'El pedido no pertenece a la tienda de la operación.',
