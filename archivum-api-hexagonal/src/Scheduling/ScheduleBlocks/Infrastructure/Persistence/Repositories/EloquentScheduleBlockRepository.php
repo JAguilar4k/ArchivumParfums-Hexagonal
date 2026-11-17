@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence\Repositories;
 
 use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Support\Str;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Src\Scheduling\ScheduleBlocks\Domain\Contracts\ScheduleBlockRepository;
@@ -36,8 +37,8 @@ final readonly class EloquentScheduleBlockRepository implements ScheduleBlockRep
             ['id' => $block->id->value, 'business_id' => $business->value],
             [
                 'member_id' => $block->memberId?->value,
-                'starts_at' => $block->startsAt->format('Y-m-d H:i:sP'),
-                'ends_at' => $block->endsAt->format('Y-m-d H:i:sP'),
+                'starts_at' => $this->stored($block->startsAt),
+                'ends_at' => $this->stored($block->endsAt),
                 'reason' => $block->reason,
                 'source' => $block->origin->value,
             ],
@@ -87,6 +88,16 @@ final readonly class EloquentScheduleBlockRepository implements ScheduleBlockRep
             ->where('business_id', $this->context->current()->value)
             ->where('id', $member->value)
             ->exists();
+    }
+
+    /**
+     * The instant in the time zone of the connection. Eloquent writes a date as its wall time without the offset and
+     * PostgreSQL reads that wall time in the zone of the connection, so a block sent with another offset, such as Z,
+     * would be stored hours away from itself.
+     */
+    private function stored(DateTimeImmutable $instant): DateTimeImmutable
+    {
+        return $instant->setTimezone(new DateTimeZone((string) config('database.connections.pgsql.timezone', 'UTC')));
     }
 
     /** Rebuild the aggregate from its stored state. */
