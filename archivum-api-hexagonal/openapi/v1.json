@@ -4405,6 +4405,90 @@
                 ]
             }
         },
+        "/panel/citas": {
+            "post": {
+                "operationId": "scheduling.business.appointments.store",
+                "summary": "Book a trial appointment for a customer of the store of the session. The route carries the ability the matrix of\n#102 gives only to the owner, and business:staff pins the transaction to the store of the session, so a store\nnamed in the body never changes the store of the appointment",
+                "tags": [
+                    "PanelAppointment"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StorePanelAppointment"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`BookedAppointmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/BookedAppointmentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/panel/citas/{cita}": {
             "patch": {
                 "operationId": "scheduling.business.appointments.reschedule",
@@ -10906,6 +10990,43 @@
                     }
                 },
                 "title": "StorePackPurchase"
+            },
+            "StorePanelAppointment": {
+                "type": "object",
+                "properties": {
+                    "cliente_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "servicio_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "inicia_en": {
+                        "type": "string",
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2})?(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$"
+                    },
+                    "persona_id": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "uuid"
+                    },
+                    "perfumes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    }
+                },
+                "required": [
+                    "cliente_id",
+                    "servicio_id",
+                    "inicia_en"
+                ],
+                "title": "StorePanelAppointment"
             },
             "StorePasswordReset": {
                 "type": "object",

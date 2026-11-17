@@ -101,6 +101,7 @@ function permissionMatrixRows(): array
         ],
         'reservar, reprogramar o cancelar citas' => [
             'reservar una cita' => ['POST', 'api/v1/tiendas/{tienda}/citas', [], customerOnly(422)],
+            'reservar una cita para un cliente' => ['POST', 'api/v1/panel/citas', [], ownerOnly(422)],
             'reprogramar mi cita' => ['PATCH', 'api/v1/cuenta/citas/{cita}', [], customerOnly(422)],
             'reprogramar una cita de la tienda' => ['PATCH', 'api/v1/panel/citas/{cita}', [], ownerOnly(422), fn (): array => ['inicia_en' => '2026-12-01T10:00:00-06:00']],
             'cancelar mi cita' => ['POST', 'api/v1/cuenta/citas/{cita}/cancelacion', [], customerOnly(200)],

@@ -139,5 +139,4 @@ it('lets every role and the visitor use the recommender, without 401 or 403', fu
 // Rows of section 9 whose endpoints do not exist yet: each one is completed by the issue that creates them.
 it('answers each role what section 9 allows for reading the appointments in the panel')->todo('#137: GET /api/v1/panel/citas');
 it('answers each role what section 9 allows in the row «marcar atendida o no asistió»')->todo('#138: POST /api/v1/panel/citas/{cita}/asistencia');
-it('answers each role what section 9 allows for booking an appointment for a customer')->todo('#67: POST /api/v1/panel/citas');
 it('answers each role what section 9 allows in the row «reportes e ingresos»')->todo('/api/v1/panel/reportes/ingresos y /api/v1/panel/reportes/mas-vendidos');

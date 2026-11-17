@@ -8,6 +8,7 @@ use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Scheduling\Appointments\Application\Contracts\AppointmentCustomers;
 use Src\Scheduling\Appointments\Domain\ValueObjects\CustomerId;
 use Src\Shared\Domain\Contracts\BusinessContext;
+use Src\Shared\Domain\Exceptions\InvalidValueException;
 
 /** Adapter that finds, or creates, the customer record of the account in the store of the context. */
 final readonly class AccountsAppointmentCustomers implements AppointmentCustomers
@@ -23,5 +24,21 @@ final readonly class AccountsAppointmentCustomers implements AppointmentCustomer
         ]);
 
         return new CustomerId((string) $customer->id);
+    }
+
+    public function ofStore(string $customerId): ?CustomerId
+    {
+        try {
+            $id = new CustomerId($customerId);
+        } catch (InvalidValueException) {
+            return null;
+        }
+
+        $exists = CustomerModel::query()
+            ->where('business_id', $this->business->current()->value)
+            ->whereKey($id->value)
+            ->exists();
+
+        return $exists ? $id : null;
     }
 }

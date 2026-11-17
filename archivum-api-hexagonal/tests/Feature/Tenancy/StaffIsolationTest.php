@@ -15,6 +15,7 @@ use Src\Scheduling\Appointments\Infrastructure\Persistence\Models\AppointmentMod
 use Src\Scheduling\BusinessHours\Infrastructure\Persistence\Models\BusinessHoursModel;
 use Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence\Models\ScheduleBlockModel;
 use Src\Scheduling\Services\Infrastructure\Persistence\Models\ServiceModel;
+use Src\Scheduling\StaffSchedules\Infrastructure\Persistence\Models\StaffScheduleModel;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\Exceptions\NotFoundException;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
@@ -139,6 +140,19 @@ function panelCreations(): array
         'create a block of the agenda' => ['/api/v1/panel/bloqueos', fn (string $businessId): array => [
             'inicia_en' => '2026-12-01T09:00:00-06:00', 'termina_en' => '2026-12-01T10:00:00-06:00', 'motivo' => 'Inventario',
         ], 'schedule_blocks'],
+        'book an appointment for a customer' => ['/api/v1/panel/citas', function (string $businessId): array {
+            $day = (new DateTimeImmutable('now', new DateTimeZone((string) config('app.timezone'))))->setTime(0, 0)->modify('+7 days');
+            $weekday = (int) $day->format('N');
+            BusinessHoursModel::factory()->create(['business_id' => $businessId, 'weekday' => $weekday, 'opens_at' => '09:00', 'closes_at' => '12:00']);
+            $schedule = StaffScheduleModel::factory()->create(['business_id' => $businessId, 'weekday' => $weekday, 'starts_at' => '09:00', 'ends_at' => '12:00']);
+
+            return [
+                'cliente_id' => exampleCustomer($businessId),
+                'servicio_id' => exampleService($businessId),
+                'inicia_en' => $day->setTime(9, 0)->format(DATE_ATOM),
+                'persona_id' => $schedule->member_id,
+            ];
+        }, 'appointments'],
     ];
 }
 
