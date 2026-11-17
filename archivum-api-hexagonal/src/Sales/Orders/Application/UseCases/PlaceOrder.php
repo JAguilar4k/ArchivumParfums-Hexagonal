@@ -71,7 +71,9 @@ final readonly class PlaceOrder
                 $this->deadlines->checkAt($order->id, $order->businessId, $order->expiresAt);
             }
 
-            return $order;
+            // The answer is the order as it was stored, with the names of its customer and its business, like the
+            // answer of reading it later.
+            return $this->orders->find($order->id) ?? $order;
         });
     }
 }
