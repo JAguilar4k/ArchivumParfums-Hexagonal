@@ -118,7 +118,7 @@ final readonly class PostgresShowcaseReader implements ShowcaseReader
 
             foreach ($sizes as $ml) {
                 if ($ml <= (int) $row->remaining_ml - (int) $row->reserved_ml) {
-                    $offers[] = new ShowcaseDecant((string) $row->id, $ml,
+                    $offers[] = new ShowcaseDecant((string) $row->id, (int) $row->size_ml, $ml,
                         DecantPrice::calculate((int) $row->sale_price, (int) $row->size_ml, $ml,
                             $settings['decant_rounding_colones'] ?? BusinessSettings::DEFAULT_DECANT_ROUNDING_COLONES));
                 }
