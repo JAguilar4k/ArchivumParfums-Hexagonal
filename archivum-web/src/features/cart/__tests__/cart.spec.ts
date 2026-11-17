@@ -20,7 +20,7 @@ const detail = {
   notas: { salida: [], corazon: [], fondo: [] },
   etiquetas: { momento: [], clima: [], ocasion: [] },
   presentaciones: [{ id: 'p-1-100', ml: 100, precio_venta: 125000 }],
-  decants: [{ botella_id: 'b-1', ml: 5, precio: 9500 }],
+  decants: [{ botella_id: 'b-1', presentacion_ml: 100, ml: 5, precio: 9500 }],
 }
 
 const inCart: CartLine[] = [
@@ -153,5 +153,70 @@ describe('cart', () => {
     expect(bottleLine?.get('.cart-line__error').text()).toBe('Ese producto no está disponible para pedirlo.')
     expect(bottleLine?.get('input').attributes('aria-describedby')).toBe('linea-0 error-linea-0')
     expect(decantLine?.find('.cart-line__error').exists()).toBe(false)
+  })
+
+  it('marks a quantity below 1 and sends no order until the customer fixes it', async () => {
+    withCart(inCart)
+    const { requests } = fakeApi({
+      [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
+      [`POST /tiendas/${STORE}/pedidos`]: () => json(201, { data: orderOf() }),
+      [`GET /cuenta/pedidos/${ORDER_ID}`]: () => json(200, { data: orderOf() }),
+    })
+    const { wrapper } = await open(`/tiendas/${STORE}/carrito`, 'cliente')
+    const quantity = wrapper.get('#cantidad-0')
+
+    await quantity.setValue('0')
+
+    // What the customer wrote stays in the field, marked, instead of an order of 1 that the page does not show.
+    expect((quantity.element as HTMLInputElement).value).toBe('0')
+    expect(quantity.attributes('aria-invalid')).toBe('true')
+    expect(quantity.attributes('aria-describedby')).toBe('linea-0 error-linea-0')
+    expect(wrapper.get('#error-linea-0').text()).toBe(
+      'Escriba una cantidad de 1 botella o más. Para no pedir esta botella, use «Quitar».',
+    )
+
+    await wrapper.get('.cart > .form-actions > button').trigger('click')
+    await flushPromises()
+
+    expect(requests.some((request) => request.method === 'POST')).toBe(false)
+    expect(document.activeElement).toBe(quantity.element)
+
+    await quantity.setValue('2')
+
+    expect(quantity.attributes('aria-invalid')).toBeUndefined()
+    expect(wrapper.find('#error-linea-0').exists()).toBe(false)
+
+    await wrapper.get('.cart > .form-actions > button').trigger('click')
+    await flushPromises()
+
+    const sent = requests.find((request) => request.method === 'POST')
+    expect(await sent?.json()).toEqual({
+      lineas: [
+        { presentacion_id: 'p-1-100', cantidad: 2 },
+        { botella_id: 'b-1', ml: 5 },
+      ],
+    })
+  })
+
+  it('says in the notice what a 422 says of the whole list, such as too many lines', async () => {
+    withCart(inCart)
+    fakeApi({
+      [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
+      [`POST /tiendas/${STORE}/pedidos`]: () =>
+        problem(422, 'datos-invalidos', 'Los datos enviados no son válidos.', {
+          errores: { lineas: ['El campo líneas del pedido no debe tener más de 20 elementos.'] },
+        }),
+    })
+    const { wrapper } = await open(`/tiendas/${STORE}/carrito`, 'cliente')
+
+    await wrapper.get('.cart > .form-actions > button').trigger('click')
+    await flushPromises()
+
+    // Inside the alert, so it is announced with the message of the notice.
+    const notice = wrapper.get('.cart .problem-notice')
+    expect(notice.attributes('role')).toBe('alert')
+    expect(notice.get('.problem-notice__message').text()).toBe('Los datos enviados no son válidos.')
+    expect(notice.get('.cart__error').text()).toBe('El campo líneas del pedido no debe tener más de 20 elementos.')
+    expect(wrapper.find('.cart-line__error').exists()).toBe(false)
   })
 })
