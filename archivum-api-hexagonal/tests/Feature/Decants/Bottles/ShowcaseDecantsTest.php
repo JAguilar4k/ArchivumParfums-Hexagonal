@@ -50,10 +50,7 @@ it('names the presentation of each bottle, since the same size has another price
     $large = DecantBottleModel::factory()->forPresentation($business->business->id, $perfume->variants[1]->id->value, 100)->create();
     DB::table('businesses')->where('id', $business->business->id)->update(['settings' => json_encode(['decant_sizes_ml' => [2]], JSON_THROW_ON_ERROR)]);
 
-    $decants = getJson('/api/v1/tiendas/'.$business->business->slug.'/perfumes/'.$perfume->id->value)->assertOk()->json('data.decants');
-
-    expect(collect($decants)->sortBy('presentacion_ml')->values()->all())->toBe([
-        ['botella_id' => $small->id, 'presentacion_ml' => 50, 'ml' => 2, 'precio' => 3400],
-        ['botella_id' => $large->id, 'presentacion_ml' => 100, 'ml' => 2, 'precio' => 2500],
-    ]);
+    getJson('/api/v1/tiendas/'.$business->business->slug.'/perfumes/'.$perfume->id->value)->assertOk()->assertJsonCount(2, 'data.decants')
+        ->assertJsonFragment(['botella_id' => $small->id, 'presentacion_ml' => 50, 'ml' => 2, 'precio' => 3400])
+        ->assertJsonFragment(['botella_id' => $large->id, 'presentacion_ml' => 100, 'ml' => 2, 'precio' => 2500]);
 });
