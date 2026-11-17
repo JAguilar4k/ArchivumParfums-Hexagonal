@@ -11,6 +11,7 @@ use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackPlanModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
 use Src\Scheduling\ScheduleBlocks\Infrastructure\Persistence\Models\ScheduleBlockModel;
+use Src\Scheduling\Services\Infrastructure\Persistence\Models\ServiceModel;
 use Src\Shared\Domain\Contracts\BusinessContext;
 use Src\Shared\Domain\Exceptions\NotFoundException;
 use Tests\Support\Businesses\TwoBusinesses;
@@ -38,6 +39,7 @@ function panelListings(): array
         'list the perfumes' => ['/api/v1/panel/perfumes', examplePerfume(...)],
         'list the bottles' => ['/api/v1/panel/botellas', exampleBottle(...)],
         'list the orders' => ['/api/v1/panel/pedidos', exampleOrder(...)],
+        'list the services' => ['/api/v1/panel/servicios', exampleService(...)],
         'list the offers of decant packs' => ['/api/v1/panel/paquetes', examplePackPlan(...)],
         'list the sold decant packs' => ['/api/v1/panel/paquetes-vendidos', exampleSoldPack(...)],
         'list the blocks of the agenda' => ['/api/v1/panel/bloqueos?desde=2000-01-01&hasta=2100-01-01', exampleBlock(...)],
@@ -68,6 +70,8 @@ function panelResourcesById(): array
         'record a payment on delivery' => ['POST', '/api/v1/panel/pedidos/{id}/pagos-manuales', ['metodo' => 'sinpe', 'monto' => 1000, 'referencia' => 'SINPE-2026-0001'], 'orders', exampleOrder(...)],
         'process order refunds' => ['POST', '/api/v1/panel/pedidos/{id}/reembolsos', [], 'orders', exampleOrder(...)],
         'mark a line unavailable' => ['POST', '/api/v1/panel/pedidos/{id}/lineas/'.MISSING_RESOURCE.'/no-disponible', [], 'orders', exampleOrder(...)],
+        'show a service' => ['GET', '/api/v1/panel/servicios', [], 'services', exampleService(...)],
+        'edit a service' => ['PATCH', '/api/v1/panel/servicios', ['nombre' => 'Nombre nuevo', 'activo' => false], 'services', exampleService(...)],
         'edit an offer of decant packs' => ['PATCH', '/api/v1/panel/paquetes', ['precio' => 1, 'activo' => false], 'decant_pack_plans', examplePackPlan(...)],
         'edit a block of the agenda' => ['PATCH', '/api/v1/panel/bloqueos', ['motivo' => 'Inventario'], 'schedule_blocks', exampleBlock(...)],
         'delete a block of the agenda' => ['DELETE', '/api/v1/panel/bloqueos', [], 'schedule_blocks', exampleBlock(...)],
@@ -103,6 +107,9 @@ function panelCreations(): array
 
             return ['presentacion_id' => $perfume->variants[0]->id->value, 'ml_restantes' => 100, 'abierta_en' => '2026-10-25T10:00:00-06:00'];
         }, 'decant_bottles'],
+        'create a service' => ['/api/v1/panel/servicios', fn (string $businessId): array => [
+            'nombre' => 'Cata guiada', 'duracion_minutos' => 30, 'precio' => 0, 'margen_minutos' => 10, 'maximo_perfumes' => 3,
+        ], 'services'],
         'define an offer of decant packs' => ['/api/v1/panel/paquetes', fn (string $businessId): array => [
             'nombre' => 'Descubrimiento', 'cantidad_decants' => 5, 'ml_por_decant' => 5, 'precio' => 40000, 'vigencia_dias' => 180,
         ], 'decant_pack_plans'],
@@ -132,6 +139,12 @@ function exampleBottle(string $businessId): string
 function exampleOrder(string $businessId): string
 {
     return OrderModel::factory()->create(['business_id' => $businessId])->id;
+}
+
+/** Create a service in a business with its factory, which pins that business, and return its identifier. */
+function exampleService(string $businessId): string
+{
+    return ServiceModel::factory()->create(['business_id' => $businessId])->id;
 }
 
 function examplePackPlan(string $businessId): string

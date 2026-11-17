@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 return [
     'service.name_required' => 'El nombre del servicio es obligatorio.',
+    'service.not_found' => 'El servicio no existe.',
     'schedule_block.not_found' => 'El bloqueo no existe.',
     'schedule_block.member_not_found' => 'La persona no pertenece al personal de la tienda.',
     'schedule_block.from_calendar' => 'Ese bloqueo viene del calendario y no se edita ni se borra desde el panel.',

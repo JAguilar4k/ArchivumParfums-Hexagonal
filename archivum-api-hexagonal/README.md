@@ -241,6 +241,11 @@ El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 
 | GET | `/api/v1/panel/perfumes/{perfume}/presentaciones` | Dueño | Lista las presentaciones de ese perfume. |
 | POST | `/api/v1/panel/perfumes/{perfume}/presentaciones` | Dueño | Crea una presentación con volumen y precio. |
 | PATCH | `/api/v1/panel/perfumes/{perfume}/presentaciones/{presentacion}` | Dueño | Edita la presentación o cambia su estado activo. |
+| GET | `/api/v1/panel/servicios` | Dueño | Lista los servicios de su tienda, activos e inactivos, ordenados por nombre. |
+| POST | `/api/v1/panel/servicios` | Dueño | Crea un servicio con su duración, precio, margen entre citas y máximo de perfumes. |
+| GET | `/api/v1/panel/servicios/{servicio}` | Dueño | Consulta un servicio de su tienda. |
+| PATCH | `/api/v1/panel/servicios/{servicio}` | Dueño | Edita los campos enviados; `activo=false` lo desactiva y `activo=true` lo reactiva, sin borrarlo. |
+
 | GET | `/api/v1/tiendas/{tienda}` | Cualquiera | Perfil público de la tienda identificada por su slug. |
 | GET | `/api/v1/tiendas/{tienda}/perfumes` | Cualquiera | Vitrina pública de perfumes activos, con búsqueda, filtros y paginación. |
 | GET | `/api/v1/tiendas/{tienda}/perfumes/{perfume}` | Cualquiera | Detalle público del perfume activo con sus presentaciones activas. |
