@@ -99,6 +99,7 @@ it('returns 422 with line errors for malformed carts', function (array $lines, s
     'invalid uuid' => [[['presentacion_id' => 'invalid', 'cantidad' => 1]], 'lineas.0.presentacion_id'],
     'zero quantity' => [[['presentacion_id' => '019a0010-0000-7000-8000-000000000001', 'cantidad' => 0]], 'lineas.0.cantidad'],
     'fractional ml' => [[['botella_id' => '019a0010-0000-7000-8000-000000000001', 'ml' => 2.5]], 'lineas.0.ml'],
+    'more lines than an order takes' => [array_fill(0, 21, ['presentacion_id' => '019a0010-0000-7000-8000-000000000001', 'cantidad' => 1]), 'lineas'],
 ]);
 
 it('returns 422 for inactive, unpriced or foreign presentations', function (string $state) {

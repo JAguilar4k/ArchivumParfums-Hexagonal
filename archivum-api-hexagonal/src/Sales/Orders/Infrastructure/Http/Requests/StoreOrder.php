@@ -7,19 +7,20 @@ namespace Src\Sales\Orders\Infrastructure\Http\Requests;
 use Illuminate\Foundation\Http\FormRequest;
 use LogicException;
 use Src\Sales\Orders\Application\DTOs\PlaceOrderCommand;
+use Src\Sales\Orders\Domain\Entities\Order;
 use Src\Shared\Domain\ValueObjects\Colones;
 
 final class StoreOrder extends FormRequest
 {
     /**
-     * Only product identities and quantities come from the browser.
+     * Only product identities and quantities come from the browser, in at most Order::MAX_LINES lines.
      *
      * @return array<string,list<string>>
      */
     public function rules(): array
     {
         return [
-            'lineas' => ['required', 'array', 'min:1'],
+            'lineas' => ['required', 'array', 'min:1', 'max:'.Order::MAX_LINES],
             'lineas.*' => ['required', 'array'],
             'lineas.*.presentacion_id' => ['required_without:lineas.*.botella_id', 'prohibits:lineas.*.botella_id', 'uuid'],
             'lineas.*.botella_id' => ['required_without:lineas.*.presentacion_id', 'prohibits:lineas.*.presentacion_id', 'uuid'],
