@@ -48,7 +48,7 @@ final class StoreAppointment extends FormRequest
         /** @var list<string> $perfumes */
         $perfumes = $this->validated('perfumes', []);
 
-        return new BookAppointmentCommand(
+        return BookAppointmentCommand::forAccount(
             (string) $this->user()?->getAuthIdentifier(),
             $this->string('servicio_id')->toString(),
             $this->string('inicia_en')->toString(),
