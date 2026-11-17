@@ -6,7 +6,7 @@ namespace Src\Scheduling\BusinessHours\Infrastructure;
 
 use Illuminate\Support\ServiceProvider;
 use Src\Scheduling\BusinessHours\Domain\Contracts\BusinessHoursRepository;
-use Src\Scheduling\BusinessHours\Infrastructure\Persistence\EloquentBusinessHoursRepository;
+use Src\Scheduling\BusinessHours\Infrastructure\Persistence\Repositories\EloquentBusinessHoursRepository;
 
 final class BusinessHoursServiceProvider extends ServiceProvider
 {

@@ -57,12 +57,11 @@ it('preserves independent profile changes made by two concurrent connections', f
         expect($blocked)->toBeTrue('The second connection must wait for the first profile update.');
         DB::commit();
         expect($process->wait())->toBe(0, $process->getErrorOutput());
-        $result = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
-        expect($result['successful'])->toBeTrue($process->getOutput());
+        // Laravel 13.40 signs what invoke-serialized-closure prints, so the saved row shows what the second connection did.
         $settings = json_decode((string) DB::table('businesses')->where('id', $id)->value('settings'), true);
 
-        expect($settings['bottle_margin_colones'])->toBe(6000)
-            ->and($settings['reminder_hours'])->toBe([48, 2]);
+        expect($settings['bottle_margin_colones'] ?? null)->toBe(6000)
+            ->and($settings['reminder_hours'] ?? null)->toBe([48, 2], 'The second connection must save its change after the first one commits.');
     } finally {
         while (DB::transactionLevel() > 0) {
             DB::rollBack();

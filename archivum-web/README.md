@@ -52,6 +52,7 @@ Vite solo expone al navegador las variables que empiezan con `VITE_`. Todas se d
 | Variable | Ejemplo | Para qué sirve |
 |---|---|---|
 | `VITE_API_URL` | `http://localhost:8000/api/v1` | Dirección base de la API, con el prefijo `/api/v1`. |
+| `VITE_DEFAULT_BUSINESS_SLUG` | `archivumparfums` | Tienda que abre la raíz del cliente (`/`); `archivumparfums` es la tienda piloto de los seeders. |
 
 Las variables se leen al compilar: después de cambiar `.env`, se reinicia `npm run dev` o se vuelve a ejecutar `npm run build`.
 
@@ -101,7 +102,171 @@ const { data, error } = await api.GET('/tiendas/{tienda}/perfumes', {
 })
 ```
 
-La sesión ([#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)) registra una vez cómo leer su token con `setTokenProvider(() => token)`; mientras no lo haga, las peticiones salen sin token.
+La sesión ([#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)) registra una vez cómo leer su token con `setTokenProvider(() => token)` y qué hacer ante un 401 con `setUnauthenticatedHandler`; mientras no lo haga, las peticiones salen sin token.
+
+## Sesión y permisos de navegación
+
+El store `session` de Pinia (`src/features/session/store.ts`, [#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)) guarda el token, su `vence_en` y la cuenta con su rol y su tienda:
+
+- **Iniciar sesión:** `POST /sesiones` y luego `GET /cuenta`. Unas credenciales incorrectas responden 401 `credenciales-invalidas` y la vista "Iniciar sesión" (`/iniciar-sesion`) muestra su mensaje; un 422 marca los campos.
+- **Dónde vive el token:** en `sessionStorage` (se pierde al cerrar la pestaña), nunca en la URL ni en los registros. La contraseña no se guarda en ningún lado.
+- **Renovación:** `POST /sesiones/actual/renovacion` cinco minutos antes de `vence_en`; si no hay respuesta, se reintenta cada 30 segundos mientras el token siga vigente.
+- **Un 401 con token** (vencido o revocado, que ya no se puede renovar) borra la sesión y lleva al inicio de sesión, que después regresa a la ruta que estaba abierta. Un 401 sin token, como una contraseña equivocada, no termina ninguna sesión.
+- **Cerrar sesión:** `DELETE /sesiones/actual`, y se borran el token y la cuenta del navegador.
+
+`installSession(router)` en `main.ts` conecta la sesión con el router. Cada ruta declara en `meta.roles` quién puede abrirla, y una ruta hija hereda los roles de su padre:
+
+```ts
+{ path: '/cuenta/citas', component: MyAppointmentsView, meta: { roles: ['cliente'] } }
+{ path: '/panel', meta: { roles: ['dueno'] }, children: [...] }
+{ path: '/panel/agenda', component: AgendaView, meta: { roles: ['dueno', 'colaborador'] } }
+```
+
+Una ruta sin `meta.roles` es pública. El visitante que abre una ruta con roles va al inicio de sesión; una cuenta cuyo rol no está en la lista ve "Sin permiso". Los guardias solo ayudan a navegar: los permisos los decide la API (#102, #104).
+
+### Crear cuenta
+
+La vista "Crear cuenta" (`/crear-cuenta`, `src/features/registration`, [#194](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/194)) registra una cuenta de cliente con `POST /cuentas`: envía `nombre`, `correo`, `contrasena` y `acepta_privacidad`, nunca un rol ni una tienda.
+
+- **Aviso de privacidad.** `PrivacyNotice.vue` dice qué datos guarda la cuenta, para qué y quién los ve, como los lista `docs/privacy.md` (#110). La casilla de aceptación empieza sin marcar y, sin marcarla, el formulario no se envía. La API registra la fecha y la versión aceptada (`ARCHIVUM_PRIVACY_NOTICE_VERSION`): si el texto cambia, esa versión también.
+- **Errores.** La política de contraseñas la decide la API: un 422 marca cada campo con su mensaje, conserva lo escrito salvo la contraseña y lleva el foco al primer campo con error. Mientras la solicitud está en curso el botón lleva `aria-disabled`: conserva el foco y un segundo clic no manda otro registro.
+- **Después del 201** se inicia sesión como en "Iniciar sesión" y se regresa a la ruta que el visitante quería abrir (`?redirect=`), o a la vitrina. Si la cuenta se creó pero el inicio de sesión falla, se abre "Iniciar sesión" con el correo ya escrito y el aviso "Se creó su cuenta": el correo pasa en memoria, nunca por la URL ni por el almacenamiento.
+- **Accesibilidad (AAA).** Cada campo tiene una pista antes del control, ligada con `aria-describedby`: para qué sirven el nombre y el correo, y la regla de la contraseña de la API (al menos 8 caracteres, `Password::defaults()`); si la API cambia esa regla, se cambia la pista. "Mostrar la contraseña" deja revisarla. Si se envía sin marcar la casilla, el foco va a la casilla, que lee su mensaje, y el mensaje se va al marcarla. El aviso de privacidad va enmarcado dentro del formulario, y "Ayuda y glosario" explica la cuenta en "Su cuenta".
+- La contraseña solo vive en el formulario y en las dos solicitudes. "Iniciar sesión" enlaza a "Crear cuenta" con la misma ruta de regreso, y una cuenta con sesión que abre cualquiera de las dos vuelve al inicio.
+
+## Vitrina y recomendaciones
+
+Las páginas públicas de una tienda ([#128](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/128)) llevan su slug en la ruta y no piden sesión. La raíz (`/`) abre la tienda de `VITE_DEFAULT_BUSINESS_SLUG`.
+
+| Ruta | Vista | API |
+|---|---|---|
+| `/tiendas/:tienda` | Vitrina, paginada y con filtros | `GET /tiendas/{tienda}/perfumes` |
+| `/tiendas/:tienda/perfumes/:perfume` | Detalle: notas por capa, etiquetas, presentaciones y decants | `GET /tiendas/{tienda}/perfumes/{perfume}` |
+| `/tiendas/:tienda/recomendaciones` | Recomendador | `POST /tiendas/{tienda}/recomendaciones` |
+
+Las tres comparten el encabezado de la tienda (`StoreLayout`, con `GET /tiendas/{tienda}`): nombre, logo, lugar de las citas y los enlaces a las páginas de la tienda. El nombre de la tienda no es un encabezado: el `h1` de cada página es su propio nombre, el mismo de la pestaña ("Vitrina", "Pedir una recomendación" o el nombre del perfume). Una tienda que no existe, o un perfume inactivo o de otra tienda, muestra "No encontrado", también en la pestaña.
+
+- **Filtros en la URL.** Texto, familia, nota, momento, clima, ocasión y precio máximo viven en el query (`?nota=vainilla&momento=noche`), así que una búsqueda se puede compartir y el botón de volver la recupera. Una búsqueda nueva empieza en la primera página; un filtro que la API rechaza con 422 se marca en su campo.
+- **Precios.** Se muestran tal como los manda la API, en colones enteros con separador de miles (`formatColones` de `src/shared/money.ts`). El navegador no calcula ningún precio.
+- **Vitrina.** Cada filtro lleva una pista con un ejemplo, unida al campo con `aria-describedby`. Una línea con `role="status"` anuncia cuántos perfumes se encontraron, y después de cambiar de página el foco pasa al título de la lista ("Perfumes"), porque el enlace usado puede desaparecer. Los enlaces de las páginas dicen "Página anterior" y "Página siguiente".
+- **Detalle.** Una ruta de enlaces (`nav` "Ubicación": Vitrina › perfume) dice dónde está la página. La concentración nunca va abreviada sola ("Eau de Parfum (EDP)") y cada cantidad marca "ml" como abreviatura de mililitros (`MlAmount`).
+- **Recomendador.** Junto al campo de texto da un ejemplo y avisa que lo escrito se envía a un proveedor externo de inteligencia artificial y que no conviene incluir datos personales; la API igual reemplaza correos y teléfonos antes de enviarlo (R51). Un texto vacío no se envía: el campo se marca y toma el foco. Mientras espera la respuesta, que puede tardar hasta 10 segundos, el botón queda ocupado (`aria-disabled`) y una línea con `role="status"` anuncia la espera y después cuántos perfumes recomienda. Cada perfume muestra su razón como texto (nunca como HTML), sus precios y un enlace al detalle, con "Recomendado con inteligencia artificial" o "Recomendado con las reglas de la tienda" según `origen`. Un 429 dice en cuánto tiempo volver a intentar.
+- **Ayuda y glosario** (`/ayuda`, en `src/features/help`). Explica cómo buscar, cómo pedir una recomendación y cómo funcionan los pedidos y los pagos (#130), y define las palabras de perfumería y de los pedidos: bajo pedido, concentración, decant, familia olfativa, notas, pasarela de pago, por cobrar ahora, presentación, saldo, ml, ₡ e inteligencia artificial. Cada término tiene un id, así que una página puede enlazarlo (`/ayuda#notas`) y el foco llega a ese término. El pie de todas las páginas enlaza la ayuda.
+
+## Carrito, pedidos y pagos
+
+El cliente arma un pedido y lo paga en línea ([#130](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/130)). La API calcula todos los montos y confirma el pago; el navegador solo envía qué se pide y muestra lo que la API responde.
+
+| Ruta | Vista | API |
+|---|---|---|
+| `/tiendas/:tienda/carrito` | Carrito de la tienda | `POST /tiendas/{tienda}/pedidos` |
+| `/cuenta/pedidos` | "Mis pedidos" | `GET /cuenta/pedidos` |
+| `/cuenta/pedidos/:pedido` | Un pedido, con "Pagar" y "Cancelar el pedido" | `GET /cuenta/pedidos/{pedido}`, `POST .../pagos`, `POST .../cancelacion` |
+| `/pagos/procesando` | "Procesando": la pasarela regresa aquí | `GET /cuenta/pedidos/{pedido}` |
+
+Las rutas de `/cuenta` y `/pagos` piden una sesión con el rol `cliente`.
+
+- **Carrito.** El detalle de un perfume agrega cada presentación (botella bajo pedido) y cada decant. El carrito vive en el store `cart` de Pinia y en `localStorage` bajo `archivum.carrito.<tienda>`, así que sobrevive a una recarga. No calcula un total: muestra el precio de la vitrina de cada línea solo como referencia.
+- **Crear el pedido.** El cuerpo lleva solo identificadores y cantidades (`presentacion_id` y `cantidad`, o `botella_id` y `ml`), nunca un precio. Un 422 marca cada línea por su posición (`lineas.0.presentacion_id`). Un 409 por ml agotados no dice qué línea falló, así que el carrito vuelve a leer el detalle de cada perfume y marca los decants que la vitrina ya no ofrece. Un visitante ve "Inicie sesión para crear el pedido", que regresa al carrito.
+- **El pedido** muestra el subtotal, lo que se cobra ahora, lo pagado y el saldo tal como los calcula la API; un pedido cancelado o vencido ya no debe nada, así que no muestra el saldo. Si no hay nada que cobrar, queda "Confirmado" sin pasar por la pasarela.
+- **Pagar.** `POST /cuenta/pedidos/{pedido}/pagos` cobra lo que guardó la API: el depósito o el total mientras el pedido espera su pago, y el saldo cuando está listo. El botón queda ocupado (`aria-disabled`) desde el primer clic, así que un doble clic envía una sola solicitud, y la API además devuelve el pago pendiente si llega otra (#92). Una pista avisa antes que se abre la página de la pasarela. Con PayPal, antes de ir a la pasarela se muestra el monto en dólares de `monto_cobrado`, y el foco pasa a "Continuar al pago", que lee ese monto. Solo se sigue una dirección `http` o `https`.
+- **Procesando.** La pasarela regresa a `PAYMENTS_RETURN_URL` de la API (por defecto `http://localhost:5173/pagos/procesando`), que no nombra el pedido: antes de salir, el cliente guarda en `sessionStorage` cuál pedido pagó y cuánto llevaba pagado. La vista consulta el pedido cada 3 s durante 2 min hasta que la API acredita el pago, lo que solo pasa con un aviso verificado de la pasarela o con la conciliación (#94, #96). Nunca lee los parámetros de la dirección: un `?estado=exito` no cambia nada. Pasados los 2 min, dice que el pago sigue en proceso y que su estado se verá en "Mis pedidos". Un pago cancelado en la pasarela vuelve a `PAYMENTS_CANCEL_URL`, "Mis pedidos".
+- **Mis pedidos** muestra el estado en español, lo pagado y el saldo (salvo en un pedido cancelado o vencido), y ofrece pagar o cancelar cuando la API lo admite. Mientras un pedido espera su pago, también muestra lo que se cobra ahora, que es el monto de su "Pagar". La API decide: si rechaza la cancelación, se muestra su 409.
+- **Accesibilidad (AAA).** Cada pedido se nombra por su fecha y hora ("Pedido del 16 nov 2026, 10:42"), así que dos enlaces nunca dicen lo mismo, y su página tiene una ruta de enlaces (Mis pedidos › pedido). En una lista, "Pagar" y "Cancelar el pedido" leen el pedido al que pertenecen. "Cancelar el pedido" pregunta antes y lleva el foco a "No, mantener el pedido". Cuando un botón desaparece (quitar una línea del carrito o cancelar un pedido), el foco pasa al título de la página y una línea con `role="status"` dice qué pasó. "Procesando" dice cada estado en una sola línea con `role="status"`. El pedido muestra en negrita hasta cuándo se puede pagar (R25) y enlaza la ayuda sobre los montos y los estados.
+
+## Estados de una vista
+
+Toda vista que pide datos muestra tres estados con los componentes de `src/shared`: `LoadingState` mientras espera, `ErrorState` si falla (con el aviso de `ProblemNotice` y, si tiene sentido, el botón "Intentar de nuevo") y `EmptyState` si no hay nada que mostrar. `useApiData` lleva esos estados:
+
+```vue
+<script setup lang="ts">
+import { onMounted } from 'vue'
+
+import { api } from '@/api/client'
+import { callApi } from '@/api/problem'
+import EmptyState from '@/shared/EmptyState.vue'
+import ErrorState from '@/shared/ErrorState.vue'
+import LoadingState from '@/shared/LoadingState.vue'
+import { useApiData } from '@/shared/useApiData'
+
+const perfumes = useApiData(
+  () => callApi(() => api.GET('/tiendas/{tienda}/perfumes', { params: { path: { tienda: 'archivum' } } })),
+  (page) => page.data.length === 0,
+)
+
+onMounted(perfumes.reload)
+</script>
+
+<template>
+  <LoadingState v-if="perfumes.loading.value" />
+  <ErrorState v-else-if="perfumes.problem.value" :problem="perfumes.problem.value" @retry="perfumes.reload" />
+  <EmptyState v-else-if="perfumes.empty.value" message="La tienda todavía no publica perfumes." />
+  <ul v-else-if="perfumes.data.value">...</ul>
+</template>
+```
+
+`src/shared/__tests__/ExampleListView.vue` es el ejemplo completo, con sus pruebas.
+
+## Accesibilidad
+
+El cliente apunta a WCAG 2.2 en el nivel AAA ([#126](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/126)). La base vale para todas las vistas:
+
+- **Estilos** (`src/styles/base.css`): texto con contraste de al menos 7:1 y bordes de los controles con 3:1; interlineado de 1.5, párrafos de hasta 70 caracteres y texto alineado a la izquierda; botones, campos y enlaces sueltos de al menos 44 × 44 px; anillo de foco de 3 px; sin animaciones cuando el sistema pide menos movimiento, y los colores del sistema en el modo de contraste alto. Las medidas van en `rem`, así que la página crece con el texto hasta el 200 % y se reacomoda desde 320 px de ancho.
+- **Marco de la página** (`App.vue`): el enlace "Saltar al contenido", la cabecera con la sesión y un solo `main` (`#contenido`). Las vistas no declaran otro `main`.
+- **Título y foco al navegar** (`src/shared/pageChanges.ts`): cada ruta declara `meta.title`. Al cambiar de página, la pestaña toma ese título ("Iniciar sesión · ArchivumParfums"), el foco pasa al contenido principal y un anunciador con `role="status"` lee el nombre de la página. Un cambio solo de la consulta (una búsqueda o una página de resultados) deja el foco donde estaba. `usePageTitle()` precisa el título cuando llegan los datos, como el nombre de un perfume.
+- **Botones que esperan una respuesta**: llevan `aria-disabled="true"` en lugar de `disabled`, para que el foco no se pierda, y la función ignora el segundo clic.
+- **Avisos**: los errores usan `role="alert"`; los demás mensajes, una región `.status-message` o `.results-summary` con `role="status"` que existe desde el principio, para que el lector de pantalla la lea al cambiar.
+- **Ayuda en los campos** ([#128](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/128)): una pista con `field-hint` y un id, que `fieldAttributes(problem, campo, 'pista-campo')` une al control junto con su error.
+- **Palabras difíciles y abreviaturas** (#128): la página "Ayuda y glosario" las explica y el pie de cada página la enlaza. Las abreviaturas se escriben completas la primera vez o con `<abbr title="…">`.
+- **Enlaces a una parte de una página** (#128): con `#id` en la ruta, el foco va a ese elemento, que lleva `tabindex="-1"`, en lugar del inicio del contenido.
+
+Clases de apoyo: `page` (columna de una vista), `page-section`, `form`, `form-field`, `field-hint`, `form-actions`, `checkbox-field` (casilla con su texto, toda clicable), `action-link` (enlace fuera de una oración, con la altura de un botón), `button` y `button--secondary`, `prose` (bloques de texto, con dos líneas y media entre párrafos), `results-summary`, `card-list` y `card`, `breadcrumbs`, `facts` (pares de nombre y valor), `glossary` y `visually-hidden`.
+
+Para revisar una vista a mano: recorrerla solo con el teclado (Tab, Mayús+Tab, Enter y Espacio), ampliarla al 200 % y verla a 320 px de ancho.
+
+## Errores de la API
+
+Ninguna vista muestra el JSON de un error. `src/api/problem.ts` ([#127](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/127)) interpreta cada respuesta fallida y devuelve un `ApiProblem` con su tipo (`kind`), el texto en español que se muestra, los mensajes de cada campo y el identificador de la solicitud:
+
+| Respuesta | `kind` | Qué se muestra |
+|---|---|---|
+| 422 `datos-invalidos` | `validation` | El `detail` y, junto a cada control, los mensajes de su campo en `errores`; el foco va al primer campo con error. |
+| 401 | `unauthenticated` | Lo atiende la sesión (#126). |
+| 403 | `forbidden` | La vista "Sin permiso". |
+| 404 | `not-found` | La vista "No encontrado". |
+| 409 `conflicto` y cualquier otro problema | `conflict`, `other` | El `detail`, o el `title` si no trae `detail`. |
+| 429 | `rate-limited` | En cuánto tiempo volver a intentar, según `Retry-After`. |
+| 500 `error-interno` o una respuesta que no es `application/problem+json` | `internal` | Un mensaje genérico con el identificador de la solicitud para soporte. |
+| Sin respuesta (falla de red) | `network` | Un mensaje genérico con el identificador de la solicitud para soporte. |
+
+El cliente envía su propio `X-Request-Id` (un UUID nuevo en cada solicitud), así que conoce el identificador aunque no llegue respuesta: una solicitud sin respuesta lanza `NetworkError` con él. Con respuesta, el identificador sale de `instance` (`urn:uuid:...`) o del encabezado `X-Request-Id`, que la API expone por CORS junto con `Retry-After`.
+
+`callApi` hace la llamada y nunca lanza: devuelve los datos o el problema. `ProblemNotice` muestra el problema en un aviso con `role="alert"`, o la vista que corresponde a un 403 o un 404:
+
+```vue
+<script setup lang="ts">
+import { ref } from 'vue'
+
+import { api } from '@/api/client'
+import { callApi, type ApiProblem } from '@/api/problem'
+import ProblemNotice from '@/shared/ProblemNotice.vue'
+
+const problem = ref<ApiProblem | null>(null)
+
+async function load() {
+  const result = await callApi(() =>
+    api.GET('/tiendas/{tienda}', { params: { path: { tienda: 'archivum' } } }),
+  )
+  problem.value = result.problem
+}
+</script>
+
+<template>
+  <ProblemNotice v-if="problem" :problem="problem" />
+</template>
+```
+
+En un formulario, cada control lleva `name` igual a su campo de la API y `v-bind="fieldAttributes(problem, 'correo')"` (`aria-invalid` y `aria-describedby`), y `<FieldError :problem="problem" field="correo" />` muestra sus mensajes. Después de un 422, `focusFirstInvalidField(form, problem)` lleva el foco al primer control con error. `src/shared/__tests__/ExampleForm.vue` es un ejemplo completo.
 
 ## Estructura
 
@@ -111,20 +276,34 @@ archivum-web/
 ├── env.d.ts              tipos de las variables de entorno
 ├── index.html
 ├── src/
-│   ├── main.ts           crea la aplicación con Pinia y Vue Router
-│   ├── App.vue
-│   ├── router/index.ts   junta las rutas de cada funcionalidad
-│   ├── api/              schema.ts (generado) y client.ts, el cliente tipado de la API
+│   ├── main.ts           crea la aplicación con Pinia, la sesión, los estilos y Vue Router
+│   ├── App.vue           marco de la página: "Saltar al contenido", cabecera, main, pie y anunciador
+│   ├── styles/base.css   estilos base para WCAG 2.2 AAA
+│   ├── router/           routes.ts junta las rutas de cada funcionalidad e index.ts crea el router
+│   ├── api/              schema.ts (generado), client.ts, el cliente tipado de la API,
+│   │                     y problem.ts, que interpreta sus errores
 │   ├── features/         una carpeta por funcionalidad
-│   │   └── home/         vista de inicio, sus rutas y sus pruebas
-│   └── shared/           lo que usan varias funcionalidades, como config.ts
+│   │   ├── storefront/   perfil de la tienda, vitrina con filtros y detalle de un perfume
+│   │   ├── recommendations/  recomendador con IA o por reglas
+│   │   ├── cart/         carrito de cada tienda y creación del pedido
+│   │   ├── orders/       pedidos del cliente, pago, cancelación y "procesando"
+│   │   ├── help/         "Ayuda y glosario"
+│   │   ├── session/      store de la sesión, guardias por rol, "Iniciar sesión" y menú
+│   │   ├── registration/ "Crear cuenta" con el aviso de privacidad
+│   │   └── errors/       rutas de "Sin permiso" y "No encontrado"
+│   └── shared/           lo que usan varias funcionalidades: config.ts, money.ts,
+│                         navigation.ts, ProblemNotice,
+│                         FieldError, las vistas "Sin permiso" y "No encontrado",
+│                         LoadingState, ErrorState, EmptyState, useApiData,
+│                         MlAmount (cantidad en ml) y pageChanges.ts (título y
+│                         foco al navegar)
 └── vite.config.ts
 ```
 
 El código se organiza por funcionalidad. Cada una vive en `src/features/<funcionalidad>` con sus vistas, sus componentes, sus stores de Pinia, un `routes.ts` con sus rutas y una carpeta `__tests__` con sus pruebas. Lo que usan varias funcionalidades va en `src/shared`. Para agregar una funcionalidad:
 
-1. Crear `src/features/<funcionalidad>/` con su vista y su `routes.ts`, como `src/features/home`.
-2. Sumar sus rutas en `src/router/index.ts`.
+1. Crear `src/features/<funcionalidad>/` con su vista y su `routes.ts`, como `src/features/storefront`.
+2. Sumar sus rutas en `src/router/routes.ts`, antes de `errorRoutes`, que atrapa toda ruta que no existe.
 3. Escribir sus pruebas en `src/features/<funcionalidad>/__tests__/`.
 
 ## Idioma

@@ -148,7 +148,7 @@ Hay preguntas que se responden antes de saber la tienda: al ingresar, de qué ti
 
 Las cuatro son `SECURITY DEFINER` con `search_path` vacío y nombres calificados, propiedad de `archivum_owner` y con `EXECUTE` solo para `archivum_app`. Devuelven identificadores y el rol, nunca filas completas. Como `FORCE` también somete a `archivum_owner`, las tablas que consultan agregan la política de solo lectura `<tabla>_definer_read`, `FOR SELECT TO archivum_owner USING (true)`; `archivum_app` sigue sin ver filas sin tienda.
 
-`fn_customer_resource_business` acepta una lista cerrada de tipos y rechaza cualquier otro con el SQLSTATE `22023`. Hoy solo conoce `customer`, la ficha del cliente en una tienda; cada esquema con recursos del cliente agrega el suyo a la función, al enum `CustomerResourceType` y a `CustomerBusinessContext::RESOURCES`: `appointment` con #59 y `order` con #78. El mecanismo está registrado en el [ADR 0011](adr/0011-customer-routes-resolve-the-business-through-definer-functions.md).
+`fn_customer_resource_business` acepta una lista cerrada de tipos y rechaza cualquier otro con el SQLSTATE `22023`. Conoce `customer`, la ficha del cliente en una tienda, y los recursos que cada esquema le agregó junto con el enum `CustomerResourceType` y `CustomerBusinessContext::RESOURCES`: `order` con #78, `payment` con #88 y `appointment` con #64. Cada tabla que la función lee lleva su política `<tabla>_definer_read`. El mecanismo está registrado en el [ADR 0011](adr/0011-customer-routes-resolve-the-business-through-definer-functions.md).
 
 `php artisan migrate:fresh` borra las tablas pero no las funciones. Por eso cada migración elimina sus funciones antes de crearlas.
 
@@ -184,6 +184,8 @@ Dos tramos de horario del mismo día no se traslapan (#52), y dos citas activas 
 
 Un traslape falla con el SQLSTATE `23P01` y el nombre de la restricción en el mensaje; la API lo traduce a un 409 `conflicto` (#60). Las tablas de horarios guardan horas locales en `time`, mientras que `appointments` usará `tstzrange` porque sus rangos son instantes (#59).
 
+Dos reservas simultáneas del mismo espacio pueden, además, esperarse una a la otra mientras la restricción decide cuál se queda con él. PostgreSQL rompe ese interbloqueo haciendo fallar una de ellas con el SQLSTATE `40P01`, y `EloquentAppointmentRepository` repite una vez la transacción de esa cita (#63): para entonces la otra ya tomó el espacio o lo soltó, así que el segundo intento responde el 409 o guarda la cita. Un segundo interbloqueo, como cualquier otro error de la base, sigue como `error-interno` (#60). `AppointmentPersistenceTest` fija los tres casos y `BookingConcurrencyTest` corre la carrera con dos procesos.
+
 
 ### Cómo agregar una tabla de una tienda
 
@@ -201,14 +203,14 @@ Todo objeto de la base se usa desde `Infrastructure/Persistence`, detrás de un 
 ## Citas de prueba (#59)
 
 - `appointments`: `id` uuidv7, `business_id`, `service_id`, `customer_id`, `member_id`, `starts_at`, `ends_at`,
-  `blocked_until`, `status`, `hold_expires_at`, `cancelled_at`, `cancel_reason` y marcas de tiempo. Llave Ãºnica
-  `(id, business_id)` y llaves forÃ¡neas compuestas hacia `services`, `customers` y `members`. `CHECK`
+  `blocked_until`, `status`, `hold_expires_at`, `cancelled_at`, `cancel_reason` y marcas de tiempo. Llave única
+  `(id, business_id)` y llaves foráneas compuestas hacia `services`, `customers` y `members`. `CHECK`
   `appointments_ends_at_check`, `appointments_blocked_until_check`, `appointments_status_check` y
-  `appointments_hold_expires_at_check`. El Ã­ndice GiST de la restricciÃ³n `appointments_member_slot_exclusion` cubre
-  `(business_id, member_id, tstzrange(starts_at, blocked_until))` para las filas `held` y `confirmed`; ademÃ¡s hay
-  Ã­ndices por `(business_id, starts_at)` y `(business_id, customer_id, starts_at)`.
-- `appointment_perfumes`: `id`, `business_id`, `appointment_id`, `perfume_id` y marcas de tiempo, Ãºnica por
+  `appointments_hold_expires_at_check`. El índice GiST de la restricción `appointments_member_slot_exclusion` cubre
+  `(business_id, member_id, tstzrange(starts_at, blocked_until))` para las filas `held` y `confirmed`; además hay
+  índices por `(business_id, starts_at)` y `(business_id, customer_id, starts_at)`.
+- `appointment_perfumes`: `id`, `business_id`, `appointment_id`, `perfume_id` y marcas de tiempo, única por
   `(business_id, appointment_id, perfume_id)`, con llaves compuestas hacia `appointments` (borrado en cascada) y
   `perfumes`.
-- Ambas tablas tienen `ENABLE` y `FORCE ROW LEVEL SECURITY` con la polÃ­tica `<tabla>_business_isolation` de #32.
-  `btree_gist` se crea con `IF NOT EXISTS` y ninguna reversiÃ³n la borra, como en #52.
+- Ambas tablas tienen `ENABLE` y `FORCE ROW LEVEL SECURITY` con la política `<tabla>_business_isolation` de #32.
+  `btree_gist` se crea con `IF NOT EXISTS` y ninguna reversión la borra, como en #52.

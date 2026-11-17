@@ -6,7 +6,7 @@ namespace Src\Scheduling\Availability\Infrastructure;
 
 use Illuminate\Support\ServiceProvider;
 use Src\Scheduling\Availability\Application\Contracts\AvailabilityReader;
-use Src\Scheduling\Availability\Infrastructure\Persistence\EloquentAvailabilityReader;
+use Src\Scheduling\Availability\Infrastructure\Persistence\Queries\EloquentAvailabilityReader;
 
 final class AvailabilityServiceProvider extends ServiceProvider
 {
