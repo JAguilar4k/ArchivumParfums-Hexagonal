@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\DeadlockException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -111,6 +112,23 @@ function appointmentToPersist(array $ids, string $startsAt = '2026-12-01 10:00:0
     );
 }
 
+/**
+ * Make PostgreSQL fail the next inserts of an appointment with the SQLSTATE and the message of a deadlock it breaks, as
+ * when two bookings of the same slot wait on each other, by raising that error right before each of them.
+ */
+function deadlockNextAppointmentInserts(int $times): void
+{
+    DB::connection()->beforeExecuting(function (string $query) use (&$times): void {
+        if ($times > 0 && str_starts_with($query, 'insert into "appointments"')) {
+            $times--;
+
+            DB::statement(<<<'SQL'
+                DO $$ BEGIN RAISE EXCEPTION 'deadlock detected' USING ERRCODE = '40P01'; END $$
+                SQL);
+        }
+    });
+}
+
 test('stores the appointment with its perfumes and rebuilds the aggregate from the rows', function (): void {
     $ids = appointmentRepositoryScenario();
     $repository = appointmentRepository($ids);
@@ -136,6 +154,32 @@ test('stores the appointment with its perfumes and rebuilds the aggregate from t
         ->and($rebuilt?->status())->toBe(AppointmentStatus::Confirmed)
         ->and(array_map(fn (PerfumeId $perfume): string => $perfume->value, $rebuilt?->perfumes() ?? []))
         ->toEqualCanonicalizing($ids['perfumes']);
+});
+
+test('stores the instants of the appointment whatever offset the aggregate carries', function (): void {
+    $ids = appointmentRepositoryScenario();
+    $repository = appointmentRepository($ids);
+    scopeAppointmentTestTo($ids['business']);
+
+    // 16:00 UTC is 10:00 in the store, and the customer may send either one.
+    $appointment = appointmentToPersist($ids, '2026-12-01T16:00:00+00:00');
+
+    $repository->save($appointment);
+
+    $this->scopeQueriesTo($ids['business']);
+
+    // Read in UTC by PostgreSQL itself, so the zone of the connection plays no part in what the test sees.
+    $stored = DB::selectOne(<<<'SQL'
+        SELECT to_char(starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS starts_at,
+               to_char(ends_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS ends_at,
+               to_char(blocked_until AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS blocked_until
+        FROM appointments
+        SQL);
+
+    expect($stored?->starts_at)->toBe('2026-12-01 16:00')
+        ->and($stored?->ends_at)->toBe('2026-12-01 16:45')
+        ->and($stored?->blocked_until)->toBe('2026-12-01 17:00')
+        ->and($repository->find($appointment->id)?->startsAt()->getTimestamp())->toBe($appointment->startsAt()->getTimestamp());
 });
 
 test('updates the stored appointment instead of inserting it again', function (): void {
@@ -215,6 +259,54 @@ test('translates the exclusion violation of the slot into a conflict of the doma
     $this->scopeQueriesTo($ids['business']);
 
     expect(DB::table('appointments')->count())->toBe(1);
+});
+
+test('writes the appointment once more when PostgreSQL breaks a deadlock on the first try', function (): void {
+    $ids = appointmentRepositoryScenario();
+    $repository = appointmentRepository($ids);
+    scopeAppointmentTestTo($ids['business']);
+
+    deadlockNextAppointmentInserts(1);
+
+    $repository->save(appointmentToPersist($ids));
+
+    $this->scopeQueriesTo($ids['business']);
+
+    expect(DB::table('appointments')->count())->toBe(1)
+        ->and(DB::table('appointment_perfumes')->count())->toBe(2);
+});
+
+test('answers the conflict of the domain when the second try finds the slot taken', function (): void {
+    $ids = appointmentRepositoryScenario();
+    $repository = appointmentRepository($ids);
+    scopeAppointmentTestTo($ids['business']);
+
+    $repository->save(appointmentToPersist($ids));
+
+    // The deadlock delays the second booking until the first one holds 10:00 to 11:00, where 10:30 starts.
+    deadlockNextAppointmentInserts(1);
+
+    expect(fn () => $repository->save(appointmentToPersist($ids, '2026-12-01 10:30:00')))
+        ->toThrow(AppointmentSlotTakenException::class);
+
+    $this->scopeQueriesTo($ids['business']);
+
+    expect(DB::table('appointments')->count())->toBe(1);
+});
+
+test('keeps a second deadlock as the database error it is and stores nothing', function (): void {
+    $ids = appointmentRepositoryScenario();
+    $repository = appointmentRepository($ids);
+    scopeAppointmentTestTo($ids['business']);
+
+    deadlockNextAppointmentInserts(2);
+
+    expect(fn () => $repository->save(appointmentToPersist($ids)))->toThrow(DeadlockException::class);
+
+    $this->scopeQueriesTo($ids['business']);
+
+    expect(DB::table('appointments')->count())->toBe(0)
+        ->and(DB::table('appointment_perfumes')->count())->toBe(0);
 });
 
 test('keeps any other database error as it is and rolls the appointment of the failed transaction back', function (): void {

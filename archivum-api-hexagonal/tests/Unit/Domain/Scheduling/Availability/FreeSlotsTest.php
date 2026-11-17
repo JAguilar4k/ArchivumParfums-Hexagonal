@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Src\Scheduling\Availability\Domain\FreeSlots;
+use Src\Scheduling\Availability\Domain\Services\FreeSlots;
 use Src\Scheduling\Availability\Domain\ValueObjects\FreeSlot;
 use Src\Scheduling\Availability\Domain\ValueObjects\MinuteRange;
 use Src\Scheduling\Availability\Domain\ValueObjects\PersonDay;
