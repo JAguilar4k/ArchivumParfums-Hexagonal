@@ -30,6 +30,33 @@ describe('an order', () => {
     expect(wrapper.find('.pay-order').exists()).toBe(false)
   })
 
+  it('shows the state of each line while the order goes on', async () => {
+    fakeApi({ [`GET ${ORDER_PATH}`]: () => json(200, { data: orderOf() }) })
+
+    const { wrapper } = await open(ORDER_PATH, 'cliente')
+
+    expect(wrapper.findAll('.order-summary__lines li').map((line) => plain(line.text()))).toEqual([
+      'Oud Nocturno · 1 botella de 100 ml · ₡125 000 cada una · Pendiente',
+      'Oud Nocturno · decant de 5 ml · ₡9 500 · Reservada',
+    ])
+  })
+
+  it('leaves out the states of the lines once the order is cancelled, because none of them goes on', async () => {
+    fakeApi({
+      [`GET ${ORDER_PATH}`]: () =>
+        json(200, { data: orderOf({ estado: 'cancelado', cancelado_en: '2026-11-15T18:05:00-06:00' }) }),
+    })
+
+    const { wrapper } = await open(ORDER_PATH, 'cliente')
+
+    // The API keeps "pendiente" and "reservada" in the lines of a cancelled order.
+    expect(wrapper.get('.order-summary__status').text()).toBe('Cancelado')
+    expect(wrapper.findAll('.order-summary__lines li').map((line) => plain(line.text()))).toEqual([
+      'Oud Nocturno · 1 botella de 100 ml · ₡125 000 cada una',
+      'Oud Nocturno · decant de 5 ml · ₡9 500',
+    ])
+  })
+
   it('sends one payment request for a double click on "Pagar" and goes to the checkout', async () => {
     let answer: (response: Response) => void = () => {}
     const { requests } = fakeApi({

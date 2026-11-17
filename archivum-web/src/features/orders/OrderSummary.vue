@@ -7,7 +7,9 @@ import { isClosed, lineStatusLabel, statusLabel, type Order } from './order'
 
 /**
  * An order with the amounts exactly as the API calculated them (#130): the client adds nothing up. The time to pay is
- * a rule of the store (R25), so the summary says until when the order waits for its payment.
+ * a rule of the store (R25), so the summary says until when the order waits for its payment. The lines of a cancelled
+ * or expired order keep the state they had, such as "Pendiente", but none of them goes on: the status of the order
+ * says it, so the lines leave out theirs.
  */
 defineProps<{ order: Order }>()
 
@@ -57,11 +59,11 @@ const dateTime = new Intl.DateTimeFormat('es-CR', { dateStyle: 'long', timeStyle
         <template v-if="line.tipo === 'botella'">
           {{ line.perfume ?? 'Perfume' }} · {{ line.cantidad }} {{ line.cantidad === 1 ? 'botella' : 'botellas' }} de
           <MlAmount v-if="line.presentacion_ml" :amount="line.presentacion_ml" /><template v-else>?</template> ·
-          {{ formatColones(line.precio_unitario) }} cada una · {{ lineStatusLabel(line.estado) }}
+          {{ formatColones(line.precio_unitario) }} cada una<template v-if="!isClosed(order)"> · {{ lineStatusLabel(line.estado) }}</template>
         </template>
         <template v-else>
           {{ line.perfume ?? 'Perfume' }} · decant de <MlAmount v-if="line.ml" :amount="line.ml" /><template v-else>?</template> ·
-          {{ formatColones(line.precio_unitario) }} · {{ lineStatusLabel(line.estado) }}
+          {{ formatColones(line.precio_unitario) }}<template v-if="!isClosed(order)"> · {{ lineStatusLabel(line.estado) }}</template>
         </template>
       </li>
     </ul>

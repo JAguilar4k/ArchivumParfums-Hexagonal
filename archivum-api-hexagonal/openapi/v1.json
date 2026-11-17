@@ -10393,6 +10393,9 @@
                     "botella_id": {
                         "type": "string"
                     },
+                    "presentacion_ml": {
+                        "type": "integer"
+                    },
                     "ml": {
                         "type": "integer"
                     },
@@ -10402,6 +10405,7 @@
                 },
                 "required": [
                     "botella_id",
+                    "presentacion_ml",
                     "ml",
                     "precio"
                 ],
