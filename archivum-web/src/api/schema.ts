@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tiendas/{tienda}/disponibilidad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the free slots of one service on one day of the store of the address, without a session */
+        get: operations["scheduling.availability.index"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/panel/horario": {
         parameters: {
             query?: never;
@@ -979,6 +996,12 @@ export interface components {
             ml: number;
             motivo: string;
         };
+        /** AvailableSlotResource */
+        AvailableSlotResource: {
+            inicia_en: string;
+            termina_en: string;
+            personas: unknown[];
+        };
         /** BusinessProfileResource */
         BusinessProfileResource: {
             id: string;
@@ -1804,6 +1827,61 @@ export interface operations {
                         /** @constant */
                         version: "v1";
                     };
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.availability.index": {
+        parameters: {
+            query: {
+                servicio: string;
+                fecha: string;
+                persona?: string | null;
+            };
+            header?: never;
+            path: {
+                tienda: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `AvailableSlotResource` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["AvailableSlotResource"][];
+                    };
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
                 };
             };
             /** @description Error interno */

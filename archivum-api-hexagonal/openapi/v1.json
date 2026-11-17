@@ -114,6 +114,107 @@
                 }
             }
         },
+        "/tiendas/{tienda}/disponibilidad": {
+            "get": {
+                "operationId": "scheduling.availability.index",
+                "summary": "List the free slots of one service on one day of the store of the address, without a session",
+                "tags": [
+                    "Availability"
+                ],
+                "parameters": [
+                    {
+                        "name": "tienda",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "servicio",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        }
+                    },
+                    {
+                        "name": "fecha",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "name": "persona",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "format": "uuid"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `AvailableSlotResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/AvailableSlotResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/panel/horario": {
             "get": {
                 "operationId": "scheduling.business_hours.show",
@@ -7349,6 +7450,27 @@
                     "motivo"
                 ],
                 "title": "AdjustBottle"
+            },
+            "AvailableSlotResource": {
+                "type": "object",
+                "properties": {
+                    "inicia_en": {
+                        "type": "string"
+                    },
+                    "termina_en": {
+                        "type": "string"
+                    },
+                    "personas": {
+                        "type": "array",
+                        "items": {}
+                    }
+                },
+                "required": [
+                    "inicia_en",
+                    "termina_en",
+                    "personas"
+                ],
+                "title": "AvailableSlotResource"
             },
             "BusinessProfileResource": {
                 "type": "object",
