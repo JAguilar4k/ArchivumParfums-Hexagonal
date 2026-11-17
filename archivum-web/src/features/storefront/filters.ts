@@ -11,7 +11,10 @@ export type Climate = NonNullable<ShowcaseQuery['clima']>
 export const MOMENTS: readonly Moment[] = ['dia', 'tarde', 'noche']
 export const CLIMATES: readonly Climate[] = ['calido', 'templado', 'frio']
 
-/** What the visitor writes in the filters form; every field is text, as in the inputs. */
+/**
+ * What the visitor writes in the filters form; every field is text, as in the inputs, except the maximum price:
+ * v-model turns what is written in an input of type number into a number.
+ */
 export interface FilterForm {
   texto: string
   familia: string
@@ -19,7 +22,7 @@ export interface FilterForm {
   momento: string
   clima: string
   ocasion: string
-  precio_maximo: string
+  precio_maximo: string | number
 }
 
 const TEXT_FILTERS = ['texto', 'familia', 'nota', 'ocasion'] as const
@@ -42,7 +45,7 @@ export function queryFromForm(form: FilterForm): LocationQueryRaw {
   const query: LocationQueryRaw = {}
 
   for (const [name, value] of Object.entries(form)) {
-    const text = value.trim()
+    const text = String(value).trim()
 
     if (text) {
       query[name] = text
