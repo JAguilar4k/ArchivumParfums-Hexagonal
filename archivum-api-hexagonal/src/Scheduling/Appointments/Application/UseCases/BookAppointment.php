@@ -83,7 +83,7 @@ final readonly class BookAppointment
             new ServiceId($service->id),
             $this->customers->findOrCreate($command->userId),
             new MemberId($person->id),
-            $this->forStorage($startsAt),
+            $startsAt,
             $service->durationMinutes,
             $service->bufferMinutes,
             array_map(fn (string $id): PerfumeId => new PerfumeId($id), array_keys($perfumes)),
@@ -212,12 +212,6 @@ final readonly class BookAppointment
         } catch (Exception) {
             throw new InvalidValueException('scheduling.booking.invalid_start');
         }
-    }
-
-    /** The instant as the connection stores it, so the slot compares the same way the reader of #61 reads it. */
-    private function forStorage(DateTimeImmutable $instant): DateTimeImmutable
-    {
-        return $instant->setTimezone(new DateTimeZone((string) config('database.connections.pgsql.timezone', 'UTC')));
     }
 
     /** @throws InvalidValueException */

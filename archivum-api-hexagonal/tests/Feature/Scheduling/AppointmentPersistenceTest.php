@@ -138,6 +138,32 @@ test('stores the appointment with its perfumes and rebuilds the aggregate from t
         ->toEqualCanonicalizing($ids['perfumes']);
 });
 
+test('stores the instants of the appointment whatever offset the aggregate carries', function (): void {
+    $ids = appointmentRepositoryScenario();
+    $repository = appointmentRepository($ids);
+    scopeAppointmentTestTo($ids['business']);
+
+    // 16:00 UTC is 10:00 in the store, and the customer may send either one.
+    $appointment = appointmentToPersist($ids, '2026-12-01T16:00:00+00:00');
+
+    $repository->save($appointment);
+
+    $this->scopeQueriesTo($ids['business']);
+
+    // Read in UTC by PostgreSQL itself, so the zone of the connection plays no part in what the test sees.
+    $stored = DB::selectOne(<<<'SQL'
+        SELECT to_char(starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS starts_at,
+               to_char(ends_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS ends_at,
+               to_char(blocked_until AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS blocked_until
+        FROM appointments
+        SQL);
+
+    expect($stored?->starts_at)->toBe('2026-12-01 16:00')
+        ->and($stored?->ends_at)->toBe('2026-12-01 16:45')
+        ->and($stored?->blocked_until)->toBe('2026-12-01 17:00')
+        ->and($repository->find($appointment->id)?->startsAt()->getTimestamp())->toBe($appointment->startsAt()->getTimestamp());
+});
+
 test('updates the stored appointment instead of inserting it again', function (): void {
     $ids = appointmentRepositoryScenario();
     $repository = appointmentRepository($ids);
