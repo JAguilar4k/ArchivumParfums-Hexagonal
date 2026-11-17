@@ -44,8 +44,8 @@ import { RouterLink } from 'vue-router'
       <p>
         Para hacer pedidos necesita una cuenta de cliente. Puede
         <RouterLink :to="{ name: 'register' }">crear una cuenta de cliente</RouterLink> con su nombre, su correo y una
-        contraseña de al menos 8 caracteres, después de leer y aceptar el aviso de privacidad. Al crearla, la tienda
-        inicia su sesión por usted.
+        contraseña, después de leer y aceptar el aviso de privacidad. Al crearla, la tienda inicia su sesión por
+        usted. Si la contraseña no es válida, el formulario indica junto al campo qué le falta.
       </p>
       <p>
         «Mostrar la contraseña» le deja revisar lo que escribió. Su navegador o su gestor de contraseñas también puede

@@ -187,6 +187,38 @@ it('lists the blocks that cross the range and filters by person', function (): v
         ->and(array_column((array) $onlyMember->json('data'), 'id'))->toBe([$ofMember]);
 });
 
+it('stores a block sent with another offset at the same instants and lists it in the time of the store', function (): void {
+    blockOwner();
+
+    // 16:00 UTC is 10:00 in the store, and the panel may send either one.
+    $id = (string) postJson(BLOCKS_ENDPOINT, [
+        'inicia_en' => '2026-11-10T16:00:00Z',
+        'termina_en' => '2026-11-10T18:00:00+00:00',
+        'motivo' => 'Inventario',
+    ])->assertCreated()->json('data.id');
+
+    $this->scopeQueriesTo(TwoBusinesses::idOf(TwoBusinesses::FIRST));
+
+    // Read in UTC by PostgreSQL itself, so the zone of the connection plays no part in what the test sees.
+    $stored = DB::selectOne(<<<'SQL'
+        SELECT to_char(starts_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS starts_at,
+               to_char(ends_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI') AS ends_at
+        FROM schedule_blocks
+        WHERE id = ?
+        SQL, [$id]);
+
+    $this->scopeQueriesTo(null);
+
+    $listed = getJson(BLOCKS_ENDPOINT.'?desde=2026-11-10T00:00:00-06:00&hasta=2026-11-11T00:00:00-06:00');
+
+    $listed->assertOk();
+
+    expect($stored?->starts_at)->toBe('2026-11-10 16:00')
+        ->and($stored?->ends_at)->toBe('2026-11-10 18:00')
+        ->and($listed->json('data.0.inicia_en'))->toBe('2026-11-10T10:00:00-06:00')
+        ->and($listed->json('data.0.termina_en'))->toBe('2026-11-10T12:00:00-06:00');
+});
+
 it('answers 422 with the detail of the field that is wrong, and writes nothing', function (array $payload, string $campo): void {
     $first = TwoBusinesses::idOf(TwoBusinesses::FIRST);
     blockOwner();
