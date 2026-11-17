@@ -66,25 +66,57 @@ final class Appointment
         array $perfumes,
         int $maxPerfumes,
     ): self {
-        self::assertPerfumes($perfumes, $maxPerfumes);
-
-        $endsAt = $startsAt->modify("+{$durationMinutes} minutes");
-        $blockedUntil = $endsAt->modify("+{$bufferMinutes} minutes");
-
-        return new self(
+        return self::start(
             $id,
             $businessId,
             $serviceId,
             $customerId,
             $memberId,
             $startsAt,
-            $endsAt,
-            $blockedUntil,
+            $durationMinutes,
+            $bufferMinutes,
             $perfumes,
+            $maxPerfumes,
             AppointmentStatus::Confirmed,
             null,
-            null,
-            null,
+        );
+    }
+
+    /**
+     * Offer a freed slot to the first customer of the waiting list (R20): the appointment is born held, blocks the slot
+     * like a confirmed one and waits for the customer until the deadline of the offer. Section 6 only lets an appointment
+     * be held from its start, so a confirmed appointment never goes back to held.
+     *
+     * @param  list<PerfumeId>  $perfumes
+     *
+     * @throws TooManyPerfumesException
+     */
+    public static function offer(
+        AppointmentId $id,
+        BusinessId $businessId,
+        ServiceId $serviceId,
+        CustomerId $customerId,
+        MemberId $memberId,
+        DateTimeImmutable $startsAt,
+        int $durationMinutes,
+        int $bufferMinutes,
+        array $perfumes,
+        int $maxPerfumes,
+        DateTimeImmutable $holdExpiresAt,
+    ): self {
+        return self::start(
+            $id,
+            $businessId,
+            $serviceId,
+            $customerId,
+            $memberId,
+            $startsAt,
+            $durationMinutes,
+            $bufferMinutes,
+            $perfumes,
+            $maxPerfumes,
+            AppointmentStatus::Held,
+            $holdExpiresAt,
         );
     }
 
@@ -185,14 +217,6 @@ final class Appointment
         return $this->cancelReason;
     }
 
-    /** Turn a confirmed appointment into an offer of the waiting list, which blocks the slot until its deadline. */
-    public function hold(DateTimeImmutable $expiresAt): void
-    {
-        $this->assertStatus(AppointmentStatus::Held, AppointmentStatus::Confirmed);
-        $this->status = AppointmentStatus::Held;
-        $this->holdExpiresAt = $expiresAt;
-    }
-
     /** Confirm an offer of the waiting list. */
     public function confirm(): void
     {
@@ -257,6 +281,50 @@ final class Appointment
         $this->startsAt = $newStart;
         $this->endsAt = $newStart->modify("+{$duration} minutes");
         $this->blockedUntil = $this->endsAt->modify("+{$buffer} minutes");
+    }
+
+    /**
+     * A new appointment in the state it starts with: it lasts the duration of the service and keeps the margin blocked
+     * after it.
+     *
+     * @param  list<PerfumeId>  $perfumes
+     *
+     * @throws TooManyPerfumesException
+     */
+    private static function start(
+        AppointmentId $id,
+        BusinessId $businessId,
+        ServiceId $serviceId,
+        CustomerId $customerId,
+        MemberId $memberId,
+        DateTimeImmutable $startsAt,
+        int $durationMinutes,
+        int $bufferMinutes,
+        array $perfumes,
+        int $maxPerfumes,
+        AppointmentStatus $status,
+        ?DateTimeImmutable $holdExpiresAt,
+    ): self {
+        self::assertPerfumes($perfumes, $maxPerfumes);
+
+        $endsAt = $startsAt->modify("+{$durationMinutes} minutes");
+        $blockedUntil = $endsAt->modify("+{$bufferMinutes} minutes");
+
+        return new self(
+            $id,
+            $businessId,
+            $serviceId,
+            $customerId,
+            $memberId,
+            $startsAt,
+            $endsAt,
+            $blockedUntil,
+            $perfumes,
+            $status,
+            $holdExpiresAt,
+            null,
+            null,
+        );
     }
 
     /** Accept the transition only when the appointment is in one of the states that allow it. */
