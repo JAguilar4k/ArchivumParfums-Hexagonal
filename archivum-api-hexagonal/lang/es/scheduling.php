@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 return [
     'service.name_required' => 'El nombre del servicio es obligatorio.',
+    'service.not_found' => 'El servicio no existe.',
     'service.invalid_duration' => 'La duración del servicio debe ser mayor a cero.',
     'service.invalid_buffer' => 'El margen entre citas no puede ser negativo.',
     'service.invalid_max_perfumes' => 'El máximo de perfumes no puede ser negativo.',

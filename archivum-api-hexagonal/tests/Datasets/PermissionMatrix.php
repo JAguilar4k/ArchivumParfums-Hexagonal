@@ -68,6 +68,10 @@ function permissionMatrixRows(): array
             'agregar a una persona' => ['POST', 'api/v1/panel/personal', [], ownerOnly(422)],
             'ver a una persona' => ['GET', 'api/v1/panel/personal/{persona}', [], ownerOnly(200)],
             'editar a una persona' => ['PATCH', 'api/v1/panel/personal/{persona}', [], ownerOnly(200)],
+            'listar los servicios' => ['GET', 'api/v1/panel/servicios', [], ownerOnly(200)],
+            'crear un servicio' => ['POST', 'api/v1/panel/servicios', [], ownerOnly(422)],
+            'ver un servicio' => ['GET', 'api/v1/panel/servicios/{servicio}', [], ownerOnly(200)],
+            'editar un servicio' => ['PATCH', 'api/v1/panel/servicios/{servicio}', [], ownerOnly(200)],
         ],
         'catálogo, importación, botellas, proveedores y órdenes de compra' => [
             'listar perfumes' => ['GET', 'api/v1/panel/perfumes', [], ownerOnly(200)],
