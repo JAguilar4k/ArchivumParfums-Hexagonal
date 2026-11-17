@@ -916,6 +916,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/panel/personal/{persona}/horario": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Show the working hours of one person of the staff of the session business */
+        get: operations["scheduling.staff_schedules.show"];
+        /** Replace the whole working hours of one person of the staff of the session business, in one transaction */
+        put: operations["scheduling.staff_schedules.replace"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1165,6 +1183,14 @@ export interface components {
             estado: string;
             vence_en: string;
         };
+        /** PanelStaffSchedule */
+        PanelStaffSchedule: {
+            tramos: {
+                dia_semana: string;
+                inicio: string;
+                fin: string;
+            }[];
+        };
         /** PasswordResetRequestedResource */
         PasswordResetRequestedResource: {
             /** @constant */
@@ -1369,6 +1395,14 @@ export interface components {
         };
         /** ReplaceBusinessHours */
         ReplaceBusinessHours: {
+            tramos: {
+                dia_semana: number;
+                inicio: string;
+                fin: string;
+            }[];
+        };
+        /** ReplaceStaffSchedule */
+        ReplaceStaffSchedule: {
             tramos: {
                 dia_semana: number;
                 inicio: string;
@@ -5911,6 +5945,139 @@ export interface operations {
             };
             /** @description Acción no permitida */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.staff_schedules.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                persona: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `PanelStaffSchedule` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelStaffSchedule"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.staff_schedules.replace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                persona: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceStaffSchedule"];
+            };
+        };
+        responses: {
+            /** @description `PanelStaffSchedule` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelStaffSchedule"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
