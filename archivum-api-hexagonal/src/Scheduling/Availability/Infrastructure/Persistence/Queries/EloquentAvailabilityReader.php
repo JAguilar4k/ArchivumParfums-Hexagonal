@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Src\Scheduling\Availability\Infrastructure\Persistence;
+namespace Src\Scheduling\Availability\Infrastructure\Persistence\Queries;
 
 use DateTimeImmutable;
 use DateTimeInterface;
