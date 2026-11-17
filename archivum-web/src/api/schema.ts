@@ -736,6 +736,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/panel/servicios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List every service of the business of the session, active and inactive, ordered by name */
+        get: operations["scheduling.services.index"];
+        put?: never;
+        /** Register a service in the business of the session */
+        post: operations["scheduling.services.store"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/panel/servicios/{servicio}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Show one service of the business of the session */
+        get: operations["scheduling.services.show"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change the fields sent of a service of the business of the session, also to deactivate or reactivate it */
+        patch: operations["scheduling.services.update"];
+        trace?: never;
+    };
     "/sesiones": {
         parameters: {
             query?: never;
@@ -1060,6 +1096,16 @@ export interface components {
             precio_manual: number | null;
             activa: boolean;
         };
+        /** PanelService */
+        PanelService: {
+            id: string;
+            nombre: string;
+            duracion_minutos: number;
+            precio: number;
+            margen_minutos: number;
+            maximo_perfumes: number;
+            activo: boolean;
+        };
         /** PanelSoldPack */
         PanelSoldPack: {
             id: string;
@@ -1120,6 +1166,15 @@ export interface components {
             ml?: number;
             precio_manual?: number | null;
             activa?: boolean;
+        };
+        /** PatchService */
+        PatchService: {
+            nombre?: string;
+            duracion_minutos?: number;
+            precio?: number;
+            margen_minutos?: number;
+            maximo_perfumes?: number;
+            activo?: boolean;
         };
         /** PaymentNoticeResource */
         PaymentNoticeResource: {
@@ -1440,6 +1495,15 @@ export interface components {
         /** StoreRecommendation */
         StoreRecommendation: {
             texto: string;
+        };
+        /** StoreService */
+        StoreService: {
+            nombre: string;
+            duracion_minutos: number;
+            precio: number;
+            margen_minutos: number;
+            maximo_perfumes: number;
+            activo?: boolean;
         };
         /** StoreSessionRequest */
         StoreSessionRequest: {
@@ -5041,6 +5105,250 @@ export interface operations {
                     "application/json": {
                         data: components["schemas"]["RecommendationResource"];
                     };
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.services.index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Array of `PanelService` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelService"][];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.services.store": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StoreService"];
+            };
+        };
+        responses: {
+            /** @description `PanelService` */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelService"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Datos inválidos */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemaDeValidacion"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.services.show": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                servicio: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description `PanelService` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelService"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Recurso no encontrado */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Error interno */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+        };
+    };
+    "scheduling.services.update": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                servicio: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PatchService"];
+            };
+        };
+        responses: {
+            /** @description `PanelService` */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["PanelService"];
+                    };
+                };
+            };
+            /** @description No autenticado */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
+                };
+            };
+            /** @description Acción no permitida */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problema"];
                 };
             };
             /** @description Recurso no encontrado */
