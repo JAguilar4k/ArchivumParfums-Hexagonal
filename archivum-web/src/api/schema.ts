@@ -1587,6 +1587,7 @@ export interface components {
         /** ShowcaseDecantResource */
         ShowcaseDecantResource: {
             botella_id: string;
+            presentacion_ml: number;
             ml: number;
             precio: number;
         };
