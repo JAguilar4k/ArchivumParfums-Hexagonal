@@ -1,0 +1,78 @@
+import type { components } from '@/api/schema'
+
+export type Order = components['schemas']['OrderResource']
+export type OrderStatus = Order['estado']
+export type OrderLine = Order['lineas'][number]
+export type Payment = components['schemas']['PaymentResource']
+
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  pendiente_de_pago: 'Pendiente de pago',
+  confirmado: 'Confirmado',
+  encargado: 'Encargado al proveedor',
+  listo: 'Listo para entregar',
+  entregado: 'Entregado',
+  cancelado: 'Cancelado',
+  vencido: 'Vencido sin pago',
+}
+
+const LINE_STATUS_LABELS: Record<OrderLine['estado'], string> = {
+  pendiente: 'Pendiente',
+  encargada: 'Encargada',
+  recibida: 'Recibida',
+  no_disponible: 'No disponible',
+  reservada: 'Reservada',
+  preparada: 'Preparada',
+  liberada: 'Liberada',
+}
+
+/** The status of an order, in Spanish. */
+export function statusLabel(status: OrderStatus): string {
+  return STATUS_LABELS[status]
+}
+
+/** The status of a line of an order, in Spanish. */
+export function lineStatusLabel(status: OrderLine['estado']): string {
+  return LINE_STATUS_LABELS[status]
+}
+
+/**
+ * Whether the order takes an online payment, as the API admits it (#92): the deposit or the total while it waits for
+ * its payment, and the balance once it is ready. The API decides: this only shows or hides the button.
+ */
+export function canPay(order: Order): boolean {
+  return (order.estado === 'pendiente_de_pago' && order.por_cobrar_ahora > 0) || (order.estado === 'listo' && order.saldo > 0)
+}
+
+/**
+ * What the next payment charges, from the amounts of the API: what is still due now, or the balance. `por_cobrar_ahora`
+ * already leaves out what is paid (due now − paid, as `StartPayment` charges it), so nothing is subtracted here.
+ */
+export function amountToPay(order: Order): number {
+  return order.estado === 'pendiente_de_pago' ? order.por_cobrar_ahora : order.saldo
+}
+
+/**
+ * Whether the order ended without a delivery: cancelled, or expired without its payment. It owes nothing then, so the
+ * pages leave out its balance, which the API still reports as the part of the bottles.
+ */
+export function isClosed(order: Pick<Order, 'estado'>): boolean {
+  return order.estado === 'cancelado' || order.estado === 'vencido'
+}
+
+/**
+ * Whether the customer may cancel the order, as the API admits it (#83): before it is ordered from the supplier and
+ * before any decant is prepared. The API decides and answers 409 otherwise.
+ */
+export function canCancel(order: Order): boolean {
+  return ['pendiente_de_pago', 'confirmado'].includes(order.estado) && !order.lineas.some((line) => line.estado === 'preparada')
+}
+
+const ORDER_DATE = new Intl.DateTimeFormat('es-CR', { dateStyle: 'medium', timeStyle: 'short' })
+
+/**
+ * The name of an order in the pages: its date and time, so two orders never share it (WCAG 2.4.9). The list links
+ * each order with it, and the page of the order takes it as its title.
+ */
+export function orderTitle(order: Pick<Order, 'creado_en'>): string {
+  return `Pedido del ${ORDER_DATE.format(new Date(order.creado_en))}`
+}

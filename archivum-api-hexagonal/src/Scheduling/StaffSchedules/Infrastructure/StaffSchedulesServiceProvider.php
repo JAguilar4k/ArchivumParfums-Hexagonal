@@ -6,7 +6,7 @@ namespace Src\Scheduling\StaffSchedules\Infrastructure;
 
 use Illuminate\Support\ServiceProvider;
 use Src\Scheduling\StaffSchedules\Domain\Contracts\StaffScheduleRepository;
-use Src\Scheduling\StaffSchedules\Infrastructure\Persistence\EloquentStaffScheduleRepository;
+use Src\Scheduling\StaffSchedules\Infrastructure\Persistence\Repositories\EloquentStaffScheduleRepository;
 
 final class StaffSchedulesServiceProvider extends ServiceProvider
 {

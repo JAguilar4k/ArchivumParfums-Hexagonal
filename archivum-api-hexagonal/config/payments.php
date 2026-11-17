@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 return [
-    'return_url' => env('PAYMENTS_RETURN_URL', 'http://localhost:8000/api/v1'),
-    'cancel_url' => env('PAYMENTS_CANCEL_URL', 'http://localhost:8000/api/v1'),
+    // The gateway returns to the "procesando" view of archivum-web, which asks the API for the order (#130), and a
+    // cancelled checkout to "Mis pedidos". Neither address changes the payment: only a verified notice does.
+    'return_url' => env('PAYMENTS_RETURN_URL', 'http://localhost:5173/pagos/procesando'),
+    'cancel_url' => env('PAYMENTS_CANCEL_URL', 'http://localhost:5173/cuenta/pedidos'),
     'timeout_seconds' => 10,
     'connect_timeout_seconds' => 3,
     'onvo' => [

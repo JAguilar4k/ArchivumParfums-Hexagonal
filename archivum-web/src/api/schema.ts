@@ -1118,7 +1118,8 @@ export interface components {
             id: string;
             nombre: string;
             correo: string;
-            rol: string;
+            /** @enum {string} */
+            rol: "dueno" | "colaborador";
             atiende_citas: boolean;
             activo: boolean;
         };
@@ -1256,7 +1257,8 @@ export interface components {
             inicia_en: string;
             termina_en: string;
             motivo: string;
-            origen: string;
+            /** @enum {string} */
+            origen: "manual" | "google";
         };
         /** PanelService */
         PanelService: {
@@ -1323,12 +1325,12 @@ export interface components {
                 salida?: string[] | null;
                 corazon?: string[] | null;
                 fondo?: string[] | null;
-            };
+            } | null;
             etiquetas?: {
                 momento?: ("dia" | "tarde" | "noche")[] | null;
                 clima?: ("calido" | "templado" | "frio")[] | null;
                 ocasion?: string[] | null;
-            };
+            } | null;
             activo?: boolean;
         };
         /** PatchPerfumeVariant */
@@ -1527,6 +1529,12 @@ export interface components {
             tipo: "Bearer";
             vence_en: string;
         };
+        /** ShowcaseDecantResource */
+        ShowcaseDecantResource: {
+            botella_id: string;
+            ml: number;
+            precio: number;
+        };
         /** ShowcasePerfume */
         ShowcasePerfume: {
             id: string;
@@ -1540,7 +1548,7 @@ export interface components {
                 clima: unknown[];
                 ocasion: string[];
             };
-            presentaciones: unknown[];
+            presentaciones: components["schemas"]["ShowcaseVariantResource"][];
         };
         /** ShowcasePerfumeDetail */
         ShowcasePerfumeDetail: {
@@ -1562,8 +1570,14 @@ export interface components {
                 clima: unknown[];
                 ocasion: string[];
             };
-            presentaciones: unknown[];
-            decants: unknown[];
+            presentaciones: components["schemas"]["ShowcaseVariantResource"][];
+            decants: components["schemas"]["ShowcaseDecantResource"][];
+        };
+        /** ShowcaseVariantResource */
+        ShowcaseVariantResource: {
+            id: string;
+            ml: number;
+            precio_venta: number;
         };
         /** StoreAccountRequest */
         StoreAccountRequest: {
@@ -1672,12 +1686,12 @@ export interface components {
                 salida?: string[] | null;
                 corazon?: string[] | null;
                 fondo?: string[] | null;
-            };
+            } | null;
             etiquetas?: {
                 momento?: ("dia" | "tarde" | "noche")[] | null;
                 clima?: ("calido" | "templado" | "frio")[] | null;
                 ocasion?: string[] | null;
-            };
+            } | null;
             activo?: boolean;
         };
         /** StorePerfumePhoto */

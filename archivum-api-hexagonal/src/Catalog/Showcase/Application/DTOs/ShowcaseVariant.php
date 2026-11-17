@@ -6,8 +6,9 @@ namespace Src\Catalog\Showcase\Application\DTOs;
 
 final readonly class ShowcaseVariant
 {
-    /** A presentation that can be sold: its milliliters and its sale price in whole colones. */
+    /** A presentation that can be sold: its identity, which an order names (#130), its milliliters and its sale price in whole colones. */
     public function __construct(
+        public string $id,
         public int $ml,
         public int $price,
     ) {}

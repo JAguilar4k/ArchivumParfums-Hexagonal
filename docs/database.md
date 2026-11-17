@@ -201,14 +201,14 @@ Todo objeto de la base se usa desde `Infrastructure/Persistence`, detrás de un 
 ## Citas de prueba (#59)
 
 - `appointments`: `id` uuidv7, `business_id`, `service_id`, `customer_id`, `member_id`, `starts_at`, `ends_at`,
-  `blocked_until`, `status`, `hold_expires_at`, `cancelled_at`, `cancel_reason` y marcas de tiempo. Llave Ãºnica
-  `(id, business_id)` y llaves forÃ¡neas compuestas hacia `services`, `customers` y `members`. `CHECK`
+  `blocked_until`, `status`, `hold_expires_at`, `cancelled_at`, `cancel_reason` y marcas de tiempo. Llave única
+  `(id, business_id)` y llaves foráneas compuestas hacia `services`, `customers` y `members`. `CHECK`
   `appointments_ends_at_check`, `appointments_blocked_until_check`, `appointments_status_check` y
-  `appointments_hold_expires_at_check`. El Ã­ndice GiST de la restricciÃ³n `appointments_member_slot_exclusion` cubre
-  `(business_id, member_id, tstzrange(starts_at, blocked_until))` para las filas `held` y `confirmed`; ademÃ¡s hay
-  Ã­ndices por `(business_id, starts_at)` y `(business_id, customer_id, starts_at)`.
-- `appointment_perfumes`: `id`, `business_id`, `appointment_id`, `perfume_id` y marcas de tiempo, Ãºnica por
+  `appointments_hold_expires_at_check`. El índice GiST de la restricción `appointments_member_slot_exclusion` cubre
+  `(business_id, member_id, tstzrange(starts_at, blocked_until))` para las filas `held` y `confirmed`; además hay
+  índices por `(business_id, starts_at)` y `(business_id, customer_id, starts_at)`.
+- `appointment_perfumes`: `id`, `business_id`, `appointment_id`, `perfume_id` y marcas de tiempo, única por
   `(business_id, appointment_id, perfume_id)`, con llaves compuestas hacia `appointments` (borrado en cascada) y
   `perfumes`.
-- Ambas tablas tienen `ENABLE` y `FORCE ROW LEVEL SECURITY` con la polÃ­tica `<tabla>_business_isolation` de #32.
-  `btree_gist` se crea con `IF NOT EXISTS` y ninguna reversiÃ³n la borra, como en #52.
+- Ambas tablas tienen `ENABLE` y `FORCE ROW LEVEL SECURITY` con la política `<tabla>_business_isolation` de #32.
+  `btree_gist` se crea con `IF NOT EXISTS` y ninguna reversión la borra, como en #52.
