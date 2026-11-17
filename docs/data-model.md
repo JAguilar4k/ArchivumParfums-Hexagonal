@@ -865,11 +865,11 @@ Un pull request que agrega una migración con una tabla:
 ## Citas de prueba (#59)
 
 `appointments` guarda cada cita de una tienda con su servicio, su cliente y la persona que atiende, el inicio, el fin y
-`blocked_until` (el fin mÃ¡s el margen del servicio). El estado es uno de `held`, `confirmed`, `cancelled`, `completed`,
+`blocked_until` (el fin más el margen del servicio). El estado es uno de `held`, `confirmed`, `cancelled`, `completed`,
 `no_show` o `expired`, y una cita `held` exige `hold_expires_at`; `cancelled_at` y `cancel_reason` llegan con #66.
 `appointment_perfumes` guarda los perfumes que se van a probar, uno por perfume y cita, con el `business_id` de la cita.
 
-La restricciÃ³n `appointments_member_slot_exclusion` impide que una persona tenga dos citas activas (`held` o `confirmed`)
+La restricción `appointments_member_slot_exclusion` impide que una persona tenga dos citas activas (`held` o `confirmed`)
 cuyos rangos `[starts_at, blocked_until)` se crucen. Al ser un rango semiabierto, una cita puede empezar justo cuando
-termina el margen de la anterior. `blocked_until` se guarda en lugar de calcularse para que la restricciÃ³n no dependa de
-la duraciÃ³n ni del margen vigentes del servicio.
+termina el margen de la anterior. `blocked_until` se guarda en lugar de calcularse para que la restricción no dependa de
+la duración ni del margen vigentes del servicio.

@@ -11,7 +11,7 @@ use Src\Scheduling\Availability\Application\DTOs\AvailablePerson;
 use Src\Scheduling\Availability\Application\DTOs\AvailableSlot;
 use Src\Scheduling\Availability\Application\DTOs\BusyRange;
 use Src\Scheduling\Availability\Application\DTOs\PersonAvailability;
-use Src\Scheduling\Availability\Domain\FreeSlots;
+use Src\Scheduling\Availability\Domain\Services\FreeSlots;
 use Src\Scheduling\Availability\Domain\ValueObjects\FreeSlot;
 use Src\Scheduling\Availability\Domain\ValueObjects\MinuteRange;
 use Src\Scheduling\Availability\Domain\ValueObjects\PersonDay;

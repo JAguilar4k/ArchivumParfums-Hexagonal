@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Src\Scheduling\Appointments\Infrastructure\Persistence\Repositories;
 
 use DateTimeImmutable;
+use DateTimeZone;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\QueryException;
@@ -85,15 +86,25 @@ final readonly class EloquentAppointmentRepository implements AppointmentReposit
                 'service_id' => $appointment->serviceId->value,
                 'customer_id' => $appointment->customerId->value,
                 'member_id' => $appointment->memberId->value,
-                'starts_at' => $appointment->startsAt(),
-                'ends_at' => $appointment->endsAt(),
-                'blocked_until' => $appointment->blockedUntil(),
+                'starts_at' => $this->stored($appointment->startsAt()),
+                'ends_at' => $this->stored($appointment->endsAt()),
+                'blocked_until' => $this->stored($appointment->blockedUntil()),
                 'status' => $appointment->status()->value,
-                'hold_expires_at' => $appointment->holdExpiresAt(),
-                'cancelled_at' => $appointment->cancelledAt(),
+                'hold_expires_at' => $this->stored($appointment->holdExpiresAt()),
+                'cancelled_at' => $this->stored($appointment->cancelledAt()),
                 'cancel_reason' => $appointment->cancelReason(),
             ],
         );
+    }
+
+    /**
+     * The instant in the time zone of the connection. Eloquent writes a date as its wall time without the offset and
+     * PostgreSQL reads that wall time in the zone of the connection, so an instant with another offset, such as the one
+     * the customer sent, would be stored hours away from itself.
+     */
+    private function stored(?DateTimeImmutable $instant): ?DateTimeImmutable
+    {
+        return $instant?->setTimezone(new DateTimeZone((string) config('database.connections.pgsql.timezone', 'UTC')));
     }
 
     /** Keep one row per perfume of the appointment and drop the ones it no longer tries. */
