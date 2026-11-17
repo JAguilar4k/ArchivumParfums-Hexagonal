@@ -86,8 +86,11 @@ describe('"Crear cuenta"', () => {
       expect(wrapper.get(`#${field}`).attributes('aria-describedby')).toBe(`pista-${field}`)
       expect(hint.text()).not.toBe('')
     }
-    // The hint repeats the rule of the API: Password::defaults() asks for 8 characters.
-    expect(wrapper.get('#pista-contrasena').text()).toContain('Al menos 8 caracteres')
+    // The password policy is the API's (#194): the hint gives advice and says where the 422 tells what is missing.
+    const passwordHint = wrapper.get('#pista-contrasena').text()
+    expect(passwordHint).toContain('Una frase de varias palabras')
+    expect(passwordHint).toContain('se indica aquí qué le falta')
+    expect(passwordHint).not.toMatch(/\d/)
   })
 
   it('shows the password to check it, and hides it again', async () => {
