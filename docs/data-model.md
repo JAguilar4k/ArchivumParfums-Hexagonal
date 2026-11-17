@@ -873,3 +873,9 @@ La restricción `appointments_member_slot_exclusion` impide que una persona teng
 cuyos rangos `[starts_at, blocked_until)` se crucen. Al ser un rango semiabierto, una cita puede empezar justo cuando
 termina el margen de la anterior. `blocked_until` se guarda en lugar de calcularse para que la restricción no dependa de
 la duración ni del margen vigentes del servicio.
+
+Las dos tablas tienen su política `<tabla>_business_isolation`, habilitada y forzada. Desde #64, `appointments_definer_read`
+da solo lectura al dueño del esquema, igual que `orders_definer_read`, para que la rama `appointment` de
+`fn_customer_resource_business` resuelva la tienda de una cita cuando su cliente autenticado todavía no tiene contexto
+(`GET /api/v1/cuenta/citas/{cita}`): la función une la cita con su ficha de `customers` por `customer_id` y
+`business_id`, y responde la tienda solo si esa ficha es del usuario de la sesión; si no, responde `NULL` y la API, 404.
