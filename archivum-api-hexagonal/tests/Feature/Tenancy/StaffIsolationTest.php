@@ -6,6 +6,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
+use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Src\Decants\Bottles\Infrastructure\Persistence\Models\DecantBottleModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackModel;
 use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackPlanModel;
@@ -75,6 +76,8 @@ function panelResourcesById(): array
         'show a service' => ['GET', '/api/v1/panel/servicios', [], 'services', exampleService(...)],
         'edit a service' => ['PATCH', '/api/v1/panel/servicios', ['nombre' => 'Nombre nuevo', 'activo' => false], 'services', exampleService(...)],
         'edit an offer of decant packs' => ['PATCH', '/api/v1/panel/paquetes', ['precio' => 1, 'activo' => false], 'decant_pack_plans', examplePackPlan(...)],
+        'read the hours of a person' => ['GET', '/api/v1/panel/personal/{id}/horario', [], 'members', exampleStaffMember(...)],
+        'replace the hours of a person' => ['PUT', '/api/v1/panel/personal/{id}/horario', ['tramos' => [['dia_semana' => 1, 'inicio' => '09:00', 'fin' => '10:00']]], 'members', exampleStaffMember(...)],
         'edit a block of the agenda' => ['PATCH', '/api/v1/panel/bloqueos', ['motivo' => 'Inventario'], 'schedule_blocks', exampleBlock(...)],
         'delete a block of the agenda' => ['DELETE', '/api/v1/panel/bloqueos', [], 'schedule_blocks', exampleBlock(...)],
     ];
@@ -181,6 +184,12 @@ function exampleOpeningHours(string $businessId): string
     $weekday = DB::table('business_hours')->where('business_id', $businessId)->count() + 1;
 
     return BusinessHoursModel::factory()->create(['business_id' => $businessId, 'weekday' => $weekday])->id;
+}
+
+/** Create a person of the staff who attends appointments in a business with its factory and return the identifier. */
+function exampleStaffMember(string $businessId): string
+{
+    return MemberModel::factory()->staff()->create(['business_id' => $businessId, 'attends_appointments' => true])->id;
 }
 
 /** Create a block of the whole business with its factory and return its identifier. */

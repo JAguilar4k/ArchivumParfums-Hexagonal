@@ -7135,6 +7135,192 @@
                     }
                 ]
             }
+        },
+        "/panel/personal/{persona}/horario": {
+            "get": {
+                "operationId": "scheduling.staff_schedules.show",
+                "summary": "Show the working hours of one person of the staff of the session business",
+                "tags": [
+                    "StaffSchedule"
+                ],
+                "parameters": [
+                    {
+                        "name": "persona",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`PanelStaffSchedule`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelStaffSchedule"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "scheduling.staff_schedules.replace",
+                "summary": "Replace the whole working hours of one person of the staff of the session business, in one transaction",
+                "tags": [
+                    "StaffSchedule"
+                ],
+                "parameters": [
+                    {
+                        "name": "persona",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ReplaceStaffSchedule"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`PanelStaffSchedule`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PanelStaffSchedule"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Recurso no encontrado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
         }
     },
     "components": {
@@ -8186,6 +8372,37 @@
                 ],
                 "title": "PanelSoldPack"
             },
+            "PanelStaffSchedule": {
+                "type": "object",
+                "properties": {
+                    "tramos": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "dia_semana": {
+                                    "type": "string"
+                                },
+                                "inicio": {
+                                    "type": "string"
+                                },
+                                "fin": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "dia_semana",
+                                "inicio",
+                                "fin"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "tramos"
+                ],
+                "title": "PanelStaffSchedule"
+            },
             "PasswordResetRequestedResource": {
                 "type": "object",
                 "properties": {
@@ -9036,6 +9253,39 @@
                     "tramos"
                 ],
                 "title": "ReplaceBusinessHours"
+            },
+            "ReplaceStaffSchedule": {
+                "type": "object",
+                "properties": {
+                    "tramos": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "dia_semana": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "maximum": 7
+                                },
+                                "inicio": {
+                                    "type": "string"
+                                },
+                                "fin": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "dia_semana",
+                                "inicio",
+                                "fin"
+                            ]
+                        }
+                    }
+                },
+                "required": [
+                    "tramos"
+                ],
+                "title": "ReplaceStaffSchedule"
             },
             "SessionTokenResource": {
                 "type": "object",
