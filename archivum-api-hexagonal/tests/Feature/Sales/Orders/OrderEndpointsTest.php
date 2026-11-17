@@ -45,6 +45,8 @@ it('R23: creates a mixed order with server prices and reserves its decant atomic
     ]);
 
     $response->assertCreated()->assertHeader('Location', route('sales.customer.orders.show', ['pedido' => $response->json('data.id')]))
+        ->assertJsonPath('data.tienda.nombre', $business->business->name)
+        ->assertJsonPath('data.cliente.nombre', $business->customer->name)
         ->assertJsonPath('data.estado', 'pendiente_de_pago')
         ->assertJsonPath('data.subtotal', 15801)
         ->assertJsonPath('data.por_cobrar_ahora', 8301)
