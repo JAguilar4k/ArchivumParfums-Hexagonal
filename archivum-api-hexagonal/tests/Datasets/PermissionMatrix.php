@@ -99,6 +99,11 @@ function permissionMatrixRows(): array
             'listar mis citas' => ['GET', 'api/v1/cuenta/citas', [], customerOnly(200)],
             'ver mi cita' => ['GET', 'api/v1/cuenta/citas/{cita}', [], customerOnly(200)],
         ],
+        'reservar, reprogramar o cancelar citas' => [
+            'reservar una cita' => ['POST', 'api/v1/tiendas/{tienda}/citas', [], customerOnly(422)],
+            'reprogramar mi cita' => ['PATCH', 'api/v1/cuenta/citas/{cita}', [], customerOnly(422)],
+            'reprogramar una cita de la tienda' => ['PATCH', 'api/v1/panel/citas/{cita}', [], ownerOnly(422), fn (): array => ['inicia_en' => '2026-12-01T10:00:00-06:00']],
+        ],
         'pedidos' => [
             'listar los pedidos de la tienda' => ['GET', 'api/v1/panel/pedidos', [], ownerOnly(200)],
             'ver un pedido de la tienda' => ['GET', 'api/v1/panel/pedidos/{pedido}', [], ownerOnly(200)],

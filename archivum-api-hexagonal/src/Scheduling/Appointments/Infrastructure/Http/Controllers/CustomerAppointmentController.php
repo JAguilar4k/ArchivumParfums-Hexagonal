@@ -14,8 +14,10 @@ use Src\Scheduling\Appointments\Application\DTOs\AppointmentView;
 use Src\Scheduling\Appointments\Application\UseCases\BookAppointment;
 use Src\Scheduling\Appointments\Application\UseCases\GetMyAppointment;
 use Src\Scheduling\Appointments\Application\UseCases\ListMyAppointments;
+use Src\Scheduling\Appointments\Application\UseCases\RescheduleAppointment;
 use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentPeriod;
 use Src\Scheduling\Appointments\Infrastructure\Http\Requests\IndexAppointments;
+use Src\Scheduling\Appointments\Infrastructure\Http\Requests\RescheduleAppointmentRequest;
 use Src\Scheduling\Appointments\Infrastructure\Http\Requests\StoreAppointment;
 use Src\Scheduling\Appointments\Infrastructure\Http\Resources\BookedAppointmentResource;
 use Src\Scheduling\Appointments\Infrastructure\Http\Resources\CustomerAppointmentResource;
@@ -78,8 +80,23 @@ final readonly class CustomerAppointmentController
     }
 
     /**
-     * The 422 of a value the booking refused, under the field of the request it comes from; an invalid value of any
-     * other kind keeps its own answer.
+     * Move one appointment of the customer to another free slot. The middleware resolved the store of that appointment
+     * only because it belongs to the session, so one of another customer is not found before the use case runs.
+     *
+     * @throws ValidationException when the new start cannot be booked
+     */
+    public function reschedule(RescheduleAppointmentRequest $request, string $cita, RescheduleAppointment $reschedule): CustomerAppointmentResource
+    {
+        try {
+            return new CustomerAppointmentResource($reschedule->execute($request->toCommand($cita)));
+        } catch (InvalidValueException $exception) {
+            throw $this->invalid($exception);
+        }
+    }
+
+    /**
+     * The 422 of a value the booking or the move refused, under the field of the request it comes from; an invalid
+     * value of any other kind keeps its own answer.
      */
     private function invalid(InvalidValueException $exception): ValidationException
     {

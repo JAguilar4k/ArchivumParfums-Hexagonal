@@ -38,9 +38,10 @@ interface AvailabilityReader
     /**
      * The people who attend appointments and may work that day, each one with their tramos, their blocks and their
      * active appointments. When a member is given, only that person; an empty list means the person is unknown, does
-     * not attend appointments or belongs to another store.
+     * not attend appointments or belongs to another store. The appointment being moved is left out of the occupied
+     * range, so rescheduling it does not compete with itself (#65).
      *
      * @return list<PersonAvailability>
      */
-    public function people(Weekday $weekday, DateTimeImmutable $dayStart, DateTimeImmutable $dayEnd, ?MemberId $only): array;
+    public function people(Weekday $weekday, DateTimeImmutable $dayStart, DateTimeImmutable $dayEnd, ?MemberId $only, ?string $exceptAppointment = null): array;
 }

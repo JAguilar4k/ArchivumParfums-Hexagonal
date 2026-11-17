@@ -27,7 +27,7 @@ final readonly class PostgresCustomerAppointments implements CustomerAppointment
     /** @return list<AppointmentView> */
     public function of(string $userId, AppointmentPeriod $period): array
     {
-        $query = $this->query($userId);
+        $query = $this->query()->where('customers.user_id', $userId);
         $now = $this->instant(new DateTimeImmutable('now'));
 
         if ($period === AppointmentPeriod::Upcoming) {
@@ -45,13 +45,20 @@ final readonly class PostgresCustomerAppointments implements CustomerAppointment
 
     public function find(string $id, string $userId): ?AppointmentView
     {
-        $rows = array_values($this->query($userId)->where('appointments.id', $id)->get()->all());
+        $rows = array_values($this->query()->where('customers.user_id', $userId)->where('appointments.id', $id)->get()->all());
+
+        return $rows === [] ? null : $this->views($rows)[0];
+    }
+
+    public function viewOf(string $id): ?AppointmentView
+    {
+        $rows = array_values($this->query()->where('appointments.id', $id)->get()->all());
 
         return $rows === [] ? null : $this->views($rows)[0];
     }
 
     /** @return Builder<AppointmentModel> */
-    private function query(string $userId): Builder
+    private function query(): Builder
     {
         $businessId = $this->business->current()->value;
 
@@ -66,7 +73,6 @@ final readonly class PostgresCustomerAppointments implements CustomerAppointment
             ->whereColumn('services.business_id', 'appointments.business_id')
             ->whereColumn('members.business_id', 'appointments.business_id')
             ->where('appointments.business_id', $businessId)
-            ->where('customers.user_id', $userId)
             ->select([
                 'appointments.*',
                 'businesses.name as business_name',

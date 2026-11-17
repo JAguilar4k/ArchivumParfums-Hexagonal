@@ -23,4 +23,10 @@ interface CustomerAppointments
 
     /** One appointment of that account in the store; one of another customer is null. */
     public function find(string $id, string $userId): ?AppointmentView;
+
+    /**
+     * One appointment of the store of the context by its identity, whoever its customer is: the panel reads its own
+     * appointments this way, and the row-level policy keeps the rows of another store out.
+     */
+    public function viewOf(string $id): ?AppointmentView;
 }

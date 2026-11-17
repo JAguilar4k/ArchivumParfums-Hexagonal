@@ -81,7 +81,7 @@ final readonly class EloquentAvailabilityReader implements AvailabilityReader
     }
 
     /** @return list<PersonAvailability> */
-    public function people(Weekday $weekday, DateTimeImmutable $dayStart, DateTimeImmutable $dayEnd, ?MemberId $only): array
+    public function people(Weekday $weekday, DateTimeImmutable $dayStart, DateTimeImmutable $dayEnd, ?MemberId $only, ?string $exceptAppointment = null): array
     {
         $onlyId = $only?->value;
 
@@ -109,7 +109,7 @@ final readonly class EloquentAvailabilityReader implements AvailabilityReader
             ->groupBy('member_id');
 
         $blocks = $this->blocks($dayStart, $dayEnd, $memberIds);
-        $appointments = $this->appointments($dayStart, $dayEnd, $memberIds);
+        $appointments = $this->appointments($dayStart, $dayEnd, $memberIds, $exceptAppointment);
 
         $people = [];
 
@@ -164,12 +164,13 @@ final readonly class EloquentAvailabilityReader implements AvailabilityReader
     }
 
     /**
-     * The appointments that still keep the slot of one of those people, as the exclusion constraint reads them.
+     * The appointments that still keep the slot of one of those people, as the exclusion constraint reads them; the
+     * appointment being moved is left out.
      *
      * @param  list<string>  $memberIds
      * @return Collection<array-key, AppointmentModel>
      */
-    private function appointments(DateTimeImmutable $dayStart, DateTimeImmutable $dayEnd, array $memberIds): Collection
+    private function appointments(DateTimeImmutable $dayStart, DateTimeImmutable $dayEnd, array $memberIds, ?string $exceptAppointment = null): Collection
     {
         return AppointmentModel::query()
             ->where('business_id', $this->context->current()->value)
@@ -177,6 +178,7 @@ final readonly class EloquentAvailabilityReader implements AvailabilityReader
             ->whereIn('status', self::OCCUPYING_STATUSES)
             ->where('starts_at', '<', $this->instant($dayEnd))
             ->where('blocked_until', '>', $this->instant($dayStart))
+            ->when($exceptAppointment !== null, fn ($query) => $query->where('appointments.id', '!=', $exceptAppointment))
             ->get();
     }
 

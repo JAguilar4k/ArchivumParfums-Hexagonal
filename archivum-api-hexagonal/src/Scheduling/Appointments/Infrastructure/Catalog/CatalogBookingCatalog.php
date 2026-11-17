@@ -34,6 +34,7 @@ final readonly class CatalogBookingCatalog implements BookingCatalog
             $store?->timezone->value ?? (string) config('app.timezone'),
             $store?->settings->minimumNoticeHours ?? BusinessSettings::DEFAULT_MINIMUM_NOTICE_HOURS,
             $store?->settings->bookingHorizonDays ?? BusinessSettings::DEFAULT_BOOKING_HORIZON_DAYS,
+            $store?->settings->appointmentChangeCutoffHours ?? BusinessSettings::DEFAULT_APPOINTMENT_CHANGE_CUTOFF_HOURS,
         );
     }
 
