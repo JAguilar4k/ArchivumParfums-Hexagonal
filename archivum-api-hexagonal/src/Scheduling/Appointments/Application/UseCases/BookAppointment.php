@@ -6,23 +6,23 @@ namespace Src\Scheduling\Appointments\Application\UseCases;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use Exception;
 use Src\Scheduling\Appointments\Application\Contracts\AppointmentCustomers;
 use Src\Scheduling\Appointments\Application\Contracts\BookingAgenda;
 use Src\Scheduling\Appointments\Application\Contracts\BookingCatalog;
 use Src\Scheduling\Appointments\Application\DTOs\BookAppointmentCommand;
 use Src\Scheduling\Appointments\Application\DTOs\BookedAppointment;
-use Src\Scheduling\Appointments\Application\DTOs\BookingTerms;
 use Src\Scheduling\Appointments\Application\DTOs\PersonOption;
 use Src\Scheduling\Appointments\Domain\Contracts\AppointmentRepository;
 use Src\Scheduling\Appointments\Domain\Entities\Appointment;
 use Src\Scheduling\Appointments\Domain\Exceptions\AppointmentSlotTakenException;
+use Src\Scheduling\Appointments\Domain\ValueObjects\BookingWindow;
 use Src\Scheduling\Appointments\Domain\ValueObjects\PerfumeId;
 use Src\Scheduling\Appointments\Domain\ValueObjects\ServiceId;
 use Src\Scheduling\Availability\Application\DTOs\AvailablePerson;
 use Src\Scheduling\Availability\Application\DTOs\AvailableSlot;
 use Src\Scheduling\Availability\Application\UseCases\GetAvailability;
 use Src\Shared\Domain\Contracts\BusinessContext;
+use Src\Shared\Domain\Contracts\TransactionRunner;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Domain\ValueObjects\MemberId;
 
@@ -41,10 +41,13 @@ final readonly class BookAppointment
         private AppointmentCustomers $customers,
         private GetAvailability $availability,
         private BusinessContext $business,
+        private TransactionRunner $transaction,
     ) {}
 
     /**
-     * Book the appointment and answer it as the API shows it.
+     * Book the appointment and answer it as the API shows it. The customer record the account gets in the store and the
+     * appointment are written in one transaction, so a booking that loses its slot as it is saved leaves no customer
+     * behind.
      *
      * @throws InvalidValueException when a field of the request is not bookable
      * @throws AppointmentSlotTakenException when the slot is no longer free
@@ -53,10 +56,11 @@ final readonly class BookAppointment
     {
         $terms = $this->catalog->terms();
         $zone = new DateTimeZone($terms->timezone);
-        $startsAt = $this->startsAt($command->startsAt);
-        $day = $startsAt->setTimezone($zone)->setTime(0, 0);
+        $window = BookingWindow::of(new DateTimeImmutable('now', $zone), $terms->minimumNoticeHours, $terms->bookingHorizonDays, $zone);
+        $startsAt = BookingWindow::startFrom($command->startsAt);
+        $day = $window->dayOf($startsAt);
 
-        $this->assertInsideWindow($startsAt, $day, $terms, $zone);
+        $window->assertAllows($startsAt);
 
         $serviceId = $this->serviceId($command->serviceId);
         $service = $this->catalog->service($serviceId);
@@ -77,20 +81,24 @@ final readonly class BookAppointment
         $slot = $this->slot($service->id, $day, $command->memberId, $startsAt);
         $person ??= $this->leastBusy($slot->people, $day);
 
-        $appointment = Appointment::book(
-            $this->appointments->nextId(),
-            $this->business->current(),
-            new ServiceId($service->id),
-            $this->customers->findOrCreate($command->userId),
-            new MemberId($person->id),
-            $this->forStorage($startsAt),
-            $service->durationMinutes,
-            $service->bufferMinutes,
-            array_map(fn (string $id): PerfumeId => new PerfumeId($id), array_keys($perfumes)),
-            $service->maxPerfumes,
-        );
+        $appointment = $this->transaction->run(function () use ($command, $service, $person, $startsAt, $perfumes): Appointment {
+            $appointment = Appointment::book(
+                $this->appointments->nextId(),
+                $this->business->current(),
+                new ServiceId($service->id),
+                $this->customers->findOrCreate($command->userId),
+                new MemberId($person->id),
+                $startsAt,
+                $service->durationMinutes,
+                $service->bufferMinutes,
+                array_map(fn (string $id): PerfumeId => new PerfumeId($id), array_keys($perfumes)),
+                $service->maxPerfumes,
+            );
 
-        $this->appointments->save($appointment);
+            $this->appointments->save($appointment);
+
+            return $appointment;
+        });
 
         return new BookedAppointment(
             $appointment->id->value,
@@ -191,33 +199,6 @@ final readonly class BookAppointment
         }
 
         return $ordered;
-    }
-
-    /** The instant must fall between the notice the store gives and the end of its horizon. */
-    private function assertInsideWindow(DateTimeImmutable $startsAt, DateTimeImmutable $day, BookingTerms $terms, DateTimeZone $zone): void
-    {
-        $now = new DateTimeImmutable('now', $zone);
-        $lastDay = $now->setTime(0, 0)->modify("+{$terms->bookingHorizonDays} days");
-
-        if ($startsAt < $now->modify("+{$terms->minimumNoticeHours} hours") || $day > $lastDay) {
-            throw new InvalidValueException('scheduling.booking.outside_window');
-        }
-    }
-
-    /** @throws InvalidValueException when the text is not an ISO 8601 instant with its offset */
-    private function startsAt(string $startsAt): DateTimeImmutable
-    {
-        try {
-            return new DateTimeImmutable($startsAt);
-        } catch (Exception) {
-            throw new InvalidValueException('scheduling.booking.invalid_start');
-        }
-    }
-
-    /** The instant as the connection stores it, so the slot compares the same way the reader of #61 reads it. */
-    private function forStorage(DateTimeImmutable $instant): DateTimeImmutable
-    {
-        return $instant->setTimezone(new DateTimeZone((string) config('database.connections.pgsql.timezone', 'UTC')));
     }
 
     /** @throws InvalidValueException */
