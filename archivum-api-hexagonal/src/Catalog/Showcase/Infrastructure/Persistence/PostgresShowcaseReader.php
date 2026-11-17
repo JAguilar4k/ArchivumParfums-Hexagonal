@@ -212,7 +212,7 @@ final readonly class PostgresShowcaseReader implements ShowcaseReader
             null,
             ['time_of_day' => $timeOfDay, 'climate' => $climate, 'occasion' => $occasion],
             array_values($model->sellableVariants->map(
-                fn (ShowcaseVariantModel $variant): ShowcaseVariant => new ShowcaseVariant($variant->size_ml, (int) $variant->sale_price),
+                fn (ShowcaseVariantModel $variant): ShowcaseVariant => new ShowcaseVariant($variant->id, $variant->size_ml, (int) $variant->sale_price),
             )->all()),
         );
     }
