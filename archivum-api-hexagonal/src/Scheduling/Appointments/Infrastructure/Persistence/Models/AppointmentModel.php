@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace Src\Scheduling\Appointments\Infrastructure\Persistence\Models;
 
+use Database\Factories\AppointmentModelFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Table;
+use Illuminate\Database\Eloquent\Attributes\UseFactory;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
 /**
@@ -40,8 +45,12 @@ use Illuminate\Support\Carbon;
     'cancelled_at',
     'cancel_reason',
 ])]
+#[UseFactory(AppointmentModelFactory::class)]
 final class AppointmentModel extends Model
 {
+    /** @use HasFactory<AppointmentModelFactory> */
+    use HasFactory, HasUuids;
+
     /** Read the instants of the appointment as dates and keep the state as the string of the enum. */
     protected function casts(): array
     {
@@ -52,5 +61,15 @@ final class AppointmentModel extends Model
             'hold_expires_at' => 'immutable_datetime',
             'cancelled_at' => 'immutable_datetime',
         ];
+    }
+
+    /**
+     * The perfumes the appointment tries, as the repository loads them with the aggregate.
+     *
+     * @return HasMany<AppointmentPerfumeModel, $this>
+     */
+    public function perfumes(): HasMany
+    {
+        return $this->hasMany(AppointmentPerfumeModel::class, 'appointment_id');
     }
 }
