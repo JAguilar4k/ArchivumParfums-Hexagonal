@@ -44,7 +44,9 @@ describe('help and glossary', () => {
 
     expect(wrapper.get('#ayuda-cuenta').text()).toBe('Su cuenta')
     expect(section.get('a').attributes('href')).toBe('/crear-cuenta')
-    expect(section.text()).toContain('al menos 8 caracteres')
+    // The password policy is the API's (#194): the page says where the form tells what is missing, never a rule.
+    expect(section.text()).toContain('el formulario indica junto al campo qué le falta')
+    expect(section.text()).not.toContain('caracteres')
   })
 
   it('opens from the footer of a store and goes to the term that a page links', async () => {
