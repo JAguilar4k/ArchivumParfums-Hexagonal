@@ -53,6 +53,7 @@ Vite solo expone al navegador las variables que empiezan con `VITE_`. Todas se d
 |---|---|---|
 | `VITE_API_URL` | `http://localhost:8000/api/v1` | Dirección base de la API, con el prefijo `/api/v1`. |
 | `VITE_DEFAULT_BUSINESS_SLUG` | `archivumparfums` | Tienda que abre la raíz del cliente (`/`); `archivumparfums` es la tienda piloto de los seeders. |
+| `VITE_STORE_WHATSAPP` | `50600000000` | Número de demostración en formato internacional, sin `+`. El enlace a WhatsApp se oculta si la variable está vacía. |
 
 Las variables se leen al compilar: después de cambiar `.env`, se reinicia `npm run dev` o se vuelve a ejecutar `npm run build`.
 
@@ -68,10 +69,11 @@ Las variables se leen al compilar: después de cambiar `.env`, se reinicia `npm 
 | `npm run lint:fix` | Corrige con ESLint lo que se puede corregir solo. |
 | `npm run test` | Ejecuta las pruebas unitarias con Vitest una vez. |
 | `npm run test:watch` | Ejecuta las pruebas cada vez que cambia un archivo. |
+| `npm run test:e2e` | Ejecuta las pruebas de flujos, accesibilidad y tiempos de navegación con Playwright y respuestas simuladas. |
 | `npm run api:types` | Regenera `src/api/schema.ts` desde `../archivum-api-hexagonal/openapi/v1.json`. |
 | `npm run api:check` | Falla si `src/api/schema.ts` no coincide con `openapi/v1.json`. |
 
-Antes de abrir un pull request pasan `npm run lint`, `npm run type-check`, `npm run test`, `npm run build` y `npm run api:check`.
+Antes de abrir un pull request pasan `npm run lint`, `npm run type-check`, `npm run test`, `npm run build`, `npm run api:check` y `npm run test:e2e`. Ejecute `npx playwright install chromium` antes de la primera corrida de Playwright. El servidor de pruebas de Playwright usa respuestas simuladas y arranca sin una API local.
 
 ## Integración continua
 
@@ -142,16 +144,18 @@ Las páginas públicas de una tienda ([#128](https://github.com/JAguilar4k/Archi
 
 | Ruta | Vista | API |
 |---|---|---|
-| `/tiendas/:tienda` | Vitrina, paginada y con filtros | `GET /tiendas/{tienda}/perfumes` |
+| `/tiendas/:tienda` | Inicio, con la colección y accesos a la vitrina, citas y recomendador | `GET /tiendas/{tienda}/perfumes` |
+| `/tiendas/:tienda/vitrina` | Vitrina, paginada y con filtros | `GET /tiendas/{tienda}/perfumes` |
 | `/tiendas/:tienda/perfumes/:perfume` | Detalle: notas por capa, etiquetas, presentaciones y decants | `GET /tiendas/{tienda}/perfumes/{perfume}` |
 | `/tiendas/:tienda/recomendaciones` | Recomendador | `POST /tiendas/{tienda}/recomendaciones` |
 
-Las tres comparten el encabezado de la tienda (`StoreLayout`, con `GET /tiendas/{tienda}`): nombre, logo, lugar de las citas y los enlaces a las páginas de la tienda. El nombre de la tienda no es un encabezado: el `h1` de cada página es su propio nombre, el mismo de la pestaña ("Vitrina", "Pedir una recomendación" o el nombre del perfume). Una tienda que no existe, o un perfume inactivo o de otra tienda, muestra "No encontrado", también en la pestaña.
+Inicio, vitrina, detalle, recomendador, carrito y reserva comparten una ruta padre (`StoreLayout`) y un perfil de tienda (`GET /tiendas/{tienda}`) con el marco de `App.vue`. La cabecera muestra el nombre, logo y lugar de las citas. Fuera de esas rutas usa la tienda predeterminada. Una tienda que no existe o un perfume que la API devuelve como 404 muestra «No encontrado», también en la pestaña.
 
-- **Filtros en la URL.** Texto, familia, nota, momento, clima, ocasión y precio máximo viven en el query (`?nota=vainilla&momento=noche`), así que una búsqueda se puede compartir y el botón de volver la recupera. Una búsqueda nueva empieza en la primera página; un filtro que la API rechaza con 422 se marca en su campo.
+- **Filtros en la URL.** Texto, familia, nota, momento, clima, ocasión y precio máximo viven en el query (`?nota=vainilla&momento=noche`). Los enlaces antiguos con filtros en `/tiendas/:tienda` redirigen a la vitrina con la misma consulta. Cambiar un filtro vuelve a la primera página. Las opciones se aplican al elegirlas y los campos escritos esperan 300 ms. Un 422 se marca junto a su campo en el panel «Filtrar».
 - **Precios.** Se muestran tal como los manda la API, en colones enteros con separador de miles (`formatColones` de `src/shared/money.ts`). El navegador no calcula ningún precio.
-- **Vitrina.** Cada filtro lleva una pista con un ejemplo, unida al campo con `aria-describedby`. Una línea con `role="status"` anuncia cuántos perfumes se encontraron, y después de cambiar de página el foco pasa al título de la lista ("Perfumes"), porque el enlace usado puede desaparecer. Los enlaces de las páginas dicen "Página anterior" y "Página siguiente".
-- **Detalle.** Una ruta de enlaces (`nav` "Ubicación": Vitrina › perfume) dice dónde está la página. La concentración nunca va abreviada sola ("Eau de Parfum (EDP)") y cada cantidad marca "ml" como abreviatura de mililitros (`MlAmount`).
+- **Vitrina.** La región de estado anuncia el rango visible y el total. La paginación mantiene los filtros y puede mostrar 12, 24 o 48 perfumes por página. Mientras se carga una consulta sin caché, la lista anterior conserva su lugar y la región de resultados indica que está ocupada.
+- **Detalle.** La ruta de enlaces indica la ubicación dentro de la tienda. Cada tamaño se expresa con `MlAmount` y `concentrationLabel` desarrolla las abreviaturas de concentración. Al elegir una presentación y agregarla, el carrito lateral abre con el anuncio y devuelve el foco al control de origen cuando se cierra.
+- **Caché pública.** El perfil, la lista y el detalle de perfumes, los servicios y los paquetes pueden reutilizar respuestas en memoria por URL completa. Una vista muestra enseguida los datos guardados y confirma su vigencia en segundo plano. Las respuestas de pedidos y citas personales se consultan en cada vista. Las tarjetas y los enlaces de paginación cargan por adelantado al recibir el puntero o el foco.
 - **Recomendador.** Junto al campo de texto da un ejemplo y avisa que lo escrito se envía a un proveedor externo de inteligencia artificial y que no conviene incluir datos personales; la API igual reemplaza correos y teléfonos antes de enviarlo (R51). Un texto vacío no se envía: el campo se marca y toma el foco. Mientras espera la respuesta, que puede tardar hasta 10 segundos, el botón queda ocupado (`aria-disabled`) y una línea con `role="status"` anuncia la espera y después cuántos perfumes recomienda. Cada perfume muestra su razón como texto (nunca como HTML), sus precios y un enlace al detalle, con "Recomendado con inteligencia artificial" o "Recomendado con las reglas de la tienda" según `origen`. Un 429 dice en cuánto tiempo volver a intentar.
 - **Ayuda y glosario** (`/ayuda`, en `src/features/help`). Explica cómo buscar, cómo pedir una recomendación, cómo funcionan los pedidos y los pagos (#130) y las citas de prueba con sus estados (#129), y define las palabras de perfumería y de los pedidos: bajo pedido, concentración, decant, familia olfativa, notas, pasarela de pago, por cobrar ahora, presentación, prueba de olores, saldo, ml, ₡ e inteligencia artificial. Cada término tiene un id, así que una página puede enlazarlo (`/ayuda#notas`) y el foco llega a ese término. El pie de todas las páginas enlaza la ayuda.
 
@@ -236,7 +240,7 @@ El cliente apunta a WCAG 2.2 en el nivel AAA ([#126](https://github.com/JAguilar
 
 - **Estilos** (`src/styles/base.css`): texto con contraste de al menos 7:1 y bordes de los controles con 3:1; interlineado de 1.5, párrafos de hasta 70 caracteres y texto alineado a la izquierda; botones, campos y enlaces sueltos de al menos 44 × 44 px; anillo de foco de 3 px; sin animaciones cuando el sistema pide menos movimiento, y los colores del sistema en el modo de contraste alto. Las medidas van en `rem`, así que la página crece con el texto hasta el 200 % y se reacomoda desde 320 px de ancho.
 - **Marco de la página** (`App.vue`): el enlace "Saltar al contenido", la cabecera con la sesión y un solo `main` (`#contenido`). Las vistas no declaran otro `main`.
-- **Título y foco al navegar** (`src/shared/pageChanges.ts`): cada ruta declara `meta.title`. Al cambiar de página, la pestaña toma ese título ("Iniciar sesión · ArchivumParfums"), el foco pasa al contenido principal y un anunciador con `role="status"` lee el nombre de la página. Un cambio solo de la consulta (una búsqueda o una página de resultados) deja el foco donde estaba. `usePageTitle()` precisa el título cuando llegan los datos, como el nombre de un perfume.
+- **Título y foco al navegar** (`src/shared/pageChanges.ts`). Cada ruta declara `meta.title`. Al navegar, la pestaña muestra ese título junto con la tienda, el foco pasa al `h1` y un anunciador con `role="status"` lee el nombre de la página. Los cambios de consulta dejan el foco a cargo de la vista. `usePageTitle()` precisa el título cuando llegan los datos, como el nombre de un perfume.
 - **Botones que esperan una respuesta**: llevan `aria-disabled="true"` en lugar de `disabled`, para que el foco no se pierda, y la función ignora el segundo clic.
 - **Avisos**: los errores usan `role="alert"`; los demás mensajes, una región `.status-message` o `.results-summary` con `role="status"` que existe desde el principio, para que el lector de pantalla la lea al cambiar.
 - **Ayuda en los campos** ([#128](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/128)): una pista con `field-hint` y un id, que `fieldAttributes(problem, campo, 'pista-campo')` une al control junto con su error. En un grupo de opciones (`fieldset`), `groupAttributes(problem, campo, 'pista-campo')` une la pista y el error al grupo, sin `aria-invalid`, que un `fieldset` no admite (#129).
