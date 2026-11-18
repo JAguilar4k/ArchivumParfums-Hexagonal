@@ -1,0 +1,151 @@
+import { expect, test } from '@playwright/test'
+import { customer, demoOrder, featuredPerfume, ordersPath, owner, perfumePath, storePath } from './demo'
+import { mockApi } from './mockApi'
+import { signIn } from './signIn'
+
+test('keeps bottle quantities and decants in the drawer across reloads and isolates stores', async ({ page }) => {
+  await mockApi(page)
+  await page.goto(perfumePath())
+  await expect(page).toHaveTitle(/^Oud Nocturno/)
+  await expect(page.getByRole('main').getByText('Bergamota')).toBeVisible()
+  await page.getByText('Cuándo usarlo', { exact: true }).click()
+  await expect(page.getByRole('main').getByText('Cena', { exact: true })).toBeVisible()
+
+  await page.getByRole('radio', { name: /^Botella de 100/ }).check()
+  await page.getByRole('button', { name: 'Aumentar la cantidad', exact: true }).click()
+  const add = page.getByRole('button', { name: /^Agregar al carrito (la botella|el decant)/ })
+  await add.click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('heading', { name: 'Su carrito (2)' })).toBeVisible()
+  await expect(dialog.getByRole('status')).toContainText('Se agregó Oud Nocturno')
+  await expect(dialog.locator(':focus')).toBeAttached()
+  await dialog.getByRole('button', { name: /^Aumentar cantidad/ }).click()
+  await expect(dialog.getByRole('heading', { name: 'Su carrito (3)' })).toBeVisible()
+  await dialog.getByRole('button', { name: /^Reducir cantidad/ }).click()
+  await expect(dialog.getByRole('heading', { name: 'Su carrito (2)' })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toHaveCount(0)
+  await expect(add).toBeFocused()
+
+  await page.getByRole('radio', { name: /^Decant de 5/ }).check()
+  await add.click()
+  await expect(dialog).toContainText('Subtotal')
+  await expect(dialog).toContainText(/₡499\s*500/)
+  await expect(dialog.getByRole('heading', { name: 'Su carrito (3)' })).toBeVisible()
+  await page.reload()
+  await page.getByRole('button', { name: 'Carrito, 3 productos' }).click()
+  await dialog.getByRole('button', { name: /Quitar .*Oud Nocturno, decant/ }).click()
+  await expect(dialog.getByRole('status')).toContainText('Se quitó')
+  await expect(dialog.getByRole('heading', { name: 'Su carrito (2)' })).toBeFocused()
+  await dialog.getByRole('link', { name: 'Hacer el pedido' }).click()
+  await expect(page).toHaveURL(`${storePath}/carrito`)
+  await expect(page.getByLabel('Cantidad de botellas')).toHaveValue('2')
+
+  await page.goto('/tiendas/esencias-del-norte/vitrina')
+  await expect(page.getByRole('button', { name: 'Carrito, 0 productos' })).toBeVisible()
+})
+
+for (const gateway of ['onvo', 'paypal'] as const) {
+  test(`creates, pays through ${gateway}, and cancels an order with API state`, async ({ page }) => {
+    const api = await mockApi(page, { gateway, soldOutOnFirstCheckout: true })
+    await page.goto(perfumePath())
+
+    const add = page.getByRole('button', { name: /^Agregar al carrito (la botella|el decant)/ })
+    await add.click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('button', { name: 'Seguir viendo' }).click()
+    await page.getByRole('radio', { name: /^Decant de 5/ }).check()
+    await add.click()
+    await dialog.getByRole('link', { name: 'Hacer el pedido' }).click()
+    await page.getByRole('link', { name: 'Inicie sesión para crear el pedido' }).click()
+    await expect(page).toHaveURL(/\/iniciar-sesion\?redirect=/)
+    await signIn(page)
+
+    const create = page.getByRole('button', { name: 'Crear pedido' })
+    await create.click()
+    await expect(page.getByRole('alert')).toContainText('Ya no quedan mililitros disponibles.')
+    const soldOut = page.getByRole('listitem').filter({ hasText: /decant de 5/i }).filter({ has: page.getByRole('button', { name: /^Quitar/ }) })
+    await expect(soldOut).toContainText('Ya no quedan ml suficientes')
+    await soldOut.getByRole('button', { name: /^Quitar/ }).click()
+
+    const created = page.waitForRequest((request) => request.method() === 'POST' && new URL(request.url()).pathname === `/api/v1${storePath}/pedidos`)
+    await create.click()
+    expect((await created).postDataJSON()).toEqual({ lineas: [{ presentacion_id: featuredPerfume.presentaciones[0]?.id, cantidad: 1 }] })
+    await expect(page).toHaveURL(`${ordersPath}/${demoOrder.id}`)
+    await expect(page.getByText('Pendiente de pago', { exact: true })).toBeVisible()
+
+    await page.getByRole('button', { name: /^Pagar/ }).click()
+    if (gateway === 'paypal') {
+      await expect(page.getByText(/se le cobrarán USD/)).toBeVisible()
+      await page.getByRole('button', { name: /Continuar al pago/ }).click()
+    }
+    await expect(page).toHaveURL('/pagos/procesando?estado=exito')
+    await expect(page.getByRole('status').filter({ hasText: 'Procesando su pago…' })).toBeVisible()
+    api.confirmPayment()
+    await expect(page.getByRole('status').filter({ hasText: 'Pago confirmado.' })).toBeVisible({ timeout: 6_000 })
+    await page.getByRole('link', { name: 'Ver mis pedidos' }).click()
+    await expect(page).toHaveURL(ordersPath)
+    await expect(page.getByText('Confirmado', { exact: true })).toBeVisible()
+
+    await page.getByRole('link', { name: /^Pedido del / }).click()
+    await page.getByRole('button', { name: 'Cancelar el pedido' }).click()
+    await expect(page.getByRole('button', { name: 'No, mantener el pedido' })).toBeFocused()
+    await page.getByRole('button', { name: 'Sí, cancelar el pedido' }).click()
+    await expect(page.getByText('Cancelado', { exact: true })).toBeVisible()
+  })
+}
+
+test('reports an API-declined payment while the order still awaits payment', async ({ page }) => {
+  const api = await mockApi(page)
+  const order = `${ordersPath}/${demoOrder.id}`
+  await page.goto(order)
+  await signIn(page)
+  await expect(page).toHaveURL(order)
+  await page.getByRole('button', { name: /^Pagar/ }).click()
+  await expect(page).toHaveURL('/pagos/procesando?estado=exito')
+
+  const status = page.getByRole('main').getByRole('status')
+  await expect(status).toHaveText('Procesando su pago…')
+  api.rejectPayment()
+  await expect(status).toHaveText('El pago fue rechazado. Consulte el pedido para volver a intentarlo.', { timeout: 6_000 })
+
+  await page.getByRole('link', { name: 'Ver mis pedidos' }).click()
+  await expect(page.getByText('Pendiente de pago', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Pagar/ })).toBeVisible()
+})
+
+test('registers after accepting privacy and keeps session and role guards functional', async ({ page }) => {
+  const api = await mockApi(page)
+  await page.goto(ordersPath)
+  await expect(page).toHaveURL(/\/iniciar-sesion\?redirect=/)
+  await page.goto('/crear-cuenta')
+
+  const form = page.getByRole('main').locator('form').filter({ has: page.locator('input[name="acepta_privacidad"]') })
+  await form.getByLabel('Nombre', { exact: true }).fill(customer.nombre)
+  await form.getByLabel('Correo', { exact: true }).fill(customer.correo)
+  await form.getByLabel('Contraseña', { exact: true }).fill('En este ejemplo usamos una contraseña ficticia')
+  const consent = form.locator('input[name="acepta_privacidad"]')
+  const submit = form.getByRole('button', { name: /^Crear (una )?cuenta$/ })
+  await submit.click()
+  await expect(consent).toBeFocused()
+  expect(api.requests.filter((request) => new URL(request.url()).pathname === '/api/v1/cuentas')).toHaveLength(0)
+  await consent.check()
+  await submit.click()
+  await expect(page.getByRole('main').getByRole('heading', { level: 1, name: /^(Vitrina|Inicio)$/ })).toBeVisible()
+  const registration = api.requests.find((request) => new URL(request.url()).pathname === '/api/v1/cuentas')
+  expect(registration?.postDataJSON()).toMatchObject({ acepta_privacidad: true, correo: customer.correo })
+
+  const sessionMenu = page.getByRole('banner').getByRole('navigation', { name: 'Sesión' })
+  const openMenu = sessionMenu.getByRole('button', { name: 'Menú de mi cuenta' })
+  await openMenu.click()
+  await expect(sessionMenu.getByText(customer.nombre, { exact: true })).toBeVisible()
+  await sessionMenu.getByRole('link', { name: 'Mis pedidos' }).click()
+  await expect(page).toHaveURL(ordersPath)
+  await openMenu.click()
+  await sessionMenu.getByRole('button', { name: 'Cerrar sesión' }).click()
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Iniciar sesión' })).toBeVisible()
+
+  await page.goto(ordersPath)
+  await signIn(page, owner.correo)
+  await expect(page.getByRole('heading', { level: 1, name: 'Sin permiso' })).toBeVisible()
+})

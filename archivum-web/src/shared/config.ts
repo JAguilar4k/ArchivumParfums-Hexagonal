@@ -3,7 +3,7 @@
  * declared in .env.example, so no address is written in the code.
  */
 
-type Env = Partial<Pick<ImportMetaEnv, 'VITE_API_URL' | 'VITE_DEFAULT_BUSINESS_SLUG'>>
+type Env = Partial<Pick<ImportMetaEnv, 'VITE_API_URL' | 'VITE_DEFAULT_BUSINESS_SLUG' | 'VITE_STORE_WHATSAPP'>>
 
 /**
  * Base URL of the API, without a trailing slash (for example `http://localhost:8000/api/v1`).
@@ -29,4 +29,8 @@ export function defaultBusinessSlug(env: Env = import.meta.env): string {
   }
 
   return slug
+}
+
+export function storeWhatsApp(env: Env = import.meta.env): string {
+  return env.VITE_STORE_WHATSAPP?.trim() ?? ''
 }

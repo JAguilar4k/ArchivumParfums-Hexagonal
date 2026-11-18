@@ -7,12 +7,13 @@ export const PENDING_PAYMENT_KEY = 'archivum.pago-en-curso'
 
 /**
  * The payment that the customer started (#130): which order, and how much the API said it had paid before. The
- * gateway returns to one fixed address of the configuration of the API, which does not name the order, so the
- * client remembers it in this tab. It only says what to ask the API: the status always comes from the API.
+ * gateway returns to one fixed address of the configuration of the API, which does not name the order or payment.
+ * The stored IDs tell the tab what to ask the API. Older tabs may only have the order ID.
  */
 export interface PendingPayment {
   orderId: string
   paidBefore: number
+  paymentId?: string
 }
 
 export function savePendingPayment(payment: PendingPayment): void {
@@ -32,9 +33,13 @@ export function readPendingPayment(): PendingPayment | null {
       return null
     }
 
-    const { orderId, paidBefore } = stored as Record<string, unknown>
+    const { orderId, paidBefore, paymentId } = stored as Record<string, unknown>
 
-    return typeof orderId === 'string' && typeof paidBefore === 'number' ? { orderId, paidBefore } : null
+    if (typeof orderId !== 'string' || typeof paidBefore !== 'number') {
+      return null
+    }
+
+    return { orderId, paidBefore, ...(typeof paymentId === 'string' && paymentId ? { paymentId } : {}) }
   } catch {
     return null
   }

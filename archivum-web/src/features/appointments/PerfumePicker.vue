@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
 
-import { api } from '@/api/client'
-import { callApi, groupAttributes, type ApiProblem } from '@/api/problem'
+import { groupAttributes, type ApiProblem } from '@/api/problem'
 import type { components } from '@/api/schema'
+import { cachedShowcase, loadShowcase } from '@/features/storefront/publicStore'
 import FieldError from '@/shared/FieldError.vue'
 import ProblemNotice from '@/shared/ProblemNotice.vue'
 import type { Named } from './appointment'
@@ -22,7 +22,6 @@ const SHOWN = 8
 
 const text = ref('')
 const results = shallowRef<ShowcasePerfume[]>([])
-const total = ref(0)
 const searching = ref(false)
 const searchProblem = ref<ApiProblem | null>(null)
 const notice = ref('')
@@ -43,11 +42,14 @@ async function search(): Promise<void> {
   searchProblem.value = null
 
   const texto = text.value.trim()
-  const outcome = await callApi(() =>
-    api.GET('/tiendas/{tienda}/perfumes', {
-      params: { path: { tienda: props.tienda }, query: { ...(texto ? { texto } : {}), por_pagina: SHOWN } },
-    }),
-  )
+  const query = { ...(texto ? { texto } : {}), por_pagina: SHOWN }
+  const cached = cachedShowcase(props.tienda, query)
+
+  if (cached) {
+    showResults(cached.data, cached.meta.total, texto)
+  }
+
+  const outcome = await loadShowcase(props.tienda, query)
 
   searching.value = false
 
@@ -59,9 +61,12 @@ async function search(): Promise<void> {
     return
   }
 
-  results.value = outcome.data.data
-  total.value = outcome.data.meta.total
-  notice.value = resultsSummary(results.value.length, total.value, texto)
+  showResults(outcome.data.data, outcome.data.meta.total, texto)
+}
+
+function showResults(perfumes: ShowcasePerfume[], found: number, texto: string): void {
+  results.value = perfumes
+  notice.value = resultsSummary(perfumes.length, found, texto)
 }
 
 function resultsSummary(shown: number, found: number, texto: string): string {

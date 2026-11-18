@@ -103,101 +103,105 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <div class="page register">
-    <h1>Crear cuenta</h1>
-    <p class="form-intro">
-      Con su cuenta de cliente puede reservar pruebas de olores y hacer pedidos. Todos los datos son obligatorios.
-    </p>
+  <div class="page account-page register">
+    <div class="account-page__header">
+      <h1 id="register-heading">Crear cuenta</h1>
+      <p class="form-intro">
+        Con su cuenta de cliente puede reservar pruebas de olores y hacer pedidos. Todos los datos son obligatorios.
+      </p>
+    </div>
 
     <ProblemNotice v-if="problem" :problem="problem" />
 
-    <form ref="form" class="form" novalidate @submit.prevent="submit">
-      <div class="form-field">
-        <label for="nombre">Nombre</label>
-        <p id="pista-nombre" class="field-hint">El nombre que verá la tienda en sus pedidos y citas.</p>
-        <input
-          id="nombre"
-          v-model="nombre"
-          name="nombre"
-          type="text"
-          autocomplete="name"
-          required
-          v-bind="fieldAttributes(problem, 'nombre', 'pista-nombre')"
-        />
-        <FieldError :problem="problem" field="nombre" />
-      </div>
-
-      <div class="form-field">
-        <label for="correo">Correo</label>
-        <p id="pista-correo" class="field-hint">Con este correo iniciará sesión y recibirá los avisos de la tienda.</p>
-        <input
-          id="correo"
-          v-model="correo"
-          name="correo"
-          type="email"
-          autocomplete="email"
-          required
-          v-bind="fieldAttributes(problem, 'correo', 'pista-correo')"
-        />
-        <FieldError :problem="problem" field="correo" />
-      </div>
-
-      <div class="form-field">
-        <label for="contrasena">Contraseña</label>
-        <p id="pista-contrasena" class="field-hint">
-          Una frase de varias palabras es fácil de recordar y difícil de adivinar. Si la contraseña no es válida,
-          al crear la cuenta se indica aquí qué le falta.
-        </p>
-        <input
-          id="contrasena"
-          v-model="contrasena"
-          name="contrasena"
-          :type="showPassword ? 'text' : 'password'"
-          autocomplete="new-password"
-          autocapitalize="none"
-          :spellcheck="false"
-          required
-          v-bind="fieldAttributes(problem, 'contrasena', 'pista-contrasena')"
-        />
-        <FieldError :problem="problem" field="contrasena" />
-        <label class="checkbox-field">
-          <input id="mostrar_contrasena" v-model="showPassword" type="checkbox" />
-          Mostrar la contraseña
-        </label>
-      </div>
-
-      <PrivacyNotice id="aviso-privacidad" />
-
-      <div class="form-field">
-        <label class="checkbox-field">
+    <div class="account-page__columns">
+      <form ref="form" class="form account-panel" aria-labelledby="register-heading" novalidate @submit.prevent="submit">
+        <div class="form-field">
+          <label for="nombre">Nombre</label>
+          <p id="pista-nombre" class="field-hint">El nombre que verá la tienda en sus pedidos y citas.</p>
           <input
-            id="acepta_privacidad"
-            ref="consent"
-            v-model="aceptaPrivacidad"
-            name="acepta_privacidad"
-            type="checkbox"
+            id="nombre"
+            v-model="nombre"
+            name="nombre"
+            type="text"
+            autocomplete="name"
             required
-            :aria-invalid="consentInvalid ? 'true' : undefined"
-            :aria-describedby="consentDescription"
+            v-bind="fieldAttributes(problem, 'nombre', 'pista-nombre')"
           />
-          Leí y acepto el aviso de privacidad.
-        </label>
-        <p v-if="consentMissing" :id="fieldErrorId('acepta_privacidad')" class="field-error">
-          Debe aceptar el aviso de privacidad para crear la cuenta.
-        </p>
-        <FieldError v-else :problem="problem" field="acepta_privacidad" />
-      </div>
+          <FieldError :problem="problem" field="nombre" />
+        </div>
 
-      <div class="form-actions">
-        <!-- aria-disabled and not disabled: the button keeps the focus while the request is on its way. -->
-        <button type="submit" :aria-disabled="sending ? 'true' : undefined">
-          {{ sending ? 'Creando la cuenta…' : 'Crear cuenta' }}
-        </button>
-      </div>
-    </form>
+        <div class="form-field">
+          <label for="correo">Correo</label>
+          <p id="pista-correo" class="field-hint">Con este correo iniciará sesión y recibirá los avisos de la tienda.</p>
+          <input
+            id="correo"
+            v-model="correo"
+            name="correo"
+            type="email"
+            autocomplete="email"
+            required
+            v-bind="fieldAttributes(problem, 'correo', 'pista-correo')"
+          />
+          <FieldError :problem="problem" field="correo" />
+        </div>
 
-    <p class="register__sign-in">
-      ¿Ya tiene cuenta? <RouterLink :to="signInLink">Iniciar sesión</RouterLink>
-    </p>
+        <div class="form-field">
+          <label for="contrasena">Contraseña</label>
+          <p id="pista-contrasena" class="field-hint">
+            Una frase de varias palabras es fácil de recordar y difícil de adivinar. Si hay un error, se indica aquí qué le falta.
+          </p>
+          <input
+            id="contrasena"
+            v-model="contrasena"
+            name="contrasena"
+            :type="showPassword ? 'text' : 'password'"
+            autocomplete="new-password"
+            autocapitalize="none"
+            :spellcheck="false"
+            required
+            v-bind="fieldAttributes(problem, 'contrasena', 'pista-contrasena')"
+          />
+          <FieldError :problem="problem" field="contrasena" />
+          <label class="checkbox-field">
+            <input id="mostrar_contrasena" v-model="showPassword" type="checkbox" />
+            Mostrar la contraseña
+          </label>
+        </div>
+
+        <PrivacyNotice id="aviso-privacidad" />
+
+        <div class="form-field">
+          <label class="checkbox-field">
+            <input
+              id="acepta_privacidad"
+              ref="consent"
+              v-model="aceptaPrivacidad"
+              name="acepta_privacidad"
+              type="checkbox"
+              required
+              :aria-invalid="consentInvalid ? 'true' : undefined"
+              :aria-describedby="consentDescription"
+            />
+            Leí y acepto el aviso de privacidad.
+          </label>
+          <p v-if="consentMissing" :id="fieldErrorId('acepta_privacidad')" class="field-error">
+            Debe aceptar el aviso de privacidad para crear la cuenta.
+          </p>
+          <FieldError v-else :problem="problem" field="acepta_privacidad" />
+        </div>
+
+        <div class="form-actions">
+          <!-- aria-disabled and not disabled: the button keeps the focus while the request is on its way. -->
+          <button type="submit" :aria-disabled="sending ? 'true' : undefined">
+            {{ sending ? 'Creando la cuenta…' : 'Crear cuenta' }}
+          </button>
+        </div>
+      </form>
+
+      <section class="account-panel register__sign-in" aria-labelledby="register-sign-in-heading">
+        <h2 id="register-sign-in-heading">¿Ya tiene cuenta?</h2>
+        <RouterLink :to="signInLink" class="button button--secondary">Iniciar sesión</RouterLink>
+      </section>
+    </div>
   </div>
 </template>

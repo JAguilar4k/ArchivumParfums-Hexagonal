@@ -10,11 +10,10 @@ export type Climate = NonNullable<ShowcaseQuery['clima']>
 
 export const MOMENTS: readonly Moment[] = ['dia', 'tarde', 'noche']
 export const CLIMATES: readonly Climate[] = ['calido', 'templado', 'frio']
+export const SHOWCASE_PAGE_SIZES = [12, 24, 48] as const
+export const SHOWCASE_PAGE_SIZE = SHOWCASE_PAGE_SIZES[0]
 
-/**
- * What the visitor writes in the filters form; every field is text, as in the inputs, except the maximum price:
- * v-model turns what is written in an input of type number into a number.
- */
+/** The filter draft matches the query strings and also accepts a numeric price from number controls. */
 export interface FilterForm {
   texto: string
   familia: string
@@ -60,7 +59,7 @@ export function queryFromForm(form: FilterForm): LocationQueryRaw {
  * not a number) goes as it is, so the API answers 422 and the form marks the field.
  */
 export function showcaseQuery(query: LocationQuery): ShowcaseQuery {
-  const result: ShowcaseQuery = {}
+  const result: ShowcaseQuery = { por_pagina: SHOWCASE_PAGE_SIZE }
 
   for (const name of TEXT_FILTERS) {
     const text = textOf(query[name])
@@ -74,6 +73,7 @@ export function showcaseQuery(query: LocationQuery): ShowcaseQuery {
   const clima = textOf(query.clima)
   const precio = textOf(query.precio_maximo)
   const pagina = Number(textOf(query.pagina))
+  const perPage = textOf(query.por_pagina)
 
   if (momento) {
     result.momento = momento as Moment
@@ -90,6 +90,8 @@ export function showcaseQuery(query: LocationQuery): ShowcaseQuery {
   if (Number.isInteger(pagina) && pagina > 1) {
     result.pagina = pagina
   }
+
+  if (perPage) result.por_pagina = perPage as unknown as number
 
   return result
 }

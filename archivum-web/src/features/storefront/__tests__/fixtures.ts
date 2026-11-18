@@ -1,6 +1,6 @@
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { vi } from 'vitest'
+import { afterEach, vi } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { setUnauthenticatedHandler } from '@/api/client'
@@ -13,6 +13,8 @@ import { routes } from '@/router/routes'
 import { installPageChanges } from '@/shared/pageChanges'
 
 export const STORE = 'archivumparfums'
+
+enableAutoUnmount(afterEach)
 
 export const profile: components['schemas']['PublicBusiness'] = {
   nombre: 'ArchivumParfums',

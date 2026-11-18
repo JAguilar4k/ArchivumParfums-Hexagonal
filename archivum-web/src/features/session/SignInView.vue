@@ -18,6 +18,7 @@ const rememberedEmail = session.takeRememberedEmail()
 const accountCreated = rememberedEmail !== ''
 const correo = ref(rememberedEmail)
 const contrasena = ref('')
+const showPassword = ref(false)
 const problem = ref<ApiProblem | null>(null)
 const sending = ref(false)
 
@@ -53,52 +54,67 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <div class="page sign-in">
-    <h1>Iniciar sesión</h1>
-    <p v-if="accountCreated" class="status-message">Se creó su cuenta. Escriba su contraseña para iniciar sesión.</p>
-    <p v-else class="form-intro">Escriba el correo y la contraseña de su cuenta.</p>
+  <div class="page account-page sign-in">
+    <div class="account-page__header">
+      <h1 id="sign-in-heading">Iniciar sesión</h1>
+      <p v-if="accountCreated" class="status-message" role="status">Se creó su cuenta. Escriba su contraseña para iniciar sesión.</p>
+      <p v-else class="form-intro">Escriba el correo y la contraseña de su cuenta.</p>
+    </div>
 
     <ProblemNotice v-if="problem" :problem="problem" />
 
-    <form ref="form" class="form" novalidate @submit.prevent="submit">
-      <div class="form-field">
-        <label for="correo">Correo</label>
-        <input
-          id="correo"
-          v-model="correo"
-          name="correo"
-          type="email"
-          autocomplete="email"
-          required
-          v-bind="fieldAttributes(problem, 'correo')"
-        />
-        <FieldError :problem="problem" field="correo" />
-      </div>
+    <div class="account-page__columns">
+      <form ref="form" class="form account-panel" aria-labelledby="sign-in-heading" novalidate @submit.prevent="submit">
+        <div class="form-field">
+          <label for="correo">Correo</label>
+          <p id="pista-correo" class="field-hint">El correo que usó para crear su cuenta.</p>
+          <input
+            id="correo"
+            v-model="correo"
+            name="correo"
+            type="email"
+            autocomplete="email"
+            required
+            v-bind="fieldAttributes(problem, 'correo', 'pista-correo')"
+          />
+          <FieldError :problem="problem" field="correo" />
+        </div>
 
-      <div class="form-field">
-        <label for="contrasena">Contraseña</label>
-        <input
-          id="contrasena"
-          v-model="contrasena"
-          name="contrasena"
-          type="password"
-          autocomplete="current-password"
-          required
-          v-bind="fieldAttributes(problem, 'contrasena')"
-        />
-        <FieldError :problem="problem" field="contrasena" />
-      </div>
+        <div class="form-field">
+          <label for="contrasena">Contraseña</label>
+          <p id="pista-contrasena" class="field-hint">La contraseña de su cuenta.</p>
+          <div class="password-control">
+            <input
+              id="contrasena"
+              v-model="contrasena"
+              name="contrasena"
+              :type="showPassword ? 'text' : 'password'"
+              autocomplete="current-password"
+              autocapitalize="none"
+              :spellcheck="false"
+              required
+              v-bind="fieldAttributes(problem, 'contrasena', 'pista-contrasena')"
+            />
+            <button type="button" class="button--secondary" :aria-pressed="showPassword" @click="showPassword = !showPassword">
+              Mostrar<span class="visually-hidden"> la contraseña</span>
+            </button>
+          </div>
+          <FieldError :problem="problem" field="contrasena" />
+        </div>
 
-      <div class="form-actions">
-        <!-- aria-disabled and not disabled: the button keeps the focus while the request is on its way. -->
-        <button type="submit" :aria-disabled="sending ? 'true' : undefined">
-          {{ sending ? 'Ingresando…' : 'Iniciar sesión' }}
-        </button>
-      </div>
-    </form>
+        <div class="form-actions">
+          <!-- aria-disabled and not disabled: the button keeps the focus while the request is on its way. -->
+          <button type="submit" :aria-disabled="sending ? 'true' : undefined">
+            {{ sending ? 'Ingresando…' : 'Iniciar sesión' }}
+          </button>
+        </div>
+      </form>
 
-    <p class="sign-in__register">
-      ¿Todavía no tiene cuenta? <RouterLink :to="registerLink">Crear una cuenta de cliente</RouterLink>
-    </p>
+      <section class="account-panel sign-in__register" aria-labelledby="sign-in-register-heading">
+        <h2 id="sign-in-register-heading">¿Todavía no tiene cuenta?</h2>
+        <p>Con una cuenta de cliente puede hacer pedidos y reservar citas de prueba.</p>
+        <RouterLink :to="registerLink" class="button button--secondary">Crear una cuenta de cliente</RouterLink>
+      </section>
+    </div>
   </div>
 </template>

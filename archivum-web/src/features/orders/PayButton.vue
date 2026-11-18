@@ -46,7 +46,13 @@ async function pay(): Promise<void> {
   }
 
   const payment = outcome.data.data
-  savePendingPayment({ orderId: props.order.id, paidBefore: props.order.pagado })
+  savePendingPayment({ orderId: props.order.id, paidBefore: props.order.pagado, paymentId: payment.id })
+
+  if (payment.estado === 'fallido' || payment.estado === 'vencido') {
+    await router.push({ name: 'payment-processing' })
+
+    return
+  }
 
   if (payment.url_pago && payment.moneda_cobrada !== 'CRC') {
     foreignCharge.value = payment

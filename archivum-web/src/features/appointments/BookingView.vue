@@ -6,6 +6,7 @@ import { api } from '@/api/client'
 import { callApi, fieldAttributes, focusFirstInvalidField, groupAttributes, type ApiProblem } from '@/api/problem'
 import { useSessionStore } from '@/features/session/store'
 import { STORE_PROFILE } from '@/features/storefront/profile'
+import { cachedServices, loadPerfume, loadServices } from '@/features/storefront/publicStore'
 import EmptyState from '@/shared/EmptyState.vue'
 import ErrorState from '@/shared/ErrorState.vue'
 import FieldError from '@/shared/FieldError.vue'
@@ -34,8 +35,9 @@ const profile = inject(STORE_PROFILE, null)
 
 const tienda = computed(() => String(route.params.tienda))
 const services = useApiData(
-  () => callApi(() => api.GET('/tiendas/{tienda}/servicios', { params: { path: { tienda: tienda.value } } })),
+  () => loadServices(tienda.value),
   (result) => result.data.length === 0,
+  { cached: () => cachedServices(tienda.value) },
 )
 const serviceList = computed<Service[]>(() => services.data.value?.data ?? [])
 
@@ -194,9 +196,7 @@ async function slotTaken(found: ApiProblem): Promise<void> {
 async function perfumesOf(ids: string[]): Promise<Named[]> {
   const found = await Promise.all(
     ids.map(async (id) => {
-      const outcome = await callApi(() =>
-        api.GET('/tiendas/{tienda}/perfumes/{perfume}', { params: { path: { tienda: tienda.value, perfume: id } } }),
-      )
+      const outcome = await loadPerfume(tienda.value, id)
 
       return outcome.data ? { id, nombre: outcome.data.data.nombre } : null
     }),

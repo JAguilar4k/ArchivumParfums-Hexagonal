@@ -136,6 +136,21 @@ jobs:
       - name: Build for production
         run: npm run build
 
+      - name: Install the Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run the browser tests
+        # Journeys, axe audit (WCAG 2.2 AAA) and navigation times, against a mocked API.
+        run: npm run test:e2e
+
+      - name: Keep the screenshots and traces of the browser tests
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright
+          path: archivum-web/test-results/
+          retention-days: 14
+
       - name: Audit dependencies
         # Temporary (#335): picomatch <= 4.0.7 (GHSA-fc5q-39xc-vjpf, high) has no fixed release yet,
         # and Vite, Vitest, vue-tsc, the ESLint plugins and Vue Router depend on it.

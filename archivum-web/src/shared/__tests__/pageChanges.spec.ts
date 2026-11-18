@@ -1,10 +1,16 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { defineComponent, h, ref } from 'vue'
 import { createMemoryHistory, createRouter, type RouteRecordRaw } from 'vue-router'
 
+import { fakeApi, json } from '@/api/__tests__/fakeApi'
 import App from '@/App.vue'
+import { appointmentRoutes } from '@/features/appointments/routes'
+import { orderRoutes } from '@/features/orders/routes'
+import { registrationRoutes } from '@/features/registration/routes'
+import { storefrontRoutes } from '@/features/storefront/routes'
+import { page, profile, STORE } from '@/features/storefront/__tests__/fixtures'
 import { announcement, installPageChanges, pageTitle, usePageTitle } from '../pageChanges'
 
 const Page = (text: string) => defineComponent({ render: () => h('h1', text) })
@@ -22,7 +28,7 @@ const Detail = defineComponent({
 const routes: RouteRecordRaw[] = [
   { path: '/', name: 'home', component: Page('Inicio'), meta: { title: 'Inicio' } },
   { path: '/vitrina', name: 'showcase', component: Page('Vitrina'), meta: { title: 'Vitrina' } },
-  { path: '/perfume', name: 'perfume', component: Detail, meta: { title: 'Perfume' } },
+  { path: '/perfume', name: 'detail-example', component: Detail, meta: { title: 'Perfume' } },
   { path: '/sin-titulo', name: 'untitled', component: Page('Sin título') },
   // The session menu of the header links to the sign-in, and the footer to the help.
   { path: '/iniciar-sesion', name: 'sign-in', component: Page('Iniciar sesión'), meta: { title: 'Iniciar sesión' } },
@@ -32,9 +38,17 @@ const routes: RouteRecordRaw[] = [
     component: defineComponent({ render: () => h('dl', [h('dt', { id: 'decant', tabindex: -1 }, 'Decant')]) }),
     meta: { title: 'Ayuda y glosario' },
   },
+  ...storefrontRoutes.filter(({ name }) => name !== 'home'),
+  ...registrationRoutes,
+  ...orderRoutes,
+  ...appointmentRoutes,
 ]
 
 async function start(path: string) {
+  fakeApi({
+    [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
+    [`GET /tiendas/${STORE}/perfumes`]: () => json(200, page([])),
+  })
   const router = createRouter({ history: createMemoryHistory(), routes })
   installPageChanges(router)
   await router.push(path)
@@ -46,6 +60,7 @@ async function start(path: string) {
 }
 
 afterEach(() => {
+  vi.unstubAllGlobals()
   document.body.innerHTML = ''
   announcement.value = ''
   name.value = null
@@ -66,13 +81,13 @@ describe('page changes', () => {
     expect(announcement.value).toBe('')
   })
 
-  it('moves the focus to the main content and announces the page after a navigation', async () => {
+  it('moves the focus to the heading in the main content and announces the page after a navigation', async () => {
     const { router } = await start('/')
 
     await router.push('/vitrina')
     await flushPromises()
 
-    expect(document.activeElement?.id).toBe('contenido')
+    expect(document.activeElement).toBe(document.querySelector('#contenido h1'))
     expect(document.title).toBe('Vitrina · ArchivumParfums')
     expect(document.querySelector('[role="status"]')?.textContent).toBe('Vitrina')
   })
@@ -123,8 +138,7 @@ describe('page changes', () => {
   it('links every page to the help from its footer', async () => {
     const { wrapper } = await start('/vitrina')
 
-    expect(wrapper.get('footer a').text()).toBe('Ayuda y glosario')
-    expect(wrapper.get('footer a').attributes('href')).toBe('/ayuda')
+    expect(wrapper.get('footer a[href="/ayuda"]').text()).toBe('Ayuda y glosario')
   })
 
   it('skips to the main content from the first link of the page', async () => {

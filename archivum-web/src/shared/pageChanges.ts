@@ -8,7 +8,9 @@ declare module 'vue-router' {
   }
 }
 
-export const SITE_NAME = 'ArchivumParfums'
+const FALLBACK_SITE_NAME = 'Tienda de perfumes'
+let siteName = FALLBACK_SITE_NAME
+let currentPage: string | null = null
 
 /** Id of the main content: the target of "Saltar al contenido" and of the focus after a navigation. */
 export const MAIN_CONTENT_ID = 'contenido'
@@ -18,11 +20,17 @@ export const announcement = ref('')
 
 /** Title of the tab: the page first, then the site (WCAG 2.4.2). */
 export function pageTitle(page?: string | null): string {
-  return page ? `${page} · ${SITE_NAME}` : SITE_NAME
+  return page ? `${page} · ${siteName}` : siteName
 }
 
 export function setPageTitle(page?: string | null): void {
+  currentPage = page ?? null
   document.title = pageTitle(page)
+}
+
+export function setSiteName(name?: string): void {
+  siteName = name || FALLBACK_SITE_NAME
+  setPageTitle(currentPage)
 }
 
 /**
@@ -48,16 +56,40 @@ export function focusMainContent(options: FocusOptions = { preventScroll: true }
 }
 
 /**
- * Moves the focus to the part of the page that the hash of the URL names, such as a term of the glossary
- * (`/ayuda#decant`), or to the main content when there is none. The router scrolls to it.
+ * Moves the focus to the named section or the page heading. When data is pending, focus the main content until the
+ * heading arrives. If the visitor has moved away by then, keep their focus where it is.
  */
-function focusTarget(hash: string): void {
-  const target = hash ? document.getElementById(decodeURIComponent(hash.slice(1))) : null
-  target?.focus({ preventScroll: true })
+function focusTarget(hash: string): MutationObserver | null {
+  const main = document.getElementById(MAIN_CONTENT_ID)
+  const section = hash ? document.getElementById(hash.slice(1)) : null
 
-  if (!target || document.activeElement !== target) {
-    focusMainContent()
+  if (section) {
+    section.focus({ preventScroll: true })
+
+    if (document.activeElement === section) {
+      return null
+    }
   }
+
+  function focusHeading(): boolean {
+    const heading = main?.querySelector('h1')
+    heading?.setAttribute('tabindex', '-1')
+    heading?.focus({ preventScroll: true })
+    return Boolean(heading && document.activeElement === heading)
+  }
+
+  if (!main || focusHeading()) {
+    return null
+  }
+
+  focusMainContent()
+  const observer = new MutationObserver(() => {
+    if (document.activeElement !== main || focusHeading()) {
+      observer.disconnect()
+    }
+  })
+  observer.observe(main, { childList: true, subtree: true })
+  return observer
 }
 
 /**
@@ -68,8 +100,21 @@ function focusTarget(hash: string): void {
  * part of a page (#128) takes the focus there instead.
  */
 export function installPageChanges(router: Router): void {
+  let headingObserver: MutationObserver | null = null
+
   router.afterEach((to: RouteLocationNormalized, from: RouteLocationNormalized, failure) => {
     if (failure) {
+      return
+    }
+
+    if (to.path === from.path && from.matched.length > 0) {
+      if (to.hash && to.hash !== from.hash) {
+        void nextTick(() => {
+          headingObserver?.disconnect()
+          headingObserver = focusTarget(to.hash)
+        })
+      }
+
       return
     }
 
@@ -80,14 +125,11 @@ export function installPageChanges(router: Router): void {
       return
     }
 
-    if (to.path !== from.path) {
-      announcement.value = ''
-      void nextTick(() => {
-        announcement.value = to.meta.title ?? SITE_NAME
-        focusTarget(to.hash)
-      })
-    } else if (to.hash && to.hash !== from.hash) {
-      void nextTick(() => focusTarget(to.hash))
-    }
+    headingObserver?.disconnect()
+    announcement.value = ''
+    void nextTick(() => {
+      announcement.value = currentPage ?? siteName
+      headingObserver = focusTarget(to.hash)
+    })
   })
 }

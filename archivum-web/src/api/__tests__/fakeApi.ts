@@ -1,5 +1,7 @@
 import { vi } from 'vitest'
 
+import { clearPublicStoreCache } from '@/features/storefront/publicStore'
+
 type Handler = (request: Request) => Response | Promise<Response>
 
 /**
@@ -8,6 +10,7 @@ type Handler = (request: Request) => Response | Promise<Response>
  * failure, and its message names it.
  */
 export function fakeApi(routes: Record<string, Handler>) {
+  clearPublicStoreCache()
   const requests: Request[] = []
   const fetch = vi.fn(async (request: Request) => {
     requests.push(request)

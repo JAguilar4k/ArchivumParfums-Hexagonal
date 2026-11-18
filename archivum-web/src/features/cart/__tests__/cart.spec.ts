@@ -43,10 +43,12 @@ describe('cart', () => {
     const { wrapper, router } = await open(`/tiendas/${STORE}/perfumes/p-1`, 'cliente')
 
     await wrapper.get('[aria-label="Agregar al carrito la botella de 100 mililitros"]').trigger('click')
+    await wrapper.get('[aria-label="Cerrar el carrito"]').trigger('click')
+    await wrapper.get('.detail-offer input[value="decant:100:5"]').setValue()
     await wrapper.get('[aria-label="Agregar al carrito el decant de 5 mililitros"]').trigger('click')
 
-    expect(plain(wrapper.get('.perfume-detail__added').text())).toContain('Se agregó al carrito el decant de 5 ml.')
-    expect(wrapper.get('.store-header nav').text()).toContain('Carrito (2)')
+    expect(plain(wrapper.get('.cart-drawer [role="status"]').text())).toBe('Se agregó Oud Nocturno, decant de 5 mililitros.')
+    expect(wrapper.find('[aria-label="Carrito, 2 productos"]').exists()).toBe(true)
 
     await router.push(`/tiendas/${STORE}/carrito`)
     await flushPromises()

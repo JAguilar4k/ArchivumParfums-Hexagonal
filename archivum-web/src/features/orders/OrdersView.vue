@@ -7,6 +7,7 @@ import { callApi } from '@/api/problem'
 import EmptyState from '@/shared/EmptyState.vue'
 import ErrorState from '@/shared/ErrorState.vue'
 import LoadingState from '@/shared/LoadingState.vue'
+import { defaultBusinessSlug } from '@/shared/config'
 import { formatColones } from '@/shared/money'
 import { useApiData } from '@/shared/useApiData'
 import CancelOrderButton from './CancelOrderButton.vue'
@@ -20,6 +21,7 @@ import PayButton from './PayButton.vue'
  * screen readers announce says what happened.
  */
 const route = useRoute()
+const tienda = defaultBusinessSlug()
 const page = computed(() => {
   const value = Number(route.query.pagina)
 
@@ -62,7 +64,7 @@ watch(page, (current, previous) => {
     <LoadingState v-if="orders.loading.value" message="Cargando sus pedidos…" />
     <ErrorState v-else-if="orders.problem.value" :problem="orders.problem.value" @retry="orders.reload" />
     <EmptyState v-else-if="orders.empty.value" message="Todavía no tiene pedidos.">
-      <RouterLink to="/" class="action-link">Ver la vitrina</RouterLink>
+      <RouterLink :to="{ name: 'storefront', params: { tienda } }" class="action-link">Ver la vitrina</RouterLink>
     </EmptyState>
     <template v-else-if="orders.data.value">
       <ul class="card-list orders">
