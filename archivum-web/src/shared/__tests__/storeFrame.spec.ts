@@ -69,6 +69,7 @@ describe('store frame', () => {
     cart.addBottle(STORE, { perfumeId: 'p1', perfume: 'Oud Nocturno', presentationId: 'p1-50', ml: 50, price: 9500 })
     openCartDrawer({ slug: STORE, message: 'Se agregó Oud Nocturno, botella de 50 ml.', trigger })
     await flushPromises()
+    expect(trigger.getAttribute('aria-label')).toBe('Carrito, 1 producto')
 
     const drawer = wrapper.get('dialog.cart-drawer')
     const title = drawer.get('h2')

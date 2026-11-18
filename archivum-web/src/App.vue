@@ -22,6 +22,7 @@ const { tienda, profile, families } = provideStoreFrame()
 const { dark, toggleTheme } = useTheme()
 const store = computed(() => profile.data.value?.data)
 const count = computed(() => cart.count(tienda.value))
+const cartLabel = computed(() => (count.value === 1 ? 'Carrito, 1 producto' : `Carrito, ${count.value} productos`))
 const shopLink = computed(() => ({ name: 'storefront', params: { tienda: tienda.value } }))
 const phone = storeWhatsApp()
 const whatsapp = phone ? `https://wa.me/${encodeURIComponent(phone)}` : ''
@@ -102,7 +103,7 @@ function skipToContent(event: MouseEvent): void {
         <button
           type="button"
           class="icon-button app-header__bag"
-          :aria-label="`Carrito, ${count} productos`"
+          :aria-label="cartLabel"
           aria-haspopup="dialog"
           @click="showCart"
         >
