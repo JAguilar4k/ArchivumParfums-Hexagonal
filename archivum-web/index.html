@@ -7,6 +7,20 @@
     <link rel="preload" href="/node_modules/@fontsource/inter/files/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="preload" href="/node_modules/@fontsource/playfair-display/files/playfair-display-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
     <title>ArchivumParfums</title>
+    <script>
+      // Applies the saved or the system theme before the first paint, as useTheme does after mounting. Starting in
+      // the light theme and switching later left Chromium painting some text with the light color in the dark theme.
+      (() => {
+        let saved = null
+        try {
+          saved = localStorage.getItem('archivum.theme')
+        } catch {
+          // Without storage the page follows the system theme.
+        }
+        const dark = saved === 'dark' || (saved !== 'light' && window.matchMedia?.('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      })()
+    </script>
   </head>
   <body>
     <div id="app"></div>
