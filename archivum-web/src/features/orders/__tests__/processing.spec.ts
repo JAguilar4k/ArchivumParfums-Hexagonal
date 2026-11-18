@@ -8,6 +8,10 @@ import { ORDER_ID, orderOf } from './fixtures'
 
 const ORDER_PATH = `GET /cuenta/pedidos/${ORDER_ID}`
 
+function accountRequests(requests: Request[]): Request[] {
+  return requests.filter(({ url }) => new URL(url).pathname.startsWith('/api/v1/cuenta/'))
+}
+
 beforeEach(() => {
   // Only the timers of the polling are fake: flushPromises and the dates stay real.
   vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
@@ -38,7 +42,7 @@ describe('"procesando"', () => {
     await waitPolls(3)
 
     expect(wrapper.get('.payment-processing__waiting').text()).toContain('Procesando su pago…')
-    expect(requests).toHaveLength(4)
+    expect(accountRequests(requests)).toHaveLength(4)
 
     // The verified notice of the gateway arrives at the API.
     confirmed = true
@@ -52,7 +56,7 @@ describe('"procesando"', () => {
     expect(sessionStorage.getItem(PENDING_PAYMENT_KEY)).toBeNull()
 
     await waitPolls(2)
-    expect(requests).toHaveLength(5)
+    expect(accountRequests(requests)).toHaveLength(5)
   })
 
   it('says after 2 min that the payment is still in process and that "Mis pedidos" will show it', async () => {
@@ -63,10 +67,10 @@ describe('"procesando"', () => {
     await waitPolls(POLL_DURATION_MS / POLL_INTERVAL_MS)
 
     expect(wrapper.get('.payment-processing__timeout').text()).toContain('Verá su estado en «Mis pedidos»')
-    expect(requests).toHaveLength(POLL_DURATION_MS / POLL_INTERVAL_MS + 1)
+    expect(accountRequests(requests)).toHaveLength(POLL_DURATION_MS / POLL_INTERVAL_MS + 1)
 
     await waitPolls(2)
-    expect(requests).toHaveLength(POLL_DURATION_MS / POLL_INTERVAL_MS + 1)
+    expect(accountRequests(requests)).toHaveLength(POLL_DURATION_MS / POLL_INTERVAL_MS + 1)
   })
 
   it('waits for the balance of an order that was already paid in part', async () => {
@@ -118,15 +122,15 @@ describe('"procesando"', () => {
     // The page keeps its only heading of level 1 and says the problem in its status line.
     expect(wrapper.findAll('.payment-processing h1').map((title) => title.text())).toEqual(['Pago del pedido'])
     expect(wrapper.get('.payment-processing__failed').text()).toContain('No encontramos el pedido de este pago.')
-    expect(requests).toHaveLength(1)
+    expect(accountRequests(requests)).toHaveLength(1)
   })
 
-  it('sends to "Mis pedidos" when this tab started no payment, without asking the API', async () => {
+  it('sends to "Mis pedidos" when this tab started no payment, without checking an order', async () => {
     const { requests } = fakeApi({})
 
     const { wrapper } = await open('/pagos/procesando?estado=exito', 'cliente')
 
     expect(wrapper.get('.payment-processing__missing').text()).toContain('No hay un pago en curso en esta pestaña.')
-    expect(requests).toHaveLength(0)
+    expect(accountRequests(requests)).toHaveLength(0)
   })
 })

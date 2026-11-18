@@ -31,6 +31,7 @@ describe('filters', () => {
     expect(
       showcaseQuery({ texto: 'oud', familia: 'Amaderada', nota: 'vainilla', ocasion: 'cena', momento: 'noche', clima: 'frio', precio_maximo: '90000', pagina: '2' }),
     ).toEqual({
+      por_pagina: 12,
       texto: 'oud',
       familia: 'Amaderada',
       nota: 'vainilla',
@@ -40,7 +41,8 @@ describe('filters', () => {
       precio_maximo: '90000',
       pagina: 2,
     })
-    expect(showcaseQuery({ pagina: '1' })).toEqual({})
-    expect(showcaseQuery({ pagina: 'muchas' })).toEqual({})
+    expect(showcaseQuery({ pagina: '1' })).toEqual({ por_pagina: 12 })
+    expect(showcaseQuery({ pagina: 'muchas' })).toEqual({ por_pagina: 12 })
+    expect(showcaseQuery({ por_pagina: '24' })).toEqual({ por_pagina: '24' })
   })
 })

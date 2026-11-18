@@ -56,7 +56,7 @@ describe('"Crear cuenta"', () => {
     expect(storedText()).not.toContain(PASSWORD)
   })
 
-  it('returns to the showcase when the visitor came from nowhere', async () => {
+  it('returns to the store home when the visitor came from nowhere', async () => {
     fakeApi({
       'POST /cuentas': () => json(201, { data: accountOf('cliente') }),
       'POST /sesiones': () => tokenResponse('1|nuevo', IN_ONE_HOUR),
@@ -70,11 +70,14 @@ describe('"Crear cuenta"', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('storefront'))
+    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('store-home'))
   })
 
   it('names the page and says what each field is for before the visitor writes', async () => {
-    fakeApi({})
+    fakeApi({
+      [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
+      [`GET /tiendas/${STORE}/perfumes`]: () => json(200, page([])),
+    })
     const { wrapper } = await open('/crear-cuenta')
 
     expect(document.title).toBe('Crear cuenta · ArchivumParfums')
@@ -116,7 +119,7 @@ describe('"Crear cuenta"', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(requests).toHaveLength(0)
+    expect(requests.filter((request) => request.method === 'POST')).toHaveLength(0)
     expect(wrapper.get('#error-acepta_privacidad').text()).toBe('Debe aceptar el aviso de privacidad para crear la cuenta.')
     expect(wrapper.get('#acepta_privacidad').attributes('aria-invalid')).toBe('true')
     expect(wrapper.get('#acepta_privacidad').attributes('aria-describedby')).toBe('aviso-privacidad error-acepta_privacidad')
@@ -167,7 +170,7 @@ describe('"Crear cuenta"', () => {
     await wrapper.get('form').trigger('submit')
     await flushPromises()
 
-    expect(requests).toHaveLength(1)
+    expect(requests.filter((request) => request.method === 'POST')).toHaveLength(1)
     // aria-disabled and not disabled: the button keeps the focus while it waits.
     expect(wrapper.get('button[type="submit"]').attributes('aria-disabled')).toBe('true')
     expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeUndefined()

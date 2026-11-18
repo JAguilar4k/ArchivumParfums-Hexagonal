@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { apiUrl, defaultBusinessSlug } from '../config'
+import { apiUrl, defaultBusinessSlug, storeWhatsApp } from '../config'
 
 describe('apiUrl', () => {
   it('returns the API address from VITE_API_URL', () => {
@@ -29,5 +29,15 @@ describe('defaultBusinessSlug', () => {
     expect(() => defaultBusinessSlug({ VITE_DEFAULT_BUSINESS_SLUG: value })).toThrow(
       'VITE_DEFAULT_BUSINESS_SLUG is not set',
     )
+  })
+})
+
+describe('storeWhatsApp', () => {
+  it('returns the configured number without surrounding whitespace', () => {
+    expect(storeWhatsApp({ VITE_STORE_WHATSAPP: ' 50600000000 ' })).toBe('50600000000')
+  })
+
+  it.each([undefined, '', '  '])('returns an empty string for %j', (value) => {
+    expect(storeWhatsApp({ VITE_STORE_WHATSAPP: value })).toBe('')
   })
 })

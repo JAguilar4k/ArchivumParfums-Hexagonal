@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises } from '@vue/test-utils'
 
 import { fakeApi, json, problem } from '@/api/__tests__/fakeApi'
-import { cleanUp, open, page, plain, STORE } from '@/features/storefront/__tests__/fixtures'
+import { cleanUp, open, page, plain, profile, STORE } from '@/features/storefront/__tests__/fixtures'
 import { APPOINTMENT_ID, appointmentOf, DAY, LUIS, SERVICE_ID, slotAt } from './fixtures'
 
 afterEach(cleanUp)
@@ -21,10 +21,14 @@ function button(wrapper: Awaited<ReturnType<typeof open>>['wrapper'], text: stri
 
 describe('my appointments', () => {
   it('lists the upcoming appointments with their store, state and hours in the clock of the store', async () => {
-    const { requests } = fakeApi({ 'GET /cuenta/citas': () => json(200, page([appointmentOf()])) })
+    const { requests } = fakeApi({
+      [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
+      'GET /cuenta/citas': () => json(200, page([appointmentOf()])),
+    })
     const { wrapper } = await open('/cuenta/citas', 'cliente')
 
-    expect(Object.fromEntries(new URL(requests[0]?.url ?? 'http://x').searchParams)).toEqual({
+    const list = requests.find(({ url }) => new URL(url).pathname === '/api/v1/cuenta/citas')
+    expect(Object.fromEntries(new URL(list?.url ?? 'http://x').searchParams)).toEqual({
       periodo: 'proximas',
       pagina: '1',
     })

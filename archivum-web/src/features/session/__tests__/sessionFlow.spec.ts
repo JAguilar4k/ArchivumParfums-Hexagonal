@@ -6,11 +6,8 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import { fakeApi, json, problem } from '@/api/__tests__/fakeApi'
 import { api, setUnauthenticatedHandler } from '@/api/client'
 import App from '@/App.vue'
-import { errorRoutes } from '@/features/errors/routes'
-import { orderRoutes } from '@/features/orders/routes'
-import { registrationRoutes } from '@/features/registration/routes'
+import { routes } from '@/router/routes'
 import { installSession } from '../install'
-import { sessionRoutes } from '../routes'
 import { STORAGE_KEY, useSessionStore } from '../store'
 import { accountOf, tokenResponse } from './accounts'
 
@@ -24,11 +21,8 @@ async function start(path: string) {
     history: createMemoryHistory(),
     routes: [
       { path: '/', name: 'home', component: { render: () => null } },
-      ...sessionRoutes,
       { path: '/cuenta/citas', name: 'appointments', component: { render: () => null }, meta: { roles: ['cliente'] } },
-      ...orderRoutes,
-      ...registrationRoutes,
-      ...errorRoutes,
+      ...routes.filter((route) => route.name !== 'home' && route.name !== 'appointments'),
     ],
   })
   installSession(router)
@@ -131,12 +125,13 @@ describe('session flow', () => {
     const { requests } = fakeApi({ 'DELETE /sesiones/actual': () => new Response(null, { status: 204 }) })
     const { wrapper, router } = await start('/cuenta/citas')
 
-    await wrapper.get('.session-menu button').trigger('click')
+    await wrapper.get('.session-menu [aria-controls="session-menu-links"]').trigger('click')
+    await wrapper.get('.session-menu__panel button').trigger('click')
     await flushPromises()
 
-    expect(requests[0]?.method).toBe('DELETE')
+    expect(requests.find((request) => request.url.endsWith('/sesiones/actual'))?.method).toBe('DELETE')
     expect(useSessionStore().isSignedIn).toBe(false)
     await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('home'))
-    expect(wrapper.get('.session-menu').text()).toContain('Iniciar sesión')
+    expect(wrapper.get('.session-menu a').attributes('aria-label')).toBe('Iniciar sesión')
   })
 })

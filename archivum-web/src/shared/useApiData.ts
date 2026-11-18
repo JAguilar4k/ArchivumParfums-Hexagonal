@@ -11,6 +11,11 @@ export interface ApiData<T> {
   reload: () => Promise<void>
 }
 
+interface ApiDataOptions<T> {
+  cached?: () => T | null
+  keepPrevious?: boolean
+}
+
 /**
  * The three states of a view that asks the API for data (#126): loading, error
  * and empty, for LoadingState, ErrorState and EmptyState.
@@ -26,17 +31,34 @@ export interface ApiData<T> {
 export function useApiData<T>(
   load: () => Promise<ApiOutcome<T>>,
   isEmpty: (data: T) => boolean = () => false,
+  options: ApiDataOptions<T> = {},
 ): ApiData<T> {
   const data = shallowRef<T | null>(null)
   const problem = ref<ApiProblem | null>(null)
   const loading = ref(false)
   const empty = computed(() => data.value !== null && isEmpty(data.value))
+  let generation = 0
 
   async function reload(): Promise<void> {
-    loading.value = true
+    const request = ++generation
+    const cached = options.cached?.() ?? null
+    loading.value = cached === null
     problem.value = null
 
+    if (cached !== null || (options.cached && !options.keepPrevious)) {
+      data.value = cached
+    }
+
     const outcome = await load()
+
+    if (request !== generation) {
+      return
+    }
+
+    // A temporary failure does not invalidate the cached response for this URL.
+    if (cached !== null && outcome.problem && ['network', 'internal', 'rate-limited'].includes(outcome.problem.kind)) {
+      return
+    }
 
     data.value = outcome.data
     problem.value = outcome.problem

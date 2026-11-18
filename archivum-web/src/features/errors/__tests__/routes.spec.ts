@@ -1,16 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import App from '@/App.vue'
-import { sessionRoutes } from '@/features/session/routes'
-import { errorRoutes } from '../routes'
+import { fakeApi } from '@/api/__tests__/fakeApi'
+import { routes } from '@/router/routes'
 
 const home = { path: '/', name: 'home', component: { render: () => null } }
 
 async function visit(path: string) {
-  const router = createRouter({ history: createMemoryHistory(), routes: [home, ...sessionRoutes, ...errorRoutes] })
+  fakeApi({})
+  const router = createRouter({ history: createMemoryHistory(), routes: [home, ...routes.filter((route) => route.name !== 'home')] })
   await router.push(path)
 
   const wrapper = mount(App, { global: { plugins: [createPinia(), router] } })
@@ -18,6 +19,8 @@ async function visit(path: string) {
 
   return { wrapper, router }
 }
+
+afterEach(() => vi.unstubAllGlobals())
 
 describe('error routes', () => {
   it('show the "Sin permiso" view at /sin-permiso', async () => {

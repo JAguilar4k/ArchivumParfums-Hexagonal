@@ -5,19 +5,14 @@ import type { RouteRecordRaw } from 'vue-router'
  * moment of booking; the appointments of the customer ask for a session with the role `cliente`, and the API also
  * checks that each one belongs to the account.
  */
+export const bookingRoute: RouteRecordRaw = {
+  path: 'citas/nueva',
+  name: 'book-appointment',
+  component: () => import('./BookingView.vue'),
+  meta: { title: 'Reservar una cita de prueba' },
+}
+
 export const appointmentRoutes: RouteRecordRaw[] = [
-  {
-    path: '/tiendas/:tienda/citas',
-    component: () => import('@/features/storefront/StoreLayout.vue'),
-    children: [
-      {
-        path: 'nueva',
-        name: 'book-appointment',
-        component: () => import('./BookingView.vue'),
-        meta: { title: 'Reservar una cita de prueba' },
-      },
-    ],
-  },
   {
     path: '/cuenta/citas',
     name: 'appointments',

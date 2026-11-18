@@ -11,7 +11,7 @@ afterEach(() => {
 
 describe('help and glossary', () => {
   it('explains the words of perfumery that the pages use', async () => {
-    fakeApi({})
+    fakeApi({ [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }) })
 
     const { wrapper } = await open('/ayuda')
 
@@ -56,7 +56,7 @@ describe('help and glossary', () => {
     })
     const { wrapper, router } = await open(`/tiendas/${STORE}`)
 
-    await wrapper.get('footer a').trigger('click')
+    await wrapper.get('footer a[href="/ayuda"]').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.name).toBe('help')
 

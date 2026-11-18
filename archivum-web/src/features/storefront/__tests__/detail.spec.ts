@@ -1,14 +1,21 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { DOMWrapper } from '@vue/test-utils'
 
 import { fakeApi, json, problem } from '@/api/__tests__/fakeApi'
+import { closeCartDrawer } from '@/features/cart/drawer'
 import { CART_STORAGE_PREFIX } from '@/features/cart/store'
 import { open, plain, profile, STORE } from './fixtures'
 
 afterEach(() => {
+  closeCartDrawer()
   vi.unstubAllGlobals()
   localStorage.clear()
   document.body.innerHTML = ''
 })
+
+function offersOf(offers: DOMWrapper<Element>[]): string[] {
+  return offers.map((offer) => plain(`${offer.get('strong').text()} · ${offer.get(':scope > span').text()}`))
+}
 
 const detail = {
   id: 'p-1',
@@ -35,16 +42,13 @@ describe('perfume detail', () => {
     const { wrapper } = await open(`/tiendas/${STORE}/perfumes/p-1`)
     const text = plain(wrapper.get('.perfume-detail').text())
 
-    expect(wrapper.get('.perfume-detail h1').text()).toBe('Maison Archivum Oud Nocturno')
-    expect(text).toContain('ConcentraciónEau de Parfum')
-    expect(text).toContain('Familia olfativaAmaderada')
-    expect(text).toContain('SalidaBergamota')
-    expect(text).toContain('CorazónRosa, Oud')
-    expect(text).toContain('FondoVainilla, Ámbar')
+    expect(wrapper.get('.perfume-detail h1').text()).toBe('Oud Nocturno')
+    expect(wrapper.get('.detail-meta').text()).toBe('Eau de Parfum · Amaderada · Unisex')
+    expect(wrapper.findAll('.detail-notes dt').map((note) => note.text())).toEqual(['Salida', 'Corazón', 'Fondo'])
+    expect(wrapper.findAll('.detail-notes dd span:last-child').map((note) => note.text())).toEqual(['Bergamota', 'Rosa, Oud', 'Vainilla, Ámbar'])
     expect(text).toContain('Momento del díaNoche')
     expect(text).toContain('ClimaFrío, Templado')
-    expect(text).toContain('Botella de 100 ml · ₡125 000')
-    expect(text).toContain('Decant de 5 ml · ₡9 500')
+    expect(offersOf(wrapper.findAll('.detail-offer__label'))).toEqual(['Botella de 100 ml · ₡125 000', 'Decant de 5 ml · ₡9 500'])
     // The description is text: its markup is shown, never rendered.
     expect(text).toContain('<b>vainilla</b>')
     expect(wrapper.find('.perfume-detail b').exists()).toBe(false)
@@ -69,14 +73,14 @@ describe('perfume detail', () => {
 
     const { wrapper } = await open(`/tiendas/${STORE}/perfumes/p-1`)
 
-    expect(wrapper.findAll('.decants li > span').map((offer) => plain(offer.text()))).toEqual([
+    expect(offersOf(wrapper.findAll('.decants .detail-offer__label'))).toEqual([
       'Decant de 2 ml · ₡2 500',
       'Decant de 5 ml · ₡6 300',
     ])
-    expect(wrapper.findAll('.decants button').map((button) => button.attributes('aria-label'))).toEqual([
-      'Agregar al carrito el decant de 2 mililitros',
-      'Agregar al carrito el decant de 5 mililitros',
-    ])
+    await wrapper.get('.detail-offer input[value="decant:100:2"]').setValue()
+    expect(wrapper.get('[data-add-perfume]').attributes('aria-label')).toBe('Agregar al carrito el decant de 2 mililitros')
+    await wrapper.get('.detail-offer input[value="decant:100:5"]').setValue()
+    expect(wrapper.get('[data-add-perfume]').attributes('aria-label')).toBe('Agregar al carrito el decant de 5 mililitros')
   })
 
   it('names the bottle of each decant when the open bottles are of different presentations, because the price comes from it', async () => {
@@ -101,20 +105,21 @@ describe('perfume detail', () => {
 
     const { wrapper } = await open(`/tiendas/${STORE}/perfumes/p-1`)
 
-    expect(wrapper.findAll('.decants li > span').map((offer) => plain(offer.text()))).toEqual([
+    expect(offersOf(wrapper.findAll('.decants .detail-offer__label'))).toEqual([
       'Decant de 2 ml de la botella de 50 ml · ₡3 400',
       'Decant de 2 ml de la botella de 100 ml · ₡2 500',
       'Decant de 5 ml de la botella de 50 ml · ₡8 500',
     ])
 
+    await wrapper.get('.detail-offer input[value="decant:100:2"]').setValue()
     const add = wrapper.get('[aria-label="Agregar al carrito el decant de 2 mililitros de la botella de 100 mililitros"]')
     await add.trigger('click')
 
-    expect(plain(wrapper.get('.perfume-detail__added').text())).toContain(
-      'Se agregó al carrito el decant de 2 ml de la botella de 100 ml.',
+    expect(wrapper.get('.cart-drawer [role="status"]').text()).toBe(
+      'Se agregó Oud Nocturno, decant de 2 mililitros de la botella de 100 mililitros.',
     )
     expect(JSON.parse(localStorage.getItem(CART_STORAGE_PREFIX + STORE) ?? '[]')).toEqual([
-      { kind: 'decant', perfumeId: 'p-1', perfume: 'Maison Archivum Oud Nocturno', bottleId: 'b-2', ml: 2, price: 2500 },
+      { kind: 'decant', perfumeId: 'p-1', perfume: 'Maison Archivum Oud Nocturno', bottleId: 'b-2', ml: 2, price: 2500, family: 'Amaderada', photo: null },
     ])
   })
 
@@ -127,12 +132,14 @@ describe('perfume detail', () => {
     const { wrapper } = await open(`/tiendas/${STORE}/perfumes/p-1`)
     const trail = wrapper.get('nav.breadcrumbs')
 
-    expect(document.title).toBe('Maison Archivum Oud Nocturno · ArchivumParfums')
+    expect(document.title).toBe('Oud Nocturno · ArchivumParfums')
     expect(trail.attributes('aria-label')).toBe('Ubicación')
     expect(trail.get('a').attributes('href')).toBe(`/tiendas/${STORE}`)
+    expect(trail.get('a:nth-of-type(1)').text()).toBe('Inicio')
+    expect(trail.get('a[href$="/vitrina"]').attributes('href')).toBe(`/tiendas/${STORE}/vitrina`)
     expect(trail.get('[aria-current="page"]').text()).toBe('Maison Archivum Oud Nocturno')
     // The abbreviation of the concentration is never alone.
-    expect(wrapper.get('.perfume-detail').text()).toContain('ConcentraciónEau de Parfum (EDP)')
+    expect(wrapper.get('.detail-meta').text()).toContain('Eau de Parfum (EDP)')
   })
 
   it('shows "No encontrado" for a perfume that is inactive or of another store', async () => {

@@ -9,8 +9,13 @@ export type OrderLineInput = components['schemas']['StoreOrder']['lineas'][numbe
 /** Key of the cart of a store in localStorage, followed by the slug of the store. */
 export const CART_STORAGE_PREFIX = 'archivum.carrito.'
 
+interface CartMedia {
+  photo?: string | null
+  family?: string | null
+}
+
 /** A bottle on order: a presentation of a perfume and how many. */
-export interface BottleLine {
+export interface BottleLine extends CartMedia {
   kind: 'bottle'
   perfumeId: string
   perfume: string
@@ -22,7 +27,7 @@ export interface BottleLine {
 }
 
 /** One decant: some ml of an open bottle. Each decant is its own line, as the API counts them (#80). */
-export interface DecantLine {
+export interface DecantLine extends CartMedia {
   kind: 'decant'
   perfumeId: string
   perfume: string
@@ -55,17 +60,19 @@ export const useCartStore = defineStore('cart', () => {
     return linesOf(tienda)
   }
 
-  /** Adds a bottle, or one more of a presentation that is already in the cart. */
-  function addBottle(tienda: string, line: Omit<BottleLine, 'kind' | 'quantity'>): void {
+  /** Adds bottles, combining quantities when the same presentation is already in the cart. */
+  function addBottle(tienda: string, line: Omit<BottleLine, 'kind' | 'quantity'>, quantity = 1): void {
+    if (!Number.isInteger(quantity) || quantity < 1) return
+
     const lines = load(tienda)
     const same = lines.find(
       (item): item is BottleLine => item.kind === 'bottle' && item.presentationId === line.presentationId,
     )
 
     if (same) {
-      same.quantity += 1
+      Object.assign(same, line, { quantity: same.quantity + quantity })
     } else {
-      lines.push({ kind: 'bottle', quantity: 1, ...line })
+      lines.push({ kind: 'bottle', quantity, ...line })
     }
 
     save(tienda)
@@ -150,7 +157,9 @@ function isCartLine(value: unknown): value is CartLine {
     typeof line.perfumeId === 'string' &&
     typeof line.perfume === 'string' &&
     typeof line.ml === 'number' &&
-    typeof line.price === 'number'
+    typeof line.price === 'number' &&
+    (line.photo == null || typeof line.photo === 'string') &&
+    (line.family == null || typeof line.family === 'string')
 
   if (line.kind === 'bottle') {
     return common && typeof line.presentationId === 'string' && Number.isInteger(line.quantity) && Number(line.quantity) >= 1

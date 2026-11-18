@@ -1,11 +1,9 @@
 import type { RouteRecordRaw } from 'vue-router'
 
 import { appointmentRoutes } from '@/features/appointments/routes'
-import { cartRoutes } from '@/features/cart/routes'
 import { errorRoutes } from '@/features/errors/routes'
 import { helpRoutes } from '@/features/help/routes'
 import { orderRoutes } from '@/features/orders/routes'
-import { recommendationRoutes } from '@/features/recommendations/routes'
 import { registrationRoutes } from '@/features/registration/routes'
 import { sessionRoutes } from '@/features/session/routes'
 import { storefrontRoutes } from '@/features/storefront/routes'
@@ -14,8 +12,6 @@ import { storefrontRoutes } from '@/features/storefront/routes'
 // errorRoutes goes last, because it catches every path that nothing else matches.
 export const routes: RouteRecordRaw[] = [
   ...storefrontRoutes,
-  ...recommendationRoutes,
-  ...cartRoutes,
   ...orderRoutes,
   ...appointmentRoutes,
   ...sessionRoutes,

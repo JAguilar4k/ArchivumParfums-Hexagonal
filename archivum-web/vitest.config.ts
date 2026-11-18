@@ -7,6 +7,7 @@ export default mergeConfig(
   defineConfig({
     test: {
       environment: 'jsdom',
+      setupFiles: ['src/shared/__tests__/setupDialogs.ts'],
       // Node 25 and later have their own localStorage, which hides the one of jsdom and fails without a file.
       execArgv: ['--no-experimental-webstorage'],
       exclude: [...configDefaults.exclude, 'e2e/**'],
