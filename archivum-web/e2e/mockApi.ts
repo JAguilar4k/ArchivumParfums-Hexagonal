@@ -95,6 +95,7 @@ export async function mockApi(page: Page, options: Options = {}) {
   const secondStore = 'esencias-del-norte'
   let appointment = { ...demoAppointment }
   let order = { ...demoOrder }
+  let payment: Schemas['PaymentResource'] | null = null
   let slotTaken = false
   let soldOut = false
 
@@ -140,9 +141,13 @@ export async function mockApi(page: Page, options: Options = {}) {
         return json(route, paginated([order], 12, 1))
       }
 
+      if (parts[1] === 'pagos' && payment && parts[2] === payment.id && method === 'GET') {
+        return json(route, { data: payment })
+      }
+
       if (parts[1] === 'pedidos' && parts[2] === order.id) {
         if (parts[3] === 'pagos' && method === 'POST') {
-          const payment: Schemas['PaymentResource'] = {
+          payment = {
             id: '0193b0d4-0000-7000-8000-0000000000b1',
             proposito: 'deposito',
             monto: order.por_cobrar_ahora,
@@ -276,7 +281,12 @@ export async function mockApi(page: Page, options: Options = {}) {
   return {
     requests,
     confirmPayment() {
+      if (payment) payment = { ...payment, estado: 'confirmado' }
       order = { ...order, estado: 'confirmado', pagado: order.por_cobrar_ahora, por_cobrar_ahora: 0 }
+    },
+    rejectPayment() {
+      if (!payment) throw new Error('The test must start a payment before rejecting it.')
+      payment = { ...payment, estado: 'fallido', url_pago: null }
     },
   }
 }

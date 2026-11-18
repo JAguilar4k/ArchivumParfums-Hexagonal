@@ -95,6 +95,25 @@ for (const gateway of ['onvo', 'paypal'] as const) {
   })
 }
 
+test('reports an API-declined payment while the order still awaits payment', async ({ page }) => {
+  const api = await mockApi(page)
+  const order = `${ordersPath}/${demoOrder.id}`
+  await page.goto(order)
+  await signIn(page)
+  await expect(page).toHaveURL(order)
+  await page.getByRole('button', { name: /^Pagar/ }).click()
+  await expect(page).toHaveURL('/pagos/procesando?estado=exito')
+
+  const status = page.getByRole('main').getByRole('status')
+  await expect(status).toHaveText('Procesando su pago…')
+  api.rejectPayment()
+  await expect(status).toHaveText('El pago fue rechazado. Consulte el pedido para volver a intentarlo.', { timeout: 6_000 })
+
+  await page.getByRole('link', { name: 'Ver mis pedidos' }).click()
+  await expect(page.getByText('Pendiente de pago', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Pagar/ })).toBeVisible()
+})
+
 test('registers after accepting privacy and keeps session and role guards functional', async ({ page }) => {
   const api = await mockApi(page)
   await page.goto(ordersPath)

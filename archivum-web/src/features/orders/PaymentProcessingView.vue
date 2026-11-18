@@ -10,13 +10,13 @@ import { clearPendingPayment, POLL_DURATION_MS, POLL_INTERVAL_MS, readPendingPay
 
 /**
  * "Procesando" (#130): the gateway returns here, to the address of PAYMENTS_RETURN_URL in the API. The view asks
- * `GET /cuenta/pedidos/{pedido}` until the API credits the payment, which happens only with a verified notice of the
- * gateway (#94) or the reconciliation (#96). It never reads the parameters of the address: a "success" in the URL
- * changes nothing. After 2 min it says that the payment is still in process and that "Mis pedidos" will show it.
+ * `GET /cuenta/pedidos/{pedido}` to see whether the API credited the order. It also reads the payment because a
+ * rejected attempt can leave its order waiting for another payment. After 2 min it says the payment is still in
+ * process. The verified notice (#94) or reconciliation (#96) handles settlement on the server.
  * Every state is said in one line that is always in the page, so screen readers announce each change, and a problem
  * is said there too, without a second heading of level 1.
  */
-type State = 'waiting' | 'confirmed' | 'closed' | 'timeout' | 'missing' | 'failed'
+type State = 'waiting' | 'confirmed' | 'closed' | 'declined' | 'expired' | 'timeout' | 'missing' | 'failed'
 
 const pending = readPendingPayment()
 const state = ref<State>(pending ? 'waiting' : 'missing')
@@ -24,11 +24,14 @@ const order = ref<Order | null>(null)
 const problem = ref<ApiProblem | null>(null)
 let timer: ReturnType<typeof setTimeout> | null = null
 let elapsed = 0
+let stopped = false
 
 const STATE_CLASSES: Record<State, string> = {
   waiting: 'payment-processing__waiting',
   confirmed: 'payment-processing__done',
   closed: 'payment-processing__closed',
+  declined: 'payment-processing__declined',
+  expired: 'payment-processing__expired',
   timeout: 'payment-processing__timeout',
   missing: 'payment-processing__missing',
   failed: 'payment-processing__failed',
@@ -42,6 +45,10 @@ const statusText = computed(() => {
       return 'Pago confirmado.'
     case 'closed':
       return order.value ? `El pedido está «${statusLabel(order.value.estado)}», así que el pago no se aplicó.` : ''
+    case 'declined':
+      return 'El pago fue rechazado. Consulte el pedido para volver a intentarlo.'
+    case 'expired':
+      return 'El intento de pago venció. Consulte el pedido para volver a intentarlo.'
     case 'timeout':
       return 'Su pago sigue en proceso. Verá su estado en «Mis pedidos» cuando la pasarela lo confirme.'
     case 'missing':
@@ -75,6 +82,10 @@ async function check(): Promise<void> {
     api.GET('/cuenta/pedidos/{pedido}', { params: { path: { pedido: pending.orderId } } }),
   )
 
+  if (stopped) {
+    return
+  }
+
   if (outcome.problem) {
     // The order is gone or not this account's: asking again changes nothing. Any other failure may pass.
     if (['not-found', 'forbidden', 'unauthenticated'].includes(outcome.problem.kind)) {
@@ -101,6 +112,25 @@ async function check(): Promise<void> {
     }
   }
 
+  const paymentId = pending.paymentId
+
+  if (paymentId) {
+    const payment = await callApi(() => api.GET('/cuenta/pagos/{pago}', { params: { path: { pago: paymentId } } }))
+
+    if (stopped) {
+      return
+    }
+
+    const status = payment.data?.data.estado
+
+    if (status === 'fallido' || status === 'vencido') {
+      state.value = status === 'fallido' ? 'declined' : 'expired'
+      clearPendingPayment()
+
+      return
+    }
+  }
+
   if (elapsed >= POLL_DURATION_MS) {
     state.value = 'timeout'
 
@@ -114,6 +144,8 @@ async function check(): Promise<void> {
 onMounted(() => void check())
 
 onUnmounted(() => {
+  stopped = true
+
   if (timer) {
     clearTimeout(timer)
   }

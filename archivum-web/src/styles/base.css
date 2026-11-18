@@ -1020,6 +1020,8 @@ label {
   background: var(--color-success-background);
 }
 
+.payment-processing__declined,
+.payment-processing__expired,
 .payment-processing__failed {
   border-inline-start-color: var(--color-error);
   background: var(--color-error-background);

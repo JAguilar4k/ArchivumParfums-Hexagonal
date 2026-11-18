@@ -5,7 +5,7 @@ import { fakeApi, json, problem } from '@/api/__tests__/fakeApi'
 import { cleanUp, open, page, plain } from '@/features/storefront/__tests__/fixtures'
 import { leaveTo } from '@/shared/navigation'
 import { PENDING_PAYMENT_KEY } from '../pendingPayment'
-import { ORDER_ID, orderOf, paymentOf } from './fixtures'
+import { ORDER_ID, PAYMENT_ID, orderOf, paymentOf } from './fixtures'
 
 vi.mock('@/shared/navigation', () => ({ leaveTo: vi.fn(() => true) }))
 
@@ -80,7 +80,9 @@ describe('an order', () => {
     await flushPromises()
 
     expect(leaveTo).toHaveBeenCalledExactlyOnceWith('https://checkout.onvopay.com/pay/cs_test_123')
-    expect(JSON.parse(sessionStorage.getItem(PENDING_PAYMENT_KEY) ?? 'null')).toEqual({ orderId: ORDER_ID, paidBefore: 0 })
+    expect(JSON.parse(sessionStorage.getItem(PENDING_PAYMENT_KEY) ?? 'null')).toEqual({
+      orderId: ORDER_ID, paidBefore: 0, paymentId: PAYMENT_ID,
+    })
   })
 
   it('shows the amount in dollars of PayPal before going to the checkout', async () => {

@@ -4,9 +4,10 @@ import { flushPromises } from '@vue/test-utils'
 import { fakeApi, json, problem } from '@/api/__tests__/fakeApi'
 import { cleanUp, open } from '@/features/storefront/__tests__/fixtures'
 import { PENDING_PAYMENT_KEY, POLL_DURATION_MS, POLL_INTERVAL_MS, savePendingPayment } from '../pendingPayment'
-import { ORDER_ID, orderOf } from './fixtures'
+import { ORDER_ID, PAYMENT_ID, orderOf, paymentOf } from './fixtures'
 
 const ORDER_PATH = `GET /cuenta/pedidos/${ORDER_ID}`
+const PAYMENT_PATH = `GET /cuenta/pagos/${PAYMENT_ID}`
 
 function accountRequests(requests: Request[]): Request[] {
   return requests.filter(({ url }) => new URL(url).pathname.startsWith('/api/v1/cuenta/'))
@@ -30,8 +31,8 @@ async function waitPolls(count: number): Promise<void> {
 }
 
 describe('"procesando"', () => {
-  it('stays in "procesando" with a success parameter in the address until the API credits the payment', async () => {
-    savePendingPayment({ orderId: ORDER_ID, paidBefore: 0 })
+  it('still polls an order saved without a payment ID and ignores the success parameter in the address', async () => {
+    sessionStorage.setItem(PENDING_PAYMENT_KEY, JSON.stringify({ orderId: ORDER_ID, paidBefore: 0 }))
     let confirmed = false
     const { requests } = fakeApi({
       [ORDER_PATH]: () =>
@@ -57,6 +58,52 @@ describe('"procesando"', () => {
 
     await waitPolls(2)
     expect(accountRequests(requests)).toHaveLength(5)
+  })
+
+  it('announces a rejection when the API marks the payment failed and stops polling', async () => {
+    savePendingPayment({ orderId: ORDER_ID, paidBefore: 0, paymentId: PAYMENT_ID })
+    let rejected = false
+    const { requests } = fakeApi({
+      [ORDER_PATH]: () => json(200, { data: orderOf() }),
+      [PAYMENT_PATH]: () => json(200, { data: paymentOf({ estado: rejected ? 'fallido' : 'pendiente' }) }),
+    })
+
+    const { wrapper } = await open('/pagos/procesando?estado=fallido', 'cliente')
+    expect(wrapper.get('.payment-processing__status').text()).toBe('Procesando su pago…')
+    expect(sessionStorage.getItem(PENDING_PAYMENT_KEY)).not.toBeNull()
+
+    rejected = true
+    await waitPolls(1)
+
+    const status = wrapper.get('.payment-processing__status')
+    expect(status.attributes('role')).toBe('status')
+    expect(status.text()).toBe('El pago fue rechazado. Consulte el pedido para volver a intentarlo.')
+    expect(wrapper.find('.payment-processing__waiting').exists()).toBe(false)
+    expect(sessionStorage.getItem(PENDING_PAYMENT_KEY)).toBeNull()
+
+    await waitPolls(2)
+    expect(accountRequests(requests).map(({ method, url }) => `${method} ${new URL(url).pathname.slice('/api/v1'.length)}`))
+      .toEqual([ORDER_PATH, PAYMENT_PATH, ORDER_PATH, PAYMENT_PATH])
+  })
+
+  it('waits for the API to credit the order even when the payment is confirmed', async () => {
+    savePendingPayment({ orderId: ORDER_ID, paidBefore: 0, paymentId: PAYMENT_ID })
+    let credited = false
+    const { requests } = fakeApi({
+      [ORDER_PATH]: () => json(200, {
+        data: credited ? orderOf({ estado: 'confirmado', pagado: 72000, saldo: 62500 }) : orderOf(),
+      }),
+      [PAYMENT_PATH]: () => json(200, { data: paymentOf({ estado: 'confirmado' }) }),
+    })
+
+    const { wrapper } = await open('/pagos/procesando', 'cliente')
+    expect(wrapper.get('.payment-processing__status').text()).toBe('Procesando su pago…')
+
+    credited = true
+    await waitPolls(1)
+
+    expect(wrapper.get('.payment-processing__done').text()).toBe('Pago confirmado.')
+    expect(accountRequests(requests).filter(({ url }) => url.endsWith(`/pagos/${PAYMENT_ID}`))).toHaveLength(1)
   })
 
   it('says after 2 min that the payment is still in process and that "Mis pedidos" will show it', async () => {

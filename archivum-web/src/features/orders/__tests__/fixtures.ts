@@ -1,6 +1,7 @@
 import type { Order, Payment } from '../order'
 
 export const ORDER_ID = '0193b0d4-0000-7000-8000-0000000000a1'
+export const PAYMENT_ID = '0193b0d4-0000-7000-8000-0000000000b1'
 
 /** An order of ArchivumParfums with a bottle and a decant, waiting for its deposit; `changes` overrides any field. */
 export function orderOf(changes: Partial<Order> = {}): Order {
@@ -51,7 +52,7 @@ export function orderOf(changes: Partial<Order> = {}): Order {
 /** A payment that ONVO is waiting for, in colones; `changes` overrides any field. */
 export function paymentOf(changes: Partial<Payment> = {}): Payment {
   return {
-    id: '0193b0d4-0000-7000-8000-0000000000b1',
+    id: PAYMENT_ID,
     proposito: 'deposito',
     monto: 72000,
     moneda_cobrada: 'CRC',
