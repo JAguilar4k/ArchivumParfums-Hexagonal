@@ -2,6 +2,7 @@
 {
   "extends": "@tsconfig/node26/tsconfig.json",
   "include": [
+    "e2e/**/*.ts",
     "vite.config.*",
     "vitest.config.*",
     "cypress.config.*",
@@ -9,6 +10,8 @@
     "eslint.config.*"
   ],
   "compilerOptions": {
+    // Playwright callbacks also run in the browser.
+    "lib": ["ES2025", "ESNext.Collection", "ESNext.Temporal", "DOM", "DOM.Iterable"],
     // Most tools use transpilation instead of Node.js's native type-stripping.
     // Bundler mode provides a smoother developer experience.
     "module": "preserve",
