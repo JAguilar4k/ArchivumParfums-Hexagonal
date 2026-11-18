@@ -26,7 +26,7 @@ export const storefrontRoutes: RouteRecordRaw[] = [
         path: '',
         name: 'store-home',
         component: () => import('./StoreHomeView.vue'),
-        meta: { title: 'Una fragancia también guarda memoria' },
+        meta: { title: 'Inicio' },
         beforeEnter: (to) => {
           if (legacyFilters.some((field) => field in to.query)) {
             return { name: 'storefront', params: to.params, query: to.query, hash: to.hash, replace: true }

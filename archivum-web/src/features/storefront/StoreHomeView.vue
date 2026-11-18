@@ -44,11 +44,12 @@ watch(slug, () => {
 
 <template>
   <div class="store-home">
-    <section class="home-hero" aria-labelledby="home-title">
+    <h1 id="home-title" class="visually-hidden">Inicio</h1>
+    <section class="home-hero" aria-labelledby="home-hero-title">
       <div class="catalog-shell home-hero__inner">
         <div class="home-hero__copy">
           <p class="home-eyebrow">Perfumería de nicho</p>
-          <h1 id="home-title">Una fragancia también guarda memoria</h1>
+          <h2 id="home-hero-title" class="home-hero__title">Una fragancia también guarda memoria</h2>
           <p class="home-hero__description">
             Pruebe una fragancia en un decant antes de comprar la botella, o huélala en la tienda con una cita de prueba.
           </p>
@@ -155,7 +156,7 @@ watch(slug, () => {
   text-transform: uppercase;
 }
 
-.home-hero h1 {
+.home-hero__title {
   max-width: 13ch;
   margin-block: 1.25rem;
   font-size: clamp(2.5rem, 5.5vw, 4.25rem);

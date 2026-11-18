@@ -6,7 +6,9 @@ test('opens Inicio, redirects old filters, and preserves the catalog URL and pag
   await mockApi(page)
   await page.goto('/')
   await expect(page).toHaveURL(storePath)
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Una fragancia también guarda memoria')
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Inicio')
+  await expect(page).toHaveTitle(/^Inicio · /)
+  await expect(page.getByRole('heading', { level: 2, name: 'Una fragancia también guarda memoria' })).toBeVisible()
   await expect(page.getByRole('main').getByRole('link', { name: 'Explorar la colección' })).toHaveAttribute('href', showcasePath)
 
   await page.goto(`${storePath}?familia=Floral&momento=dia`)

@@ -25,7 +25,8 @@ describe('showcase', () => {
 
     expect(router.currentRoute.value.fullPath).toBe(`/tiendas/${STORE}`)
     expect(router.currentRoute.value.name).toBe('store-home')
-    expect(wrapper.get('h1').text()).toBe('Una fragancia también guarda memoria')
+    expect(wrapper.get('h1').text()).toBe('Inicio')
+    expect(document.title).toBe('Inicio · ArchivumParfums')
   })
 
   it('shows the profile of the store and its perfumes with the prices of the API', async () => {

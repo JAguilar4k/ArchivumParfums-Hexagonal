@@ -112,7 +112,7 @@ test('registers after accepting privacy and keeps session and role guards functi
   expect(api.requests.filter((request) => new URL(request.url()).pathname === '/api/v1/cuentas')).toHaveLength(0)
   await consent.check()
   await submit.click()
-  await expect(page.getByRole('main').getByRole('heading', { level: 1, name: /Vitrina|Una fragancia/ })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('heading', { level: 1, name: /^(Vitrina|Inicio)$/ })).toBeVisible()
   const registration = api.requests.find((request) => new URL(request.url()).pathname === '/api/v1/cuentas')
   expect(registration?.postDataJSON()).toMatchObject({ acepta_privacidad: true, correo: customer.correo })
 

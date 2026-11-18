@@ -46,7 +46,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
       await mockApi(page)
 
       await page.goto('/')
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Una fragancia también guarda memoria')
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Inicio')
       await expect(page.getByRole('main').getByRole('link', { name: /Oud Nocturno/ })).toBeVisible()
       await expect(page.locator('html')).toHaveCSS('color-scheme', colorScheme)
       await capture(page, info, `inicio-${colorScheme}-${width}`, true)
@@ -91,7 +91,7 @@ test('does not overflow horizontally at 320 px in pages or drawers', async ({ pa
   await page.setViewportSize({ width: 320, height: 760 })
   await mockApi(page)
   for (const [path, name] of [
-    ['/', 'Una fragancia también guarda memoria'],
+    ['/', 'Inicio'],
     [showcasePath, 'Vitrina'],
     [perfumePath(), featuredPerfume.nombre],
     ['/iniciar-sesion', 'Iniciar sesión'],
