@@ -24,10 +24,10 @@ Equivalencias concretas:
 | `Application/{DTOs,UseCases}` y, si hace falta, `Application/Contracts` | Las mismas subcarpetas |
 | `Infrastructure/Http/{Controllers,Requests,Resources,routes.php}`, `Infrastructure/Persistence/{Models,Repositories}` y `<Módulo>ServiceProvider.php` | Los mismos archivos y carpetas |
 | `src/Shared` (`Http/Problem`, `Http/Middleware`, `Tenancy`, `OpenApi`) | `src/Shared` con las mismas piezas |
-| `database/roles.sql`, `migrations`, `seeders`, `factories` | Lo mismo, con los roles `archivum_owner` y `archivum_app` |
+| `database/migrations/roles.sql`, `migrations`, `seeders`, `factories` | Lo mismo, con los roles `archivum_owner` y `archivum_app` |
 | `tests/{Unit,Feature,Architecture,Support}` | Las mismas carpetas, escritas con Pest |
 | `docs/architecture.md`, `database.md`, `data-model.md`, `ubiquitous-language.md`, `patterns.md` y `docs/adr/NNNN-titulo.md` | Los mismos documentos, con las decisiones de Archivum |
-| `.github/workflows/ci.yml`, `dependabot.yml`, `pull_request_template.md`, `ISSUE_TEMPLATE/historia-de-usuario.md` | Los mismos archivos, más el job de `archivum-web` en CI |
+| `.github/workflows/ci.yml`, `dependabot.yml`, `pull_request_template.md`, `ISSUE_TEMPLATE/historia-de-usuario.md` | Los mismos archivos, más el check de compatibilidad `Web` |
 | README raíz: contenido, arquitectura, estado, puesta en marcha, forma de trabajo e idioma | Las mismas secciones, más **Uso de IA** |
 
 Al empezar un issue, se abre en el repo guía el módulo o archivo más parecido y se sigue su forma: nombres, capas, pruebas y documentación.
@@ -73,20 +73,20 @@ Si una regla del negocio no está en la especificación, preguntá antes de inve
 | Calidad | Pest (el repo guía usa PHPUnit; el enunciado exige Pest), Pint, Larastan en nivel 8, `composer audit` |
 | Web | `archivum-web`: Vue 3 + TypeScript + Vite, Vue Router, Pinia, tipos generados desde `openapi/v1.json`, Laravel Echo |
 | IA | `laravel/ai`, el SDK oficial, con salida estructurada. Proveedor por definir |
-| CI | GitHub Actions con la forma del repo guía: PostgreSQL 18 de servicio, roles, lint, análisis, pruebas y auditoría; más un job para `archivum-web` |
+| CI | GitHub Actions con la forma del repo guía: PostgreSQL 18 de servicio, roles, lint, análisis, pruebas y auditoría; más el check `Web` con el contrato de la API |
 | Despliegue | Por definir: PHP 8.4, PostgreSQL 18, worker de colas, scheduler, websockets y HTTPS |
 
 ## Estructura
 
 ```
 archivum-api-hexagonal/   API REST en Laravel 13 (como sodaya-api-hexagonal)
-archivum-web/             SPA en Vue 3 + TypeScript
+  database/migrations/  submódulo del esquema PostgreSQL 18
 docs/                     architecture, database, data-model, ubiquitous-language,
                           patterns, adr/, especificacion y plan
 .github/                  CI, plantillas de issue y de PR, Dependabot
 ```
 
-`archivum-api-hexagonal/` tendrá su propio `CLAUDE.md` generado por Laravel Boost, como en el repo guía. Este archivo es el del proyecto completo.
+`archivum-api-hexagonal/` tendrá su propio `CLAUDE.md` generado por Laravel Boost, como en el repo guía. Este archivo contiene las instrucciones del backend y las convenciones del proyecto. La SPA se mantiene en [Web](https://github.com/JAguilar4k/ArchivumParfums-Web) y el esquema en [Base de datos](https://github.com/JAguilar4k/ArchivumParfums-Database).
 
 ## Arquitectura (igual que el repo guía)
 
@@ -111,7 +111,7 @@ El glosario completo está en la sección 4 de la especificación y se pasa a `d
 ## Base de datos
 
 - PostgreSQL 18 en desarrollo, pruebas y producción.
-- Dos roles, como en el repo guía: `archivum_owner` ejecuta las migraciones (`--database=pgsql_admin`) y `archivum_app` atiende las peticiones, sin `BYPASSRLS`. `database/roles.sql` los crea.
+- Dos roles, como en el repo guía: `archivum_owner` ejecuta las migraciones (`--database=pgsql_admin`) y `archivum_app` atiende las peticiones, sin `BYPASSRLS`. `database/migrations/roles.sql` los crea. Descarga la revisión del esquema con `git submodule update --init --recursive` desde la raíz antes de instalar o migrar.
 - Llave primaria `uuid` versión 7. Toda tabla de una tienda lleva `business_id`, incluido en sus llaves únicas y foráneas.
 - `timestamptz`, colones enteros en `integer`, `CHECK` con nombre `<tabla>_<columna>_check`, tercera forma normal y migraciones reversibles.
 
@@ -135,7 +135,7 @@ composer openapi     # regenera openapi/v1.json
 composer audit
 ```
 
-En `archivum-web/`, el cliente:
+En el repositorio [Web](https://github.com/JAguilar4k/ArchivumParfums-Web), el cliente:
 
 ```bash
 npm ci               # dependencias exactas de package-lock.json
