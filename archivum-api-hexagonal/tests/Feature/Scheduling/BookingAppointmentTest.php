@@ -12,6 +12,7 @@ use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Businesses\Members\Infrastructure\Persistence\Models\MemberModel;
 use Src\Businesses\Profile\Infrastructure\Persistence\Models\BusinessModel;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Models\PerfumeModel;
+use Src\Notifications\CustomerNotices\Domain\Contracts\WhatsAppSender;
 use Src\Scheduling\Appointments\Domain\Contracts\AppointmentRepository;
 use Src\Scheduling\Appointments\Domain\Entities\Appointment;
 use Src\Scheduling\Appointments\Domain\ValueObjects\AppointmentId;
@@ -23,6 +24,7 @@ use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
 use Tests\Support\RefreshDatabaseAsOwner;
 
+use function Pest\Laravel\mock;
 use function Pest\Laravel\postJson;
 
 uses(RefreshDatabaseAsOwner::class);
@@ -363,4 +365,16 @@ test('refuses a booking without a session and one of the staff of the store', fu
     actingAsStaff($scenario['staffed']);
 
     postJson(bookingUrl($scenario), bookingBody($scenario))->assertForbidden();
+});
+
+it('sends a booking confirmation with the appointment time in the store timezone', function () {
+    $scenario = bookingScenario();
+    $startsAt = $scenario['day']->setTime(9, 0);
+    CustomerModel::query()->whereKey($scenario['customer'])->firstOrFail()->update(['phone' => '+50688880001']);
+    $sender = mock(WhatsAppSender::class);
+    $sender->shouldReceive('send')->once()->with('+50688880001', Mockery::on(
+        fn (string $message): bool => str_starts_with($message, 'Reservamos tu cita de prueba para el '.$startsAt->format('d/m/Y H:i')),
+    ));
+
+    postJson(bookingUrl($scenario), bookingBody($scenario))->assertCreated();
 });

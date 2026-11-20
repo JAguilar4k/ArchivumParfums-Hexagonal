@@ -442,3 +442,11 @@ tests/       Pruebas unitarias, de funcionalidad y de arquitectura
 ```
 
 La arquitectura se describe en [docs/architecture.md](../docs/architecture.md).
+
+## Confirmaciones por WhatsApp en sandbox
+
+En el archivo local `.env` de la API, configura `TWILIO_SID` con el Account SID, `TWILIO_TOKEN` con el Auth Token y `TWILIO_WHATSAPP_FROM` con el remitente que muestra el sandbox de Twilio. En `TWILIO_WHATSAPP_TEST_NUMBERS`, indica los números de prueba autorizados en formato internacional E.164, separados por comas. Conserva las credenciales y los teléfonos de prueba fuera de Git.
+
+Después de cambiar la configuración, ejecuta `php artisan config:clear` y reinicia el worker de la cola. Antes de hacer el pedido o reservar la cita, el número de prueba debe estar en el perfil del cliente de demostración de la tienda y debe enviar el mensaje de unión que muestra Twilio. Los formularios de registro actuales no recogen el teléfono. El sandbox permite enviar estas confirmaciones de texto durante las 24 horas que siguen al mensaje del destinatario. Consulta la [guía oficial del sandbox](https://www.twilio.com/docs/whatsapp/sandbox).
+
+Aplica la migración de la API con `php artisan migrate --database=pgsql_admin`. Los avisos se encolan después de confirmar la transacción. PostgreSQL registra un solo intento de envío por aviso. Con configuración incompleta, el adaptador nulo registra que omitió el envío. Los errores de Twilio se registran sin credenciales ni datos del destinatario. El número público del botón se configura en la SPA con `VITE_STORE_WHATSAPP`.

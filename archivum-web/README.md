@@ -53,7 +53,7 @@ Vite solo expone al navegador las variables que empiezan con `VITE_`. Todas se d
 |---|---|---|
 | `VITE_API_URL` | `http://localhost:8000/api/v1` | Dirección base de la API, con el prefijo `/api/v1`. |
 | `VITE_DEFAULT_BUSINESS_SLUG` | `archivumparfums` | Tienda que abre la raíz del cliente (`/`); `archivumparfums` es la tienda piloto de los seeders. |
-| `VITE_STORE_WHATSAPP` | `50600000000` | Número de demostración en formato internacional, sin `+`. El enlace a WhatsApp se oculta si la variable está vacía. |
+| `VITE_STORE_WHATSAPP` | Vacío | Número público de WhatsApp de la tienda, incluido el código del país. Se admite un `+` inicial. El enlace se oculta si la variable está vacía o el formato es inválido. |
 
 Las variables se leen al compilar: después de cambiar `.env`, se reinicia `npm run dev` o se vuelve a ejecutar `npm run build`.
 

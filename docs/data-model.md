@@ -17,6 +17,7 @@ erDiagram
     businesses ||--o{ perfumes : "vende"
     businesses ||--o{ suppliers : "compra a"
     businesses ||--o{ decant_pack_plans : "ofrece"
+    businesses ||--o{ customer_notice_attempts : "registra"
     users ||--o| members : "es personal"
     users ||--o{ customers : "es cliente"
     users ||..o{ personal_access_tokens : "ingresa con"
@@ -252,6 +253,13 @@ erDiagram
         timestamptz attempted_at
         text reason
     }
+    customer_notice_attempts {
+        uuid id PK
+        uuid reference_id
+        varchar notice_type
+        timestamptz created_at
+    }
+
     webhook_events {
         uuid id PK
         varchar gateway
@@ -751,6 +759,20 @@ Bitácora inalterable de cambios sensibles (#113, `docs/audit-log.md`). El rol d
 | `request_id` | `uuid` | `X-Request-Id` de la solicitud |
 | `created_at` | `timestamptz` | Momento de la entrada |
 
+### customer_notice_attempts
+
+Registro de intentos de confirmación por WhatsApp (#166). El trabajo inserta una fila antes de contactar al proveedor. La llave única hace que repetir el trabajo conserve un solo intento (R46), incluso si se perdió la respuesta del proveedor.
+
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| `id` | `uuid` | Llave primaria con `uuidv7()` |
+| `business_id` | `uuid` | Referencia a `businesses.id` con borrado en cascada |
+| `notice_type` | `varchar(40)` | Tipo de aviso |
+| `reference_id` | `uuid` | Identificador del pedido o la cita que originó el aviso |
+| `created_at` | `timestamptz` | Momento en que se registró el intento |
+
+Llave única por `(business_id, notice_type, reference_id)`. La política `customer_notice_attempts_business_isolation` aplica seguridad a nivel de fila forzada. La referencia identifica el aviso a efectos de idempotencia y el registro no guarda teléfonos ni mensajes.
+
 ## Tablas previstas
 
 Existen en el diagrama, pero su detalle llega en el pull request de la migración que las crea (sección 7 de la especificación).
@@ -790,6 +812,7 @@ Se revisa tabla por tabla. Una dependencia funcional `A → B` significa que A d
 | `payments` | Un intento de cobro por fila | Llave de una sola columna; el índice parcial limita intentos pendientes del mismo propósito | Proveedor, referencias, principal y conversión describen el intento; `refunded_amount` es un resumen justificado abajo |
 | `refunds` | Una asignación de devolución por fila | Llave de una sola columna | Importe, intento, referencia y resultado pertenecen a la devolución; pago y línea se referencian con su tienda |
 | `webhook_events` | Un evento por fila; `payload` conserva el documento externo como una unidad | Llave de una sola columna y candidata `(gateway, event_id)` | Tipo, cuerpo, resultado, error y fecha de procesamiento describen el evento; su alcance global se justifica abajo |
+| `customer_notice_attempts` | Un intento por fila | `id` identifica la fila y `(business_id, notice_type, reference_id)` identifica el aviso | La fecha registra el intento; la fila no copia datos del cliente ni del recurso |
 
 Las tablas previstas se revisan contra esta misma tabla cuando se crean.
 

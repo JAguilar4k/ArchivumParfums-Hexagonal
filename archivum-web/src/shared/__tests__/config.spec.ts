@@ -33,11 +33,19 @@ describe('defaultBusinessSlug', () => {
 })
 
 describe('storeWhatsApp', () => {
-  it('returns the configured number without surrounding whitespace', () => {
-    expect(storeWhatsApp({ VITE_STORE_WHATSAPP: ' 50600000000 ' })).toBe('50600000000')
+  it.each([' 50600000000 ', '+50600000000'])('returns digits for %j', (value) => {
+    expect(storeWhatsApp({ VITE_STORE_WHATSAPP: value })).toBe('50600000000')
   })
 
-  it.each([undefined, '', '  '])('returns an empty string for %j', (value) => {
+  it.each([
+    undefined,
+    '',
+    '  ',
+    '0050600000000',
+    '506-0000-0000',
+    '50600000000?text=Hola',
+    '1234567890123456',
+  ])('returns an empty string for %j', (value) => {
     expect(storeWhatsApp({ VITE_STORE_WHATSAPP: value })).toBe('')
   })
 })
