@@ -37,7 +37,7 @@ function add(event: MouseEvent): void {
     ml: offer.ml,
     price: offer.precio_venta,
     family: props.perfume.familia,
-    photo: props.perfume.foto_url,
+    photo: props.perfume.foto_variantes?.[0]?.url ?? props.perfume.foto_url,
   })
   openCartDrawer({
     slug: props.slug,
@@ -49,7 +49,13 @@ function add(event: MouseEvent): void {
 
 <template>
   <li class="perfume-card" @pointerenter="preload" @focusin="preload">
-    <PerfumeArt :id="perfume.id" :family="perfume.familia" :photo="perfume.foto_url">
+    <PerfumeArt
+      :id="perfume.id"
+      :family="perfume.familia"
+      :photo="perfume.foto_url"
+      :variants="perfume.foto_variantes"
+      sizes="auto, (max-width: 40rem) 50vw, (max-width: 57rem) 33vw, (max-width: 80rem) 25vw, 19rem"
+    >
       <span v-if="moment" class="perfume-badge">{{ tagLabel(moment) }}</span>
     </PerfumeArt>
     <component :is="heading" class="perfume-card__heading">

@@ -144,7 +144,7 @@ function add(event: MouseEvent): void {
     ml: offer.data.ml,
     price: offer.price,
     family: product.familia,
-    photo: product.foto_url,
+    photo: product.foto_variantes?.[0]?.url ?? product.foto_url,
   }
   if (offer.kind === 'bottle') {
     cart.addBottle(slug.value, { ...line, presentationId: offer.data.id }, quantity.value)
@@ -182,7 +182,14 @@ function preloadShowcase(): void {
 
       <div class="detail-columns">
         <figure class="detail-figure">
-          <PerfumeArt :id="perfume.id" :family="perfume.familia" :photo="perfume.foto_url" :alt="`Botella de ${fullName}`">
+          <PerfumeArt
+            :id="perfume.id"
+            :family="perfume.familia"
+            :photo="perfume.foto_url"
+            :variants="perfume.foto_variantes"
+            sizes="auto, (max-width: 43rem) 100vw, (max-width: 80rem) 50vw, 38rem"
+            :alt="`Botella de ${fullName}`"
+          >
             <span v-if="perfume.etiquetas.momento[0]" class="perfume-badge">{{ tagLabel(perfume.etiquetas.momento[0]) }}</span>
           </PerfumeArt>
         </figure>

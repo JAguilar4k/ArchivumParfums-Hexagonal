@@ -26,6 +26,9 @@ final readonly class GetShowcasePerfume
     {
         $perfume = $this->reader->find($perfumeId) ?? throw ShowcasePerfumeNotFoundException::create();
 
-        return $perfume->withPhotoUrl($perfume->photoPath === null ? null : $this->storage->url($perfume->photoPath));
+        return $perfume->photoPath === null ? $perfume : $perfume->withPhoto(
+            $this->storage->url($perfume->photoPath),
+            $this->storage->imageVariants($perfume->photoPath),
+        );
     }
 }

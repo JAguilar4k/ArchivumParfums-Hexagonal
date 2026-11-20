@@ -24,6 +24,7 @@ interface Options {
   slowSearch?: { text: string; delayMs: number }
   firstSlotTaken?: boolean
   soldOutOnFirstCheckout?: boolean
+  featuredPhoto?: Pick<Perfume, 'foto_url' | 'foto_variantes'>
 }
 
 function json(route: Route, data: unknown, status = 200) {
@@ -92,6 +93,10 @@ export async function mockApi(page: Page, options: Options = {}) {
   const requests: Request[] = []
   const previouslyServed = new Set<string>()
   const gateway = options.gateway ?? 'onvo'
+  const featuredPhoto = options.featuredPhoto
+  const storePerfumes = featuredPhoto
+    ? perfumes.map((perfume) => perfume.id === featuredPerfume.id ? { ...perfume, ...featuredPhoto } : perfume)
+    : perfumes
   const secondStore = 'esencias-del-norte'
   let appointment = { ...demoAppointment }
   let order = { ...demoOrder }
@@ -205,7 +210,7 @@ export async function mockApi(page: Page, options: Options = {}) {
       }
       previouslyServed.add(url.href)
 
-      const catalog = parts[1] === storeSlug ? perfumes : []
+      const catalog = parts[1] === storeSlug ? storePerfumes : []
       if (parts[3]) {
         const perfume = catalog.find((item) => item.id === parts[3])
         return perfume
