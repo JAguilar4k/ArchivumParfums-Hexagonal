@@ -6,7 +6,7 @@ namespace Src\Notifications\CustomerNotices\Infrastructure\Jobs;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
+use Src\Notifications\CustomerNotices\Application\Contracts\NoticeRecipients;
 use Src\Notifications\CustomerNotices\Domain\Contracts\WhatsAppSender;
 use Src\Shared\Domain\ValueObjects\CustomerNotice;
 use Src\Shared\Infrastructure\Queue\IdempotentJob;
@@ -35,12 +35,10 @@ final class SendCustomerNoticeJob extends IdempotentJob
         return [new ScopeJobToBusiness($this->businessId, ScopeJobToBusiness::CONTEXT)];
     }
 
-    public function handle(BusinessTransaction $transaction, WhatsAppSender $sender): void
+    public function handle(BusinessTransaction $transaction, NoticeRecipients $recipients, WhatsAppSender $sender): void
     {
-        $phone = $transaction->run($this->businessId, function (): ?string {
-            $phone = CustomerModel::query()->where('business_id', $this->businessId)
-                ->whereKey($this->customerId)
-                ->first(['phone'])?->phone;
+        $phone = $transaction->run($this->businessId, function () use ($recipients): ?string {
+            $phone = $recipients->phoneOf($this->businessId, $this->customerId);
 
             if ($phone === null || $phone === '') {
                 Log::info('WhatsApp notice skipped: no customer phone.');

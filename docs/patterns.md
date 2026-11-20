@@ -15,12 +15,14 @@ Todo módulo los usa desde su primer issue.
 | Data Mapper | Infrastructure | Dentro de cada repositorio Eloquent, en `Infrastructure/Persistence/Repositories` | Separar la entidad del dominio del modelo Eloquent, que vive en `Infrastructure/Persistence/Models` |
 | Caso de uso | Application | `Application/UseCases` | Una acción del negocio por clase, con un único método público, que se prueba sin HTTP |
 | Value Object | Domain | `Domain/ValueObjects`; los compartidos, como `Identifier` y `BusinessId`, en `Shared/Domain/ValueObjects` | La regla de un dato vive en un solo lugar; es imposible crear uno inválido |
-| Capa anticorrupción | Infrastructure | Los adaptadores de las integraciones: `Payments/Payments/Infrastructure`, `Recommendations/Recommender/Infrastructure/Ai`, `Scheduling/Calendar/Infrastructure` y `Notifications/CustomerNotices/Infrastructure/WhatsApp` | Que el modelo de una pasarela, del proveedor de IA, de Google o de Meta no contamine el dominio ([ADR 0008](adr/0008-external-integrations-behind-ports.md)) |
+| Capa anticorrupción | Infrastructure | Los adaptadores de las integraciones: `Payments/Payments/Infrastructure`, `Recommendations/Recommender/Infrastructure/Ai`, `Scheduling/Calendar/Infrastructure` y `Notifications/CustomerNotices/Infrastructure/WhatsApp` | Que el modelo de una pasarela, del proveedor de IA, de Google o de Twilio no contamine el dominio ([ADR 0008](adr/0008-external-integrations-behind-ports.md)) |
 | Aggregate | Domain | `Domain/Entities` | Un solo punto de entrada para cambiar un conjunto de datos que se valida junto |
 | Factory Method | Domain | `create()` y `reconstitute()` en cada agregado, en `Domain/Entities` | Distinguir el nacimiento de un agregado de su lectura desde la base |
 | DTO / Command | Application | `Application/DTOs` | Cruzar capas con datos simples, sin `Request` ni modelos |
 | Inyección de dependencias | Infrastructure | El service provider de cada módulo, en `Infrastructure` | Elegir el adaptador de cada puerto en un solo lugar |
 | Cadena de responsabilidad | Infrastructure | Los middleware HTTP, en `Infrastructure/Http` | Tratar cada petición antes y después del controlador |
+| Strategy (adaptador intercambiable) | Infrastructure | `CustomerNoticesServiceProvider` elige los adaptadores de `CustomerNotifier` y `WhatsAppSender` según la configuración del sandbox (#166) | Conservar los casos de uso al cambiar la implementación del envío |
+| Null Object | Infrastructure | `NullCustomerNotifier` y `NullWhatsAppSender`, en `Notifications/CustomerNotices/Infrastructure` (#166) | Registrar la omisión después de confirmar una operación o al ejecutar un aviso encolado cuando falta configuración válida |
 
 ## Patrones previstos
 
@@ -33,7 +35,7 @@ Llegan con el módulo que los necesita.
 | Policy | Las policies de Laravel en la `Infrastructure` de cada módulo, registradas en su provider (#104) | Decidir por rol y por propiedad del recurso; lo ajeno responde 404 |
 | Estado como enum con transiciones | `Domain/ValueObjects` de `Scheduling/Appointments` y `Sales/Orders` | Impedir un cambio de estado inválido |
 | Observer (eventos de dominio) | El evento en `Domain`; sus oyentes en `Infrastructure` de cada módulo (#155, #163, #182) | Avisar a otros contextos sin acoplarlos |
-| Strategy | Los canales de `CustomerNotifier` (#161) y la pasarela de cada tienda con `PaymentGateways` (#88) | Cambiar de canal o de pasarela sin tocar el caso de uso |
+| Strategy | Los adaptadores de correo y notificación en la app para `CustomerNotifier` (#161) y la pasarela de cada tienda con `PaymentGateways` (#88) | Cambiar de canal o de pasarela sin tocar el caso de uso |
 | Clave de idempotencia | El registro único de cada evento de webhook, en `Payments/Payments/Infrastructure` (#95) | Que un webhook repetido no confirme dos veces el mismo pago |
 | Restricción en la base como guardia de concurrencia | Los repositorios de `Scheduling/Appointments`, `Decants/Bottles` y `Decants/Packs`, en `Infrastructure/Persistence` | Que dos peticiones simultáneas no rompan una regla ([ADR 0010](adr/0010-concurrency-guaranteed-in-postgresql.md)) |
 

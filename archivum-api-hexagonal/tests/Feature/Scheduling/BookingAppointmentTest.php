@@ -22,6 +22,7 @@ use Src\Scheduling\Services\Infrastructure\Persistence\Models\ServiceModel;
 use Src\Scheduling\StaffSchedules\Infrastructure\Persistence\Models\StaffScheduleModel;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
+use Tests\Support\Notifications\TwilioSandbox;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 use function Pest\Laravel\mock;
@@ -371,6 +372,7 @@ it('sends a booking confirmation with the appointment time in the store timezone
     $scenario = bookingScenario();
     $startsAt = $scenario['day']->setTime(9, 0);
     CustomerModel::query()->whereKey($scenario['customer'])->firstOrFail()->update(['phone' => '+50688880001']);
+    TwilioSandbox::configure();
     $sender = mock(WhatsAppSender::class);
     $sender->shouldReceive('send')->once()->with('+50688880001', Mockery::on(
         fn (string $message): bool => str_starts_with($message, 'Reservamos tu cita de prueba para el '.$startsAt->format('d/m/Y H:i')),

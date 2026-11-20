@@ -96,6 +96,9 @@ Las rutas y los atributos JSON son lo que ve quien consume la API, por eso usan 
 | Aviso de la pasarela (evento de webhook) | `PaymentEvent` | `webhook_events`, global, `pending` hasta procesarse y luego `processed` o `failed` con su error | `POST /api/v1/webhooks/onvo` y `/paypal`; responde `evento` y `estado`: `recibido` o `repetido` |
 | Procesamiento del aviso en la cola | `ProcessPaymentEventJob`, `ProcessPaymentEvent` | La fila del aviso en `webhook_events` y su trabajo en `jobs` | — |
 | Conciliación de los pagos pendientes | `ReconcilePayment`, `PendingPayments` | Los pagos `pending` con referencia del proveedor que ya esperaron su aviso | `php artisan archivum:reconcile-payments`, cada cinco minutos |
+| Aviso al cliente | `CustomerNotifier`, `CustomerNotice` | Trabajo en `jobs` después de confirmar la operación, si el canal está disponible | — |
+| Confirmación por WhatsApp | `CustomerNotice::OrderPlaced`, `CustomerNotice::AppointmentBooked`, `WhatsAppSender` | Tipos `order_placed` y `appointment_booked` | — |
+| Intento de aviso | `SendCustomerNoticeJob` | `customer_notice_attempts`, registrado antes del envío y único por `(business_id, notice_type, reference_id)` | — |
 | Paquete de decants (oferta) | `DecantPackPlan` | `decant_pack_plans` | `paquetes` |
 | Paquete comprado | `DecantPack` | `decant_packs` | `paquetes-comprados` |
 | Compra de un paquete | `PurchaseDecantPack`, `PurchasedPack` | Una fila de `decant_packs` y su pago en `payments.decant_pack_id` | `POST /api/v1/tiendas/{tienda}/paquetes/{paquete}/compra` |

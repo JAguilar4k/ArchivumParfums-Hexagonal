@@ -17,6 +17,7 @@ use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderLineModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
 use Tests\Support\Businesses\StaffedBusiness;
 use Tests\Support\Catalog\StoredPerfumes;
+use Tests\Support\Notifications\TwilioSandbox;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Sales\StoredOrders;
 use Tests\Support\Shared\ScopesQueriesToBusiness;
@@ -441,6 +442,7 @@ it('sends the order confirmation using the customer phone of the store', functio
     $perfume = StoredPerfumes::create($business->business->id, variants: [[100, 15000, 15000]]);
     $this->scopeQueriesTo($business->business->id);
     CustomerModel::query()->where('user_id', $business->customer->id)->firstOrFail()->update(['phone' => '+50688880001']);
+    TwilioSandbox::configure();
     $sender = mock(WhatsAppSender::class);
     $sender->shouldReceive('send')->once()->with('+50688880001', Mockery::on(
         fn (string $message): bool => str_starts_with($message, 'Recibimos tu pedido '),
