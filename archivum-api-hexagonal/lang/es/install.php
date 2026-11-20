@@ -9,6 +9,7 @@ return [
     'description' => 'Deja listo el entorno local: .env, clave de la aplicación, roles y bases de PostgreSQL, migraciones y datos de demostración.',
     'environment_file_created' => 'Se creó .env a partir de .env.example.',
     'existing_role_password' => 'El rol de PostgreSQL ya existe. Escriba su contraseña actual en :variable de .env; el instalador no cambia las contraseñas de otras instalaciones.',
+    'migrations_missing' => 'No se encontraron migraciones. Ejecute git submodule update --init --recursive desde la raíz del repositorio y vuelva a ejecutar archivum:install.',
     'migration_failed' => 'Las migraciones fallaron. Corrija el error y ejecute de nuevo archivum:install.',
     'query_failed' => 'Falló una operación de PostgreSQL. Revise los permisos del rol y los datos DB_ de .env.',
     'query_failed_with_state' => 'Falló una operación de PostgreSQL (SQLSTATE :sqlstate). Revise los permisos del rol y los datos DB_ de .env.',

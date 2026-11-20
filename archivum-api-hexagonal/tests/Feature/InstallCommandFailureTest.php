@@ -79,3 +79,28 @@ it('reports a failed query without exposing its sql, bindings or driver details'
     'Spanish untrusted state' => ['es', 'fictitious-invalid-state', 'Falló una operación de PostgreSQL.'],
     'English untrusted state' => ['en', 'fictitious-invalid-state', 'A PostgreSQL operation failed.'],
 ]);
+
+it('explains how to initialize missing migrations before connecting to PostgreSQL', function (): void {
+    app()->setLocale('es');
+    $databasePath = app()->databasePath();
+    $temporaryDatabasePath = sys_get_temp_dir().'/archivum-missing-migrations-'.bin2hex(random_bytes(8));
+    $migrations = $temporaryDatabasePath.'/migrations';
+    mkdir($migrations, recursive: true);
+    file_put_contents($migrations.'/roles.sql', '-- This is not a Laravel migration.');
+    app()->useDatabasePath($temporaryDatabasePath);
+    DB::shouldReceive('connection')->never();
+
+    try {
+        withInstallerFailureEnvironment(function (): void {
+            expect(Artisan::call('archivum:install'))->toBe(1);
+            expect(Artisan::output())
+                ->toContain('No se encontraron migraciones', 'git submodule update --init --recursive')
+                ->not->toContain(__('install.ready'));
+        });
+    } finally {
+        app()->useDatabasePath($databasePath);
+        unlink($migrations.'/roles.sql');
+        rmdir($migrations);
+        rmdir($temporaryDatabasePath);
+    }
+});
