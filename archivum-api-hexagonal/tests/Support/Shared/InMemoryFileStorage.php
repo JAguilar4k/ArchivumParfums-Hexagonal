@@ -42,6 +42,11 @@ final class InMemoryFileStorage implements FileStorage
         return "https://archivos.test/{$path}";
     }
 
+    public function imageVariants(string $path): array
+    {
+        return [];
+    }
+
     /** Commit the transaction: delete the files that were waiting for it. */
     public function commit(): void
     {

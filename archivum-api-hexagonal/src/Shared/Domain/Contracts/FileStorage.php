@@ -19,4 +19,7 @@ interface FileStorage
 
     /** The public address of a stored file. */
     public function url(string $path): string;
+
+    /** @return list<array{width: int, url: string}> Public image variants in ascending order of width. */
+    public function imageVariants(string $path): array;
 }

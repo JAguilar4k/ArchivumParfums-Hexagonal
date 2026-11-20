@@ -2,21 +2,29 @@
 
 declare(strict_types=1);
 
+use Aws\MockHandler;
+use Aws\Result;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Src\Catalog\Perfumes\Domain\Entities\Perfume;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Models\PerfumeModel;
+use Src\Shared\Domain\Contracts\FileStorage;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\TwoBusinesses;
 use Tests\Support\Catalog\FakeImages;
 use Tests\Support\Catalog\StoredPerfumes;
 use Tests\Support\RefreshDatabaseAsOwner;
 
+use function Pest\Laravel\getJson;
 use function Pest\Laravel\post;
 
 pest()->use(RefreshDatabaseAsOwner::class);
+
+beforeEach(function () {
+    config(['filesystems.disks.r2.key' => null]);
+});
 
 /** The path of the photo that a perfume has stored, with the database scoped to its business. */
 function storedPhotoOf(string $businessId, string $perfumeId): ?string
@@ -143,4 +151,109 @@ it('answers 401 when the request has no token', function () {
     Auth::forgetGuards();
 
     sendPhoto($perfume->id->value, ['foto' => FakeImages::png()])->assertUnauthorized()->assertHeader('Content-Type', 'application/problem+json');
+});
+
+function configureR2PerfumePhotos(): string
+{
+    $publicOrigin = 'https://fotos.example.test';
+
+    config([
+        'filesystems.disks.r2.key' => 'test-r2-key',
+        'filesystems.disks.r2.secret' => 'test-r2-secret',
+        'filesystems.disks.r2.bucket' => 'test-perfumes',
+        'filesystems.disks.r2.endpoint' => 'https://r2.example.test',
+        'filesystems.disks.r2.url' => $publicOrigin,
+    ]);
+
+    return $publicOrigin;
+}
+
+it('stores perfume photos in R2 and keeps their public variants readable when write credentials are unavailable', function () {
+    ['first' => $first, 'theirs' => $theirs] = photoScenario();
+    $perfume = StoredPerfumes::create($first, name: 'Noctis', variants: [[50, 95000, 95000]], photoPath: 'perfumes/previous.png');
+    $perfumeId = $perfume->id->value;
+    $showcase = '/api/v1/tiendas/'.TwoBusinesses::FIRST.'/perfumes';
+    $publicOrigin = configureR2PerfumePhotos();
+    Storage::disk('public')->put('perfumes/previous.png', 'previous photo');
+    Storage::fake('r2', ['url' => $publicOrigin]);
+
+    getJson("{$showcase}/{$perfumeId}")->assertOk()
+        ->assertJsonPath('data.foto_url', Storage::disk('public')->url('perfumes/previous.png'))
+        ->assertJsonMissingPath('data.foto_variantes');
+
+    sendPhoto($theirs->id->value, ['foto' => FakeImages::png()])->assertNotFound();
+    expect(Storage::disk('r2')->allFiles())->toBe([]);
+
+    $firstUpload = sendPhoto($perfumeId, ['foto' => FakeImages::png('frasco.png')])->assertOk();
+    [$firstKey] = Storage::disk('r2')->allFiles('perfumes');
+    $firstUpload->assertJsonPath('data.foto_url', "{$publicOrigin}/{$firstKey}");
+    Storage::disk('public')->assertMissing('perfumes/previous.png');
+    expect($firstKey)->toMatch('#^perfumes/[0-9a-f-]{36}\.png$#');
+
+    $secondUpload = sendPhoto($perfumeId, ['foto' => FakeImages::png()])->assertOk();
+    [$currentKey] = Storage::disk('r2')->allFiles('perfumes');
+    $photoUrl = "{$publicOrigin}/{$currentKey}";
+    $secondUpload->assertJsonPath('data.foto_url', $photoUrl);
+    Storage::disk('r2')->assertMissing($firstKey);
+    expect(photoPathOf($first, $perfumeId))->toBe("r2:{$photoUrl}")
+        ->and(Storage::disk('public')->allFiles())->toBe([]);
+
+    Auth::forgetGuards();
+    config(['filesystems.disks.r2.key' => null, 'filesystems.disks.r2.secret' => null]);
+    $variants = [
+        ['ancho' => 320, 'url' => "{$publicOrigin}/cdn-cgi/image/width=320,fit=contain,format=auto/{$currentKey}"],
+        ['ancho' => 640, 'url' => "{$publicOrigin}/cdn-cgi/image/width=640,fit=contain,format=auto/{$currentKey}"],
+        ['ancho' => 960, 'url' => "{$publicOrigin}/cdn-cgi/image/width=960,fit=contain,format=auto/{$currentKey}"],
+    ];
+
+    getJson($showcase)->assertOk()
+        ->assertJsonPath('data.0.foto_url', $photoUrl)
+        ->assertJsonPath('data.0.foto_variantes', $variants);
+    getJson("{$showcase}/{$perfumeId}")->assertOk()
+        ->assertJsonPath('data.foto_url', $photoUrl)
+        ->assertJsonPath('data.foto_variantes', $variants);
+});
+
+it('uses local storage when any required R2 setting is absent', function (string $missingSetting) {
+    ['first' => $first, 'perfume' => $perfume] = photoScenario();
+    Storage::fake('r2');
+    configureR2PerfumePhotos();
+    config(["filesystems.disks.r2.{$missingSetting}" => null]);
+
+    $id = $perfume->id->value;
+    $response = sendPhoto($id, ['foto' => FakeImages::png()])->assertOk();
+    $path = photoPathOf($first, $id);
+
+    $response->assertJsonPath('data.foto_url', Storage::disk('public')->url($path));
+    Storage::disk('public')->assertExists($path);
+    expect(Storage::disk('r2')->allFiles())->toBe([]);
+})->with(['key', 'secret', 'bucket', 'endpoint', 'url']);
+
+it('does not use the R2 disk to store logos', function () {
+    Storage::fake('public');
+    Storage::fake('r2', ['url' => configureR2PerfumePhotos()]);
+
+    $file = FakeImages::png();
+    $localPath = app(FileStorage::class)->store('logos', 'png', $file->getPathname());
+
+    Storage::disk('public')->assertExists($localPath);
+    expect(Storage::disk('r2')->allFiles())->toBe([]);
+});
+
+it('sends a signed R2 upload without unsupported ACLs', function () {
+    $publicOrigin = configureR2PerfumePhotos();
+    $handler = new MockHandler([new Result(['ETag' => 'test-etag'])]);
+    config(['filesystems.disks.r2.handler' => $handler]);
+
+    $file = FakeImages::png();
+    $storage = app(FileStorage::class);
+    $path = $storage->store('perfumes', 'png', $file->getPathname());
+    $request = $handler->getLastRequest();
+
+    expect($storage->url($path))->toStartWith("{$publicOrigin}/perfumes/")
+        ->and($request?->getMethod())->toBe('PUT')
+        ->and($request?->getUri()->getHost())->toBe('r2.example.test')
+        ->and($request?->getUri()->getPath())->toStartWith('/test-perfumes/perfumes/')
+        ->and($request?->hasHeader('Authorization'))->toBeTrue()
+        ->and($request?->hasHeader('X-Amz-Acl'))->toBeFalse();
 });

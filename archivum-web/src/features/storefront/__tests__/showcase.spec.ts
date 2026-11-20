@@ -61,6 +61,20 @@ describe('showcase', () => {
     expect(plain(larger.element.parentElement?.textContent ?? '')).toMatch(/Botella de 100 ml\s*₡125 000/)
   })
 
+  it('uses an original photo when the API omits responsive variants', async () => {
+    const photo = 'https://archivum.test/storage/perfume.jpg'
+    fakeApi({
+      [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
+      [`GET /tiendas/${STORE}/perfumes`]: () => json(200, page([{ ...oud, foto_url: photo }])),
+    })
+    const { wrapper } = await open(showcasePath)
+    const image = wrapper.get('.perfume-card .perfume-art img')
+
+    expect(image.attributes('src')).toBe(photo)
+    expect(image.attributes('srcset')).toBeUndefined()
+    expect(image.attributes('sizes')).toBeUndefined()
+  })
+
   it('describes each filter with an example', async () => {
     fakeApi({
       [`GET /tiendas/${STORE}`]: () => json(200, { data: profile }),
