@@ -93,9 +93,9 @@ it('explains how to initialize missing migrations before connecting to PostgreSQ
     try {
         withInstallerFailureEnvironment(function (): void {
             expect(Artisan::call('archivum:install'))->toBe(1);
-            expect(Artisan::output())
-                ->toContain('No se encontraron migraciones', 'git submodule update --init --recursive')
-                ->not->toContain(__('install.ready'));
+            $output = Artisan::output();
+            expect($output)->toContain('No se encontraron migraciones', 'git submodule update --init --recursive');
+            expect($output)->not->toContain(__('install.ready'));
         });
     } finally {
         app()->useDatabasePath($databasePath);
