@@ -16,5 +16,7 @@ return [
     */
 
     'disk' => 'public',
+    'r2_directories' => ['perfumes'],
+    'r2_image_widths' => [320, 640, 960],
 
 ];

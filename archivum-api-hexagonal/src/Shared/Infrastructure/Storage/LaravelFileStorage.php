@@ -8,6 +8,7 @@ use Aws\CommandInterface;
 use Aws\Middleware;
 use Illuminate\Filesystem\AwsS3V3Adapter;
 use Illuminate\Filesystem\FilesystemAdapter;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -27,7 +28,7 @@ final readonly class LaravelFileStorage implements FileStorage
     public function store(string $directory, string $extension, string $sourcePath): string
     {
         $filename = Str::uuid7().'.'.$extension;
-        $usesR2 = $directory === 'perfumes'
+        $usesR2 = in_array($directory, Config::array('files.r2_directories'), true)
             && $this->r2Configured()
             && strlen(self::R2_PREFIX.$this->r2PublicOrigin()."/{$directory}/{$filename}") <= self::MAX_PHOTO_PATH_LENGTH;
         $disk = $usesR2 ? $this->r2UploadDisk() : $this->disk((string) config('files.disk'));
@@ -89,11 +90,14 @@ final readonly class LaravelFileStorage implements FileStorage
         }
 
         $origin = substr($url, 0, -strlen($key));
+        /** @var list<int> $widths */
+        $widths = Config::array('files.r2_image_widths');
+        sort($widths);
 
         return array_map(static fn (int $width): array => [
             'width' => $width,
             'url' => "{$origin}/cdn-cgi/image/width={$width},fit=contain,format=auto{$key}",
-        ], [320, 640, 960]);
+        ], $widths);
     }
 
     private function r2Configured(): bool

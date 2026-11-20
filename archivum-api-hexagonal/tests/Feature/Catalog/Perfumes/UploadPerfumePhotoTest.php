@@ -240,6 +240,29 @@ it('does not use the R2 disk to store logos', function () {
     expect(Storage::disk('r2')->allFiles())->toBe([]);
 });
 
+it('uses the configured R2 directories and exposes the configured image widths in ascending order', function () {
+    $origin = configureR2PerfumePhotos();
+    Storage::fake('public');
+    Storage::fake('r2', ['url' => $origin]);
+    config([
+        'files.r2_directories' => ['samples'],
+        'files.r2_image_widths' => [720, 240],
+    ]);
+
+    $source = FakeImages::png();
+    $storage = app(FileStorage::class);
+    $localPath = $storage->store('perfumes', 'png', $source->getPathname());
+    $remotePath = $storage->store('samples', 'png', $source->getPathname());
+    [$key] = Storage::disk('r2')->allFiles('samples');
+
+    Storage::disk('public')->assertExists($localPath);
+    expect($storage->url($remotePath))->toBe("{$origin}/{$key}")
+        ->and($storage->imageVariants($remotePath))->toBe([
+            ['width' => 240, 'url' => "{$origin}/cdn-cgi/image/width=240,fit=contain,format=auto/{$key}"],
+            ['width' => 720, 'url' => "{$origin}/cdn-cgi/image/width=720,fit=contain,format=auto/{$key}"],
+        ]);
+});
+
 it('sends a signed R2 upload without unsupported ACLs', function () {
     $publicOrigin = configureR2PerfumePhotos();
     $handler = new MockHandler([new Result(['ETag' => 'test-etag'])]);
