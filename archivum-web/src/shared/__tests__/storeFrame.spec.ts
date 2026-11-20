@@ -42,7 +42,7 @@ describe('store frame', () => {
   })
 
   it('links to the configured WhatsApp chat in the footer and floating shortcut', async () => {
-    vi.stubEnv('VITE_STORE_WHATSAPP', '50600000000')
+    vi.stubEnv('VITE_STORE_WHATSAPP', '+50600000000')
     const { wrapper } = await openFrame()
     const link = wrapper.get('a[aria-label="Escribir a la tienda por WhatsApp"]')
 

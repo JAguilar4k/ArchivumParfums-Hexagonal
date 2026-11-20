@@ -11,6 +11,7 @@ use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Catalog\Perfumes\Infrastructure\Persistence\Models\PerfumeVariantModel;
 use Src\Decants\Bottles\Infrastructure\Persistence\Models\DecantBottleModel;
+use Src\Notifications\CustomerNotices\Domain\Contracts\WhatsAppSender;
 use Src\Payments\Payments\Infrastructure\Jobs\RequestRefundJob;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderLineModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
@@ -24,6 +25,7 @@ use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\assertDatabaseHas;
 use function Pest\Laravel\freezeTime;
 use function Pest\Laravel\getJson;
+use function Pest\Laravel\mock;
 use function Pest\Laravel\postJson;
 
 pest()->use(RefreshDatabaseAsOwner::class, ScopesQueriesToBusiness::class);
@@ -432,4 +434,21 @@ it('resolves an own order business before RLS and returns null for another custo
     expect(DB::scalar("select fn_customer_resource_business('order', ?, ?)", [$fixture['order']->id, $business->customer->id]))->toBe($business->business->id);
     expect(DB::scalar("select fn_customer_resource_business('order', ?, ?)", [$fixture['order']->id, $business->staff->id]))->toBeNull();
     expect(DB::table('orders')->count())->toBe(0);
+});
+
+it('sends the order confirmation using the customer phone of the store', function () {
+    $business = actingAsCustomer();
+    $perfume = StoredPerfumes::create($business->business->id, variants: [[100, 15000, 15000]]);
+    $this->scopeQueriesTo($business->business->id);
+    CustomerModel::query()->where('user_id', $business->customer->id)->firstOrFail()->update(['phone' => '+50688880001']);
+    $sender = mock(WhatsAppSender::class);
+    $sender->shouldReceive('send')->once()->with('+50688880001', Mockery::on(
+        fn (string $message): bool => str_starts_with($message, 'Recibimos tu pedido '),
+    ));
+
+    $response = postJson('/api/v1/tiendas/'.$business->business->slug.'/pedidos', ['lineas' => [
+        ['presentacion_id' => $perfume->variants[0]->id->value, 'cantidad' => 1],
+    ]])->assertCreated();
+    $this->scopeQueriesTo($business->business->id);
+    assertDatabaseHas('orders', ['id' => $response->json('data.id'), 'business_id' => $business->business->id]);
 });

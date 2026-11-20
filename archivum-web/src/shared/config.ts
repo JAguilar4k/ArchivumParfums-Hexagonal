@@ -32,5 +32,6 @@ export function defaultBusinessSlug(env: Env = import.meta.env): string {
 }
 
 export function storeWhatsApp(env: Env = import.meta.env): string {
-  return env.VITE_STORE_WHATSAPP?.trim() ?? ''
+  const number = env.VITE_STORE_WHATSAPP?.trim().replace(/^\+/, '') ?? ''
+  return /^[1-9][0-9]{1,14}$/.test(number) ? number : ''
 }

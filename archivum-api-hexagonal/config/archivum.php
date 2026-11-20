@@ -4,6 +4,13 @@ declare(strict_types=1);
 
 return [
 
+    'whatsapp' => [
+        'sid' => env('TWILIO_SID'),
+        'token' => env('TWILIO_TOKEN'),
+        'from' => env('TWILIO_WHATSAPP_FROM'),
+        'test_numbers' => env('TWILIO_WHATSAPP_TEST_NUMBERS'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Demo accounts

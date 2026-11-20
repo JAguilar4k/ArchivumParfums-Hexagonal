@@ -23,8 +23,10 @@ use Src\Scheduling\Availability\Application\DTOs\AvailablePerson;
 use Src\Scheduling\Availability\Application\DTOs\AvailableSlot;
 use Src\Scheduling\Availability\Application\UseCases\GetAvailability;
 use Src\Shared\Domain\Contracts\BusinessContext;
+use Src\Shared\Domain\Contracts\CustomerNotifier;
 use Src\Shared\Domain\Contracts\TransactionRunner;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
+use Src\Shared\Domain\ValueObjects\CustomerNotice;
 use Src\Shared\Domain\ValueObjects\MemberId;
 
 /**
@@ -43,6 +45,7 @@ final readonly class BookAppointment
         private GetAvailability $availability,
         private BusinessContext $business,
         private TransactionRunner $transaction,
+        private CustomerNotifier $notifier,
     ) {}
 
     /**
@@ -82,7 +85,7 @@ final readonly class BookAppointment
         $slot = $this->slot($service->id, $day, $command->memberId, $startsAt);
         $person ??= $this->leastBusy($slot->people, $day);
 
-        $appointment = $this->transaction->run(function () use ($command, $service, $person, $startsAt, $perfumes): Appointment {
+        $appointment = $this->transaction->run(function () use ($command, $service, $person, $startsAt, $perfumes, $zone): Appointment {
             $appointment = Appointment::book(
                 $this->appointments->nextId(),
                 $this->business->current(),
@@ -97,6 +100,14 @@ final readonly class BookAppointment
             );
 
             $this->appointments->save($appointment);
+
+            $this->notifier->schedule(
+                CustomerNotice::AppointmentBooked,
+                $appointment->businessId->value,
+                $appointment->customerId->value,
+                $appointment->id->value,
+                ['starts_at' => $appointment->startsAt()->setTimezone($zone)->format('d/m/Y H:i')],
+            );
 
             return $appointment;
         });
