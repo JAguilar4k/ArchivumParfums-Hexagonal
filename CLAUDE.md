@@ -24,9 +24,9 @@ Equivalencias concretas:
 | `Application/{DTOs,UseCases}` y, si hace falta, `Application/Contracts` | Las mismas subcarpetas |
 | `Infrastructure/Http/{Controllers,Requests,Resources,routes.php}`, `Infrastructure/Persistence/{Models,Repositories}` y `<Módulo>ServiceProvider.php` | Los mismos archivos y carpetas |
 | `src/Shared` (`Http/Problem`, `Http/Middleware`, `Tenancy`, `OpenApi`) | `src/Shared` con las mismas piezas |
-| `database/migrations/roles.sql`, `migrations`, `seeders`, `factories` | Lo mismo, con los roles `archivum_owner` y `archivum_app` |
+| `database/roles.sql`, `migrations`, `seeders`, `factories` | Las migraciones y `roles.sql` viven en el submódulo `database/migrations/`, con los roles `archivum_owner` y `archivum_app`. Backend conserva `seeders` y `factories`. |
 | `tests/{Unit,Feature,Architecture,Support}` | Las mismas carpetas, escritas con Pest |
-| `docs/architecture.md`, `database.md`, `data-model.md`, `ubiquitous-language.md`, `patterns.md` y `docs/adr/NNNN-titulo.md` | Los mismos documentos, con las decisiones de Archivum |
+| `docs/architecture.md`, `database.md`, `data-model.md`, `ubiquitous-language.md`, `patterns.md` y `docs/adr/NNNN-titulo.md` | Backend mantiene la documentación de arquitectura, lenguaje, patrones y ADR. `database.md` y `data-model.md` enlazan a los documentos que se mantienen en ArchivumParfums-Database. |
 | `.github/workflows/ci.yml`, `dependabot.yml`, `pull_request_template.md`, `ISSUE_TEMPLATE/historia-de-usuario.md` | Los mismos archivos, más el check de compatibilidad `Web` |
 | README raíz: contenido, arquitectura, estado, puesta en marcha, forma de trabajo e idioma | Las mismas secciones, más **Uso de IA** |
 
@@ -34,6 +34,7 @@ Al empezar un issue, se abre en el repo guía el módulo o archivo más parecido
 
 Diferencias decididas que el repo guía no cambia:
 
+- Web y Base de datos se mantienen en repositorios separados. Backend fija la revisión de las migraciones en un submódulo ([ADR 0013](docs/adr/0013-separate-database-and-web-repositories.md)).
 - Pruebas con Pest (el repo guía usa PHPUnit) y cliente web en Vue 3 con TypeScript, porque así lo exige el enunciado.
 - Las etiquetas de corte son las de este proyecto (`avance-1`, `investigacion-1`, `avance-2`, `investigacion-2`, `entrega-final`, `extra`) y no `clase-NN`. Las etiquetas de git de entrega son `v-avance1`, `v-avance2` y `v-final`.
 - Los issues citan las reglas R1–R56 de `docs/especificacion.md` y son al menos tan descriptivos como los del repo guía en cada sección.
