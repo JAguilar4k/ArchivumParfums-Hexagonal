@@ -20,6 +20,11 @@ return new class extends Migration
             $table->unique(['business_id', 'notice_type', 'reference_id']);
         });
 
+        DB::statement(<<<'SQL'
+            ALTER TABLE customer_notice_attempts
+                ADD CONSTRAINT customer_notice_attempts_notice_type_check
+                    CHECK (notice_type IN ('order_placed', 'appointment_booked'))
+            SQL);
         DB::statement('ALTER TABLE customer_notice_attempts ENABLE ROW LEVEL SECURITY');
         DB::statement('ALTER TABLE customer_notice_attempts FORCE ROW LEVEL SECURITY');
         DB::statement(<<<'SQL'

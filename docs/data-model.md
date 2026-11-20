@@ -767,7 +767,7 @@ Registro de intentos de confirmación por WhatsApp (#166). El trabajo inserta un
 | --- | --- | --- |
 | `id` | `uuid` | Llave primaria con `uuidv7()` |
 | `business_id` | `uuid` | Referencia a `businesses.id` con borrado en cascada |
-| `notice_type` | `varchar(40)` | Tipo de aviso |
+| `notice_type` | `varchar(40)` | `order_placed` o `appointment_booked` (`customer_notice_attempts_notice_type_check`) |
 | `reference_id` | `uuid` | Identificador del pedido o la cita que originó el aviso |
 | `created_at` | `timestamptz` | Momento en que se registró el intento |
 
