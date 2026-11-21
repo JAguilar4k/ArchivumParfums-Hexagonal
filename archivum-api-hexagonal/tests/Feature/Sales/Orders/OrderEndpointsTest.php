@@ -15,6 +15,7 @@ use Src\Notifications\CustomerNotices\Domain\Contracts\WhatsAppSender;
 use Src\Payments\Payments\Infrastructure\Jobs\RequestRefundJob;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderLineModel;
 use Src\Sales\Orders\Infrastructure\Persistence\Models\OrderModel;
+use Src\Shared\Domain\ValueObjects\CustomerNotice;
 use Tests\Support\Businesses\StaffedBusiness;
 use Tests\Support\Catalog\StoredPerfumes;
 use Tests\Support\Notifications\TwilioSandbox;
@@ -444,7 +445,8 @@ it('sends the order confirmation using the customer phone of the store', functio
     CustomerModel::query()->where('user_id', $business->customer->id)->firstOrFail()->update(['phone' => '+50688880001']);
     TwilioSandbox::configure();
     $sender = mock(WhatsAppSender::class);
-    $sender->shouldReceive('send')->once()->with('+50688880001', Mockery::on(
+    $sender->shouldReceive('supports')->with(CustomerNotice::OrderPlaced)->andReturnTrue();
+    $sender->shouldReceive('send')->once()->with(CustomerNotice::OrderPlaced, '+50688880001', Mockery::on(
         fn (string $message): bool => str_starts_with($message, 'Recibimos tu pedido '),
     ));
 

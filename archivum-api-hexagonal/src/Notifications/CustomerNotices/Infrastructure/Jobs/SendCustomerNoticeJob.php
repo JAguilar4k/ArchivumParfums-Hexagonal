@@ -37,6 +37,12 @@ final class SendCustomerNoticeJob extends IdempotentJob
 
     public function handle(BusinessTransaction $transaction, NoticeRecipients $recipients, WhatsAppSender $sender): void
     {
+        if (! $sender->supports($this->notice)) {
+            Log::info('WhatsApp notice skipped: this notice is not enabled.', ['notice_type' => $this->notice->value]);
+
+            return;
+        }
+
         $phone = $transaction->run($this->businessId, function () use ($recipients): ?string {
             $phone = $recipients->phoneOf($this->businessId, $this->customerId);
 
@@ -60,6 +66,6 @@ final class SendCustomerNoticeJob extends IdempotentJob
             return;
         }
 
-        $sender->send($phone, (string) __('notices.'.$this->notice->value, $this->details + ['reference' => $this->reference], 'es'));
+        $sender->send($this->notice, $phone, (string) __('notices.'.$this->notice->value, $this->details + ['reference' => $this->reference], 'es'));
     }
 }

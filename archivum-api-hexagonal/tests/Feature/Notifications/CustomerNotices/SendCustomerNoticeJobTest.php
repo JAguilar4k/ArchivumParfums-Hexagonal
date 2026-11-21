@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Src\Accounts\Users\Infrastructure\Persistence\Models\CustomerModel;
@@ -62,6 +63,7 @@ it('skips a customer belonging to another business', function () {
         return $customer->id;
     });
     $sender = mock(WhatsAppSender::class);
+    $sender->shouldReceive('supports')->with(CustomerNotice::OrderPlaced)->andReturnTrue();
     $sender->shouldNotReceive('send');
 
     $job = new SendCustomerNoticeJob(CustomerNotice::OrderPlaced, $business->business->id, $customerId, (string) Str::uuid7(), []);
@@ -78,9 +80,30 @@ it('sends a notice at most once when the same job is replayed', function () {
         return $customer->id;
     });
     $sender = mock(WhatsAppSender::class);
+    $sender->shouldReceive('supports')->with(CustomerNotice::OrderPlaced)->andReturnTrue();
     $sender->shouldReceive('send')->once();
 
     $job = new SendCustomerNoticeJob(CustomerNotice::OrderPlaced, $business->business->id, $customerId, (string) Str::uuid7(), []);
     $job->handle($transaction, app(NoticeRecipients::class), app(WhatsAppSender::class));
     $job->handle($transaction, app(NoticeRecipients::class), app(WhatsAppSender::class));
+});
+
+it('skips a trial notice without a configured template before claiming an attempt', function () {
+    TwilioSandbox::configureTrial(orderContentSid: TwilioSandbox::ORDER_CONTENT_SID);
+    Http::preventStrayRequests();
+    Log::shouldReceive('info')->once()->with('WhatsApp notice skipped: this notice is not enabled.', ['notice_type' => 'appointment_booked']);
+    $business = StaffedBusiness::create();
+    $transaction = app(BusinessTransaction::class);
+    $customerId = $transaction->run($business->business->id, function () use ($business): string {
+        $customer = CustomerModel::query()->where('user_id', $business->customer->id)->firstOrFail();
+        $customer->update(['phone' => TwilioSandbox::RECIPIENT]);
+
+        return $customer->id;
+    });
+
+    $job = new SendCustomerNoticeJob(CustomerNotice::AppointmentBooked, $business->business->id, $customerId, (string) Str::uuid7(), []);
+    $job->handle($transaction, app(NoticeRecipients::class), app(WhatsAppSender::class));
+
+    $transaction->run($business->business->id, fn () => assertDatabaseCount('customer_notice_attempts', 0));
+    Http::assertNothingSent();
 });

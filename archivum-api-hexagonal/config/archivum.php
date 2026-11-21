@@ -9,6 +9,9 @@ return [
         'token' => env('TWILIO_TOKEN'),
         'from' => env('TWILIO_WHATSAPP_FROM'),
         'test_numbers' => env('TWILIO_WHATSAPP_TEST_NUMBERS'),
+        'mode' => env('TWILIO_WHATSAPP_MODE'),
+        'order_content_sid' => env('TWILIO_WHATSAPP_ORDER_CONTENT_SID'),
+        'appointment_content_sid' => env('TWILIO_WHATSAPP_APPOINTMENT_CONTENT_SID'),
     ],
 
     /*
