@@ -96,7 +96,7 @@ final readonly class LaravelFileStorage implements FileStorage
 
         return array_map(static fn (int $width): array => [
             'width' => $width,
-            'url' => "{$origin}/cdn-cgi/image/width={$width},fit=contain,format=auto{$key}",
+            'url' => "{$origin}/cdn-cgi/image/width={$width},fit=contain,format=auto,onerror=redirect{$key}",
         ], $widths);
     }
 

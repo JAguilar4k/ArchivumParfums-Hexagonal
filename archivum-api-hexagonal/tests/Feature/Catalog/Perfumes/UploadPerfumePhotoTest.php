@@ -201,9 +201,9 @@ it('stores perfume photos in R2 and keeps their public variants readable when wr
     Auth::forgetGuards();
     config(['filesystems.disks.r2.key' => null, 'filesystems.disks.r2.secret' => null]);
     $variants = [
-        ['ancho' => 320, 'url' => "{$publicOrigin}/cdn-cgi/image/width=320,fit=contain,format=auto/{$currentKey}"],
-        ['ancho' => 640, 'url' => "{$publicOrigin}/cdn-cgi/image/width=640,fit=contain,format=auto/{$currentKey}"],
-        ['ancho' => 960, 'url' => "{$publicOrigin}/cdn-cgi/image/width=960,fit=contain,format=auto/{$currentKey}"],
+        ['ancho' => 320, 'url' => "{$publicOrigin}/cdn-cgi/image/width=320,fit=contain,format=auto,onerror=redirect/{$currentKey}"],
+        ['ancho' => 640, 'url' => "{$publicOrigin}/cdn-cgi/image/width=640,fit=contain,format=auto,onerror=redirect/{$currentKey}"],
+        ['ancho' => 960, 'url' => "{$publicOrigin}/cdn-cgi/image/width=960,fit=contain,format=auto,onerror=redirect/{$currentKey}"],
     ];
 
     getJson($showcase)->assertOk()
@@ -258,8 +258,8 @@ it('uses the configured R2 directories and exposes the configured image widths i
     Storage::disk('public')->assertExists($localPath);
     expect($storage->url($remotePath))->toBe("{$origin}/{$key}")
         ->and($storage->imageVariants($remotePath))->toBe([
-            ['width' => 240, 'url' => "{$origin}/cdn-cgi/image/width=240,fit=contain,format=auto/{$key}"],
-            ['width' => 720, 'url' => "{$origin}/cdn-cgi/image/width=720,fit=contain,format=auto/{$key}"],
+            ['width' => 240, 'url' => "{$origin}/cdn-cgi/image/width=240,fit=contain,format=auto,onerror=redirect/{$key}"],
+            ['width' => 720, 'url' => "{$origin}/cdn-cgi/image/width=720,fit=contain,format=auto,onerror=redirect/{$key}"],
         ]);
 });
 
