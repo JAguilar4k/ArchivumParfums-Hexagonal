@@ -55,6 +55,14 @@ final class InstallCommand extends Command
             return self::SUCCESS;
         }
 
+        $migrationFiles = array_filter(glob(database_path('migrations/*.php')) ?: [], is_file(...));
+
+        if ($migrationFiles === []) {
+            $this->components->error(__('install.migrations_missing'));
+
+            return self::FAILURE;
+        }
+
         $this->generateApplicationKey();
 
         try {

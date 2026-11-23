@@ -1,0 +1,3 @@
+[submodule "archivum-database"]
+	path = archivum-api-hexagonal/database/migrations
+	url = https://github.com/JAguilar4k/ArchivumParfums-Database.git
