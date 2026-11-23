@@ -32,6 +32,7 @@ final class MatrixResources
         'cliente' => 'mariana@clientes.test',
         'otra tienda' => 'dueno@esenciasdelnorte.test',
         'cliente de otra tienda' => 'lucia@clientes.test',
+        'administrador' => DemoAccounts::PLATFORM_ADMIN,
     ];
 
     /**
@@ -42,6 +43,7 @@ final class MatrixResources
     public static function create(): array
     {
         DemoAccounts::seed();
+        DemoAccounts::seedPlatformAdmin();
 
         return app(BusinessTransaction::class)->run(self::BUSINESS, function (): array {
             $variant = DB::table('perfume_variants')->where('business_id', self::BUSINESS)

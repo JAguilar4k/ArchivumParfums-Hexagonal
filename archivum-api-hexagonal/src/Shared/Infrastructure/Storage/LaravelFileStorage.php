@@ -90,13 +90,16 @@ final readonly class LaravelFileStorage implements FileStorage
         }
 
         $origin = substr($url, 0, -strlen($key));
+        $isWorker = config('files.r2_image_variants') === 'worker';
         /** @var list<int> $widths */
         $widths = Config::array('files.r2_image_widths');
         sort($widths);
 
         return array_map(static fn (int $width): array => [
             'width' => $width,
-            'url' => "{$origin}/cdn-cgi/image/width={$width},fit=contain,format=auto,onerror=redirect{$key}",
+            'url' => $isWorker
+                ? "{$origin}/imagenes/{$width}{$key}"
+                : "{$origin}/cdn-cgi/image/width={$width},fit=contain,format=auto,onerror=redirect{$key}",
         ], $widths);
     }
 

@@ -19,4 +19,8 @@ return [
     'r2_directories' => ['perfumes'],
     'r2_image_widths' => [320, 640, 960],
 
+    // How the variants are served: 'cloudflare' uses Image Transformations on a custom bucket
+    // domain, 'worker' uses /imagenes/{width}/{key} of deploy/cloudflare/archivum-fotos.mjs.
+    'r2_image_variants' => env('R2_IMAGE_VARIANTS', 'cloudflare'),
+
 ];

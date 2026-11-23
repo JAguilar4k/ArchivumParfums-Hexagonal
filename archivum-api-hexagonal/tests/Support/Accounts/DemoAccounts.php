@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Support\Accounts;
 
+use Database\Seeders\PlatformAdminSeeder;
+
 use function Pest\Laravel\postJson;
 use function Pest\Laravel\seed;
 
@@ -14,11 +16,21 @@ final class DemoAccounts
 {
     public const string PASSWORD = 'clave-de-demostracion';
 
+    /** Email of the administrator of the platform that seedPlatformAdmin() opens (#347). */
+    public const string PLATFORM_ADMIN = 'dev@archivumparfums.test';
+
     /** Seed the demo businesses, their staff and their customers, every account with the password of the tests. */
     public static function seed(): void
     {
         config(['archivum.demo_password' => self::PASSWORD]);
         seed();
+    }
+
+    /** Open the administrator of the platform with the password of the tests, as .env would configure it. */
+    public static function seedPlatformAdmin(): void
+    {
+        config(['archivum.platform_admin' => ['email' => self::PLATFORM_ADMIN, 'password' => self::PASSWORD]]);
+        seed(PlatformAdminSeeder::class);
     }
 
     /**

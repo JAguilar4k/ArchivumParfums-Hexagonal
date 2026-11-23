@@ -70,6 +70,18 @@ final readonly class EloquentBusinessRepository implements BusinessRepository
         return $model === null ? null : $this->toDomain($model);
     }
 
+    /**
+     * Every business, ordered by name and then by slug; businesses has no row policy, so no business needs to be pinned.
+     *
+     * @return list<Business>
+     */
+    public function allByName(): array
+    {
+        return array_values(BusinessModel::query()->orderBy('name')->orderBy('slug')->get()
+            ->map(fn (BusinessModel $model): Business => $this->toDomain($model))
+            ->all());
+    }
+
     /** Rebuild the aggregate from its stored state. */
     private function toDomain(BusinessModel $model): Business
     {

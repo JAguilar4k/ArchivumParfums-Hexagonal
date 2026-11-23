@@ -23,6 +23,15 @@ dataset('roles', [
     'visitor' => ['visitante'],
 ]);
 
+// The permission matrix also asks the administrator of the platform (#347), who belongs to no business.
+dataset('roles of the matrix', [
+    'owner' => ['dueno'],
+    'staff' => ['colaborador'],
+    'customer' => ['cliente'],
+    'platform admin' => ['administrador'],
+    'visitor' => ['visitante'],
+]);
+
 dataset('staff of another business', [
     'owner of another business' => ['dueno'],
     'staff of another business' => ['colaborador'],

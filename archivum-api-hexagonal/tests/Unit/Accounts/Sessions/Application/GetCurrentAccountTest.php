@@ -9,22 +9,24 @@ use Src\Accounts\Sessions\Domain\ValueObjects\AccountRole;
 use Src\Accounts\Users\Domain\Entities\User;
 use Src\Accounts\Users\Domain\ValueObjects\Email;
 use Src\Accounts\Users\Domain\ValueObjects\UserName;
+use Tests\Support\Accounts\InMemoryPlatformAdmins;
 use Tests\Support\Accounts\InMemoryStaffMemberships;
 use Tests\Support\Accounts\InMemoryUserRepository;
 
 /**
  * Wire the use case to in-memory ports with one account.
  *
- * @return array{GetCurrentAccount, InMemoryStaffMemberships, User}
+ * @return array{GetCurrentAccount, InMemoryStaffMemberships, User, InMemoryPlatformAdmins}
  */
 function currentAccountWiring(): array
 {
     $users = new InMemoryUserRepository;
     $memberships = new InMemoryStaffMemberships;
+    $admins = new InMemoryPlatformAdmins;
     $user = User::create($users->nextId(), new UserName('Andrés Quesada'), new Email('asesor@archivum.test'), 'hash');
     $users->save($user);
 
-    return [new GetCurrentAccount($users, $memberships), $memberships, $user];
+    return [new GetCurrentAccount($users, $memberships, $admins), $memberships, $user, $admins];
 }
 
 it('describes a person of the staff with the role and the business of the membership', function () {
@@ -47,6 +49,16 @@ it('describes an account without a membership as a customer without a business',
     $account = $getCurrentAccount->execute($user->id->value);
 
     expect($account->role)->toBe(AccountRole::Customer)
+        ->and($account->membership)->toBeNull();
+});
+
+it('describes the administrator of the platform without a business', function () {
+    [$getCurrentAccount, , $user, $admins] = currentAccountWiring();
+    $admins->grant($user->id);
+
+    $account = $getCurrentAccount->execute($user->id->value);
+
+    expect($account->role)->toBe(AccountRole::PlatformAdmin)
         ->and($account->membership)->toBeNull();
 });
 

@@ -37,6 +37,7 @@ final class CurrentAccountResource extends JsonResource
                 AccountRole::Owner => 'dueno',
                 AccountRole::Staff => 'colaborador',
                 AccountRole::Customer => 'cliente',
+                AccountRole::PlatformAdmin => 'administrador_plataforma',
             },
             'tienda' => $membership === null ? null : [
                 'id' => $membership->businessId,

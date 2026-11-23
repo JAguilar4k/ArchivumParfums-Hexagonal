@@ -6394,6 +6394,155 @@
                 ]
             }
         },
+        "/plataforma/tiendas": {
+            "get": {
+                "operationId": "businesses.platform.index",
+                "summary": "List every business of the platform by name",
+                "tags": [
+                    "PlatformBusiness"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `PlatformBusinessResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/PlatformBusinessResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "businesses.platform.store",
+                "summary": "Register a business with the default settings and its owner. A slug or an owner email already in use answers 422\nin its field, so the form can show it next to the control",
+                "tags": [
+                    "PlatformBusiness"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StorePlatformBusinessRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`PlatformBusinessResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/PlatformBusinessResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "No autenticado",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Acci\u00f3n no permitida",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Datos inv\u00e1lidos",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemaDeValidacion"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Error interno",
+                        "content": {
+                            "application/problem+json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Problema"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "sanctum": []
+                    }
+                ]
+            }
+        },
         "/tiendas/{tienda}": {
             "get": {
                 "operationId": "businesses.public.show",
@@ -8543,7 +8692,8 @@
                         "enum": [
                             "dueno",
                             "colaborador",
-                            "cliente"
+                            "cliente",
+                            "administrador_plataforma"
                         ]
                     },
                     "tienda": {
@@ -9931,6 +10081,30 @@
                 ],
                 "title": "PaymentResource"
             },
+            "PlatformBusinessResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "nombre": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "zona_horaria": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "nombre",
+                    "slug",
+                    "zona_horaria"
+                ],
+                "title": "PlatformBusinessResource"
+            },
             "Problema": {
                 "type": "object",
                 "properties": {
@@ -11272,6 +11446,53 @@
                     "ml"
                 ],
                 "title": "StorePerfumeVariant"
+            },
+            "StorePlatformBusinessRequest": {
+                "type": "object",
+                "properties": {
+                    "nombre": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "slug": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]+$",
+                        "maxLength": 100
+                    },
+                    "zona_horaria": {
+                        "type": "string"
+                    },
+                    "lugar_cita": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    },
+                    "nombre_dueno": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "correo_dueno": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 255
+                    },
+                    "contrasena_dueno": {
+                        "type": "string"
+                    },
+                    "dueno_atiende_citas": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "nombre",
+                    "slug",
+                    "nombre_dueno",
+                    "correo_dueno",
+                    "contrasena_dueno"
+                ],
+                "title": "StorePlatformBusinessRequest"
             },
             "StoreRecommendation": {
                 "type": "object",

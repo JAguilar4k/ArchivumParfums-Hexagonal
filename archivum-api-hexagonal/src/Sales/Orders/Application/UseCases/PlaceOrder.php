@@ -17,11 +17,13 @@ use Src\Sales\Orders\Domain\Entities\OrderLine;
 use Src\Sales\Orders\Domain\ValueObjects\OrderLineKind;
 use Src\Sales\Orders\Domain\ValueObjects\OrderStatus;
 use Src\Shared\Domain\Contracts\BusinessContext;
+use Src\Shared\Domain\Contracts\CustomerNotifier;
 use Src\Shared\Domain\Contracts\TransactionRunner;
+use Src\Shared\Domain\ValueObjects\CustomerNotice;
 
 final readonly class PlaceOrder
 {
-    public function __construct(private OrderRepository $orders, private OrderProducts $products, private OrderCustomers $customers, private DecantStock $stock, private DecantPackRedemption $packs, private OrderDeadlines $deadlines, private BusinessContext $business, private TransactionRunner $transaction) {}
+    public function __construct(private OrderRepository $orders, private OrderProducts $products, private OrderCustomers $customers, private DecantStock $stock, private DecantPackRedemption $packs, private OrderDeadlines $deadlines, private BusinessContext $business, private TransactionRunner $transaction, private CustomerNotifier $notifier) {}
 
     /**
      * Place and reserve every line atomically; a shortage rolls back all earlier reservations. A decant paid with a
@@ -70,6 +72,8 @@ final readonly class PlaceOrder
             if ($order->status === OrderStatus::PendingPayment) {
                 $this->deadlines->checkAt($order->id, $order->businessId, $order->expiresAt);
             }
+
+            $this->notifier->schedule(CustomerNotice::OrderPlaced, $order->businessId->value, $order->customerId, $order->id->value);
 
             // The answer is the order as it was stored, with the names of its customer and its business, like the
             // answer of reading it later.

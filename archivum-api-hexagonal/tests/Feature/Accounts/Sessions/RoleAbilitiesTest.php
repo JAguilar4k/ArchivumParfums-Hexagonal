@@ -22,15 +22,19 @@ pest()->use(RefreshDatabaseAsOwner::class);
 
 const ABILITIES_PASSWORD = 'clave-de-demostracion';
 
-/** Demo accounts of the seeders, one per role. */
+/** Demo accounts of the seeders, one per role; the administrator of the platform is seeded from the configuration. */
 const ABILITIES_ACCOUNTS = [
     'owner' => 'duena@archivumparfums.test',
     'staff' => 'asesor@archivumparfums.test',
     'customer' => 'mariana@clientes.test',
+    'platform admin' => 'dev@archivumparfums.test',
 ];
 
 beforeEach(function () {
-    config(['archivum.demo_password' => ABILITIES_PASSWORD]);
+    config([
+        'archivum.demo_password' => ABILITIES_PASSWORD,
+        'archivum.platform_admin' => ['email' => ABILITIES_ACCOUNTS['platform admin'], 'password' => ABILITIES_PASSWORD],
+    ]);
     seed();
 });
 
@@ -84,6 +88,7 @@ it('issues from POST /sesiones a token with the abilities of the role of the acc
     'owner' => ['owner', AccountRole::Owner],
     'staff' => ['staff', AccountRole::Staff],
     'customer' => ['customer', AccountRole::Customer],
+    'platform admin' => ['platform admin', AccountRole::PlatformAdmin],
 ]);
 
 it('stores the abilities given to the Sanctum adapter in the token', function () {
@@ -114,6 +119,14 @@ it('answers a 403 problem to the token of each role on a route that is not its o
     'customer on the orders of the business' => ['customer', 'GET', '/api/v1/panel/pedidos'],
     'owner on the orders of a customer' => ['owner', 'GET', '/api/v1/cuenta/pedidos'],
     'owner placing an order as a customer' => ['owner', 'POST', '/api/v1/tiendas/archivumparfums/pedidos'],
+    'owner on the businesses of the platform' => ['owner', 'GET', '/api/v1/plataforma/tiendas'],
+    'staff registering a business' => ['staff', 'POST', '/api/v1/plataforma/tiendas'],
+    'customer on the businesses of the platform' => ['customer', 'GET', '/api/v1/plataforma/tiendas'],
+    'platform admin on the profile of a business' => ['platform admin', 'GET', '/api/v1/panel/tienda'],
+    'platform admin on the staff of a business' => ['platform admin', 'GET', '/api/v1/panel/personal'],
+    'platform admin on the orders of a business' => ['platform admin', 'GET', '/api/v1/panel/pedidos'],
+    'platform admin on the orders of a customer' => ['platform admin', 'GET', '/api/v1/cuenta/pedidos'],
+    'platform admin placing an order as a customer' => ['platform admin', 'POST', '/api/v1/tiendas/archivumparfums/pedidos'],
 ]);
 
 it('lets the token of each role through a route of its own', function (string $role, string $path) {
@@ -124,23 +137,25 @@ it('lets the token of each role through a route of its own', function (string $r
     'owner on the profile of the business' => ['owner', '/api/v1/panel/tienda'],
     'owner on the orders of the business' => ['owner', '/api/v1/panel/pedidos'],
     'customer on its orders' => ['customer', '/api/v1/cuenta/pedidos'],
+    'platform admin on the businesses of the platform' => ['platform admin', '/api/v1/plataforma/tiendas'],
 ]);
 
-it('serves GET /cuenta and DELETE /sesiones/actual to the three roles', function (string $role) {
+it('serves GET /cuenta and DELETE /sesiones/actual to every role', function (string $role) {
     $token = signInForAbilities(ABILITIES_ACCOUNTS[$role]);
 
     requestWithToken($token, 'GET', '/api/v1/cuenta')->assertOk();
     requestWithToken($token, 'DELETE', '/api/v1/sesiones/actual')->assertNoContent();
 })->with(array_keys(ABILITIES_ACCOUNTS));
 
-it('declares an ability on every route of the panel, of /cuenta/... and of the authenticated operations of a business', function () {
+it('declares an ability on every route of the panel, of the platform, of /cuenta/... and of the authenticated operations of a business', function () {
     $violations = [];
 
     foreach (Route::getRoutes()->getRoutes() as $route) {
         $uri = $route->uri();
         $authenticated = in_array('auth:sanctum', $route->gatherMiddleware(), true);
         // Changing the password serves the three roles, as GET /cuenta does (#193).
-        $mustDeclare = str_starts_with($uri, 'api/v1/panel/') || (str_starts_with($uri, 'api/v1/cuenta/') && $uri !== 'api/v1/cuenta/contrasena')
+        $mustDeclare = str_starts_with($uri, 'api/v1/panel/') || str_starts_with($uri, 'api/v1/plataforma/')
+            || (str_starts_with($uri, 'api/v1/cuenta/') && $uri !== 'api/v1/cuenta/contrasena')
             || (str_starts_with($uri, 'api/v1/tiendas/') && $authenticated);
 
         if ($mustDeclare && abilitiesOfRoute($route) === []) {

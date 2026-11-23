@@ -15,6 +15,7 @@ use Src\Catalog\Perfumes\Infrastructure\PerfumesServiceProvider;
 use Src\Catalog\Showcase\Infrastructure\ShowcaseServiceProvider;
 use Src\Decants\Bottles\Infrastructure\BottlesServiceProvider;
 use Src\Decants\Packs\Infrastructure\PacksServiceProvider;
+use Src\Notifications\CustomerNotices\Infrastructure\CustomerNoticesServiceProvider;
 use Src\Payments\Payments\Infrastructure\PaymentsServiceProvider;
 use Src\Recommendations\Recommender\Infrastructure\RecommenderServiceProvider;
 use Src\Sales\Orders\Infrastructure\OrdersServiceProvider;
@@ -45,6 +46,7 @@ return [
     PacksServiceProvider::class,
     OrdersServiceProvider::class,
     PaymentsServiceProvider::class,
+    CustomerNoticesServiceProvider::class,
     RecommenderServiceProvider::class,
     ServicesServiceProvider::class,
     BusinessHoursServiceProvider::class,

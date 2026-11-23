@@ -6,22 +6,25 @@ use Src\Businesses\Profile\Application\DTOs\RegisterBusinessCommand;
 use Src\Businesses\Profile\Application\UseCases\RegisterBusiness;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessSettings;
 use Src\Shared\Domain\Exceptions\InvalidValueException;
+use Src\Shared\Domain\ValueObjects\AuditAction;
 use Tests\Support\Businesses\InMemoryBusinessRepository;
 use Tests\Support\Businesses\InMemoryOwnerAccounts;
+use Tests\Support\Shared\RecordingAuditTrail;
 use Tests\Support\Shared\RecordingTransactionRunner;
 
 /**
  * Wire the use case to in-memory ports.
  *
- * @return array{RegisterBusiness, InMemoryBusinessRepository, InMemoryOwnerAccounts, RecordingTransactionRunner}
+ * @return array{RegisterBusiness, InMemoryBusinessRepository, InMemoryOwnerAccounts, RecordingTransactionRunner, RecordingAuditTrail}
  */
 function registerBusinessWiring(): array
 {
     $businesses = new InMemoryBusinessRepository;
     $owners = new InMemoryOwnerAccounts;
     $transaction = new RecordingTransactionRunner;
+    $audit = new RecordingAuditTrail;
 
-    return [new RegisterBusiness($businesses, $owners, $transaction), $businesses, $owners, $transaction];
+    return [new RegisterBusiness($businesses, $owners, $transaction, $audit), $businesses, $owners, $transaction, $audit];
 }
 
 /** Build the command of a business, overriding only what a scenario changes. */
@@ -58,6 +61,19 @@ it('registers the business with the default settings and its owner in one transa
             'attendsAppointments' => false,
         ]])
         ->and($transaction->committed())->toBe(1);
+});
+
+it('leaves in the log of the new business that it was registered', function () {
+    [$registerBusiness, , , , $audit] = registerBusinessWiring();
+
+    $business = $registerBusiness->execute(registerBusinessCommand());
+
+    expect($audit->entries)->toBe([[
+        'action' => AuditAction::BusinessRegistered,
+        'resource' => "business:{$business->id->value}",
+        'before' => null,
+        'after' => ['name' => 'ArchivumParfums', 'slug' => 'archivumparfums', 'timezone' => 'America/Costa_Rica'],
+    ]]);
 });
 
 it('rolls the transaction back when the owner account is refused', function () {

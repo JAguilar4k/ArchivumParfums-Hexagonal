@@ -4,6 +4,16 @@ declare(strict_types=1);
 
 return [
 
+    'whatsapp' => [
+        'sid' => env('TWILIO_SID'),
+        'token' => env('TWILIO_TOKEN'),
+        'from' => env('TWILIO_WHATSAPP_FROM'),
+        'test_numbers' => env('TWILIO_WHATSAPP_TEST_NUMBERS'),
+        'mode' => env('TWILIO_WHATSAPP_MODE'),
+        'order_content_sid' => env('TWILIO_WHATSAPP_ORDER_CONTENT_SID'),
+        'appointment_content_sid' => env('TWILIO_WHATSAPP_APPOINTMENT_CONTENT_SID'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Demo accounts
@@ -16,6 +26,22 @@ return [
     */
 
     'demo_password' => env('ARCHIVUM_DEMO_PASSWORD'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Administrator of the platform
+    |--------------------------------------------------------------------------
+    |
+    | Account that php artisan db:seed opens to create and list businesses
+    | (#347), only when both values are set. The password lives only in .env;
+    | anywhere else, open the account with archivum:create-platform-admin.
+    |
+    */
+
+    'platform_admin' => [
+        'email' => env('ARCHIVUM_PLATFORM_ADMIN_EMAIL'),
+        'password' => env('ARCHIVUM_PLATFORM_ADMIN_PASSWORD'),
+    ],
 
     /*
     |--------------------------------------------------------------------------

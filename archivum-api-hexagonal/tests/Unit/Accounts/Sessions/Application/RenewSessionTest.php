@@ -9,6 +9,7 @@ use Src\Accounts\Sessions\Domain\ValueObjects\Ability;
 use Src\Accounts\Sessions\Domain\ValueObjects\AccountRole;
 use Tests\Support\Accounts\FakeTokenIssuer;
 use Tests\Support\Accounts\InMemoryActiveTokens;
+use Tests\Support\Accounts\InMemoryPlatformAdmins;
 use Tests\Support\Accounts\InMemoryStaffMemberships;
 use Tests\Support\Shared\RecordingTransactionRunner;
 
@@ -27,7 +28,7 @@ function renewSessionWiring(): array
     $memberships = new InMemoryStaffMemberships;
     $transactions = new RecordingTransactionRunner;
 
-    return [new RenewSession($activeTokens, $tokens, $memberships, $transactions), $tokens, $memberships, $transactions];
+    return [new RenewSession($activeTokens, $tokens, $memberships, new InMemoryPlatformAdmins, $transactions), $tokens, $memberships, $transactions];
 }
 
 it('swaps a valid token for a new one on the same device, with its expiration, in one transaction', function () {

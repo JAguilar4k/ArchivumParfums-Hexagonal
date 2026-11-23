@@ -37,5 +37,18 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <!-- Tests never use the real accounts of a local .env: each test configures the provider it fakes. -->
+        <env name="TWILIO_SID" value="" force="true"/>
+        <env name="TWILIO_TOKEN" value="" force="true"/>
+        <env name="TWILIO_WHATSAPP_FROM" value="" force="true"/>
+        <env name="TWILIO_WHATSAPP_TEST_NUMBERS" value="" force="true"/>
+        <env name="TWILIO_WHATSAPP_MODE" value="" force="true"/>
+        <env name="TWILIO_WHATSAPP_ORDER_CONTENT_SID" value="" force="true"/>
+        <env name="TWILIO_WHATSAPP_APPOINTMENT_CONTENT_SID" value="" force="true"/>
+        <env name="R2_ACCESS_KEY_ID" value="" force="true"/>
+        <env name="R2_SECRET_ACCESS_KEY" value="" force="true"/>
+        <env name="R2_BUCKET" value="" force="true"/>
+        <env name="R2_ENDPOINT" value="" force="true"/>
+        <env name="R2_PUBLIC_URL" value="" force="true"/>
     </php>
 </phpunit>

@@ -36,6 +36,9 @@ enum Ability: string
     /** Appointments, waitlist, orders, payments and packs of the customer. */
     case CustomerOwn = 'customer:own';
 
+    /** Businesses of the whole platform: list them and register a new one with its owner (#347). */
+    case PlatformBusinesses = 'platform:businesses';
+
     /**
      * The only map from a role to its abilities, after the permission matrix in section 9 of the specification.
      * Whether a resource belongs to the account is up to the policies, not to these abilities.
@@ -62,6 +65,9 @@ enum Ability: string
             ],
             AccountRole::Customer => [
                 self::CustomerOwn,
+            ],
+            AccountRole::PlatformAdmin => [
+                self::PlatformBusinesses,
             ],
         };
     }
