@@ -38,6 +38,8 @@ call :require php "PHP 8.4"
 call :require composer "Composer 2"
 call :require node "Node.js 26"
 call :require npm "npm"
+call :require psql "PostgreSQL 18"
+call :require pg_isready "PostgreSQL 18"
 if defined MISSING goto :missing_tools
 
 call php -r "exit(version_compare(PHP_VERSION, '8.4.0', '>=') ? 0 : 1);"
@@ -55,8 +57,14 @@ if errorlevel 1 (
     echo   Falta Node.js 26 o superior. Revise con: node -v
     goto :failed
 )
-echo   [listo] Git, PHP 8.4 con pdo_pgsql, Composer, Node.js 26 y npm.
-echo   PostgreSQL 18 debe estar en ejecución; su versión se comprueba en el paso 7.
+rem psql prints "psql (PostgreSQL) 18.1": the third word is the version and its first part the major version.
+set "PG_MAJOR=0"
+for /f "tokens=3" %%V in ('psql --version') do for /f "delims=." %%M in ("%%V") do set "PG_MAJOR=%%M"
+if %PG_MAJOR% LSS 18 (
+    echo   Falta PostgreSQL 18: psql es de la versión %PG_MAJOR%. Instale PostgreSQL 18 y ponga su carpeta bin en el PATH.
+    goto :failed
+)
+echo   [listo] Git, PHP 8.4 con pdo_pgsql, Composer, Node.js 26, npm y PostgreSQL %PG_MAJOR%.
 
 rem ---------------------------------------------------------------- 2. Repositories
 echo.
@@ -99,6 +107,20 @@ if exist "%ENV_FILE%" (
 for %%F in (.env .env.local) do if exist "%WEB_DIR%\%%F" (
     echo   Aviso: el cliente web ya no usa %WEB_DIR%\%%F; pase sus variables VITE_ al .env de la API y bórrelo.
 )
+rem The server must answer before anything is installed. PG_ names, so these values never override
+rem the DB_ variables that Laravel reads from .env.
+set "PG_HOST=127.0.0.1"
+set "PG_PORT=5432"
+for /f "usebackq tokens=1,* delims==" %%A in (`findstr /B /C:"DB_HOST=" /C:"DB_PORT=" "%ENV_FILE%"`) do (
+    if /I "%%A"=="DB_HOST" set "PG_HOST=%%B"
+    if /I "%%A"=="DB_PORT" set "PG_PORT=%%B"
+)
+pg_isready -q -h "%PG_HOST%" -p "%PG_PORT%"
+if errorlevel 1 (
+    echo   PostgreSQL no responde en %PG_HOST%:%PG_PORT%. Enciéndalo o corrija DB_HOST y DB_PORT en .env.
+    goto :failed
+)
+echo   [listo] PostgreSQL responde en %PG_HOST%:%PG_PORT%.
 
 rem ---------------------------------------------------------------- 4. API dependencies
 echo.
@@ -113,6 +135,7 @@ if errorlevel 1 goto :failed_in_folder
 rem ---------------------------------------------------------------- 5. Database
 echo.
 echo [5/7] Base de datos: clave, roles, bases, migraciones pendientes y datos de demostración
+echo   Antes de crear roles o migrar se exige PostgreSQL 18 o superior en el servidor.
 echo   Si los roles y las bases ya existen se reutilizan, y si ya hay usuarios no se siembra de nuevo.
 call php artisan archivum:install --ansi
 if errorlevel 1 goto :failed_in_folder
@@ -147,13 +170,8 @@ if errorlevel 1 (
     echo   La aplicación no se pudo conectar con el rol archivum_app.
     goto :failed_in_folder
 )
-findstr /R /C:"PostgreSQL[ .]*18\." "%TEMP%\archivum-db-show.txt" >nul
-if errorlevel 1 (
-    findstr /C:"PostgreSQL" "%TEMP%\archivum-db-show.txt"
-    echo   Aviso: el servidor no es PostgreSQL 18, que es la versión del proyecto.
-) else (
-    echo   [listo] La aplicación se conecta a PostgreSQL 18 con el rol archivum_app.
-)
+echo   [listo] La aplicación se conecta con el rol archivum_app al servidor:
+findstr /C:"PostgreSQL" "%TEMP%\archivum-db-show.txt"
 del "%TEMP%\archivum-db-show.txt" >nul 2>&1
 echo   Integraciones sin llave en .env. Solo hacen falta para probar esa integración:
 call php -r "$empty = 0; foreach (file('.env') as $line) { [$name, $value] = array_pad(explode('=', trim($line), 2), 2, null); if ($value === '' && preg_match('/\A(ONVO|PAYPAL|GEMINI|TWILIO|R2)_/', $name)) { echo '    - ', $name, PHP_EOL; $empty++; } } if ($empty === 0) { echo '    ninguna', PHP_EOL; }"
