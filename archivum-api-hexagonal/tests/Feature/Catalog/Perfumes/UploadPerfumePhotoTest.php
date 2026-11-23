@@ -214,6 +214,26 @@ it('stores perfume photos in R2 and keeps their public variants readable when wr
         ->assertJsonPath('data.foto_variantes', $variants);
 });
 
+it('exposes a stored Worker photo and its variants without R2 settings', function () {
+    TwoBusinesses::create();
+    $businessId = TwoBusinesses::idOf(TwoBusinesses::FIRST);
+    $origin = 'https://fotos.cuenta.workers.dev';
+    $key = 'perfumes/catalogo/frasco.png';
+    $photoUrl = "{$origin}/{$key}";
+    $perfume = StoredPerfumes::create($businessId, variants: [[50, 95000, 95000]], photoPath: "r2:{$photoUrl}");
+    config(['filesystems.disks.r2.url' => null]);
+
+    $response = getJson('/api/v1/tiendas/'.TwoBusinesses::FIRST."/perfumes/{$perfume->id->value}");
+
+    $response->assertOk()
+        ->assertJsonPath('data.foto_url', $photoUrl)
+        ->assertJsonPath('data.foto_variantes', [
+            ['ancho' => 320, 'url' => "{$origin}/imagenes/320/{$key}"],
+            ['ancho' => 640, 'url' => "{$origin}/imagenes/640/{$key}"],
+            ['ancho' => 960, 'url' => "{$origin}/imagenes/960/{$key}"],
+        ]);
+});
+
 it('uses local storage when any required R2 setting is absent', function (string $missingSetting) {
     ['first' => $first, 'perfume' => $perfume] = photoScenario();
     Storage::fake('r2');
