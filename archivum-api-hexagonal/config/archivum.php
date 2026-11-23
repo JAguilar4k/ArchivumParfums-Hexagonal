@@ -19,6 +19,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Administrator of the platform
+    |--------------------------------------------------------------------------
+    |
+    | Account that php artisan db:seed opens to create and list businesses
+    | (#347), only when both values are set. The password lives only in .env;
+    | anywhere else, open the account with archivum:create-platform-admin.
+    |
+    */
+
+    'platform_admin' => [
+        'email' => env('ARCHIVUM_PLATFORM_ADMIN_EMAIL'),
+        'password' => env('ARCHIVUM_PLATFORM_ADMIN_PASSWORD'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Artificial intelligence
     |--------------------------------------------------------------------------
     |
