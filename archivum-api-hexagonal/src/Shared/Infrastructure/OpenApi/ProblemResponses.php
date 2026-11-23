@@ -73,7 +73,7 @@ final class ProblemResponses implements DocumentTransformer
             $types[] = ProblemType::Unauthenticated;
         }
 
-        if ($this->isPanelRoute($path)) {
+        if ($this->isPanelRoute($path) || $this->isPlatformRoute($path)) {
             $types[] = ProblemType::Unauthenticated;
             $types[] = ProblemType::Forbidden;
         }
@@ -168,6 +168,12 @@ final class ProblemResponses implements DocumentTransformer
     private function isPanelRoute(string $path): bool
     {
         return str_starts_with(ltrim($path, '/'), 'panel');
+    }
+
+    /** The businesses of the platform are only for its administrator: any other token gets a 403 (#347). */
+    private function isPlatformRoute(string $path): bool
+    {
+        return str_starts_with(ltrim($path, '/'), 'plataforma/');
     }
 
     /** The packs of the account are only for a customer: the staff, without customer:own, gets a 403 (#148). */

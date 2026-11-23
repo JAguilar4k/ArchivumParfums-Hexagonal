@@ -54,6 +54,19 @@ final class InMemoryBusinessRepository implements BusinessRepository
     }
 
     /**
+     * List the stored businesses by name, then by slug.
+     *
+     * @return list<Business>
+     */
+    public function allByName(): array
+    {
+        $businesses = array_values($this->businesses);
+        usort($businesses, fn (Business $a, Business $b): int => [$a->name->value, $a->slug->value] <=> [$b->name->value, $b->slug->value]);
+
+        return $businesses;
+    }
+
+    /**
      * List the stored businesses.
      *
      * @return list<Business>

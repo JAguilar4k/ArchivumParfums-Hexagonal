@@ -30,13 +30,25 @@ it('grants each role exactly the abilities of its column in the permission matri
     'customer' => [AccountRole::Customer, [
         'customer:own',                     // Sus citas, su lista de espera, sus pedidos, sus pagos y sus paquetes
     ]],
+    'platform admin' => [AccountRole::PlatformAdmin, [
+        'platform:businesses',              // Administrar las tiendas de la plataforma: listar y registrar (#347)
+    ]],
 ]);
 
 it('keeps the functions of the owner away from the staff and the customer', function (AccountRole $role) {
     $ownerOnly = array_diff(Ability::namesGrantedTo(AccountRole::Owner), [Ability::AppointmentsAttendance->value]);
 
     expect(array_intersect(Ability::namesGrantedTo($role), $ownerOnly))->toBe([]);
-})->with([AccountRole::Staff, AccountRole::Customer]);
+})->with([AccountRole::Staff, AccountRole::Customer, AccountRole::PlatformAdmin]);
+
+it('keeps the businesses of the platform away from every role of a business', function (AccountRole $role) {
+    expect(Ability::namesGrantedTo($role))->not->toContain(Ability::PlatformBusinesses->value);
+})->with([AccountRole::Owner, AccountRole::Staff, AccountRole::Customer]);
+
+it('gives the mark of the platform precedence over a staff membership', function (?AccountRole $staffRole) {
+    expect(AccountRole::resolve(true, $staffRole))->toBe(AccountRole::PlatformAdmin)
+        ->and(AccountRole::resolve(false, $staffRole))->toBe($staffRole ?? AccountRole::Customer);
+})->with([AccountRole::Owner, AccountRole::Staff, null]);
 
 it('gives every ability to some role and repeats none within a role', function () {
     $granted = [];

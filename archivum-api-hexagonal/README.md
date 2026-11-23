@@ -140,6 +140,7 @@ COMMIT;
 | `php artisan schedule:work` | Ejecuta las tareas programadas en desarrollo; en producción se usa `schedule:run` desde cron, cada minuto. |
 | `php artisan archivum:reconcile-payments` | Consulta a la pasarela los pagos pendientes de todas las tiendas que ya esperaron su aviso (#96), los pagos que el vencimiento de su pedido o de su paquete cerró en las últimas 24 horas, por si la pasarela los cobró igual (#192), y los reembolsos que la pasarela aceptó y siguen pendientes (#97), y aplica su estado real. Corre sola cada cinco minutos. |
 | `php artisan archivum:create-business` | Da de alta una tienda y la cuenta de su dueño. Ver [Dar de alta una tienda](#dar-de-alta-una-tienda). |
+| `php artisan archivum:create-platform-admin` | Abre la cuenta que administra la plataforma: lista las tiendas y registra una nueva desde la API. Ver [Administrar las tiendas de la plataforma](#administrar-las-tiendas-de-la-plataforma). |
 
 Antes de abrir un pull request deben pasar `composer validate --strict`, `composer lint`, `composer analyse` y `composer test`. La auditoría completa se ejecuta con `composer audit --locked`; CI ejecuta `composer audit --locked --ignore-severity=low --ignore-severity=medium` después de las pruebas, por lo que una ejecución local completa puede informar avisos adicionales.
 
@@ -189,7 +190,7 @@ Ayudas para las pruebas de `tests/Feature`:
 - `actingAsOwner()`, `actingAsStaff()` y `actingAsCustomer()` crean una tienda con su dueño, un colaborador y un cliente (`StaffedBusiness`, con las fábricas de miembros y clientes), inician sesión como esa persona con `Sanctum::actingAs()` y devuelven la tienda. Si reciben una tienda, la reutilizan. `actingAsRole('dueno')` hace lo mismo con el nombre del rol que usa la API; con `visitante` no inicia sesión.
 - `DemoAccounts::seed()` siembra los datos de demostración y `DemoAccounts::signIn($correo)` ingresa por `POST /api/v1/sesiones`, como lo hace un cliente de la API, y devuelve el encabezado `Authorization`. Sirve a las pruebas que necesitan un token real, como las de `GET /api/v1/cuenta` en `tests/Feature/Accounts/Sessions/CurrentAccountTest.php`.
 - La matriz de permisos de la sección 9 de la especificación (#105) vive en `tests/Datasets/PermissionMatrix.php`: un dataset por fila con cada endpoint, su cuerpo y la respuesta de cada rol del dataset `roles` (dueño, colaborador, cliente y visitante), sobre los datos de los seeders y un pedido de Mariana en ArchivumParfums (`tests/Support/Security/MatrixResources.php`). `tests/Feature/PermissionMatrixTest.php` entra con tokens reales de `POST /api/v1/sesiones` y comprueba el 403 `prohibido` del rol sin permiso y el 401 `no-autenticado` del visitante, sin escribir ninguna fila. También comprueba el 404 `no-encontrado` del dueño de Esencias del Norte, o de una clienta suya en `/cuenta/...`, sobre cada recurso de ArchivumParfums, y el 422 `datos-invalidos` en el campo cuando el cuerpo trae un identificador de otra tienda. La prueba falla si una ruta de `/api/v1/panel` o de `/api/v1/cuenta` no está en ninguna fila, así que cada endpoint nuevo suma su fila. Las filas de citas, reportes y el recomendador quedan como `todo` hasta que existan sus endpoints.
-- Los datasets de `tests/Datasets` recorren los roles de la matriz de permisos (`roles`) y el personal de otra tienda (`staff of another business`).
+- Los datasets de `tests/Datasets` recorren los roles de la sección 9 (`roles`), los mismos más quien administra la plataforma para la matriz de permisos (`roles of the matrix`) y el personal de otra tienda (`staff of another business`).
 - Las pruebas usan la cola `sync` y la caché `array`. Las que necesitan las de producción ponen `queue.default` o `cache.default` en `database` y corren cada trabajo con `queue:work --once`, como el worker. Los bloqueos de `cache_locks` se confirman fuera de la transacción de la prueba, por su propia conexión, así que esas pruebas los borran al terminar. `RecordingJob`, de `tests/Support/Shared`, es un trabajo de una tienda que anota lo que ve en cada intento (#156).
 - `inParallel($tablas, $operacion1, $operacion2)` ejecuta cada operación en su propio proceso, con su propia conexión y fuera de la transacción de la prueba, todas en el mismo instante, y devuelve sus resultados en orden. Lo que las operaciones comparten se inserta antes con `DB::connection('pgsql_admin')`, y las tablas de `$tablas` se vacían al terminar la prueba. Cada operación se escribe en su propia línea y no usa `$this`. `audit_logs` no va en `$tablas`, porque nadie puede vaciarla ni cambiarla: sus entradas nombran la tienda que creó la prueba y desaparecen cuando la siguiente corrida recrea las tablas. Es la ayuda de las pruebas de concurrencia; el ejemplo está en `tests/Feature/Shared/InParallelTest.php`.
 
@@ -197,7 +198,7 @@ Cada prueba que demuestra una regla de la sección 5 de la [especificación](../
 
 ## Dar de alta una tienda
 
-La API no ofrece rutas para crear tiendas: se dan de alta desde la consola. Un solo comando crea la tienda, con los ajustes por defecto de la sección 10 de la [especificación](../docs/especificacion.md#10-valores-por-defecto), y la cuenta de su dueño; si alguno de los dos pasos falla, no queda ninguno.
+Una tienda se da de alta desde la consola o, con la cuenta que administra la plataforma, desde la API ([siguiente sección](#administrar-las-tiendas-de-la-plataforma)). Un solo comando crea la tienda, con los ajustes por defecto de la sección 10 de la [especificación](../docs/especificacion.md#10-valores-por-defecto), y la cuenta de su dueño; si alguno de los dos pasos falla, no queda ninguno.
 
 ```bash
 php artisan archivum:create-business "ArchivumParfums" archivumparfums "Valeria Solano Ruiz" duena@archivumparfums.test
@@ -212,6 +213,28 @@ php artisan archivum:create-business "ArchivumParfums" archivumparfums "Valeria 
 | `--password=` | Contraseña del dueño, de 8 caracteres como mínimo. Si se omite, el comando la pide sin mostrarla; si el terminal no puede ocultar la entrada, el comando falla y debe usarse `--password`. |
 
 El comando pide cada parámetro que falte. Devuelve 0 si da de alta la tienda y 1 si rechaza algún dato, con el motivo en pantalla. Sin `--password` y sin terminal interactiva rechaza la contraseña. Una contraseña escrita en `--password` queda en el historial del terminal; para uso manual conviene dejar que el comando la pida.
+
+## Administrar las tiendas de la plataforma
+
+La cuenta que administra la plataforma (#347), la cuenta `dev`, lista las tiendas y registra una nueva con su dueño sin entrar al servidor. No pertenece a ninguna tienda: no ve su catálogo, sus pedidos, sus citas ni sus clientes, y recibe 403 en el panel y en las rutas del cliente.
+
+Se abre de una de dos formas, y su contraseña nunca entra al repositorio:
+
+- En desarrollo, escribe `ARCHIVUM_PLATFORM_ADMIN_EMAIL` y `ARCHIVUM_PLATFORM_ADMIN_PASSWORD` en `.env` y ejecuta `php artisan db:seed` (o solo `php artisan db:seed --class=PlatformAdminSeeder`). Sin contraseña, el sembrador no abre nada; si se repite, actualiza la contraseña.
+- En cualquier servidor, con el comando, que pide la contraseña sin mostrarla:
+
+```bash
+php artisan archivum:create-platform-admin "Equipo de desarrollo" dev@archivumparfums.test
+```
+
+El comando rechaza un correo que ya tenga cuenta, así que una persona del personal o un cliente nunca pasa a administrar la plataforma por error. Con esa cuenta, `POST /api/v1/sesiones` entrega un token con la sola habilidad `platform:businesses`, y `GET /api/v1/cuenta` responde `rol: "administrador_plataforma"` y `tienda: null`.
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| GET | `/api/v1/plataforma/tiendas` | Lista las tiendas por nombre: `id`, `nombre`, `slug` y `zona_horaria`. |
+| POST | `/api/v1/plataforma/tiendas` | Registra la tienda con los ajustes por defecto y su dueño, igual que `archivum:create-business`. Recibe `nombre`, `slug`, `nombre_dueno`, `correo_dueno` y `contrasena_dueno`, y opcionalmente `zona_horaria`, `lugar_cita` y `dueno_atiende_citas`. Responde 201; un slug o un correo ya usados responden 422 en su campo. |
+
+Cada tienda registrada deja la entrada `business.registered` en su bitácora de auditoría, con la cuenta que la registró como autora. En el cliente [Web](https://github.com/JAguilar4k/ArchivumParfums-Web), la cuenta llega a "Tiendas de la plataforma" (`/plataforma/tiendas`) al iniciar sesión.
 
 ## Endpoints
 
@@ -440,6 +463,7 @@ Las guías independientes [Demostración de ONVO](../docs/demostracion-onvo.md) 
 | `R2_BUCKET` | Nombre del bucket de las fotos de perfumes. |
 | `R2_ENDPOINT` | URL HTTPS del endpoint S3 que muestra R2. |
 | `R2_PUBLIC_URL` | Origen HTTPS que sirve los originales y sus variantes, sin ruta. |
+| `ARCHIVUM_PLATFORM_ADMIN_EMAIL`, `ARCHIVUM_PLATFORM_ADMIN_PASSWORD` | Correo y contraseña de la cuenta que [administra la plataforma](#administrar-las-tiendas-de-la-plataforma), que `db:seed` abre solo si las dos tienen valor. La contraseña se deja vacía en `.env.example` y nunca se versiona. |
 | `SANCTUM_EXPIRATION` | Minutos que dura cada token de `POST /api/v1/sesiones` y de su renovación. Por defecto, `60`. |
 | `GEMINI_API_KEY` | Llave de la Gemini Developer API, que se crea gratis en Google AI Studio, para el recomendador con IA ([ADR 0012](../docs/adr/0012-ai-recommender-through-laravel-ai-with-gemini.md)). El proveedor y el modelo están fijos en `config/ai.php`. Sin llave, cada consulta a la IA falla y la recomendación sale por reglas (#120); las pruebas nunca llaman a Gemini. |
 

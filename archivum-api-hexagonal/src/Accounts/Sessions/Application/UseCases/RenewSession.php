@@ -11,16 +11,18 @@ use Src\Accounts\Sessions\Domain\Contracts\TokenIssuer;
 use Src\Accounts\Sessions\Domain\Exceptions\SessionNotRenewableException;
 use Src\Accounts\Sessions\Domain\ValueObjects\Ability;
 use Src\Accounts\Sessions\Domain\ValueObjects\AccountRole;
+use Src\Accounts\Users\Domain\Contracts\PlatformAdmins;
 use Src\Shared\Domain\Contracts\TransactionRunner;
 use Src\Shared\Domain\ValueObjects\UserId;
 
 final readonly class RenewSession
 {
-    /** Receive the active tokens, the token, the staff memberships and the transaction ports. */
+    /** Receive the active tokens, the token, the staff memberships, the platform administrators and the transaction ports. */
     public function __construct(
         private ActiveTokens $activeTokens,
         private TokenIssuer $tokens,
         private StaffMemberships $memberships,
+        private PlatformAdmins $platformAdmins,
         private TransactionRunner $transactions,
     ) {}
 
@@ -37,7 +39,7 @@ final readonly class RenewSession
 
         return $this->transactions->run(function () use ($id, $tokenId): StartedSession {
             $deviceName = $this->activeTokens->take($id, $tokenId) ?? throw SessionNotRenewableException::create();
-            $role = $this->memberships->of($id)->role ?? AccountRole::Customer;
+            $role = AccountRole::resolve($this->platformAdmins->includes($id), $this->memberships->of($id)?->role);
             $token = $this->tokens->issue($id, $deviceName, Ability::namesGrantedTo($role));
 
             return new StartedSession($token->plainTextToken, $token->expiresAt->format(DATE_ATOM));

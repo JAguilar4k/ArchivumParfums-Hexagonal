@@ -12,18 +12,25 @@ use Src\Businesses\Profile\Domain\ValueObjects\AppointmentPlace;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessName;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessSlug;
 use Src\Businesses\Profile\Domain\ValueObjects\BusinessTimezone;
+use Src\Shared\Domain\Contracts\AuditTrail;
 use Src\Shared\Domain\Contracts\TransactionRunner;
+use Src\Shared\Domain\ValueObjects\AuditAction;
 
 final readonly class RegisterBusiness
 {
-    /** Receive the business repository, owner accounts and transaction ports. */
+    /** Receive the business repository, owner accounts, audit trail and transaction ports. */
     public function __construct(
         private BusinessRepository $businesses,
         private OwnerAccounts $owners,
         private TransactionRunner $transaction,
+        private AuditTrail $audit,
     ) {}
 
-    /** Register a business with the default settings and its owner together, so neither exists without the other. */
+    /**
+     * Register a business with the default settings and its owner together, so neither exists without the other, and
+     * leave in the log of the new business who registered it: the administrator of the platform, or the system from
+     * the console (#347).
+     */
     public function execute(RegisterBusinessCommand $command): Business
     {
         $name = new BusinessName($command->name);
@@ -42,6 +49,13 @@ final readonly class RegisterBusiness
                 $command->ownerPassword,
                 $command->ownerAttendsAppointments,
             );
+
+            // Registering the owner pinned the new business in the transaction, so the entry passes its row policy.
+            $this->audit->record($business->id, AuditAction::BusinessRegistered, 'business', $business->id->value, null, [
+                'name' => $business->name->value,
+                'slug' => $business->slug->value,
+                'timezone' => $business->timezone->value,
+            ]);
 
             return $business;
         });

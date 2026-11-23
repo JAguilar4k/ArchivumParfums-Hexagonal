@@ -40,8 +40,9 @@ Pedidos, botellas para decants y proveedores son el módulo propio del giro: son
 | Colaborador | Asesor que atiende citas (ficticio en la demo) | Solo su propia agenda; marca sus citas como atendidas o no asistidas |
 | Cliente | Comprador con cuenta | Sus citas, su lista de espera, sus pedidos, sus pagos y sus paquetes |
 | Visitante | Cualquiera sin sesión | Ver la vitrina, la disponibilidad y pedir recomendaciones |
+| Administrador de la plataforma | El equipo que opera el sistema (cuenta `dev`) | Listar las tiendas y registrar una tienda nueva con su dueño. No pertenece a ninguna tienda ni ve sus datos (#347) |
 
-Quien atiende citas puede ser dueño o colaborador: el horario de atención va por persona del personal. Cada persona del personal pertenece a una sola tienda. La matriz completa está en la sección 9.
+Quien atiende citas puede ser dueño o colaborador: el horario de atención va por persona del personal. Cada persona del personal pertenece a una sola tienda. La cuenta que administra la plataforma no es personal ni cliente de ninguna tienda: se abre con `php artisan archivum:create-platform-admin` o con los datos de `.env` al sembrar, nunca desde la API. La matriz completa está en la sección 9.
 
 ## 4. Glosario
 
@@ -253,7 +254,7 @@ Convenciones del repo guía (`docs/database.md`): llave primaria `id` `uuid` v7 
 | Tabla | Campos clave | Notas |
 |---|---|---|
 | `businesses` | name, slug único, logo_path, timezone, location_text, settings (jsonb) | Ajustes: sección 10 |
-| `users` | name, email, password | Datos ficticios en seeders |
+| `users` | name, email, password, is_platform_admin | Datos ficticios en seeders |
 | `members` | business_id, user_id, role (`owner` o `staff`), attends_appointments | Una tienda por persona del personal |
 | `customers` | business_id, user_id, phone | Se crea cuando el cliente opera en una tienda |
 | `services` | name, duration_minutes, price, buffer_minutes, max_perfumes, is_active | |
@@ -311,6 +312,13 @@ Todo va bajo `/api/v1`, con rutas en español y en plural como el repo guía. Es
 | POST | `/sesiones` | Iniciar sesión |
 | DELETE | `/sesiones/actual` | Cerrar sesión |
 | GET | `/cuenta` | Datos de la cuenta y su rol |
+
+### Plataforma (solo quien administra la plataforma)
+
+| Método | Ruta | Para qué |
+|---|---|---|
+| GET | `/plataforma/tiendas` | Listar las tiendas, por nombre |
+| POST | `/plataforma/tiendas` | Registrar una tienda con los ajustes por defecto y su dueño (#347) |
 
 ### Cliente (solo sus propios recursos)
 
@@ -378,6 +386,8 @@ Los errores de validación usan el tipo `datos-invalidos` (422) y agregan el mie
 | Paquetes de decants | Definir ofertas y ver todos | No | Comprar, ver y canjear los propios |
 | Reportes e ingresos | Sí | No | No |
 | Recomendador IA | Sí | Sí | Sí, también el visitante |
+
+Quien administra la plataforma no tiene ninguna de esas acciones, salvo el recomendador: solo lista las tiendas y registra una nueva con su dueño (#347). Ningún otro rol llega a esas dos acciones.
 
 Cada fila necesita pruebas del caso permitido y de los prohibidos, incluido el intento desde otra tienda.
 

@@ -12,17 +12,19 @@ use Src\Accounts\Sessions\Domain\Exceptions\InvalidCredentialsException;
 use Src\Accounts\Sessions\Domain\ValueObjects\Ability;
 use Src\Accounts\Sessions\Domain\ValueObjects\AccountRole;
 use Src\Accounts\Users\Domain\Contracts\PasswordHasher;
+use Src\Accounts\Users\Domain\Contracts\PlatformAdmins;
 use Src\Accounts\Users\Domain\Contracts\UserRepository;
 use Src\Accounts\Users\Domain\ValueObjects\Email;
 
 final readonly class StartSession
 {
-    /** Receive the user repository, the password hashing, the token and the staff memberships ports. */
+    /** Receive the user repository, the password hashing, the token, the staff memberships and the platform administrators ports. */
     public function __construct(
         private UserRepository $users,
         private PasswordHasher $passwords,
         private TokenIssuer $tokens,
         private StaffMemberships $memberships,
+        private PlatformAdmins $platformAdmins,
     ) {}
 
     /**
@@ -42,7 +44,7 @@ final readonly class StartSession
         }
 
         // Fixed for the life of the token: changing the role or deactivating a person revokes their tokens (#106).
-        $role = $this->memberships->of($user->id)->role ?? AccountRole::Customer;
+        $role = AccountRole::resolve($this->platformAdmins->includes($user->id), $this->memberships->of($user->id)?->role);
 
         $token = $this->tokens->issue($user->id, $command->deviceName, Ability::namesGrantedTo($role));
 
