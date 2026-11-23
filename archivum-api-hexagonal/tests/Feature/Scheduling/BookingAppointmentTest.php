@@ -382,3 +382,16 @@ it('sends a booking confirmation with the appointment time in the store timezone
 
     postJson(bookingUrl($scenario), bookingBody($scenario))->assertCreated();
 });
+
+it('sends no confirmation for a booking that loses its slot', function () {
+    $scenario = bookingScenario();
+    CustomerModel::query()->whereKey($scenario['customer'])->firstOrFail()->update(['phone' => '+50688880001']);
+    TwilioSandbox::configure();
+    $sender = mock(WhatsAppSender::class);
+    $sender->shouldReceive('supports')->andReturnTrue();
+    // Only the booking that commits sends its confirmation.
+    $sender->shouldReceive('send')->once();
+
+    postJson(bookingUrl($scenario), bookingBody($scenario, person: $scenario['first']))->assertCreated();
+    postJson(bookingUrl($scenario), bookingBody($scenario, person: $scenario['first']))->assertConflict();
+});
