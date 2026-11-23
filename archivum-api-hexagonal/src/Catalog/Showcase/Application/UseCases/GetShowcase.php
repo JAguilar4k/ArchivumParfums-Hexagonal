@@ -25,7 +25,10 @@ final readonly class GetShowcase
 
         return new ShowcasePage(
             array_map(
-                fn (ShowcaseItem $item): ShowcaseItem => $item->withPhotoUrl($item->photoPath === null ? null : $this->storage->url($item->photoPath)),
+                fn (ShowcaseItem $item): ShowcaseItem => $item->photoPath === null ? $item : $item->withPhoto(
+                    $this->storage->url($item->photoPath),
+                    $this->storage->imageVariants($item->photoPath),
+                ),
                 $page->items,
             ),
             $page->total,
