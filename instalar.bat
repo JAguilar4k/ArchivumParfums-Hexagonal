@@ -91,6 +91,8 @@ if exist "%WEB_DIR%\.git" (
 for %%I in ("%API_DIR%") do if /I not "%%~nxI"=="ArchivumParfums-Hexagonal" (
     echo   Aviso: el cliente web busca el .env en ..\ArchivumParfums-Hexagonal. Renombre la carpeta %%~nxI para que lo encuentre.
 )
+call :update_clone "%API_DIR%" "La API" warn
+call :update_clone "%WEB_DIR%" "El cliente web"
 
 rem ---------------------------------------------------------------- 3. One .env
 echo.
@@ -102,6 +104,12 @@ if exist "%ENV_FILE%" (
     if errorlevel 1 goto :failed
     echo   [hecho] Se creó .env desde .env.example. Revise DB_HOST y DB_PORT si PostgreSQL no usa 127.0.0.1:5432.
 )
+rem A .env from an older installation keeps its values and gains only the variables that .env.example
+rem added since, with their example values; without the VITE_ ones the web client shows a blank page.
+pushd "%LARAVEL%"
+call php -r "$present = []; foreach (file('.env', FILE_IGNORE_NEW_LINES) as $line) { if (preg_match('/\A\s*([A-Z][A-Z0-9_]*)=/', $line, $m)) { $present[$m[1]] = true; } } $added = []; foreach (file('.env.example', FILE_IGNORE_NEW_LINES) as $line) { if (preg_match('/\A([A-Z][A-Z0-9_]*)=/', $line, $m) && ! isset($present[$m[1]])) { $added[$m[1]] = $line; } } if ($added === []) { echo '  [listo] .env tiene todas las variables de .env.example.', PHP_EOL; exit(0); } file_put_contents('.env', PHP_EOL.'# Added by instalar.bat from .env.example'.PHP_EOL.implode(PHP_EOL, $added).PHP_EOL, FILE_APPEND); echo '  [hecho] Se agregaron a .env, con su valor de ejemplo: ', implode(', ', array_keys($added)), PHP_EOL;"
+if errorlevel 1 goto :failed_in_folder
+popd
 for %%F in (.env .env.local) do if exist "%WEB_DIR%\%%F" (
     echo   Aviso: el cliente web ya no usa %WEB_DIR%\%%F; pase sus variables VITE_ al .env de la API y bórrelo.
 )
@@ -154,15 +162,17 @@ popd
 rem ---------------------------------------------------------------- 6. Web client dependencies
 echo.
 echo [6/7] Dependencias del cliente web
-if exist "%WEB_DIR%\node_modules" (
-    echo   [ya estaba] node_modules. Si cambió package-lock.json, ejecute npm ci en %WEB_DIR%
-) else (
-    pushd "%WEB_DIR%"
+pushd "%WEB_DIR%"
+rem npm ls fails when node_modules is missing or no longer matches package-lock.json, as after a git pull.
+call npm ls --depth=0 >nul 2>&1
+if errorlevel 1 (
     call npm ci
     if errorlevel 1 goto :failed_in_folder
-    popd
     echo   [hecho] Dependencias instaladas con npm ci.
+) else (
+    echo   [ya estaba] node_modules coincide con package-lock.json.
 )
+popd
 
 rem ---------------------------------------------------------------- 7. Check
 echo.
@@ -192,12 +202,48 @@ rem With no answer in 60 seconds nothing starts, so the script also ends when no
 choice /C SN /T 60 /D N /M "¿Iniciar ahora la API, la cola y el cliente web en ventanas aparte"
 if errorlevel 2 goto :done
 start "ArchivumParfums API" /D "%LARAVEL%" cmd /k composer run dev
-start "ArchivumParfums cola" /D "%LARAVEL%" cmd /k php artisan queue:work
+rem The worker prints nothing until a job arrives, so the window says first that it is waiting.
+start "ArchivumParfums cola" /D "%LARAVEL%" cmd /k "echo Cola de trabajos: espera trabajos y muestra cada uno cuando llega. Si no aparece nada, no está trabada; déjela abierta. & php artisan queue:work"
 start "ArchivumParfums web" /D "%WEB_DIR%" cmd /k npm run dev
 
 :done
 echo.
 pause
+exit /b 0
+
+rem An old clone misses configuration, such as the shared .env of the web client. A clean clone on main
+rem is updated; the API only gets a warning, because pulling it could change this script while it runs.
+:update_clone
+set "BRANCH=sin rama"
+for /f "delims=" %%B in ('git -C "%~1" branch --show-current') do set "BRANCH=%%B"
+if /I not "%BRANCH%"=="main" (
+    echo   Aviso: %~2 está en la rama %BRANCH%, no en main. A una rama vieja le puede faltar configuración: guarde sus cambios y cambie a main.
+    exit /b 0
+)
+git -C "%~1" fetch -q origin main
+if errorlevel 1 (
+    echo   Aviso: no se pudo consultar main de %~2 en GitHub; se sigue con lo que hay.
+    exit /b 0
+)
+set "BEHIND=0"
+for /f %%N in ('git -C "%~1" rev-list --count HEAD..origin/main') do set "BEHIND=%%N"
+if "%BEHIND%"=="0" (
+    echo   [listo] %~2 está al día con main.
+    exit /b 0
+)
+set "DIRTY="
+for /f %%L in ('git -C "%~1" status --porcelain') do set "DIRTY=1"
+if "%~3"=="warn" set "DIRTY=1"
+if defined DIRTY (
+    echo   Aviso: %~2 tiene %BEHIND% cambios nuevos en main. Ejecute git pull en %~1 y vuelva a ejecutar instalar.bat.
+    exit /b 0
+)
+git -C "%~1" merge -q --ff-only origin/main
+if errorlevel 1 (
+    echo   Aviso: no se pudo actualizar %~2; ejecute git pull en %~1.
+) else (
+    echo   [hecho] %~2 se actualizó con %BEHIND% cambios de main.
+)
 exit /b 0
 
 :require
