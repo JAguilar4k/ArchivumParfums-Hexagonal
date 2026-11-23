@@ -284,7 +284,7 @@ El campo `instance` repite el identificador de la solicitud como `urn:uuid:<id>`
 
 ## Contrato de la API
 
-Scramble genera el contrato OpenAPI 3.1 desde el código, y el contrato se versiona en `archivum-api-hexagonal/openapi/v1.json`. Tras cambiar un endpoint hay que regenerarlo con `composer openapi` (#50). `archivum-web` genera sus tipos desde ese archivo con `npm run api:types` y `npm run api:check` falla si quedaron desactualizados (#124).
+Scramble genera el contrato OpenAPI 3.1 desde el código, y el contrato se versiona en `archivum-api-hexagonal/openapi/v1.json`. Tras cambiar un endpoint hay que regenerarlo con `composer openapi` (#50). [Web](https://github.com/JAguilar4k/ArchivumParfums-Web) fija una revisión publicada del contrato y valida sus tipos con `npm run api:check` (#124). El check `Web` del backend también prueba el cliente de `main` con el contrato candidato de cada PR.
 
 ## Rutas
 
