@@ -29,6 +29,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Local installation
+    |--------------------------------------------------------------------------
+    |
+    | Major version of PostgreSQL that php artisan archivum:install requires
+    | before it creates roles or runs migrations (#349). The schema uses
+    | features of this version, such as uuidv7().
+    |
+    */
+
+    'installer' => [
+        'postgres_major_version' => 18,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Administrator of the platform
     |--------------------------------------------------------------------------
     |

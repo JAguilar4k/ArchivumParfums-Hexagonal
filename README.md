@@ -70,6 +70,25 @@ Al cerrar un módulo se agrega su fila a esta tabla con lo que quedó listo.
 
 ## Puesta en marcha
 
+### En Windows, con `instalar.bat`
+
+Se necesitan Git, PHP 8.4 con `pdo_pgsql`, Composer 2, Node.js 26 y PostgreSQL 18 en ejecución. Descarga [`instalar.bat`](instalar.bat) en una carpeta vacía, o ejecútalo desde la raíz de un clon de este repositorio, y haz doble clic. El script deja listas las tres partes, una junto a otra:
+
+```
+ArchivumParfums-Hexagonal/                          API
+  archivum-api-hexagonal/.env                       la única configuración, secretos incluidos
+  archivum-api-hexagonal/database/migrations/       base de datos (submódulo ArchivumParfums-Database)
+ArchivumParfums-Web/                                cliente web
+```
+
+En orden: revisa las herramientas, incluido PostgreSQL 18, clona lo que falta, crea `.env` desde `.env.example` si no existe, comprueba que el servidor de `DB_HOST` y `DB_PORT` responda (si no, se detiene antes de instalar nada), instala las dependencias de la API, ejecuta `php artisan archivum:install` (clave, roles, bases, migraciones y datos de demostración; ahí pide la contraseña de `postgres`), instala las del cliente web y comprueba la conexión con PostgreSQL 18. Al final lista por nombre las integraciones sin llave y ofrece abrir la API, la cola y el cliente web.
+
+Se puede ejecutar las veces que haga falta. Detecta lo que ya está hecho y no lo repite: no vuelve a clonar, no reemplaza `.env` ni la clave, reutiliza los roles y las bases, migra solo lo pendiente y no siembra si ya hay usuarios, así que no duplica datos.
+
+Hay un solo `.env` para todo. El cliente web lee `../ArchivumParfums-Hexagonal/archivum-api-hexagonal/.env` cuando existe; Vite solo entrega al navegador las variables `VITE_`, de modo que los secretos de la API no llegan al cliente.
+
+### A mano
+
 Se necesitan PHP 8.4, Composer 2 y PostgreSQL 18 en ejecución. Los comandos se ejecutan en `archivum-api-hexagonal/`:
 
 ```bash
@@ -207,6 +226,7 @@ El enunciado permite usar asistentes de IA con una condición: cada integrante d
 
 | Parte | Asistente | Qué generó la IA | Qué verificó el equipo |
 | --- | --- | --- | --- |
+| Instalación con `instalar.bat` y un solo `.env` (#349) | Claude Code | `instalar.bat`, la sección `VITE_` de `.env.example`, `.gitattributes` para los `.bat` y la documentación; en Web, `envDir` en `vite.config.ts` y su README. | El script se ejecutó en Windows en una carpeta vacía contra un PostgreSQL 18 desechable y una segunda vez para comprobar que no repite pasos ni duplica datos; se comprobó que Web compila con las variables del `.env` de la API. Revisión humana pendiente. |
 | Confirmaciones por WhatsApp (#166) | Codex | Puerto de avisos, trabajo en cola, adaptadores Twilio y nulo, modos Sandbox y cuenta de pago con plantillas aprobadas por evento, configuración del enlace de la tienda y pruebas simuladas. | Pendientes la verificación del equipo y el envío en una cuenta sandbox. |
 | Separación de Backend, Web y Base de datos (#338) | Codex | Preparó los tres repositorios, el submódulo de migraciones, el contrato compartido, el check Web y el traslado de issues y milestones. También incorporó la explicación del instalador cuando falta el submódulo y la documentación solicitada en revisión. | sanlealc-code cotejó las 40 migraciones con el esquema anterior, el origen del contrato de Web y la protección de las ramas. Quality y Web pasaron en la revisión inicial del PR. |
 | Base del cliente web (#123) | Claude Code | `archivum-web` generado con `create-vue` (Vite, Vue 3, TypeScript estricto, Vue Router, Pinia, Vitest y ESLint) y simplificado: Node.js 26 fijado en `engines`, ESLint sin Oxlint, `lint` sin modificar archivos, `VITE_API_URL` leída desde `src/shared/config.ts`, la funcionalidad `home` con sus rutas y pruebas, el README del cliente y los comandos en el README raíz y en `CLAUDE.md`. | `npm run lint`, `npm run type-check`, `npm run test` y `npm run build` pasan en local con Node.js 26. Revisión humana pendiente. |

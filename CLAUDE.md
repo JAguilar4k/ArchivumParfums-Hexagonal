@@ -124,6 +124,8 @@ El glosario completo está en la sección 4 de la especificación y se pasa a `d
 
 ## Comandos (en `archivum-api-hexagonal/`)
 
+En Windows, `instalar.bat` (en la raíz) hace la primera instalación de la API, la base de datos y el cliente web, y se puede repetir sin duplicar datos. `archivum-api-hexagonal/.env` es el único `.env`: el cliente web lee de ahí sus variables `VITE_`.
+
 ```bash
 composer install     # .env, clave, roles, bases, migraciones y datos de demostración (archivum:install)
 php artisan archivum:install   # lo mismo a mano; en Windows pide aquí la contraseña de postgres
@@ -140,7 +142,7 @@ En el repositorio [Web](https://github.com/JAguilar4k/ArchivumParfums-Web), el c
 
 ```bash
 npm ci               # dependencias exactas de package-lock.json
-npm run dev          # SPA en desarrollo; la API se lee de VITE_API_URL (.env)
+npm run dev          # SPA en desarrollo; VITE_API_URL sale del .env de la API
 npm run lint         # ESLint sin modificar
 npm run type-check   # vue-tsc en modo estricto
 npm run test         # Vitest
