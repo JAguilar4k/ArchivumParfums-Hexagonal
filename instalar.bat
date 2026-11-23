@@ -139,6 +139,10 @@ echo   Antes de crear roles o migrar se exige PostgreSQL 18 o superior en el ser
 echo   Si los roles y las bases ya existen se reutilizan, y si ya hay usuarios no se siembra de nuevo.
 call php artisan archivum:install --ansi
 if errorlevel 1 goto :failed_in_folder
+rem The real catalog of the pilot store (#355): perfumes already there are kept, photos missing are completed.
+echo   Catálogo real de ArchivumParfums: la primera vez tarda unos minutos.
+call php artisan db:seed --class="Database\Seeders\PilotCatalogSeeder" --force --no-interaction
+if errorlevel 1 goto :failed_in_folder
 if exist "public\storage" (
     echo   [ya estaba] Enlace public\storage para las fotos.
 ) else (
