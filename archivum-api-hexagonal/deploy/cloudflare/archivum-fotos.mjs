@@ -18,7 +18,7 @@ function photoRequest(path) {
 
 function serve(body, headers = {}) {
   const responseHeaders = new Headers(headers)
-  responseHeaders.set('Cache-Control', 'public, max-age=3600, s-maxage=86400')
+  responseHeaders.set('Cache-Control', 'public, max-age=3600, s-maxage=3600')
   responseHeaders.set('X-Content-Type-Options', 'nosniff')
   return new Response(body, { headers: responseHeaders })
 }
