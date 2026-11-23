@@ -14,6 +14,7 @@ final readonly class ShowcaseDetail
      * @param  array{time_of_day: list<string>, climate: list<string>, occasion: list<string>}  $tags  The tags by kind, with the values the database stores.
      * @param  list<ShowcaseVariant>  $variants  Only the presentations that can be sold.
      * @param  list<ShowcaseDecant>  $decants  Only the sizes currently available from an open bottle.
+     * @param  list<array{width: int, url: string}>  $photoVariants  Public image variants in ascending order of width.
      */
     public function __construct(
         public string $id,
@@ -29,14 +30,15 @@ final readonly class ShowcaseDetail
         public array $tags,
         public array $variants,
         public array $decants = [],
+        public array $photoVariants = [],
     ) {}
 
-    /** The same perfume with the address of its photo. */
-    public function withPhotoUrl(?string $photoUrl): self
+    /** @param  list<array{width: int, url: string}>  $photoVariants */
+    public function withPhoto(string $photoUrl, array $photoVariants): self
     {
         return new self(
             $this->id, $this->brand, $this->name, $this->concentration, $this->gender, $this->family, $this->description,
-            $this->photoPath, $photoUrl, $this->notes, $this->tags, $this->variants, $this->decants,
+            $this->photoPath, $photoUrl, $this->notes, $this->tags, $this->variants, $this->decants, $photoVariants,
         );
     }
 }

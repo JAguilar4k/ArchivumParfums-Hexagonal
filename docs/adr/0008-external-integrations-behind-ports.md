@@ -4,7 +4,7 @@ Estado: aceptada.
 
 ## Contexto
 
-ArchivumParfums depende de servicios que no controla: dos pasarelas de pago (ONVO Pay en colones y PayPal en dólares), un proveedor de IA que todavía no está definido, Google Calendar y WhatsApp. Cada uno tiene su propio modelo de datos, sus errores y sus credenciales, y cualquiera puede cambiar de proveedor durante el curso. Las pruebas y la integración continua no pueden llamarlos.
+ArchivumParfums depende de servicios que no controla: dos pasarelas de pago (ONVO Pay en colones y PayPal en dólares), un proveedor de IA que todavía no está definido, Google Calendar, WhatsApp y el almacenamiento de fotos en Cloudflare R2. Cada uno tiene su propio modelo de datos, sus errores y sus credenciales, y cualquiera puede cambiar de proveedor durante el curso. Las pruebas y la integración continua no pueden llamarlos.
 
 ## Decisión
 
@@ -16,8 +16,13 @@ Cada integración externa es un puerto del dominio con un adaptador por proveedo
 | Recomendador con IA | `AiRecommender`, en `Src\Recommendations\Recommender\Domain\Contracts` (#117) | `LaravelAiRecommender`, con `laravel/ai`, y uno falso para las pruebas |
 | Google Calendar | El puerto de calendario de `Src\Scheduling\Calendar\Domain\Contracts` (#181) | El de Google y uno falso para las pruebas |
 | WhatsApp y los demás avisos | `CustomerNotifier`, en `Src\Shared\Domain\Contracts` (#161) | Uno por canal; el de WhatsApp Business Cloud llega con #166 |
+| Archivos | `FileStorage`, en `Src\Shared\Domain\Contracts` (#340) | `LaravelFileStorage` sobre el disco público local y el disco S3 para Cloudflare R2 |
 
 El puerto habla el idioma del negocio, con objetos de valor y DTO propios. Ningún tipo, nombre ni código de error del proveedor sale del adaptador: el adaptador es la capa anticorrupción. Las credenciales viven en `.env` y la configuración solo elige qué adaptador se usa.
+
+### Localizadores de los archivos
+
+Los archivos locales conservan su ruta relativa. Para una subida a R2, `FileStorage` devuelve un localizador opaco de la forma `r2:<URL pública HTTPS>`. El catálogo guarda ese valor en `perfumes.image_path`. La vitrina obtiene la URL original y deriva las variantes a partir del dominio que se guardó con la foto. Así, los enlaces existentes siguen disponibles si se retiran las credenciales S3, siempre que el dominio público siga sirviendo los objetos. Los directorios de las nuevas subidas a R2 y los anchos de las variantes se definen en `config/files.php`.
 
 ## Alternativas descartadas
 
@@ -30,4 +35,5 @@ El puerto habla el idioma del negocio, con objetos de valor y DTO propios. Ning�
 - Cambiar de proveedor toca un solo adaptador y su enlace en el proveedor de servicios.
 - Las pruebas usan adaptadores falsos: ni Pest ni la integración continua llaman a ONVO, PayPal, al proveedor de IA, a Google ni a Meta.
 - Cada adaptador traduce los errores del proveedor a excepciones del dominio, y una falla del proveedor de IA cae al recomendador por reglas (R50).
+- Cambiar `R2_PUBLIC_URL` afecta a las subidas nuevas. Las fotos ya guardadas siguen dependiendo de su dominio anterior. Retirar ese dominio exige migrar los objetos y actualizar sus localizadores. El adaptador solo elimina un objeto cuando la configuración de R2 está completa y el origen coincide con el del localizador. Un origen distinto o una configuración incompleta generan un aviso y pueden dejar el objeto pendiente de limpieza en el bucket anterior.
 - La prueba de arquitectura impide que `Domain` y `Application` dependan del framework, y con él de `laravel/ai` (#117).
