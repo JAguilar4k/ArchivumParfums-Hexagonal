@@ -90,7 +90,7 @@ final readonly class LaravelFileStorage implements FileStorage
         }
 
         $origin = substr($url, 0, -strlen($key));
-        $isWorker = preg_match('#\Ahttps://[a-z0-9.-]+\.workers\.dev\z#i', $origin) === 1;
+        $isWorker = config('files.r2_image_variants') === 'worker';
         /** @var list<int> $widths */
         $widths = Config::array('files.r2_image_widths');
         sort($widths);

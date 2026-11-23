@@ -221,7 +221,7 @@ it('exposes a stored Worker photo and its variants without R2 settings', functio
     $key = 'perfumes/catalogo/frasco.png';
     $photoUrl = "{$origin}/{$key}";
     $perfume = StoredPerfumes::create($businessId, variants: [[50, 95000, 95000]], photoPath: "r2:{$photoUrl}");
-    config(['filesystems.disks.r2.url' => null]);
+    config(['filesystems.disks.r2.url' => null, 'files.r2_image_variants' => 'worker']);
 
     $response = getJson('/api/v1/tiendas/'.TwoBusinesses::FIRST."/perfumes/{$perfume->id->value}");
 

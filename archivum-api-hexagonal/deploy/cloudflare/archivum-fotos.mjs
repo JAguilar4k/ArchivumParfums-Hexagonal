@@ -1,7 +1,6 @@
-const originalCatalogPhoto = /^perfumes\/(\d{4})-[a-z0-9-]+\.(jpg|jpeg|png|webp)$/
-const appPhoto = /^perfumes\/[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.(jpg|jpeg|png|webp)$/
-const replacementPhoto = /^perfumes\/reemplazos-20261122\/carga-r2-reemplazos-20261122\/\d{1,4}\.(jpg|jpeg|png|webp)$/
-const excludedRows = new Set(['1088', '1216', '2389', '2486'])
+// Any photo under perfumes/ is public. A photo that must not be shown is deleted from the bucket.
+const photoKey = /^perfumes\/(?:[a-z0-9][a-z0-9_-]*\/)*[a-z0-9][a-z0-9_-]*\.(jpg|jpeg|png|webp)$/i
+const variantWidths = new Set(['320', '640', '960'])
 const imageTypes = new Map([
   ['jpg', 'image/jpeg'],
   ['jpeg', 'image/jpeg'],
@@ -10,12 +9,11 @@ const imageTypes = new Map([
 ])
 
 function photoRequest(path) {
-  const variant = /^\/imagenes\/(320|640|960)\/(.+)$/.exec(path)
+  const variant = /^\/imagenes\/(\d+)\/(.+)$/.exec(path)
+  if (variant && !variantWidths.has(variant[1])) return null
   const key = variant ? variant[2] : path.slice(1)
-  const imported = originalCatalogPhoto.exec(key)
-  const allowed = imported ? !excludedRows.has(imported[1]) : appPhoto.test(key) || replacementPhoto.test(key)
 
-  return allowed ? { key, width: variant ? Number(variant[1]) : null } : null
+  return photoKey.test(key) ? { key, width: variant ? Number(variant[1]) : null } : null
 }
 
 function serve(body, headers = {}) {
