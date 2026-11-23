@@ -331,7 +331,11 @@ Para probar fotos, añade `foto` como archivo en el POST de foto; para el logo, 
 
 ### Fotos de perfumes en Cloudflare R2
 
-Cree un bucket para las fotos y un token de API de R2 con permiso de lectura y escritura de objetos limitado a ese bucket. Conecte un dominio personalizado HTTPS al bucket y habilite las transformaciones de imágenes en su zona. Configure las cinco variables de R2 en el archivo `.env` de la API. [Tokens de R2](https://developers.cloudflare.com/r2/api/tokens/) · [Transformaciones de imágenes](https://developers.cloudflare.com/images/optimization/transformations/overview/)
+Cree un bucket para las fotos y un token de API de R2 con permiso de lectura y escritura de objetos limitado a ese bucket. Configure las cinco variables de R2 en el archivo `.env` de la API. [Tokens de R2](https://developers.cloudflare.com/r2/api/tokens/)
+
+Para servir las fotos, configure `R2_PUBLIC_URL` con el origen HTTPS de un dominio personalizado del bucket con Transformaciones de imágenes habilitadas, o de un Worker con acceso al bucket privado. `R2_IMAGE_VARIANTS` indica cuál de los dos sirve las variantes: `cloudflare` (el valor por defecto) para el dominio personalizado o `worker` para el Worker, sea en `workers.dev` o en un dominio propio. El Worker debe servir originales en `/perfumes/{archivo}` y variantes en `/imagenes/{ancho}/perfumes/{archivo}`. [Transformaciones de imágenes](https://developers.cloudflare.com/images/optimization/transformations/overview/) · [Acceso a R2 desde un Worker](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/)
+
+El Worker de [entrega de fotos](deploy/cloudflare/archivum-fotos.mjs) usa el binding `CATALOG_PHOTOS` para el bucket y el binding `IMAGES` para las variantes de 320, 640 y 960 píxeles. Si se agota la cuota de transformaciones del plan Free, la ruta de la variante redirige al original. El Worker sirve cualquier foto bajo `perfumes/`: una foto que no deba verse se elimina del bucket. La caché de Cloudflare guarda cada foto hasta una hora, así que una foto borrada puede verse ese tiempo. [Binding de Images](https://developers.cloudflare.com/images/optimization/binding/) · [Cuota de Images Free](https://developers.cloudflare.com/images/pricing/)
 
 Las subidas de perfumes usan el disco público local cuando la configuración de R2 está incompleta. Los logos y las fotos locales existentes se sirven desde `/storage`. Las fotos subidas a R2 conservan su URL pública, así que mantenga disponible el dominio configurado al subirlas. La vitrina incluye variantes de 320, 640 y 960 píxeles y el navegador elige el tamaño según el espacio disponible.
 
@@ -435,7 +439,7 @@ Las guías independientes [Demostración de ONVO](../docs/demostracion-onvo.md) 
 | `R2_SECRET_ACCESS_KEY` | Clave secreta S3 del token de R2. |
 | `R2_BUCKET` | Nombre del bucket de las fotos de perfumes. |
 | `R2_ENDPOINT` | URL HTTPS del endpoint S3 que muestra R2. |
-| `R2_PUBLIC_URL` | Origen HTTPS del dominio personalizado del bucket con Transformaciones de imágenes habilitadas. |
+| `R2_PUBLIC_URL` | Origen HTTPS que sirve los originales y sus variantes, sin ruta. |
 | `SANCTUM_EXPIRATION` | Minutos que dura cada token de `POST /api/v1/sesiones` y de su renovación. Por defecto, `60`. |
 | `GEMINI_API_KEY` | Llave de la Gemini Developer API, que se crea gratis en Google AI Studio, para el recomendador con IA ([ADR 0012](../docs/adr/0012-ai-recommender-through-laravel-ai-with-gemini.md)). El proveedor y el modelo están fijos en `config/ai.php`. Sin llave, cada consulta a la IA falla y la recomendación sale por reglas (#120); las pruebas nunca llaman a Gemini. |
 
