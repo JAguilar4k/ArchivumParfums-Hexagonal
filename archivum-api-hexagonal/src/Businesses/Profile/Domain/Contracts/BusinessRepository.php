@@ -29,4 +29,11 @@ interface BusinessRepository
 
     /** Find a business by the slug of its public addresses. */
     public function findBySlug(BusinessSlug $slug): ?Business;
+
+    /**
+     * Every business of the platform, ordered by name (#347).
+     *
+     * @return list<Business>
+     */
+    public function allByName(): array;
 }

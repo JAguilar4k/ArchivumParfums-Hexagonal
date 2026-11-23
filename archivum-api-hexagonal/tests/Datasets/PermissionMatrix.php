@@ -14,8 +14,8 @@ use Tests\Support\Catalog\FakeImages;
 | the "roles" dataset gets on a resource of ArchivumParfums (#105). The
 | parameters of the URI are the ones of MatrixResources. An allowed role
 | gets 2xx, or the 409 or 422 of a business rule after passing the checks
-| of permission. A new endpoint of /panel or /cuenta joins its row, or
-| PermissionMatrixTest fails.
+| of permission. A new endpoint of /panel, /plataforma or /cuenta joins its
+| row, or PermissionMatrixTest fails.
 |
 */
 
@@ -26,7 +26,7 @@ use Tests\Support\Catalog\FakeImages;
  */
 function ownerOnly(int $ownerStatus): array
 {
-    return ['dueno' => $ownerStatus, 'colaborador' => 403, 'cliente' => 403, 'visitante' => 401];
+    return ['dueno' => $ownerStatus, 'colaborador' => 403, 'cliente' => 403, 'administrador' => 403, 'visitante' => 401];
 }
 
 /**
@@ -36,7 +36,7 @@ function ownerOnly(int $ownerStatus): array
  */
 function customerOnly(int $customerStatus): array
 {
-    return ['dueno' => 403, 'colaborador' => 403, 'cliente' => $customerStatus, 'visitante' => 401];
+    return ['dueno' => 403, 'colaborador' => 403, 'cliente' => $customerStatus, 'administrador' => 403, 'visitante' => 401];
 }
 
 /**
@@ -46,7 +46,17 @@ function customerOnly(int $customerStatus): array
  */
 function anySignedIn(int $status): array
 {
-    return ['dueno' => $status, 'colaborador' => $status, 'cliente' => $status, 'visitante' => 401];
+    return ['dueno' => $status, 'colaborador' => $status, 'cliente' => $status, 'administrador' => $status, 'visitante' => 401];
+}
+
+/**
+ * Statuses of an endpoint only the administrator of the platform reaches (#347).
+ *
+ * @return array<string, int>
+ */
+function platformAdminOnly(int $adminStatus): array
+{
+    return ['dueno' => 403, 'colaborador' => 403, 'cliente' => 403, 'administrador' => $adminStatus, 'visitante' => 401];
 }
 
 /**
@@ -133,6 +143,10 @@ function permissionMatrixRows(): array
         'registrar pagos en la entrega y reembolsos' => [
             'registrar un pago en la entrega' => ['POST', 'api/v1/panel/pedidos/{pedido}/pagos-manuales', [], ownerOnly(422), fn (): array => ['metodo' => 'sinpe', 'monto' => 7500, 'referencia' => 'SINPE de otra tienda']],
             'procesar los reembolsos de un pedido' => ['POST', 'api/v1/panel/pedidos/{pedido}/reembolsos', [], ownerOnly(200)],
+        ],
+        'administrar las tiendas de la plataforma' => [
+            'listar las tiendas' => ['GET', 'api/v1/plataforma/tiendas', [], platformAdminOnly(200)],
+            'registrar una tienda con su dueño' => ['POST', 'api/v1/plataforma/tiendas', [], platformAdminOnly(422)],
         ],
         'cuenta propia (sección 8)' => [
             'ver la cuenta' => ['GET', 'api/v1/cuenta', [], anySignedIn(200)],

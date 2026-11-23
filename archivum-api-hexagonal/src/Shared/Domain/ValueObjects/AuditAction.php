@@ -6,6 +6,7 @@ namespace Src\Shared\Domain\ValueObjects;
 
 enum AuditAction: string
 {
+    case BusinessRegistered = 'business.registered';
     case MemberAdded = 'member.added';
     case MemberRoleChanged = 'member.role_changed';
     case MemberDeactivated = 'member.deactivated';

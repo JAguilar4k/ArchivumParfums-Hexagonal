@@ -24,7 +24,7 @@ beforeEach(fn () => Queue::fake());
 
 /*
  * The permission matrix of section 9, row by row, as the owner, the staff, a customer and a visitor of the seeders
- * (#105). The datasets live in tests/Datasets/PermissionMatrix.php.
+ * (#105), and as the administrator of the platform (#347). The datasets live in tests/Datasets/PermissionMatrix.php.
  */
 
 /** Rows inserted, updated or deleted so far in the transaction of the test, besides the tokens Sanctum touches. */
@@ -67,7 +67,7 @@ foreach (array_keys(permissionMatrix()) as $row) {
                 ->assertJsonPath('type', rtrim((string) config('app.url'), '/')."/problemas/{$type}");
             expect(matrixRowsWritten())->toBe($writtenBefore, "{$method} {$uri} wrote rows as {$role}.");
         }
-    })->with("matriz: {$row}")->with('roles');
+    })->with("matriz: {$row}")->with('roles of the matrix');
 
     if (permissionMatrixFromAnotherBusiness($row) !== []) {
         it("answers 404 from another business in the row «{$row}» and leaves the resource as it was", function (string $method, string $uri, array|Closure $payload, string $actor) {
@@ -97,7 +97,7 @@ it('answers 422 in the field when an identifier of the body belongs to another b
         fn (string $presentation): array => ['presentacion_id' => $presentation, 'abierta_en' => '2026-11-02'], 'presentacion_id'],
 ]);
 
-it('puts every route of /api/v1/panel and /api/v1/cuenta in a row of the matrix', function () {
+it('puts every route of /api/v1/panel, /api/v1/plataforma and /api/v1/cuenta in a row of the matrix', function () {
     $covered = [];
 
     foreach (permissionMatrix() as $endpoints) {
@@ -112,7 +112,7 @@ it('puts every route of /api/v1/panel and /api/v1/cuenta in a row of the matrix'
         $uri = $route->uri();
 
         // A whole segment, so that the public POST /cuentas of #101 is not taken for a route of /cuenta.
-        if (preg_match('#^api/v1/(panel|cuenta)(/|$)#', $uri) !== 1) {
+        if (preg_match('#^api/v1/(panel|plataforma|cuenta)(/|$)#', $uri) !== 1) {
             continue;
         }
 
@@ -134,7 +134,7 @@ it('lets every role and the visitor use the recommender, without 401 or 403', fu
 
     $response->assertOk()->assertJsonPath('data.origen', 'reglas');
     expect(matrixRowsWritten())->toBe($writtenBefore, "The recommender wrote rows for {$role}.");
-})->with('roles');
+})->with('roles of the matrix');
 
 // Rows of section 9 whose endpoints do not exist yet: each one is completed by the issue that creates them.
 it('answers each role what section 9 allows for reading the appointments in the panel')->todo('#137: GET /api/v1/panel/citas');
