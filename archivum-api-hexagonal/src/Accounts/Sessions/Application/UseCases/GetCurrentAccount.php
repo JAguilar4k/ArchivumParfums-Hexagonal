@@ -8,19 +8,22 @@ use Src\Accounts\Sessions\Application\Contracts\StaffMemberships;
 use Src\Accounts\Sessions\Application\DTOs\CurrentAccount;
 use Src\Accounts\Sessions\Domain\Exceptions\AccountNotFoundException;
 use Src\Accounts\Sessions\Domain\ValueObjects\AccountRole;
+use Src\Accounts\Users\Domain\Contracts\PlatformAdmins;
 use Src\Accounts\Users\Domain\Contracts\UserRepository;
 use Src\Shared\Domain\ValueObjects\UserId;
 
 final readonly class GetCurrentAccount
 {
-    /** Receive the user repository and the staff memberships ports. */
+    /** Receive the user repository, the staff memberships and the platform administrators ports. */
     public function __construct(
         private UserRepository $users,
         private StaffMemberships $memberships,
+        private PlatformAdmins $platformAdmins,
     ) {}
 
     /**
-     * Describe the signed-in account: its role comes from the staff and, without a membership, it is a customer.
+     * Describe the signed-in account: an administrator of the platform has no business; otherwise its role comes from
+     * the staff and, without a membership, it is a customer.
      *
      * @throws AccountNotFoundException
      */
@@ -28,13 +31,14 @@ final readonly class GetCurrentAccount
     {
         $id = new UserId($userId);
         $user = $this->users->find($id) ?? throw AccountNotFoundException::create();
-        $membership = $this->memberships->of($id);
+        $isPlatformAdmin = $this->platformAdmins->includes($id);
+        $membership = $isPlatformAdmin ? null : $this->memberships->of($id);
 
         return new CurrentAccount(
             $user->id->value,
             $user->name->value,
             $user->email->value,
-            $membership === null ? AccountRole::Customer : $membership->role,
+            AccountRole::resolve($isPlatformAdmin, $membership?->role),
             $membership,
         );
     }

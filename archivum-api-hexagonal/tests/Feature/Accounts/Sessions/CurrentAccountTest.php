@@ -47,6 +47,20 @@ it('describes a customer without a business', function () {
         ->assertJsonPath('data.tienda', null);
 });
 
+it('describes the administrator of the platform without a business', function () {
+    DemoAccounts::seedPlatformAdmin();
+
+    getJson('/api/v1/cuenta', DemoAccounts::signIn(DemoAccounts::PLATFORM_ADMIN))
+        ->assertOk()
+        ->assertExactJson(['data' => [
+            'id' => UserModel::query()->where('email', DemoAccounts::PLATFORM_ADMIN)->sole()->id,
+            'nombre' => 'Administración de la plataforma',
+            'correo' => DemoAccounts::PLATFORM_ADMIN,
+            'rol' => 'administrador_plataforma',
+            'tienda' => null,
+        ]]);
+});
+
 it('never shows the password, its hash or the tokens', function () {
     $headers = DemoAccounts::signIn('mariana@clientes.test');
     DemoAccounts::signIn('mariana@clientes.test');
