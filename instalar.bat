@@ -47,11 +47,9 @@ if errorlevel 1 (
     echo   Falta PHP 8.4 o superior. Revise con: php -v
     goto :failed
 )
-call php -r "exit(extension_loaded('pdo_pgsql') ? 0 : 1);"
-if errorlevel 1 (
-    echo   Falta la extensión pdo_pgsql de PHP. Actívela en php.ini.
-    goto :failed
-)
+rem Extensions the API needs at run time; Composer only checks the ones its packages declare.
+call php -r "$missing = array_values(array_filter(['pdo_pgsql', 'intl', 'mbstring', 'openssl', 'fileinfo', 'curl', 'ctype', 'tokenizer'], fn (string $name): bool => ! extension_loaded($name))); if ($missing !== []) { echo '  Faltan extensiones de PHP: ', implode(', ', $missing), '.', PHP_EOL, '  Actívelas en ', php_ini_loaded_file() ?: 'php.ini', ' quitando el ; de cada línea extension=, y abra una consola nueva.', PHP_EOL; exit(1); }"
+if errorlevel 1 goto :failed
 node -e "process.exit(Number(process.versions.node.split('.')[0]) >= 26 ? 0 : 1)"
 if errorlevel 1 (
     echo   Falta Node.js 26 o superior. Revise con: node -v
@@ -64,7 +62,7 @@ if %PG_MAJOR% LSS 18 (
     echo   Falta PostgreSQL 18: psql es de la versión %PG_MAJOR%. Instale PostgreSQL 18 y ponga su carpeta bin en el PATH.
     goto :failed
 )
-echo   [listo] Git, PHP 8.4 con pdo_pgsql, Composer, Node.js 26, npm y PostgreSQL %PG_MAJOR%.
+echo   [listo] Git, PHP 8.4 con sus extensiones, Composer, Node.js 26, npm y PostgreSQL %PG_MAJOR%.
 
 rem ---------------------------------------------------------------- 2. Repositories
 echo.
@@ -126,6 +124,12 @@ rem ---------------------------------------------------------------- 4. API depe
 echo.
 echo [4/7] Dependencias de la API: solo instala lo que falta o cambió
 pushd "%LARAVEL%"
+rem Every PHP extension and version that the locked packages declare, before downloading them.
+call composer check-platform-reqs --lock --no-interaction
+if errorlevel 1 (
+    echo   A PHP le falta lo marcado como missing arriba. Actívelo en php.ini y abra una consola nueva.
+    goto :failed_in_folder
+)
 rem Without the Composer scripts, because on Windows they cannot read the postgres password (step 5).
 call composer install --no-interaction --no-scripts
 if errorlevel 1 goto :failed_in_folder
@@ -167,7 +171,8 @@ pushd "%LARAVEL%"
 call php artisan db:show --database=pgsql --no-ansi > "%TEMP%\archivum-db-show.txt" 2>&1
 if errorlevel 1 (
     type "%TEMP%\archivum-db-show.txt"
-    echo   La aplicación no se pudo conectar con el rol archivum_app.
+    del "%TEMP%\archivum-db-show.txt" >nul 2>&1
+    echo   La comprobación final con php artisan db:show falló; el motivo es el error de arriba.
     goto :failed_in_folder
 )
 echo   [listo] La aplicación se conecta con el rol archivum_app al servidor:
