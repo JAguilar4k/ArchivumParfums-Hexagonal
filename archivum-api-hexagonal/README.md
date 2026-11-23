@@ -19,6 +19,8 @@ La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, per
 
 ## Instalación
 
+En Windows, [`instalar.bat`](../instalar.bat) hace todos los pasos de esta sección, también los del cliente web y la base de datos, y se puede repetir sin duplicar datos; ver la [puesta en marcha](../README.md#en-windows-con-instalarbat). Lo que sigue es la instalación a mano.
+
 Los comandos de Composer y Artisan sirven en PowerShell, en Git Bash y en una terminal de Linux o macOS. Abre una terminal con PHP y PostgreSQL en el `PATH`; utiliza PHP 8.4, igual que CI. No se necesita Node.js ni Vite para iniciar esta API.
 
 1. Clonar el repositorio y entrar al proyecto:
