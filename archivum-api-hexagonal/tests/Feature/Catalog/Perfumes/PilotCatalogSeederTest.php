@@ -15,10 +15,16 @@ use function Pest\Laravel\seed;
 
 pest()->use(RefreshDatabaseAsOwner::class, ScopesQueriesToBusiness::class);
 
-/** A catalog file of two perfumes, with and without photo, in the format of the real one. */
-function smallPilotCatalog(): string
+/** Where the small catalog of these tests is written, one file for each parallel process. */
+function smallPilotCatalogPath(): string
 {
-    $path = tempnam(sys_get_temp_dir(), 'archivum-catalog-');
+    return sys_get_temp_dir().'/archivum-pilot-catalog-test-'.(getenv('TEST_TOKEN') ?: '0').'.json';
+}
+
+/** A catalog file of two perfumes, with and without photo, in the format of the real one. */
+function writeSmallPilotCatalog(): string
+{
+    $path = smallPilotCatalogPath();
     file_put_contents($path, json_encode([
         [
             'brand' => 'Casa Prueba', 'name' => 'Ámbar de Prueba', 'concentration' => 'EDP', 'gender' => 'unisex',
@@ -40,18 +46,18 @@ function smallPilotCatalog(): string
 
 beforeEach(function () {
     seed(BusinessesSeeder::class);
-    $this->catalog = smallPilotCatalog();
+    writeSmallPilotCatalog();
     $this->scopeQueriesTo(BusinessesSeeder::DEMO_ARCHIVUMPARFUMS_ID);
 });
 
 afterEach(function () {
-    unlink($this->catalog);
+    unlink(smallPilotCatalogPath());
 });
 
 it('loads the perfumes, notes, tags and presentations of the file into the pilot store', function () {
     config(['filesystems.disks.r2.url' => 'https://fotos.example.test']);
 
-    app(PilotCatalogSeeder::class)->seedFrom($this->catalog);
+    app(PilotCatalogSeeder::class)->seedFrom(smallPilotCatalogPath());
 
     $perfume = PerfumeModel::query()->where('name', 'Ámbar de Prueba')->firstOrFail();
     expect(PerfumeModel::query()->count())->toBe(2)
@@ -65,8 +71,8 @@ it('loads the perfumes, notes, tags and presentations of the file into the pilot
 it('repeats nothing when it runs again', function () {
     $seeder = app(PilotCatalogSeeder::class);
 
-    $seeder->seedFrom($this->catalog);
-    $seeder->seedFrom($this->catalog);
+    $seeder->seedFrom(smallPilotCatalogPath());
+    $seeder->seedFrom(smallPilotCatalogPath());
 
     expect(PerfumeModel::query()->count())->toBe(2)
         ->and(PerfumeVariantModel::query()->count())->toBe(3);
@@ -76,11 +82,11 @@ it('leaves the photos out without R2_PUBLIC_URL and completes them on a later ru
     config(['filesystems.disks.r2.url' => '']);
     $seeder = app(PilotCatalogSeeder::class);
 
-    $seeder->seedFrom($this->catalog);
+    $seeder->seedFrom(smallPilotCatalogPath());
     expect(PerfumeModel::query()->whereNotNull('image_path')->count())->toBe(0);
 
     config(['filesystems.disks.r2.url' => 'https://fotos.example.test/']);
-    $seeder->seedFrom($this->catalog);
+    $seeder->seedFrom(smallPilotCatalogPath());
 
     expect(PerfumeModel::query()->where('name', 'Ámbar de Prueba')->value('image_path'))
         ->toBe('r2:https://fotos.example.test/perfumes/ambar-de-prueba.png');
@@ -89,10 +95,10 @@ it('leaves the photos out without R2_PUBLIC_URL and completes them on a later ru
 it('keeps the photo of a perfume that already has one', function () {
     config(['filesystems.disks.r2.url' => 'https://fotos.example.test']);
     $seeder = app(PilotCatalogSeeder::class);
-    $seeder->seedFrom($this->catalog);
+    $seeder->seedFrom(smallPilotCatalogPath());
     PerfumeModel::query()->where('name', 'Ámbar de Prueba')->update(['image_path' => 'perfumes/subida-a-mano.png']);
 
-    $seeder->seedFrom($this->catalog);
+    $seeder->seedFrom(smallPilotCatalogPath());
 
     expect(PerfumeModel::query()->where('name', 'Ámbar de Prueba')->value('image_path'))->toBe('perfumes/subida-a-mano.png');
 });
@@ -106,9 +112,9 @@ it('ships a real catalog file with presentations and no photo origin', function 
 
     foreach ($catalog as $perfume) {
         expect($perfume['photo'] ?? 'perfumes/')->toStartWith('perfumes/')
-            ->and($perfume['brand'])->toBeString()->not->toBe('')
-            ->and($perfume['name'])->toBeString()->not->toBe('')
-            ->and($perfume['variants'])->not->toBeEmpty();
+            ->and(mb_strlen($perfume['brand']))->toBeGreaterThan(0)
+            ->and(mb_strlen($perfume['name']))->toBeGreaterThan(0)
+            ->and(count($perfume['variants']))->toBeGreaterThan(0);
 
         foreach ($perfume['variants'] as $variant) {
             expect($variant['ml'])->toBeGreaterThan(0)
