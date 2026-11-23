@@ -133,7 +133,7 @@ COMMIT;
 | `php artisan storage:link` | Hace accesibles los logos y fotos guardados en el disco público. Se ejecuta una vez por instalación. |
 | `php artisan migrate --database=pgsql_admin` | Aplica migraciones pendientes con el rol dueño del esquema, sin volver a sembrar. |
 | `php artisan route:list --path=api --except-vendor` | Muestra las rutas realmente cargadas de la API. Añade `-vv` para consultar sus middleware. |
-| `php artisan queue:work` | Corre el worker de la cola en desarrollo, en otra terminal: aplica los avisos de las pasarelas, envía los reembolsos y vence los pedidos sin pagar y los paquetes de decants. En producción lo supervisa la plataforma de #21. |
+| `php artisan queue:work` | Corre el worker de la cola en desarrollo, en otra terminal: aplica los avisos de las pasarelas, envía los reembolsos y vence los pedidos sin pagar y los paquetes de decants. En producción lo supervisa el servicio `archivum-worker` de systemd (#21, `docs/deployment.md`). |
 | `php artisan queue:failed` | Lista los trabajos que agotaron sus intentos; `php artisan queue:retry all` los vuelve a encolar. |
 | `php artisan schedule:work` | Ejecuta las tareas programadas en desarrollo; en producción se usa `schedule:run` desde cron, cada minuto. |
 | `php artisan archivum:reconcile-payments` | Consulta a la pasarela los pagos pendientes de todas las tiendas que ya esperaron su aviso (#96), los pagos que el vencimiento de su pedido o de su paquete cerró en las últimas 24 horas, por si la pasarela los cobró igual (#192), y los reembolsos que la pasarela aceptó y siguen pendientes (#97), y aplica su estado real. Corre sola cada cinco minutos. |

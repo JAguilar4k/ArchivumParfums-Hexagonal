@@ -1,0 +1,2 @@
+# El usuario archivum solo puede reiniciar el worker y recargar PHP-FPM al publicar (deploy/release.sh).
+archivum ALL=(root) NOPASSWD: /usr/bin/systemctl restart archivum-worker, /usr/bin/systemctl reload php8.4-fpm

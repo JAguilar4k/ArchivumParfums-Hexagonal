@@ -74,7 +74,7 @@ Si una regla del negocio no está en la especificación, preguntá antes de inve
 | Web | `archivum-web`: Vue 3 + TypeScript + Vite, Vue Router, Pinia, tipos generados desde `openapi/v1.json`, Laravel Echo |
 | IA | `laravel/ai`, el SDK oficial, con salida estructurada. Proveedor por definir |
 | CI | GitHub Actions con la forma del repo guía: PostgreSQL 18 de servicio, roles, lint, análisis, pruebas y auditoría; más un job para `archivum-web` |
-| Despliegue | Por definir: PHP 8.4, PostgreSQL 18, worker de colas, scheduler, websockets y HTTPS |
+| Despliegue | VPS de OVHcloud con Ubuntu 24.04: Caddy (HTTPS), PHP-FPM 8.4, PostgreSQL 18, worker de colas en systemd y scheduler con cron (ADR 0013, `docs/deployment.md`, `deploy/`) |
 
 ## Estructura
 

@@ -1,0 +1,37 @@
+# ArchivumParfums en producción (#21): una sola dirección con HTTPS.
+# Caddy saca y renueva solo el certificado de Let's Encrypt para el dominio.
+# La API atiende /api, /up, /docs y /storage; todo lo demás es la SPA de archivum-web.
+{$ARCHIVUM_DOMAIN} {
+	encode zstd gzip
+
+	@api path /api/* /up /docs /docs/* /storage/*
+	handle @api {
+		root * /srv/archivum/app/archivum-api-hexagonal/public
+		php_fastcgi unix//run/php/php8.4-fpm-archivum.sock
+		file_server
+	}
+
+	handle {
+		root * /srv/archivum/app/archivum-web/dist
+
+		# Los archivos de assets/ llevan el hash en el nombre; index.html se revalida siempre.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@page not path /assets/*
+		header @page Cache-Control "no-cache"
+
+		header {
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+			Referrer-Policy "no-referrer"
+		}
+
+		try_files {path} /index.html
+		file_server
+	}
+
+	log {
+		output file /var/log/caddy/archivum.log
+	}
+}
