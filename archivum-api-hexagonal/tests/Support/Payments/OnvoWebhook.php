@@ -8,6 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Testing\TestResponse;
 
+use function Pest\Laravel\call;
+
 /** Notices as ONVO sends them to the webhook: an event in test mode, signed in `X-Onvo-Signature`. */
 final class OnvoWebhook
 {
@@ -68,6 +70,6 @@ final class OnvoWebhook
     {
         $body = self::body($notice);
 
-        return test()->call('POST', '/api/v1/webhooks/onvo', [], [], [], self::server($body, $secret), $body);
+        return call('POST', '/api/v1/webhooks/onvo', [], [], [], self::server($body, $secret), $body);
     }
 }

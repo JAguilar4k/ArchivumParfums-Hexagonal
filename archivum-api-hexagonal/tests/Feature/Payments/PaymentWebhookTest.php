@@ -24,6 +24,7 @@ use Tests\Support\Sales\StoredOrders;
 use function Pest\Laravel\artisan;
 use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\assertDatabaseHas;
+use function Pest\Laravel\call;
 use function Pest\Laravel\postJson;
 use function Pest\Laravel\travel;
 use function Pest\Laravel\travelTo;
@@ -170,7 +171,7 @@ it('R38: rejects an ONVO notice replayed more than five minutes after ONVO signe
 
     travel(301)->seconds();
 
-    test()->call('POST', '/api/v1/webhooks/onvo', [], [], [], $signed, $body)->assertUnauthorized()
+    call('POST', '/api/v1/webhooks/onvo', [], [], [], $signed, $body)->assertUnauthorized()
         ->assertJsonPath('detail', 'No se pudo verificar el origen del aviso.');
     expect(webhookState($business))->toEqual($before);
     Http::assertNothingSent();
