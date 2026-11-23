@@ -83,7 +83,7 @@ ArchivumParfums-Web/                                cliente web
 
 En orden: revisa las herramientas, incluido PostgreSQL 18, clona lo que falta, crea `.env` desde `.env.example` si no existe, comprueba que el servidor de `DB_HOST` y `DB_PORT` responda (si no, se detiene antes de instalar nada), instala las dependencias de la API, ejecuta `php artisan archivum:install` (clave, roles, bases, migraciones y datos de demostración; ahí pide la contraseña de `postgres`), instala las del cliente web y comprueba la conexión con PostgreSQL 18. Al final lista por nombre las integraciones sin llave y ofrece abrir la API, la cola y el cliente web.
 
-Se puede ejecutar las veces que haga falta. Detecta lo que ya está hecho y no lo repite: no vuelve a clonar, no reemplaza `.env` ni la clave, reutiliza los roles y las bases, migra solo lo pendiente y no siembra si ya hay usuarios, así que no duplica datos.
+Se puede ejecutar las veces que haga falta. Detecta lo que ya está hecho y no lo repite: no vuelve a clonar, no reemplaza `.env` ni la clave, reutiliza los roles y las bases, migra solo lo pendiente y no siembra si ya hay usuarios, así que no duplica datos. Además, actualiza el cliente web cuando está en `main` sin cambios propios, avisa si la API o Web están en otra rama o atrasadas, agrega a un `.env` existente las variables nuevas de `.env.example` con su valor de ejemplo y reinstala las dependencias de Web si ya no coinciden con `package-lock.json`.
 
 Hay un solo `.env` para todo. El cliente web lee `../ArchivumParfums-Hexagonal/archivum-api-hexagonal/.env` cuando existe; Vite solo entrega al navegador las variables `VITE_`, de modo que los secretos de la API no llegan al cliente.
 
