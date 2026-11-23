@@ -6,6 +6,14 @@ La estructura, la arquitectura y la forma de trabajo siguen el proyecto guía de
 
 [![CI](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/actions/workflows/ci.yml/badge.svg)](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/actions/workflows/ci.yml)
 
+## Repositorios
+
+| Componente | Alcance |
+| --- | --- |
+| [Backend](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal) | API Laravel, OpenAPI, seeders, factories y documentación del proyecto. |
+| [Web](https://github.com/JAguilar4k/ArchivumParfums-Web) | SPA Vue y TypeScript, tipos OpenAPI y pruebas de navegador. |
+| [Base de datos](https://github.com/JAguilar4k/ArchivumParfums-Database) | Migraciones PostgreSQL, roles y modelo de datos. El backend fija la revisión del esquema mediante un submódulo Git. |
+
 ## Contenido del repositorio
 
 | Ruta | Contenido |
@@ -15,7 +23,6 @@ La estructura, la arquitectura y la forma de trabajo siguen el proyecto guía de
 | [`CLAUDE.md`](CLAUDE.md) | Instrucciones del proyecto para los asistentes de IA. |
 | [`.github/`](.github/) | Plantillas de issue y de pull request, integración continua ([`ci.yml`](.github/workflows/ci.yml)) y Dependabot ([`dependabot.yml`](.github/dependabot.yml)). |
 | [`archivum-api-hexagonal/`](archivum-api-hexagonal/) | API REST en Laravel 13 sobre PostgreSQL 18. |
-| [`archivum-web/`](archivum-web/) | Cliente web en Vue 3 con TypeScript que consume solo la API. Sus pantallas llegan con [M16](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/milestone/16). |
 | [`docs/architecture.md`](docs/architecture.md) | Estructura, capas, contextos, regla de dependencias y recorrido de una petición. |
 | [`docs/database.md`](docs/database.md) | Roles, migraciones y convenciones de la base de datos. |
 | [`docs/data-model.md`](docs/data-model.md) | Modelo de datos en tercera forma normal. |
@@ -39,11 +46,11 @@ El dominio no depende de Laravel y una prueba de arquitectura lo verifica en cad
 
 Cada tienda ve solo sus datos gracias a dos barreras: el puerto `BusinessContext` indica a qué tienda pertenece la operación y cada repositorio filtra por ella, y PostgreSQL 18 aplica seguridad a nivel de fila en toda tabla con `business_id`. La aplicación se conecta con `archivum_app`, un rol que no es dueño de las tablas; las migraciones corren con `archivum_owner`.
 
-`archivum-web` es una SPA en Vue 3 con TypeScript, Vue Router y Pinia que consume solo la API, organizada por funcionalidad en `src/features`. Sus tipos se generan desde el contrato `openapi/v1.json` ([#124](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/124)) y sus pantallas llegan con M16; mientras tanto, la API se prueba con un cliente HTTP como Postman.
+`archivum-web` es una SPA en Vue 3 con TypeScript, Vue Router y Pinia que consume solo la API, organizada por funcionalidad en `src/features`. Sus tipos se generan desde el contrato `openapi/v1.json` ([#124](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/124)). El cliente y su [milestone M16](https://github.com/JAguilar4k/ArchivumParfums-Web/milestone/1) se gestionan en Web.
 
 ## Estado
 
-Avance 1 está en curso. `main` integra la base de Laravel y PostgreSQL, las pruebas y CI, las cuentas y sesiones del personal, el aislamiento por tienda, el perfil y logo de la tienda, el catálogo de perfumes y presentaciones, las fotos, la vitrina pública y el contrato OpenAPI. Los servicios y horarios de M08, la disponibilidad y las citas de M09 y el despliegue público ([#21](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/21)) siguen pendientes de integración. El alcance completo del corte aún no está terminado. El trabajo está planificado en 29 milestones, uno por módulo, en el [tablero del proyecto](https://github.com/users/JAguilar4k/projects/4).
+Avance 1 está en curso. `main` integra la base de Laravel y PostgreSQL, las pruebas y CI, las cuentas y sesiones del personal, el aislamiento por tienda, el perfil y logo de la tienda, el catálogo de perfumes y presentaciones, las fotos, la vitrina pública y el contrato OpenAPI. Los servicios y horarios de M08, la disponibilidad y las citas de M09 y el despliegue público ([#21](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal/issues/21)) siguen pendientes de integración. El alcance completo del corte aún no está terminado. Los 29 módulos y sus milestones por repositorio se siguen en el [tablero compartido](https://github.com/users/JAguilar4k/projects/4).
 
 | Corte | Fecha | Qué se entrega | Estado |
 | --- | --- | --- | --- |
@@ -66,10 +73,12 @@ Al cerrar un módulo se agrega su fila a esta tabla con lo que quedó listo.
 Se necesitan PHP 8.4, Composer 2 y PostgreSQL 18 en ejecución. Los comandos se ejecutan en `archivum-api-hexagonal/`:
 
 ```bash
-git clone https://github.com/JAguilar4k/ArchivumParfums-Hexagonal.git
+git clone --recurse-submodules https://github.com/JAguilar4k/ArchivumParfums-Hexagonal.git
 cd ArchivumParfums-Hexagonal/archivum-api-hexagonal
 composer install
 ```
+
+En un clon existente, ejecuta `git submodule update --init --recursive` desde la raíz después de actualizar la rama. El despliegue también debe descargar el submódulo antes de ejecutar Composer y Artisan.
 
 El instalador prepara `.env`, clave, roles, bases, migraciones y datos ficticios. Si solicita completar la contraseña de PostgreSQL en una terminal interactiva, ejecuta `php artisan archivum:install`. Si ya existen los roles, configura sus contraseñas actuales en `.env`. Revisa `DB_HOST`, `DB_PORT` y configura `APP_URL` con la dirección real de la API antes de iniciar el servidor; `http://localhost:8000` es solo un ejemplo local.
 
@@ -79,7 +88,7 @@ php artisan storage:link
 composer run dev
 ```
 
-Deja esa terminal abierta. En Postman, envía `GET /api/v1` sobre la dirección del servidor; debe responder 200 con el nombre de la API. La documentación está en `/docs/api` y su JSON en `/docs/api.json` durante desarrollo local. La API se prueba mediante solicitudes HTTP; las pantallas del cliente web llegan con M16.
+Deja esa terminal abierta. En Postman, envía `GET /api/v1` sobre la dirección del servidor; debe responder 200 con el nombre de la API. La documentación está en `/docs/api` y su JSON en `/docs/api.json` durante desarrollo local. La API se puede recorrer con la SPA o mediante Postman.
 
 La [colección y el entorno de Postman](archivum-api-hexagonal/tests/Postman/README.md) están incluidos en el repositorio como material de pruebas HTTP. Importa ambos JSON y ajusta `base_url` a la dirección real de la API. Puedes elegir otro host o puerto mediante `php artisan serve --host=localhost --port=8080 --no-reload`; configura también `APP_URL` y `base_url` con ese mismo origen, como explica el README de la API.
 
@@ -100,20 +109,11 @@ composer openapi
 git diff -- openapi/v1.json
 ```
 
-Con el contrato regenerado, se regeneran también los tipos del cliente con `npm run api:types` en `archivum-web/`.
+El check `Web` genera los tipos del cliente con el contrato del pull request y verifica que sus pruebas y su compilación pasen. Cuando se publica un cambio de contrato, se actualiza la revisión fijada en el [repositorio Web](https://github.com/JAguilar4k/ArchivumParfums-Web#tipos-de-la-api).
 
 Los comandos, la configuración en PowerShell, la separación de roles, las migraciones, el recorrido de Postman y la resolución de problemas se detallan en [el README de la API](archivum-api-hexagonal/README.md).
 
-El cliente web se instala y se inicia aparte, en `archivum-web/`, con Node.js 26 y la API ya en ejecución:
-
-```bash
-cd archivum-web
-npm ci
-cp .env.example .env
-npm run dev
-```
-
-En PowerShell, la copia es `Copy-Item .env.example .env`. Las variables, los comandos de verificación (`npm run lint`, `npm run type-check`, `npm run test`, `npm run build` y `npm run api:check`), los tipos generados desde el contrato y la estructura se detallan en [el README del cliente](archivum-web/README.md).
+Instala la SPA con Node.js 26 y configura la dirección de la API según el [README de Web](https://github.com/JAguilar4k/ArchivumParfums-Web#instalación).
 
 ## Investigación 1: ejecutar los cobros
 
@@ -208,6 +208,7 @@ El enunciado permite usar asistentes de IA con una condición: cada integrante d
 | Parte | Asistente | Qué generó la IA | Qué verificó el equipo |
 | --- | --- | --- | --- |
 | Confirmaciones por WhatsApp (#166) | Codex | Puerto de avisos, trabajo en cola, adaptadores Twilio y nulo, modos Sandbox clásico y Trial con plantillas por evento, configuración del enlace de la tienda y pruebas simuladas. | Pendientes la verificación del equipo y el envío en una cuenta sandbox. |
+| Separación de Backend, Web y Base de datos (#338) | Codex | Preparó los tres repositorios, el submódulo de migraciones, el contrato compartido, el check Web y el traslado de issues y milestones. También incorporó la explicación del instalador cuando falta el submódulo y la documentación solicitada en revisión. | sanlealc-code cotejó las 40 migraciones con el esquema anterior, el origen del contrato de Web y la protección de las ramas. Quality y Web pasaron en la revisión inicial del PR. |
 | Base del cliente web (#123) | Claude Code | `archivum-web` generado con `create-vue` (Vite, Vue 3, TypeScript estricto, Vue Router, Pinia, Vitest y ESLint) y simplificado: Node.js 26 fijado en `engines`, ESLint sin Oxlint, `lint` sin modificar archivos, `VITE_API_URL` leída desde `src/shared/config.ts`, la funcionalidad `home` con sus rutas y pruebas, el README del cliente y los comandos en el README raíz y en `CLAUDE.md`. | `npm run lint`, `npm run type-check`, `npm run test` y `npm run build` pasan en local con Node.js 26. Revisión humana pendiente. |
 | Tipos y cliente de la API en `archivum-web` (#124) | Claude Code | Los scripts `api:types` y `api:check` con `openapi-typescript`, `src/api/schema.ts` generado desde `openapi/v1.json`, el cliente tipado `src/api/client.ts` con `openapi-fetch` (dirección de `VITE_API_URL`, `Accept: application/json` y el token de la sesión), sus pruebas con respuestas simuladas, las comprobaciones de tipos que rechazan llamadas fuera del contrato y la documentación. | `npm run lint`, `npm run type-check`, `npm run test`, `npm run build` y `npm run api:check` pasan en local con Node.js 26; se comprobó que quitar una de las directivas de error esperado hace fallar `npm run type-check` y que editar `schema.ts` a mano hace fallar `npm run api:check`. Revisión humana pendiente. |
 | `archivum-web` en la integración continua (#125) | Claude Code | El job `Web` de `ci.yml` (instalación con `npm ci` y caché, comprobación de los tipos contra `openapi/v1.json`, lint, tipos, pruebas, build y `npm audit` de severidad alta), la entrada de npm en `dependabot.yml` y su documentación. | Los pasos del job se ejecutaron en orden en una copia limpia con Node.js 26 y pasaron; el job real queda registrado en la integración continua del PR. Revisión humana pendiente. |

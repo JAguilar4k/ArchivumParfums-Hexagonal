@@ -82,6 +82,16 @@ Con la forma del repo guía:
 - **Granularidad:** un issue, un pull request. En un módulo con dominio el orden típico es modelar el dominio, crear el esquema con sus restricciones y políticas, implementar la persistencia y luego un issue por caso de uso o endpoint, con sus pruebas dentro de los criterios.
 - **Etiquetas:** la del corte en que se entrega, más las de área que correspondan (`arquitectura`, `base-de-datos`, `documentation`).
 
+## Repositorios e integración
+
+El [tablero de GitHub Projects](https://github.com/users/JAguilar4k/projects/4) reúne el trabajo de los tres repositorios. Cada issue y su pull request viven en el repositorio responsable de su entrega principal. Cada componente usa el milestone del módulo al que pertenece su trabajo. Los módulos compartidos usan el mismo nombre en los repositorios que tienen issues del módulo.
+
+- [Backend](https://github.com/JAguilar4k/ArchivumParfums-Hexagonal) mantiene la API, la lógica del negocio, las pruebas de integración y el contrato OpenAPI.
+- [Web](https://github.com/JAguilar4k/ArchivumParfums-Web) mantiene las pantallas, la integración en el navegador y los tipos generados desde un contrato publicado de Backend.
+- [Base de datos](https://github.com/JAguilar4k/ArchivumParfums-Database) mantiene las migraciones, los roles y el modelo de PostgreSQL. El PR del esquema se integra primero y el PR de Backend actualiza el submódulo y verifica el cambio con Pest.
+
+El check `Web` de Backend regenera los tipos del cliente en `main` de Web con el contrato del PR. Para cambiar un campo, primero agrega el reemplazo manteniendo disponible el anterior. Después de integrar Backend, actualiza Web con ese contrato y migra sus usos. Si el cambio requiere retirar un campo de un contrato en uso, conserva la versión anterior mientras sus clientes migran.
+
 ## Forma de trabajo
 
 - Tablero de GitHub Projects con todos los issues.
