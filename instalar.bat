@@ -1,7 +1,7 @@
 @echo off
-rem Prepara en Windows las tres partes de ArchivumParfums: la API, el cliente web y la base de datos.
-rem Se puede ejecutar todas las veces que haga falta: cada paso que ya esta hecho se omite,
-rem asi que una segunda ejecucion no clona de nuevo, no reemplaza .env y no duplica datos.
+rem Sets up the three parts of ArchivumParfums on Windows: the API, the Web client and the database.
+rem It can run as often as needed: every step that is already done is skipped,
+rem so a second run never clones again, replaces .env or duplicates data.
 setlocal EnableExtensions DisableDelayedExpansion
 chcp 65001 >nul
 title ArchivumParfums: instalación
@@ -11,7 +11,7 @@ set "WEB_REPO=https://github.com/JAguilar4k/ArchivumParfums-Web.git"
 set "HERE=%~dp0"
 set "HERE=%HERE:~0,-1%"
 
-rem Desde un clon de la API, el cliente web se clona a su lado; descargado solo, todo queda en esta carpeta.
+rem From a clone of the API, the Web client is cloned next to it; downloaded alone, everything goes in this folder.
 if exist "%HERE%\archivum-api-hexagonal\artisan" (
     set "API_DIR=%HERE%"
     for %%I in ("%HERE%\..") do set "WORKSPACE=%%~fI"
@@ -30,7 +30,7 @@ echo  Cliente web:         %WEB_DIR%
 echo  Configuración:       %ENV_FILE%
 echo.
 
-rem ---------------------------------------------------------------- 1. Herramientas
+rem ---------------------------------------------------------------- 1. Tools
 echo [1/7] Herramientas
 set "MISSING="
 call :require git "Git"
@@ -58,7 +58,7 @@ if errorlevel 1 (
 echo   [listo] Git, PHP 8.4 con pdo_pgsql, Composer, Node.js 26 y npm.
 echo   PostgreSQL 18 debe estar en ejecución; su versión se comprueba en el paso 7.
 
-rem ---------------------------------------------------------------- 2. Repositorios
+rem ---------------------------------------------------------------- 2. Repositories
 echo.
 echo [2/7] Repositorios: API, base de datos y cliente web
 if exist "%API_DIR%\.git" (
@@ -86,7 +86,7 @@ for %%I in ("%API_DIR%") do if /I not "%%~nxI"=="ArchivumParfums-Hexagonal" (
     echo   Aviso: el cliente web busca el .env en ..\ArchivumParfums-Hexagonal. Renombre la carpeta %%~nxI para que lo encuentre.
 )
 
-rem ---------------------------------------------------------------- 3. Un solo .env
+rem ---------------------------------------------------------------- 3. One .env
 echo.
 echo [3/7] Configuración: un solo .env para la API, la base de datos y el cliente web
 if exist "%ENV_FILE%" (
@@ -100,17 +100,17 @@ for %%F in (.env .env.local) do if exist "%WEB_DIR%\%%F" (
     echo   Aviso: el cliente web ya no usa %WEB_DIR%\%%F; pase sus variables VITE_ al .env de la API y bórrelo.
 )
 
-rem ---------------------------------------------------------------- 4. Dependencias de la API
+rem ---------------------------------------------------------------- 4. API dependencies
 echo.
 echo [4/7] Dependencias de la API: solo instala lo que falta o cambió
 pushd "%LARAVEL%"
-rem Sin los scripts de Composer, porque en Windows no dejan escribir la contraseña de postgres (paso 5).
+rem Without the Composer scripts, because on Windows they cannot read the postgres password (step 5).
 call composer install --no-interaction --no-scripts
 if errorlevel 1 goto :failed_in_folder
 call composer dump-autoload --no-interaction
 if errorlevel 1 goto :failed_in_folder
 
-rem ---------------------------------------------------------------- 5. Base de datos
+rem ---------------------------------------------------------------- 5. Database
 echo.
 echo [5/7] Base de datos: clave, roles, bases, migraciones pendientes y datos de demostración
 echo   Si los roles y las bases ya existen se reutilizan, y si ya hay usuarios no se siembra de nuevo.
@@ -124,7 +124,7 @@ if exist "public\storage" (
 )
 popd
 
-rem ---------------------------------------------------------------- 6. Dependencias del cliente web
+rem ---------------------------------------------------------------- 6. Web client dependencies
 echo.
 echo [6/7] Dependencias del cliente web
 if exist "%WEB_DIR%\node_modules" (
@@ -137,7 +137,7 @@ if exist "%WEB_DIR%\node_modules" (
     echo   [hecho] Dependencias instaladas con npm ci.
 )
 
-rem ---------------------------------------------------------------- 7. Comprobación
+rem ---------------------------------------------------------------- 7. Check
 echo.
 echo [7/7] Comprobación
 pushd "%LARAVEL%"
@@ -165,7 +165,7 @@ echo    API:   cd /d "%LARAVEL%" y composer run dev
 echo    Cola:  cd /d "%LARAVEL%" y php artisan queue:work
 echo    Web:   cd /d "%WEB_DIR%" y npm run dev
 echo.
-rem Sin respuesta en 60 segundos no inicia nada, para que el script tambien termine sin nadie frente a el.
+rem With no answer in 60 seconds nothing starts, so the script also ends when nobody is at the console.
 choice /C SN /T 60 /D N /M "¿Iniciar ahora la API, la cola y el cliente web en ventanas aparte"
 if errorlevel 2 goto :done
 start "ArchivumParfums API" /D "%LARAVEL%" cmd /k composer run dev
