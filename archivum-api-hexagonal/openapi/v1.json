@@ -10703,6 +10703,25 @@
                             "null"
                         ]
                     },
+                    "foto_variantes": {
+                        "type": "array",
+                        "description": "Variantes de la foto en orden ascendente de ancho en p\u00edxeles.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "ancho": {
+                                    "type": "integer"
+                                },
+                                "url": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "ancho",
+                                "url"
+                            ]
+                        }
+                    },
                     "etiquetas": {
                         "type": "object",
                         "properties": {
@@ -10787,6 +10806,25 @@
                             "string",
                             "null"
                         ]
+                    },
+                    "foto_variantes": {
+                        "type": "array",
+                        "description": "Variantes de la foto en orden ascendente de ancho en p\u00edxeles.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "ancho": {
+                                    "type": "integer"
+                                },
+                                "url": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "ancho",
+                                "url"
+                            ]
+                        }
                     },
                     "notas": {
                         "type": "object",

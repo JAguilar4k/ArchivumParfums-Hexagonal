@@ -36,6 +36,15 @@ final class ShowcasePerfumeDetail extends JsonResource
             'familia' => $this->perfume->family,
             'descripcion' => $this->perfume->description,
             'foto_url' => $this->perfume->photoUrl,
+            /**
+             * Variantes de la foto en orden ascendente de ancho en píxeles.
+             *
+             * @var list<array{ancho: int, url: string}>
+             */
+            'foto_variantes' => $this->when($this->perfume->photoVariants !== [], array_map(
+                static fn (array $variant): array => ['ancho' => $variant['width'], 'url' => $variant['url']],
+                $this->perfume->photoVariants,
+            )),
             'notas' => [
                 'salida' => $this->perfume->notes['top'],
                 'corazon' => $this->perfume->notes['heart'],

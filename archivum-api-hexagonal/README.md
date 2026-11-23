@@ -352,6 +352,14 @@ Las validaciones fallidas deben responder 422 con `errores`, y los errores usan 
 
 Para probar fotos, añade `foto` como archivo en el POST de foto; para el logo, el campo es `logo`. Envía una imagen ficticia del tipo y tamaño admitidos por el contrato y abre la URL devuelta. Ese segundo paso comprueba el enlace público y `APP_URL`, además de la respuesta de subida. PHP necesita una carpeta temporal existente y escribible; si informa `unable to create a temporary file`, revisa `upload_tmp_dir` en el PHP que atiende HTTP y utiliza el comando de arranque documentado con `--no-reload`.
 
+### Fotos de perfumes en Cloudflare R2
+
+Cree un bucket para las fotos y un token de API de R2 con permiso de lectura y escritura de objetos limitado a ese bucket. Conecte un dominio personalizado HTTPS al bucket y habilite las transformaciones de imágenes en su zona. Configure las cinco variables de R2 en el archivo `.env` de la API. [Tokens de R2](https://developers.cloudflare.com/r2/api/tokens/) · [Transformaciones de imágenes](https://developers.cloudflare.com/images/optimization/transformations/overview/)
+
+Las subidas de perfumes usan el disco público local cuando la configuración de R2 está incompleta. Los logos y las fotos locales existentes se sirven desde `/storage`. Las fotos subidas a R2 conservan su URL pública, así que mantenga disponible el dominio configurado al subirlas. La vitrina incluye variantes de 320, 640 y 960 píxeles y el navegador elige el tamaño según el espacio disponible.
+
+Las variantes y el archivo original se sirven desde el mismo dominio. Si Cloudflare no puede generar una variante, por ejemplo al alcanzar la cuota mensual del plan gratuito, `onerror=redirect` dirige el navegador a la foto original. [Cuota de Cloudflare Images](https://developers.cloudflare.com/images/pricing/#images-free) · [Redirección al original](https://developers.cloudflare.com/images/optimization/features/#onerror)
+
 Los ejemplos cURL de la sección siguiente usan sintaxis Bash para continuar líneas; en PowerShell puedes crear las mismas solicitudes en Postman o escribir el comando `curl.exe` en una sola línea.
 
 Un visitante crea su cuenta con `POST /api/v1/cuentas` (#101). Solo se piden `nombre` (hasta 120 caracteres), `correo` y `contrasena` (al menos 8 caracteres, `Password::defaults()`), como pide la Ley 8968. La cuenta nueva siempre es de cliente: `rol`, `business_id` o una tienda enviados en el cuerpo se ignoran, no se crea ninguna fila en `members` y tampoco en `customers`, que se crea al operar en una tienda (#62). La respuesta `201` trae el encabezado `Location` hacia `/api/v1/cuenta` y los mismos datos públicos que `GET /api/v1/cuenta`, nunca la contraseña, su hash ni un token: el registro no inicia sesión y el cliente llama después a `POST /api/v1/sesiones`. Un correo ya registrado, aunque cambien las mayúsculas, responde 422 `datos-invalidos` con el error en `errores.correo`; si dos registros simultáneos usan el mismo correo, la llave única de `users.email` deja pasar uno y el otro recibe ese mismo 422, nunca un 500. El límite por IP llega con #108.
@@ -446,6 +454,11 @@ Las guías independientes [Demostración de ONVO](../docs/demostracion-onvo.md) 
 | `DB_ADMIN_USERNAME`, `DB_ADMIN_PASSWORD` | Rol dueño del esquema, `archivum_owner`, y su contraseña. Lo usa la conexión `pgsql_admin` para migrar. |
 | `DB_SSLMODE` | Modo SSL de las conexiones. Por defecto, `prefer`. |
 | `ARCHIVUM_DEMO_PASSWORD` | Contraseña de las cuentas de los [datos de demostración](#datos-de-demostración). Se deja vacía fuera del desarrollo local. |
+| `R2_ACCESS_KEY_ID` | Identificador de la clave S3 del token de R2. |
+| `R2_SECRET_ACCESS_KEY` | Clave secreta S3 del token de R2. |
+| `R2_BUCKET` | Nombre del bucket de las fotos de perfumes. |
+| `R2_ENDPOINT` | URL HTTPS del endpoint S3 que muestra R2. |
+| `R2_PUBLIC_URL` | Origen HTTPS del dominio personalizado del bucket con Transformaciones de imágenes habilitadas. |
 | `ARCHIVUM_PLATFORM_ADMIN_EMAIL`, `ARCHIVUM_PLATFORM_ADMIN_PASSWORD` | Correo y contraseña de la cuenta que [administra la plataforma](#administrar-las-tiendas-de-la-plataforma), que `db:seed` abre solo si las dos tienen valor. La contraseña se deja vacía en `.env.example` y nunca se versiona. |
 | `SANCTUM_EXPIRATION` | Minutos que dura cada token de `POST /api/v1/sesiones` y de su renovación. Por defecto, `60`. |
 | `GEMINI_API_KEY` | Llave de la Gemini Developer API, que se crea gratis en Google AI Studio, para el recomendador con IA ([ADR 0012](../docs/adr/0012-ai-recommender-through-laravel-ai-with-gemini.md)). El proveedor y el modelo están fijos en `config/ai.php`. Sin llave, cada consulta a la IA falla y la recomendación sale por reglas (#120); las pruebas nunca llaman a Gemini. |
