@@ -72,7 +72,7 @@ Al cerrar un módulo se agrega su fila a esta tabla con lo que quedó listo.
 
 ### En Windows, con `instalar.bat`
 
-Se necesitan Git, PHP 8.4 con `pdo_pgsql`, Composer 2, Node.js 26 y PostgreSQL 18 en ejecución. Descarga [`instalar.bat`](instalar.bat) en una carpeta vacía, o ejecútalo desde la raíz de un clon de este repositorio, y haz doble clic. El script deja listas las tres partes, una junto a otra:
+Se necesitan Git, PHP 8.4 con las extensiones `pdo_pgsql`, `intl`, `mbstring`, `openssl`, `fileinfo`, `curl`, `ctype` y `tokenizer`, Composer 2, Node.js 26 y PostgreSQL 18 en ejecución. Descarga [`instalar.bat`](instalar.bat) en una carpeta vacía, o ejecútalo desde la raíz de un clon de este repositorio, y haz doble clic. El script deja listas las tres partes, una junto a otra:
 
 ```
 ArchivumParfums-Hexagonal/                          API
@@ -226,6 +226,7 @@ El enunciado permite usar asistentes de IA con una condición: cada integrante d
 
 | Parte | Asistente | Qué generó la IA | Qué verificó el equipo |
 | --- | --- | --- | --- |
+| Extensiones de PHP en `instalar.bat` (#349, corrección) | Claude Code | La revisión de `pdo_pgsql`, `intl`, `mbstring`, `openssl`, `fileinfo`, `curl`, `ctype` y `tokenizer` en el paso 1, `composer check-platform-reqs --lock` antes de instalar dependencias y el mensaje del paso 7 sin atribuir cualquier falla a la conexión. | En Windows, la revisión se ejecutó con todas las extensiones y con una extensión inexistente agregada a la lista: en ese caso se detuvo nombrándola y señalando el `php.ini` cargado. El `.bat` completo pasó otra vez contra PostgreSQL 18. Revisión humana pendiente. |
 | Instalación con `instalar.bat` y un solo `.env` (#349) | Claude Code | `instalar.bat`, la sección `VITE_` de `.env.example`, `.gitattributes` para los `.bat` y la documentación; en Web, `envDir` en `vite.config.ts` y su README. | El script se ejecutó en Windows en una carpeta vacía contra un PostgreSQL 18 desechable y una segunda vez para comprobar que no repite pasos ni duplica datos; se comprobó que Web compila con las variables del `.env` de la API. Revisión humana pendiente. |
 | Confirmaciones por WhatsApp (#166) | Codex | Puerto de avisos, trabajo en cola, adaptadores Twilio y nulo, modos Sandbox y cuenta de pago con plantillas aprobadas por evento, configuración del enlace de la tienda y pruebas simuladas. | Pendientes la verificación del equipo y el envío en una cuenta sandbox. |
 | Separación de Backend, Web y Base de datos (#338) | Codex | Preparó los tres repositorios, el submódulo de migraciones, el contrato compartido, el check Web y el traslado de issues y milestones. También incorporó la explicación del instalador cuando falta el submódulo y la documentación solicitada en revisión. | sanlealc-code cotejó las 40 migraciones con el esquema anterior, el origen del contrato de Web y la protección de las ramas. Quality y Web pasaron en la revisión inicial del PR. |
