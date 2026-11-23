@@ -354,7 +354,11 @@ Para probar fotos, añade `foto` como archivo en el POST de foto; para el logo, 
 
 ### Fotos de perfumes en Cloudflare R2
 
-Cree un bucket para las fotos y un token de API de R2 con permiso de lectura y escritura de objetos limitado a ese bucket. Conecte un dominio personalizado HTTPS al bucket y habilite las transformaciones de imágenes en su zona. Configure las cinco variables de R2 en el archivo `.env` de la API. [Tokens de R2](https://developers.cloudflare.com/r2/api/tokens/) · [Transformaciones de imágenes](https://developers.cloudflare.com/images/optimization/transformations/overview/)
+Cree un bucket para las fotos y un token de API de R2 con permiso de lectura y escritura de objetos limitado a ese bucket. Configure las cinco variables de R2 en el archivo `.env` de la API. [Tokens de R2](https://developers.cloudflare.com/r2/api/tokens/)
+
+Para servir las fotos, configure `R2_PUBLIC_URL` con el origen HTTPS de un dominio personalizado del bucket con Transformaciones de imágenes habilitadas, o de un Worker con acceso al bucket privado. `R2_IMAGE_VARIANTS` indica cuál de los dos sirve las variantes: `cloudflare` (el valor por defecto) para el dominio personalizado o `worker` para el Worker, sea en `workers.dev` o en un dominio propio. El Worker debe servir originales en `/perfumes/{archivo}` y variantes en `/imagenes/{ancho}/perfumes/{archivo}`. [Transformaciones de imágenes](https://developers.cloudflare.com/images/optimization/transformations/overview/) · [Acceso a R2 desde un Worker](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/)
+
+El Worker de [entrega de fotos](deploy/cloudflare/archivum-fotos.mjs) usa el binding `CATALOG_PHOTOS` para el bucket y el binding `IMAGES` para las variantes de 320, 640 y 960 píxeles. Si se agota la cuota de transformaciones del plan Free, la ruta de la variante redirige al original. El Worker sirve cualquier foto bajo `perfumes/`: una foto que no deba verse se elimina del bucket. La caché de Cloudflare guarda cada foto hasta una hora, así que una foto borrada puede verse ese tiempo. [Binding de Images](https://developers.cloudflare.com/images/optimization/binding/) · [Cuota de Images Free](https://developers.cloudflare.com/images/pricing/)
 
 Las subidas de perfumes usan el disco público local cuando la configuración de R2 está incompleta. Los logos y las fotos locales existentes se sirven desde `/storage`. Las fotos subidas a R2 conservan su URL pública, así que mantenga disponible el dominio configurado al subirlas. La vitrina incluye variantes de 320, 640 y 960 píxeles y el navegador elige el tamaño según el espacio disponible.
 
@@ -458,7 +462,7 @@ Las guías independientes [Demostración de ONVO](../docs/demostracion-onvo.md) 
 | `R2_SECRET_ACCESS_KEY` | Clave secreta S3 del token de R2. |
 | `R2_BUCKET` | Nombre del bucket de las fotos de perfumes. |
 | `R2_ENDPOINT` | URL HTTPS del endpoint S3 que muestra R2. |
-| `R2_PUBLIC_URL` | Origen HTTPS del dominio personalizado del bucket con Transformaciones de imágenes habilitadas. |
+| `R2_PUBLIC_URL` | Origen HTTPS que sirve los originales y sus variantes, sin ruta. |
 | `ARCHIVUM_PLATFORM_ADMIN_EMAIL`, `ARCHIVUM_PLATFORM_ADMIN_PASSWORD` | Correo y contraseña de la cuenta que [administra la plataforma](#administrar-las-tiendas-de-la-plataforma), que `db:seed` abre solo si las dos tienen valor. La contraseña se deja vacía en `.env.example` y nunca se versiona. |
 | `SANCTUM_EXPIRATION` | Minutos que dura cada token de `POST /api/v1/sesiones` y de su renovación. Por defecto, `60`. |
 | `GEMINI_API_KEY` | Llave de la Gemini Developer API, que se crea gratis en Google AI Studio, para el recomendador con IA ([ADR 0012](../docs/adr/0012-ai-recommender-through-laravel-ai-with-gemini.md)). El proveedor y el modelo están fijos en `config/ai.php`. Sin llave, cada consulta a la IA falla y la recomendación sale por reglas (#120); las pruebas nunca llaman a Gemini. |
@@ -481,3 +485,21 @@ tests/       Pruebas unitarias, de funcionalidad y de arquitectura
 ```
 
 La arquitectura se describe en [docs/architecture.md](../docs/architecture.md).
+
+## Confirmaciones por WhatsApp
+
+En el archivo local `.env` de la API, configura `TWILIO_SID` con el Account SID, `TWILIO_TOKEN` con el Auth Token y `TWILIO_WHATSAPP_FROM` con el remitente de WhatsApp. Conserva las credenciales y los teléfonos fuera de Git.
+
+- **Sandbox.** Deja `TWILIO_WHATSAPP_MODE` vacío o usa `sandbox`. Usa el remitente compartido `+14155238886` y une cada número de prueba al sandbox. En `TWILIO_WHATSAPP_TEST_NUMBERS`, indica esos números en formato E.164, separados por comas. Las confirmaciones viajan como texto en español y requieren la ventana de 24 horas que abre el destinatario al escribir. [Guía del sandbox](https://www.twilio.com/docs/whatsapp/sandbox)
+- **Cuenta de pago.** Usa `TWILIO_WHATSAPP_MODE=business` y el número propio registrado como remitente de WhatsApp. Las confirmaciones abren la conversación, así que viajan como plantillas aprobadas por Meta y llegan a cualquier cliente con teléfono en E.164. Crea en el Content Template Builder dos plantillas de categoría *Utility* en español y copia su identificador `HX…` en `TWILIO_WHATSAPP_ORDER_CONTENT_SID` y `TWILIO_WHATSAPP_APPOINTMENT_CONTENT_SID`. Un evento sin plantilla aprobada se omite. [Plantillas de WhatsApp](https://www.twilio.com/docs/content)
+
+| Variable | Texto de la plantilla |
+| --- | --- |
+| `TWILIO_WHATSAPP_ORDER_CONTENT_SID` | `Recibimos tu pedido {{1}}. Consulta su estado y el saldo en Mis pedidos.` |
+| `TWILIO_WHATSAPP_APPOINTMENT_CONTENT_SID` | `Reservamos tu cita de prueba para el {{1}} (hora de la tienda). Referencia: {{2}}. Consulta los detalles en Mis citas.` |
+
+Los textos son los de `lang/es/notices.php`. El adaptador envía `{{1}}` y `{{2}}` en `ContentVariables`: la referencia del pedido, y la fecha y la referencia de la cita.
+
+Aplica las migraciones con `php artisan migrate --database=pgsql_admin`. Después de cambiar la configuración, ejecuta `php artisan config:clear` y reinicia el worker de la cola. Para comprobar el flujo, usa un cliente de demostración con su teléfono guardado en el perfil de la tienda. El formulario de registro no recoge el teléfono.
+
+Los avisos se encolan después de confirmar la operación. PostgreSQL registra un solo intento por aviso habilitado. Una plantilla ausente o inválida omite el evento correspondiente antes de registrar el intento. El adaptador nulo registra la omisión si falta la configuración del envío. Los errores de Twilio se registran sin credenciales ni datos del destinatario. El número público del botón se configura en la SPA con `VITE_STORE_WHATSAPP`.
