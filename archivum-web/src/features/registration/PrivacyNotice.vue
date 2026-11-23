@@ -10,19 +10,19 @@ defineProps<{ id: string }>()
 <template>
   <section :id="id" class="privacy-notice prose" aria-labelledby="privacy-notice-title">
     <h2 id="privacy-notice-title">Aviso de privacidad</h2>
-    <p>Para crear su cuenta, ArchivumParfums guarda estos datos, conforme a la Ley 8968:</p>
+    <p>Para crear tu cuenta, ArchivumParfums guarda estos datos, conforme a la Ley 8968:</p>
     <ul>
       <li>
-        <strong>Su nombre</strong>, para identificarle en sus pedidos y citas. Lo ven usted y la tienda donde hace
+        <strong>Tu nombre</strong>, para identificarte en tus pedidos y citas. Lo ves tú y la tienda donde haces
         pedidos o agenda citas.
       </li>
-      <li><strong>Su correo</strong>, para ingresar y recibir avisos. Solo usted lo ve.</li>
-      <li><strong>Su contraseña</strong>, guardada de forma que nadie la puede leer.</li>
+      <li><strong>Tu correo</strong>, para ingresar y recibir avisos. Solo tú lo ves.</li>
+      <li><strong>Tu contraseña</strong>, guardada de forma que nadie la puede leer.</li>
       <li><strong>La fecha y la versión de este aviso</strong>, para demostrar que lo aceptó.</li>
     </ul>
     <p>
-      No guardamos datos de tarjetas: el pago ocurre en la pasarela. Lo que escriba en el recomendador se envía a un
-      proveedor externo de inteligencia artificial, sin su cuenta.
+      No guardamos datos de tarjetas: el pago ocurre en la pasarela. Lo que escribas en el recomendador se envía a un
+      proveedor externo de inteligencia artificial, sin tu cuenta.
     </p>
   </section>
 </template>

@@ -60,7 +60,7 @@ describe('booking an appointment', () => {
     )
     expect(plain(wrapper.get('.slot-list legend').text())).toBe('Hora de la cita, el sábado, 23 de noviembre de 2030')
     expect(plain(wrapper.findAll('.slot-list .choice')[0]?.text() ?? '')).toBe(
-      '9:00 a. m. a 9:45 a. m. Le atiende Ana Solís o Luis Mora',
+      '9:00 a. m. a 9:45 a. m. Te atiende Ana Solís o Luis Mora',
     )
 
     await wrapper.get(`input[value="${slotAt('09:00').inicia_en}"]`).setValue()
@@ -82,9 +82,9 @@ describe('booking an appointment', () => {
     await vi.waitFor(() => expect(wrapper.find('.appointment-view .facts').exists()).toBe(true))
     expect(router.currentRoute.value.fullPath).toBe(`/cuenta/citas/${APPOINTMENT_ID}`)
     expect(wrapper.get('h1').text()).toBe('Cita del sábado, 23 de noviembre de 2030, 9:00 a. m.')
-    expect(wrapper.get('.appointment-view [role="status"]').text()).toBe('Se reservó su cita de prueba.')
+    expect(wrapper.get('.appointment-view [role="status"]').text()).toBe('Se reservó tu cita de prueba.')
     expect(plain(wrapper.get('.facts').text())).toContain('De 9:00 a. m. a 9:45 a. m., hora de la tienda')
-    expect(wrapper.get('.facts').text()).toContain('Le atiendeLuis Mora')
+    expect(wrapper.get('.facts').text()).toContain('Te atiendeLuis Mora')
     expect(wrapper.get('.facts').text()).toContain('LugarEscazú, San Rafael, 200 m norte del parque central')
   })
 
@@ -162,7 +162,7 @@ describe('booking an appointment', () => {
     await button(wrapper, 'Ver los horarios libres').trigger('click')
     await flushPromises()
 
-    expect(wrapper.get('#error-fecha').text()).toBe('Elija el día de la cita.')
+    expect(wrapper.get('#error-fecha').text()).toBe('Elige el día de la cita.')
     expect(document.activeElement).toBe(wrapper.get('#fecha').element)
     expect(requests.some((request) => request.url.includes('/disponibilidad'))).toBe(false)
   })

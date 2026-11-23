@@ -60,7 +60,7 @@ describe('recommender', () => {
 
     expect(await requests[requests.length - 1]?.json()).toEqual({ texto: 'Algo con oud para la noche' })
     expect(wrapper.get('.recommender__origin').text()).toBe('Recomendado con inteligencia artificial.')
-    expect(wrapper.get('.results-summary').text()).toBe('Le recomendamos 1 perfume.')
+    expect(wrapper.get('.results-summary').text()).toBe('Te recomendamos 1 perfume.')
     expect(wrapper.get('.recommendation__reason').text()).toBe('Tiene oud y es ideal <img src=x onerror=alert(1)> para la noche.')
     expect(wrapper.find('.recommendations img').exists()).toBe(false)
     expect(wrapper.get('.recommendations h3 a').attributes('href')).toBe(`/tiendas/${STORE}/perfumes/p-1`)
@@ -105,7 +105,7 @@ describe('recommender', () => {
     const { wrapper } = await ask('Algo que no existe')
 
     expect(wrapper.get('.results-summary').text()).toBe(
-      'No encontramos perfumes para esa descripción. Pruebe con otras palabras.',
+      'No encontramos perfumes para esa descripción. Prueba con otras palabras.',
     )
     expect(wrapper.find('.recommendations').exists()).toBe(false)
   })

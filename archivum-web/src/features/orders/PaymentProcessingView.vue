@@ -40,7 +40,7 @@ const STATE_CLASSES: Record<State, string> = {
 const statusText = computed(() => {
   switch (state.value) {
     case 'waiting':
-      return 'Procesando su pago…'
+      return 'Procesando tu pago…'
     case 'confirmed':
       return 'Pago confirmado.'
     case 'closed':
@@ -50,9 +50,9 @@ const statusText = computed(() => {
     case 'expired':
       return 'El intento de pago venció. Consulte el pedido para volver a intentarlo.'
     case 'timeout':
-      return 'Su pago sigue en proceso. Verá su estado en «Mis pedidos» cuando la pasarela lo confirme.'
+      return 'Tu pago sigue en proceso. Verás su estado en «Mis pedidos» cuando la pasarela lo confirme.'
     case 'missing':
-      return 'No hay un pago en curso en esta pestaña. Revise el estado de sus pedidos en «Mis pedidos».'
+      return 'No hay un pago en curso en esta pestaña. Revisa el estado de tus pedidos en «Mis pedidos».'
     case 'failed':
       return failureText(problem.value)
   }
@@ -63,11 +63,11 @@ const statusText = computed(() => {
 /** The problem of the order in one sentence: "No encontrado" and "Sin permiso" have no page of their own here. */
 function failureText(found: ApiProblem | null): string {
   if (found?.kind === 'not-found') {
-    return 'No encontramos el pedido de este pago. Revise sus pedidos en «Mis pedidos».'
+    return 'No encontramos el pedido de este pago. Revisa tus pedidos en «Mis pedidos».'
   }
 
   if (found?.kind === 'forbidden') {
-    return 'Su cuenta no tiene permiso para ver el pedido de este pago.'
+    return 'Tu cuenta no tiene permiso para ver el pedido de este pago.'
   }
 
   return found?.message ?? ''

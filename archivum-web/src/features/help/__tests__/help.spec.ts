@@ -42,7 +42,7 @@ describe('help and glossary', () => {
     const { wrapper } = await open('/ayuda')
     const section = wrapper.get('[aria-labelledby="ayuda-cuenta"]')
 
-    expect(wrapper.get('#ayuda-cuenta').text()).toBe('Su cuenta')
+    expect(wrapper.get('#ayuda-cuenta').text()).toBe('Tu cuenta')
     expect(section.get('a').attributes('href')).toBe('/crear-cuenta')
     // The password policy is the API's (#194): the page says where the form tells what is missing, never a rule.
     expect(section.text()).toContain('el formulario indica junto al campo qué le falta')

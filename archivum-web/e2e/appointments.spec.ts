@@ -19,7 +19,7 @@ test('recovers a taken time, books with the API offset, and reschedules and canc
   await main.getByRole('button', { name: 'Ver los horarios libres' }).click()
   const firstSlot = main.getByRole('radio', { name: /^9:00/ })
   await firstSlot.check()
-  await main.getByRole('combobox', { name: 'Persona que le atiende' }).selectOption({ label: 'Asesora de prueba' })
+  await main.getByRole('combobox', { name: 'Persona que te atiende' }).selectOption({ label: 'Asesora de prueba' })
   await main.getByLabel('Buscar un perfume por marca o nombre').fill('Oud Nocturno')
   await main.getByRole('button', { name: 'Buscar perfumes' }).click()
   await main.getByRole('button', { name: 'Agregar Oud Nocturno a la cita' }).click()
@@ -34,7 +34,7 @@ test('recovers a taken time, books with the API offset, and reschedules and canc
 
   const detail = `${appointmentsPath}/${demoAppointment.id}`
   await expect(page).toHaveURL(detail)
-  await expect(main.getByRole('status').filter({ hasText: 'Se reservó su cita de prueba.' })).toBeVisible()
+  await expect(main.getByRole('status').filter({ hasText: 'Se reservó tu cita de prueba.' })).toBeVisible()
   const bookings = api.requests.filter((request) =>
     request.method() === 'POST' && new URL(request.url()).pathname === `/api/v1${storePath}/citas`,
   )
@@ -58,7 +58,7 @@ test('recovers a taken time, books with the API offset, and reschedules and canc
   await main.getByRole('radio', { name: /^11:00/ }).check()
   await main.getByRole('button', { name: 'Cambiar a esta hora' }).click()
   await expect(main.getByRole('heading', { level: 1 })).toContainText('11:00')
-  await expect(main.getByRole('status').filter({ hasText: 'Se cambió la hora de su cita.' })).toBeVisible()
+  await expect(main.getByRole('status').filter({ hasText: 'Se cambió la hora de tu cita.' })).toBeVisible()
   await main.getByRole('button', { name: 'Cancelar la cita', exact: true }).click()
   await expect(main.getByRole('button', { name: 'No, mantener la cita' })).toBeFocused()
   await main.getByRole('button', { name: 'Sí, cancelar la cita' }).click()
@@ -71,7 +71,7 @@ test('displays recommendation validation, reasons and API presentations', async 
   await page.goto(`${storePath}/recomendaciones`)
   const main = page.getByRole('main')
   const submit = main.getByRole('button', { name: 'Recomendar' })
-  const description = main.getByLabel('Describa lo que le gusta')
+  const description = main.getByLabel('Cuéntanos qué te gusta')
   await description.fill('Una solicitud de prueba demasiado breve')
   await submit.click()
   await expect(description).toHaveAttribute('aria-invalid', 'true')

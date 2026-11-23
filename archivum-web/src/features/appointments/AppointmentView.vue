@@ -90,14 +90,14 @@ watch(
         </div>
         <div>
           <dt>Lugar</dt>
-          <dd>{{ appointment.lugar_cita ?? 'La tienda le confirmará el lugar.' }}</dd>
+          <dd>{{ appointment.lugar_cita ?? 'La tienda te confirmará el lugar.' }}</dd>
         </div>
         <div>
           <dt>Servicio</dt>
           <dd>{{ appointment.servicio.nombre }}</dd>
         </div>
         <div>
-          <dt>Le atiende</dt>
+          <dt>Te atiende</dt>
           <dd>{{ appointment.persona.nombre }}</dd>
         </div>
         <div>
@@ -107,7 +107,7 @@ watch(
       </dl>
       <div v-if="canChange(appointment)" class="appointment-view__actions">
         <p class="field-hint">
-          La tienda acepta cambios hasta unas horas antes de la cita. Si ya no se puede, se lo explica al intentarlo.
+          La tienda acepta cambios hasta unas horas antes de la cita. Si ya no se puede, te lo explica al intentarlo.
         </p>
         <RouterLink :to="{ name: 'reschedule-appointment', params: { cita: appointment.id } }" class="button">
           Cambiar la hora

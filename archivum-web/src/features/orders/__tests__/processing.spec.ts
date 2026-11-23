@@ -42,7 +42,7 @@ describe('"procesando"', () => {
     const { wrapper } = await open('/pagos/procesando?estado=exito&status=succeeded&token=cs_test_123', 'cliente')
     await waitPolls(3)
 
-    expect(wrapper.get('.payment-processing__waiting').text()).toContain('Procesando su pago…')
+    expect(wrapper.get('.payment-processing__waiting').text()).toContain('Procesando tu pago…')
     expect(accountRequests(requests)).toHaveLength(4)
 
     // The verified notice of the gateway arrives at the API.
@@ -69,7 +69,7 @@ describe('"procesando"', () => {
     })
 
     const { wrapper } = await open('/pagos/procesando?estado=fallido', 'cliente')
-    expect(wrapper.get('.payment-processing__status').text()).toBe('Procesando su pago…')
+    expect(wrapper.get('.payment-processing__status').text()).toBe('Procesando tu pago…')
     expect(sessionStorage.getItem(PENDING_PAYMENT_KEY)).not.toBeNull()
 
     rejected = true
@@ -97,7 +97,7 @@ describe('"procesando"', () => {
     })
 
     const { wrapper } = await open('/pagos/procesando', 'cliente')
-    expect(wrapper.get('.payment-processing__status').text()).toBe('Procesando su pago…')
+    expect(wrapper.get('.payment-processing__status').text()).toBe('Procesando tu pago…')
 
     credited = true
     await waitPolls(1)
@@ -113,7 +113,7 @@ describe('"procesando"', () => {
     const { wrapper } = await open('/pagos/procesando', 'cliente')
     await waitPolls(POLL_DURATION_MS / POLL_INTERVAL_MS)
 
-    expect(wrapper.get('.payment-processing__timeout').text()).toContain('Verá su estado en «Mis pedidos»')
+    expect(wrapper.get('.payment-processing__timeout').text()).toContain('Verás su estado en «Mis pedidos»')
     expect(accountRequests(requests)).toHaveLength(POLL_DURATION_MS / POLL_INTERVAL_MS + 1)
 
     await waitPolls(2)

@@ -107,7 +107,7 @@ async function submit(): Promise<void> {
     <div class="account-page__header">
       <h1 id="register-heading">Crear cuenta</h1>
       <p class="form-intro">
-        Con su cuenta de cliente puede reservar pruebas de olores y hacer pedidos. Todos los datos son obligatorios.
+        Con tu cuenta de cliente puedes reservar pruebas de olores y hacer pedidos. Todos los datos son obligatorios.
       </p>
     </div>
 
@@ -117,7 +117,7 @@ async function submit(): Promise<void> {
       <form ref="form" class="form account-panel" aria-labelledby="register-heading" novalidate @submit.prevent="submit">
         <div class="form-field">
           <label for="nombre">Nombre</label>
-          <p id="pista-nombre" class="field-hint">El nombre que verá la tienda en sus pedidos y citas.</p>
+          <p id="pista-nombre" class="field-hint">El nombre que verá la tienda en tus pedidos y citas.</p>
           <input
             id="nombre"
             v-model="nombre"
@@ -148,7 +148,7 @@ async function submit(): Promise<void> {
         <div class="form-field">
           <label for="contrasena">Contraseña</label>
           <p id="pista-contrasena" class="field-hint">
-            Una frase de varias palabras es fácil de recordar y difícil de adivinar. Si hay un error, se indica aquí qué le falta.
+            Una frase de varias palabras es fácil de recordar y difícil de adivinar. Si hay un error, aquí se indica qué te falta.
           </p>
           <input
             id="contrasena"
@@ -185,7 +185,7 @@ async function submit(): Promise<void> {
             Leí y acepto el aviso de privacidad.
           </label>
           <p v-if="consentMissing" :id="fieldErrorId('acepta_privacidad')" class="field-error">
-            Debe aceptar el aviso de privacidad para crear la cuenta.
+            Debes aceptar el aviso de privacidad para crear la cuenta.
           </p>
           <FieldError v-else :problem="problem" field="acepta_privacidad" />
         </div>
@@ -199,7 +199,7 @@ async function submit(): Promise<void> {
       </form>
 
       <section class="account-panel register__sign-in" aria-labelledby="register-sign-in-heading">
-        <h2 id="register-sign-in-heading">¿Ya tiene cuenta?</h2>
+        <h2 id="register-sign-in-heading">¿Ya tienes cuenta?</h2>
         <RouterLink :to="signInLink" class="button button--secondary">Iniciar sesión</RouterLink>
       </section>
     </div>

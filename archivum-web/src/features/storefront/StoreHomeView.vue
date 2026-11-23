@@ -51,7 +51,7 @@ watch(slug, () => {
           <p class="home-eyebrow">Perfumería de nicho</p>
           <h2 id="home-hero-title" class="home-hero__title">Una fragancia también guarda memoria</h2>
           <p class="home-hero__description">
-            Pruebe una fragancia en un decant antes de comprar la botella, o huélala en la tienda con una cita de prueba.
+            Prueba una fragancia en un decant antes de comprar la botella, o huélela en la tienda con una cita de prueba.
           </p>
           <div class="home-hero__actions">
             <RouterLink class="button home-button-sand" :to="storefront()" @pointerenter="preload()" @focusin="preload()">
@@ -73,12 +73,38 @@ watch(slug, () => {
     </section>
 
     <section class="home-benefits" aria-label="Cómo probar y comprar">
-      <ul class="catalog-shell catalog-list home-benefits__grid">
-        <li><CatalogIcon name="decant" /><span><strong>Decants para probar</strong><br /> Pruébelo unos días</span></li>
-        <li><CatalogIcon name="calendar" /><span><strong>Cita de prueba</strong><br /> En la tienda</span></li>
-        <li><CatalogIcon name="payment" /><span><strong>Pago en línea</strong><br /> Con ONVO o PayPal</span></li>
-        <li><CatalogIcon name="sparkle" /><span><strong>Recomendación personal</strong><br /> Describa lo que le gusta</span></li>
-      </ul>
+      <div class="home-benefits__inner">
+        <ul class="catalog-list home-benefits__grid">
+          <li>
+            <CatalogIcon name="decant" />
+            <span>
+              <strong>Decants para probar</strong>
+              <span class="home-benefits__description">Pruébalos unos días</span>
+            </span>
+          </li>
+          <li>
+            <CatalogIcon name="calendar" />
+            <span>
+              <strong>Cita de prueba</strong>
+              <span class="home-benefits__description">En la tienda</span>
+            </span>
+          </li>
+          <li>
+            <CatalogIcon name="payment" />
+            <span>
+              <strong>Pago en línea</strong>
+              <span class="home-benefits__description">Con ONVO o PayPal</span>
+            </span>
+          </li>
+          <li>
+            <CatalogIcon name="sparkle" />
+            <span>
+              <strong>Recomendación personal</strong>
+              <span class="home-benefits__description">Cuéntanos qué te gusta</span>
+            </span>
+          </li>
+        </ul>
+      </div>
     </section>
 
     <section class="catalog-shell home-collection" aria-labelledby="collection-title">
@@ -95,7 +121,7 @@ watch(slug, () => {
     </section>
 
     <section class="catalog-shell home-section" aria-labelledby="moments-title">
-      <div class="catalog-heading-row"><h2 id="moments-title">Elija según el momento</h2></div>
+      <div class="catalog-heading-row"><h2 id="moments-title">Elige según el momento</h2></div>
       <ul class="catalog-list home-moments">
         <li v-for="moment in moments" :key="moment.value">
           <RouterLink
@@ -111,11 +137,11 @@ watch(slug, () => {
       </ul>
     </section>
 
-    <section class="catalog-shell home-section home-promos" aria-label="Pruebe y elija una fragancia">
+    <section class="catalog-shell home-section home-promos" aria-label="Prueba y elige una fragancia">
       <article class="home-promo home-promo--appointment">
         <p class="home-eyebrow">Cita de prueba</p>
         <h2>Huela antes de decidir</h2>
-        <p>Elija perfumes y pruébelos en la piel con una persona de la tienda.</p>
+        <p>Elige perfumes y pruébalos en la piel con una persona de la tienda.</p>
         <p v-if="profile?.lugar_cita">{{ profile.lugar_cita }}</p>
         <RouterLink class="button home-button-sand" :to="{ name: 'book-appointment', params: { tienda: slug } }">
           Ver horarios disponibles
@@ -124,7 +150,7 @@ watch(slug, () => {
       <article class="home-promo home-promo--recommender">
         <p class="home-eyebrow">Recomendador</p>
         <h2>¿No sabe cuál elegir?</h2>
-        <p>Describa con sus palabras lo que le gusta y reciba sugerencias del catálogo de la tienda.</p>
+        <p>Cuéntanos con tus palabras qué te gusta y recibe sugerencias del catálogo de la tienda.</p>
         <RouterLink class="button home-button-dark" :to="{ name: 'recommendations', params: { tienda: slug } }">
           Pedir una recomendación
         </RouterLink>
@@ -304,5 +330,176 @@ watch(slug, () => {
   .home-hero__circle { width: min(100%, 18rem); padding-block-end: 12%; }
   .home-benefits li { align-items: flex-start; gap: .5rem; }
   .home-benefits li svg { width: 1.25rem; height: 1.25rem; }
+}
+
+/* --- Revamp, fase 2: portada comercial --- */
+
+.home-hero {
+  position: relative;
+  overflow: hidden;
+  border-block-end: 1px solid var(--color-divider);
+}
+
+.home-hero::after {
+  content: '';
+  position: absolute;
+  inset-block-start: -35%;
+  inset-inline-end: -14%;
+  width: 38rem;
+  height: 38rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgb(243 220 178 / 26%) 0%, rgb(243 220 178 / 0%) 66%);
+  pointer-events: none;
+}
+
+.home-hero__inner {
+  position: relative;
+  z-index: 1;
+}
+
+.home-hero__title {
+  font-family: Inter, system-ui, sans-serif;
+  font-size: clamp(2rem, 4.5vw, 3.35rem);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+}
+
+.home-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.home-eyebrow::before {
+  content: '';
+  width: 2.25rem;
+  border-top: 2px solid currentColor;
+  opacity: 0.55;
+}
+
+.home-hero__description {
+  font-size: 1.0625rem;
+}
+
+.home-hero__circle {
+  box-shadow: inset 0 0 0 1px rgb(243 220 178 / 25%), 0 32px 64px -44px rgb(0 0 0 / 65%);
+}
+
+.home-benefits {
+  border-block-start: 1px solid var(--color-divider);
+}
+
+.home-benefits__grid li + li::before {
+  content: '';
+  position: absolute;
+  inset-block: 0.35rem;
+  inset-inline-start: 0;
+  border-inline-start: 1px solid var(--color-divider);
+}
+
+.home-moment,
+.home-promo {
+  border-radius: 1.25rem;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.home-moment:hover,
+.home-promo:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 24px 44px -34px rgb(0 0 0 / 55%);
+}
+
+.home-moment strong {
+  letter-spacing: -0.01em;
+}
+
+.home-promo h2 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+.home-collection,
+.home-section {
+  padding-block: clamp(1.75rem, 4vw, 3rem);
+}
+
+/* Franja de beneficios: fondo a sangre, contenido centrado y columnas uniformes. El relleno horizontal lo pone
+   .catalog-shell, así que aquí se anula para no descentrar la franja respecto del resto de la página. */
+.home-benefits__grid {
+  align-items: stretch;
+  gap: 0;
+  padding: 1.25rem 0;
+}
+
+.home-benefits li {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0 0.75rem;
+  min-height: 4.5rem;
+  padding-block: 0.25rem;
+  padding-inline: clamp(0.75rem, 1.6vw, 1.5rem);
+}
+
+.home-benefits li:first-child {
+  padding-inline-start: 0;
+}
+
+.home-benefits li:last-child {
+  padding-inline-end: 0;
+}
+
+.home-benefits li svg {
+  margin-block-start: 0.15rem;
+}
+
+.home-benefits span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.home-benefits br {
+  display: none;
+}
+
+.home-benefits strong {
+  line-height: 1.25;
+}
+
+@media (max-width: 55rem) {
+  .home-benefits__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem 0;
+  }
+
+  .home-benefits li,
+  .home-benefits li:first-child,
+  .home-benefits li:last-child {
+    padding-inline: 0 1rem;
+  }
+
+  .home-benefits li + li::before {
+    display: none;
+  }
+
+  .home-benefits li:nth-child(even) {
+    padding-inline: 1rem 0;
+  }
+
+  .home-benefits li:nth-child(even)::before {
+    display: block;
+  }
+}
+
+@media (max-width: 40rem) {
+  .home-eyebrow {
+    letter-spacing: 0.16em;
+  }
 }
 </style>

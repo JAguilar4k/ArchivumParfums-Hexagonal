@@ -57,8 +57,8 @@ async function submit(): Promise<void> {
   <div class="page account-page sign-in">
     <div class="account-page__header">
       <h1 id="sign-in-heading">Iniciar sesión</h1>
-      <p v-if="accountCreated" class="status-message" role="status">Se creó su cuenta. Escriba su contraseña para iniciar sesión.</p>
-      <p v-else class="form-intro">Escriba el correo y la contraseña de su cuenta.</p>
+      <p v-if="accountCreated" class="status-message" role="status">Se creó tu cuenta. Escribe tu contraseña para iniciar sesión.</p>
+      <p v-else class="form-intro">Escribe el correo y la contraseña de tu cuenta.</p>
     </div>
 
     <ProblemNotice v-if="problem" :problem="problem" />
@@ -67,7 +67,7 @@ async function submit(): Promise<void> {
       <form ref="form" class="form account-panel" aria-labelledby="sign-in-heading" novalidate @submit.prevent="submit">
         <div class="form-field">
           <label for="correo">Correo</label>
-          <p id="pista-correo" class="field-hint">El correo que usó para crear su cuenta.</p>
+          <p id="pista-correo" class="field-hint">El correo que usaste para crear tu cuenta.</p>
           <input
             id="correo"
             v-model="correo"
@@ -82,7 +82,7 @@ async function submit(): Promise<void> {
 
         <div class="form-field">
           <label for="contrasena">Contraseña</label>
-          <p id="pista-contrasena" class="field-hint">La contraseña de su cuenta.</p>
+          <p id="pista-contrasena" class="field-hint">La contraseña de tu cuenta.</p>
           <div class="password-control">
             <input
               id="contrasena"
@@ -111,8 +111,8 @@ async function submit(): Promise<void> {
       </form>
 
       <section class="account-panel sign-in__register" aria-labelledby="sign-in-register-heading">
-        <h2 id="sign-in-register-heading">¿Todavía no tiene cuenta?</h2>
-        <p>Con una cuenta de cliente puede hacer pedidos y reservar citas de prueba.</p>
+        <h2 id="sign-in-register-heading">¿Todavía no tienes cuenta?</h2>
+        <p>Con una cuenta de cliente puedes hacer pedidos y reservar citas de prueba.</p>
         <RouterLink :to="registerLink" class="button button--secondary">Crear una cuenta de cliente</RouterLink>
       </section>
     </div>

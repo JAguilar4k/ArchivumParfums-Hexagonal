@@ -86,7 +86,7 @@ async function goToGateway(payment: Payment): Promise<void> {
     <p :id="`pista-pago-${order.id}`" class="field-hint">Se abre la página segura de la pasarela de pago.</p>
     <div v-if="foreignCharge" class="pay-order__foreign">
       <p :id="`cobro-${order.id}`">
-        Esta pasarela cobra en dólares: se le cobrarán
+        Esta pasarela cobra en dólares: se te cobrarán
         <strong>{{ formatCharge(foreignCharge.monto_cobrado, foreignCharge.moneda_cobrada) }}</strong>
         por {{ formatColones(foreignCharge.monto) }}.
       </p>

@@ -319,7 +319,7 @@ function preloadShowcase(): void {
 
       <section v-if="relatedPerfumes.length" class="detail-related" aria-labelledby="related-title">
         <div class="catalog-heading-row">
-          <h2 id="related-title">Complete su selección</h2>
+          <h2 id="related-title">Completa tu selección</h2>
           <RouterLink
             class="action-link"
             :to="{ name: 'storefront', params: { tienda: slug }, query: { familia: family } }"

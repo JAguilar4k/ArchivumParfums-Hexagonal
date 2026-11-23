@@ -51,8 +51,8 @@ async function showSlots(): Promise<void> {
       kind: 'validation',
       status: null,
       type: null,
-      message: 'Revise los datos marcados.',
-      fieldErrors: { fecha: ['Elija el día de la cita.'] },
+      message: 'Revisa los datos marcados.',
+      fieldErrors: { fecha: ['Elige el día de la cita.'] },
       requestId: null,
       retryAfterSeconds: null,
     }
@@ -82,11 +82,11 @@ async function reschedule(): Promise<void> {
       kind: 'validation',
       status: null,
       type: null,
-      message: 'Revise los datos marcados.',
+      message: 'Revisa los datos marcados.',
       fieldErrors:
         slots.slots.value.length > 0
-          ? { inicia_en: ['Elija una hora de la lista.'] }
-          : { fecha: ['Elija el día y pulse «Ver los horarios libres» para escoger la hora.'] },
+          ? { inicia_en: ['Elige una hora de la lista.'] }
+          : { fecha: ['Elige el día y pulsa «Ver los horarios libres» para escoger la hora.'] },
       requestId: null,
       retryAfterSeconds: null,
     }
@@ -127,7 +127,7 @@ async function reschedule(): Promise<void> {
     return
   }
 
-  leaveNotice(appointmentId.value, 'Se cambió la hora de su cita.')
+  leaveNotice(appointmentId.value, 'Se cambió la hora de tu cita.')
   await router.push({ name: 'appointment', params: { cita: appointmentId.value } })
 }
 
@@ -175,16 +175,16 @@ watch(
       <template v-if="canChange(appointment)">
         <div class="prose">
           <p>
-            Su cita es el {{ formatDay(appointment.inicia_en) }}, de
+            Tu cita es el {{ formatDay(appointment.inicia_en) }}, de
             {{ formatHours(appointment.inicia_en, appointment.termina_en) }}, con {{ appointment.persona.nombre }}.
-            Elija otro día y otra hora con la misma persona. Las horas son las de la tienda.
+            Elige otro día y otra hora con la misma persona. Las horas son las de la tienda.
           </p>
         </div>
 
         <form ref="formElement" class="form" novalidate @submit.prevent="reschedule">
           <div class="form-field">
             <label for="fecha">Día de la cita</label>
-            <p id="pista-fecha" class="field-hint">Elija el día y pulse «Ver los horarios libres».</p>
+            <p id="pista-fecha" class="field-hint">Elige el día y pulsa «Ver los horarios libres».</p>
             <input
               id="fecha"
               ref="dayField"

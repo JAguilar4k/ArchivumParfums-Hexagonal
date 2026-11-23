@@ -17,7 +17,7 @@ import { RouterLink } from 'vue-router'
     <section class="page-section prose" aria-labelledby="ayuda-buscar">
       <h2 id="ayuda-buscar">Buscar un perfume</h2>
       <p>
-        En la vitrina puede buscar por marca o nombre, familia olfativa, nota, momento del día, clima, ocasión o precio
+        En la vitrina puedes buscar por marca o nombre, familia olfativa, nota, momento del día, clima, ocasión o precio
         máximo. Llene solo los campos que le interesen y pulse «Buscar». «Limpiar filtros» muestra otra vez todos los
         perfumes.
       </p>
@@ -29,26 +29,26 @@ import { RouterLink } from 'vue-router'
     <section class="page-section prose" aria-labelledby="ayuda-recomendacion">
       <h2 id="ayuda-recomendacion">Pedir una recomendación</h2>
       <p>
-        En «Pedir una recomendación» describa con sus palabras lo que le gusta: notas, momento del día, clima, ocasión
+        En «Pedir una recomendación» describe con tus palabras lo que te gusta: notas, momento del día, clima, ocasión
         o cuánto quiere gastar. La página le sugiere hasta cinco perfumes de la tienda y le dice por qué.
       </p>
       <p>
-        El texto se envía a un proveedor externo de inteligencia artificial. No escriba su nombre, correo, teléfono ni
+        El texto se envía a un proveedor externo de inteligencia artificial. No escribas tu nombre, correo, teléfono ni
         otros datos personales. Si ese servicio no responde, la tienda recomienda con sus propias reglas y la página lo
         indica.
       </p>
     </section>
 
     <section class="page-section prose" aria-labelledby="ayuda-cuenta">
-      <h2 id="ayuda-cuenta" tabindex="-1">Su cuenta</h2>
+      <h2 id="ayuda-cuenta" tabindex="-1">Tu cuenta</h2>
       <p>
         Para hacer pedidos necesita una cuenta de cliente. Puede
-        <RouterLink :to="{ name: 'register' }">crear una cuenta de cliente</RouterLink> con su nombre, su correo y una
-        contraseña, después de leer y aceptar el aviso de privacidad. Al crearla, la tienda inicia su sesión por
-        usted. Si la contraseña no es válida, el formulario indica junto al campo qué le falta.
+        <RouterLink :to="{ name: 'register' }">crear una cuenta de cliente</RouterLink> con tu nombre, tu correo y una
+        contraseña, después de leer y aceptar el aviso de privacidad. Al crearla, la tienda inicia tu sesión.
+        Si la contraseña no es válida, el formulario indica junto al campo qué le falta.
       </p>
       <p>
-        «Mostrar la contraseña» le deja revisar lo que escribió. Su navegador o su gestor de contraseñas también puede
+        «Mostrar la contraseña» te deja revisar lo que escribiste. Tu navegador o tu gestor de contraseñas también puede
         llenar el correo y la contraseña.
       </p>
       <p>Las cuentas del personal de la tienda no se crean aquí: las crea la persona dueña de la tienda.</p>
@@ -62,16 +62,16 @@ import { RouterLink } from 'vue-router'
       </p>
       <p>
         Al crear el pedido, la tienda calcula el subtotal y lo que se cobra ahora: los decants completos y una parte de
-        las botellas. Tiene un tiempo para pagarlo, y la página del pedido dice hasta cuándo. Si no lo paga a tiempo, el
+        las botellas. Tienes un tiempo para pagarlo, y la página del pedido dice hasta cuándo. Si no lo pagas a tiempo, el
         pedido vence y sus decants vuelven a quedar disponibles para otras personas.
       </p>
       <p>
         «Pagar» abre la página segura de la pasarela de pago. Al volver, la tienda muestra el pago cuando la pasarela lo
-        confirma, lo que puede tardar unos segundos. Con PayPal el cobro es en dólares, y la página le muestra el monto
+        confirma, lo que puede tardar unos segundos. Con PayPal el cobro es en dólares, y la página te muestra el monto
         antes de continuar.
       </p>
       <p>
-        Puede cancelar un pedido mientras no se hayan encargado sus botellas ni preparado sus decants. Si ya pagó algo, se
+        Puedes cancelar un pedido mientras no se hayan encargado sus botellas ni preparado sus decants. Si ya pagó algo, se
         le devolverá todo lo pagado.
       </p>
 
@@ -97,19 +97,19 @@ import { RouterLink } from 'vue-router'
     <section class="page-section prose" aria-labelledby="ayuda-citas">
       <h2 id="ayuda-citas" tabindex="-1">Citas de prueba</h2>
       <p>
-        En una <RouterLink to="/ayuda#prueba-de-olores">prueba de olores</RouterLink> usted huele y prueba en la piel los
-        perfumes que quiera, con la ayuda de una persona de la tienda. Para reservarla, elija el día, pulse «Ver los
-        horarios libres» y escoja una hora de la lista. Las horas son siempre las de la tienda, aunque usted esté en otro
+        En una <RouterLink to="/ayuda#prueba-de-olores">prueba de olores</RouterLink> tú hueles y pruebas en la piel los
+        perfumes que quieras, con la ayuda de una persona de la tienda. Para reservarla, elige el día, pulsa «Ver los
+        horarios libres» y escoge una hora de la lista. Las horas son siempre las de la tienda, aunque estés en otro
         país.
       </p>
       <p>
-        Puede escoger quién le atiende o dejar que la tienda asigne a la persona con menos citas ese día. También puede
+        Puedes escoger quién te atiende o dejar que la tienda asigne a la persona con menos citas ese día. También puedes
         elegir los perfumes que quiere probar, para que la tienda los tenga listos. Para reservar necesita iniciar sesión
         con una cuenta de cliente; si inicia sesión a mitad de la reserva, vuelve a ella con lo que ya había elegido.
       </p>
       <p>
-        Si otra persona reserva la misma hora antes que usted, la página se lo dice y le muestra otra vez los horarios que
-        quedan libres. En «Mis citas» puede cambiar la hora de una cita o cancelarla, hasta el plazo que da la tienda. Si
+        Si otra persona reserva la misma hora antes que tú, la página te lo dice y te muestra otra vez los horarios que
+        quedan libres. En «Mis citas» puedes cambiar la hora de una cita o cancelarla, hasta el plazo que da la tienda. Si
         el plazo ya pasó, la página se lo explica.
       </p>
 
@@ -117,7 +117,7 @@ import { RouterLink } from 'vue-router'
       <dl class="glossary">
         <dt>Confirmada</dt>
         <dd>La cita está reservada y la tienda la espera.</dd>
-        <dt>Apartada para usted</dt>
+        <dt>Apartada para ti</dt>
         <dd>La tienda le guarda un espacio que se liberó, por un tiempo corto.</dd>
         <dt>Cancelada</dt>
         <dd>La cita se canceló y su espacio quedó libre.</dd>
@@ -135,7 +135,7 @@ import { RouterLink } from 'vue-router'
       <dl class="glossary">
         <dt id="bajo-pedido" tabindex="-1">Bajo pedido</dt>
         <dd>
-          La tienda no guarda botellas selladas: encarga a su proveedor cada botella que usted pide, y la entrega cuando
+          La tienda no guarda botellas selladas: encarga a su proveedor cada botella que pides, y la entrega cuando
           llega. Puede tardar unas semanas.
         </dd>
 
@@ -171,7 +171,7 @@ import { RouterLink } from 'vue-router'
 
         <dt id="prueba-de-olores" tabindex="-1">Prueba de olores</dt>
         <dd>
-          Una cita en la tienda para oler y probar en la piel los perfumes que usted elija, con la ayuda de una persona de
+          Una cita en la tienda para oler y probar en la piel los perfumes que elijas, con la ayuda de una persona de
           la tienda. También se le llama cita de prueba.
         </dd>
 
@@ -189,8 +189,8 @@ import { RouterLink } from 'vue-router'
 
         <dt id="inteligencia-artificial" tabindex="-1">Inteligencia artificial</dt>
         <dd>
-          Un programa que interpreta lo que usted escribe para sugerirle perfumes. Antes de mostrar sus sugerencias, la
-          tienda comprueba que esos perfumes existan, estén a la venta y no pasen de su presupuesto.
+          Un programa que interpreta lo que tú escribes para sugerirte perfumes. Antes de mostrar sus sugerencias, la
+          tienda comprueba que esos perfumes existan, estén a la venta y no pasen de tu presupuesto.
         </dd>
       </dl>
     </section>

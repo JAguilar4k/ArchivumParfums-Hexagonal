@@ -51,7 +51,7 @@ const options = computed(() => [...new Set([perPage.value, ...SHOWCASE_PAGE_SIZE
 const summary = computed(() => {
   const page = meta.value
   if (!page) return ''
-  if (page.total === 0) return 'No hay perfumes que coincidan con la búsqueda. Pruebe con menos filtros.'
+  if (page.total === 0) return 'No hay perfumes que coincidan con la búsqueda. Prueba con menos filtros.'
   return `Mostrando ${page.from ?? 0}–${page.to ?? 0} de ${page.total} perfumes`
 })
 const pageNumbers = computed(() => {
@@ -206,7 +206,10 @@ function viewResults(): void {
       </ol>
     </nav>
 
-    <h1 ref="title" class="showcase__title" tabindex="-1">Vitrina</h1>
+    <header class="showcase__masthead">
+      <p class="showcase__eyebrow">Colección</p>
+      <h1 ref="title" class="showcase__title" tabindex="-1">Vitrina</h1>
+    </header>
 
     <div class="showcase__tools">
       <button
@@ -314,7 +317,7 @@ function viewResults(): void {
       <form ref="filterForm" class="showcase-filter" aria-labelledby="showcase-filter-title" novalidate @submit.prevent="applyFilters">
         <div class="form-field">
           <label for="texto">Marca, nombre o nota</label>
-          <p id="pista-texto" class="field-hint">Por ejemplo: Maison Noctis. Para filtrar una nota, use el campo «Nota».</p>
+          <p id="pista-texto" class="field-hint">Por ejemplo: Maison Noctis. Para filtrar una nota, usa el campo «Nota».</p>
           <input
             id="texto"
             name="texto"

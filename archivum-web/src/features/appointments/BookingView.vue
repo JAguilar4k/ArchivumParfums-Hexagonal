@@ -83,7 +83,7 @@ function localProblem(fieldErrors: Record<string, string[]>): ApiProblem {
     kind: 'validation',
     status: null,
     type: null,
-    message: 'Revise los datos marcados.',
+    message: 'Revisa los datos marcados.',
     fieldErrors,
     requestId: null,
     retryAfterSeconds: null,
@@ -103,11 +103,11 @@ async function showSlots(): Promise<void> {
   const errors: Record<string, string[]> = {}
 
   if (!form.servicio) {
-    errors.servicio_id = ['Elija un servicio.']
+    errors.servicio_id = ['Elige un servicio.']
   }
 
   if (!form.fecha) {
-    errors.fecha = ['Elija el día de la cita.']
+    errors.fecha = ['Elige el día de la cita.']
   }
 
   if (Object.keys(errors).length > 0) {
@@ -130,13 +130,13 @@ async function book(): Promise<void> {
     const errors: Record<string, string[]> = {}
 
     if (!form.servicio) {
-      errors.servicio_id = ['Elija un servicio.']
+      errors.servicio_id = ['Elige un servicio.']
     }
 
     if (!form.inicio && slots.slots.value.length > 0) {
-      errors.inicia_en = ['Elija una hora de la lista.']
+      errors.inicia_en = ['Elige una hora de la lista.']
     } else if (!form.inicio) {
-      errors.fecha = ['Elija el día y pulse «Ver los horarios libres» para escoger la hora.']
+      errors.fecha = ['Elige el día y pulsa «Ver los horarios libres» para escoger la hora.']
     }
 
     await showProblem(localProblem(errors))
@@ -173,7 +173,7 @@ async function book(): Promise<void> {
     return
   }
 
-  leaveNotice(outcome.data.data.id, 'Se reservó su cita de prueba.')
+  leaveNotice(outcome.data.data.id, 'Se reservó tu cita de prueba.')
   await router.push({ name: 'appointment', params: { cita: outcome.data.data.id } })
 }
 
@@ -269,7 +269,7 @@ onMounted(async () => {
     <div class="prose">
       <p>
         En la cita prueba en la piel los perfumes que quiera, con la ayuda de una persona de la tienda. Las horas son las
-        de la tienda. Puede leer antes <RouterLink to="/ayuda#ayuda-citas">cómo funcionan las citas de prueba</RouterLink>.
+        de la tienda. Puedes leer antes <RouterLink to="/ayuda#ayuda-citas">cómo funcionan las citas de prueba</RouterLink>.
       </p>
     </div>
 
@@ -296,7 +296,7 @@ onMounted(async () => {
 
       <div class="form-field">
         <label for="fecha">Día de la cita</label>
-        <p id="pista-fecha" class="field-hint">Elija el día y pulse «Ver los horarios libres».</p>
+        <p id="pista-fecha" class="field-hint">Elige el día y pulsa «Ver los horarios libres».</p>
         <input
           id="fecha"
           ref="dayField"
@@ -333,8 +333,8 @@ onMounted(async () => {
       />
 
       <div v-if="people.length > 1" class="form-field">
-        <label for="persona">Persona que le atiende</label>
-        <p id="pista-persona" class="field-hint">Si no elige, le atiende quien tenga menos citas ese día.</p>
+        <label for="persona">Persona que te atiende</label>
+        <p id="pista-persona" class="field-hint">Si no eliges, te atiende quien tenga menos citas ese día.</p>
         <select id="persona" v-model="form.persona" name="persona_id" v-bind="fieldAttributes(problem, 'persona_id', 'pista-persona')">
           <option value="">Cualquiera de las personas disponibles</option>
           <option v-for="person in people" :key="person.id" :value="person.id">{{ person.nombre }}</option>

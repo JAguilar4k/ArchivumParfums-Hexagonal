@@ -23,7 +23,7 @@ const start = defineModel<string | null>('start', { required: true })
         <input v-model="start" type="radio" name="inicia_en" :value="slot.inicia_en" />
         <span class="choice__text">
           {{ formatHours(slot.inicia_en, slot.termina_en) }}
-          <span v-if="withPeople && peopleOf(slot)" class="choice__detail">Le atiende {{ peopleOf(slot) }}</span>
+          <span v-if="withPeople && peopleOf(slot)" class="choice__detail">Te atiende {{ peopleOf(slot) }}</span>
         </span>
       </label>
     </div>

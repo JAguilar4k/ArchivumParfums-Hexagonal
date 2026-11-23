@@ -92,7 +92,7 @@ describe('"Crear cuenta"', () => {
     // The password policy is the API's (#194): the hint gives advice and says where the 422 tells what is missing.
     const passwordHint = wrapper.get('#pista-contrasena').text()
     expect(passwordHint).toContain('Una frase de varias palabras')
-    expect(passwordHint).toContain('se indica aquí qué le falta')
+    expect(passwordHint).toContain('aquí se indica qué te falta')
     expect(passwordHint).not.toMatch(/\d/)
   })
 
@@ -120,7 +120,7 @@ describe('"Crear cuenta"', () => {
     await flushPromises()
 
     expect(requests.filter((request) => request.method === 'POST')).toHaveLength(0)
-    expect(wrapper.get('#error-acepta_privacidad').text()).toBe('Debe aceptar el aviso de privacidad para crear la cuenta.')
+    expect(wrapper.get('#error-acepta_privacidad').text()).toBe('Debes aceptar el aviso de privacidad para crear la cuenta.')
     expect(wrapper.get('#acepta_privacidad').attributes('aria-invalid')).toBe('true')
     expect(wrapper.get('#acepta_privacidad').attributes('aria-describedby')).toBe('aviso-privacidad error-acepta_privacidad')
     expect(document.activeElement?.id).toBe('acepta_privacidad')
@@ -197,7 +197,7 @@ describe('"Crear cuenta"', () => {
     expect(router.currentRoute.value.fullPath).not.toContain('ana@clientes.test')
     expect((wrapper.get('#correo').element as HTMLInputElement).value).toBe('ana@clientes.test')
     expect((wrapper.get('#contrasena').element as HTMLInputElement).value).toBe('')
-    expect(wrapper.get('.sign-in .status-message').text()).toBe('Se creó su cuenta. Escriba su contraseña para iniciar sesión.')
+    expect(wrapper.get('.sign-in .status-message').text()).toBe('Se creó tu cuenta. Escribe tu contraseña para iniciar sesión.')
   })
 
   it('is linked from the sign-in, keeping the route to return to', async () => {

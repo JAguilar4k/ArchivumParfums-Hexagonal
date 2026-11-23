@@ -128,7 +128,7 @@ onMounted(search)
   <fieldset class="choice-group perfume-picker" v-bind="groupAttributes(problem, 'perfumes', 'pista-perfumes')">
     <legend>Perfumes que quiere probar</legend>
     <p id="pista-perfumes" class="field-hint">
-      Puede elegir hasta {{ max }}, para que la tienda los tenga listos. Si no elige ninguno, le ayudan a escoger en la
+      Puedes elegir hasta {{ max }}, para que la tienda los tenga listos. Si no eliges ninguno, te ayudan a escoger en la
       cita.
     </p>
 

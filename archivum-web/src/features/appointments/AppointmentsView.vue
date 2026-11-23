@@ -62,7 +62,7 @@ watch(
 <template>
   <div class="page appointments">
     <h1 ref="heading" tabindex="-1">{{ title }}</h1>
-    <nav class="sub-nav" aria-label="Sus citas">
+    <nav class="sub-nav" aria-label="Tus citas">
       <ul>
         <li><RouterLink :to="{ name: 'appointments' }">Próximas</RouterLink></li>
         <li><RouterLink :to="{ name: 'past-appointments' }">Pasadas</RouterLink></li>
@@ -71,11 +71,11 @@ watch(
     <!-- Always in the page, so screen readers announce a new page of results. -->
     <p class="results-summary" role="status">{{ notice }}</p>
 
-    <LoadingState v-if="appointments.loading.value" message="Cargando sus citas…" />
+    <LoadingState v-if="appointments.loading.value" message="Cargando tus citas…" />
     <ErrorState v-else-if="appointments.problem.value" :problem="appointments.problem.value" @retry="appointments.reload" />
     <EmptyState
       v-else-if="appointments.empty.value"
-      :message="period === 'proximas' ? 'No tiene citas próximas.' : 'No tiene citas pasadas.'"
+      :message="period === 'proximas' ? 'No tienes citas próximas.' : 'No tienes citas pasadas.'"
     >
       <RouterLink
         v-if="period === 'proximas'"
@@ -111,7 +111,7 @@ watch(
               <dd>{{ appointment.servicio.nombre }}</dd>
             </div>
             <div>
-              <dt>Le atiende</dt>
+              <dt>Te atiende</dt>
               <dd>{{ appointment.persona.nombre }}</dd>
             </div>
             <div v-if="appointment.lugar_cita">

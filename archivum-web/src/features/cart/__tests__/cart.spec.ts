@@ -80,7 +80,7 @@ describe('cart', () => {
     expect(text).toContain('Saldo₡134 500')
     // The time ends with "a. m." or "p. m.", so the sentence goes on after a comma and never shows two periods.
     expect(plain(wrapper.get('.order-summary__deadline').text())).toMatch(
-      /^Si no se paga antes del .+ [ap]\. m\., el pedido vence y sus decants vuelven/,
+      /^Si no se paga antes del .+ [ap]\. m\., el pedido vence y tus decants vuelven/,
     )
   })
 
@@ -174,7 +174,7 @@ describe('cart', () => {
     expect(quantity.attributes('aria-invalid')).toBe('true')
     expect(quantity.attributes('aria-describedby')).toBe('linea-0 error-linea-0')
     expect(wrapper.get('#error-linea-0').text()).toBe(
-      'Escriba una cantidad de 1 botella o más. Para no pedir esta botella, use «Quitar».',
+      'Escribe una cantidad de 1 botella o más. Para no pedir esta botella, usa «Quitar».',
     )
 
     await wrapper.get('.cart > .form-actions > button').trigger('click')

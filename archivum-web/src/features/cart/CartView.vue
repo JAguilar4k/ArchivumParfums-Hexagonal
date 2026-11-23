@@ -35,7 +35,7 @@ const notice = ref('')
 const invalidQuantities = ref<Record<number, string>>({})
 const heading = useTemplateRef<HTMLElement>('heading')
 
-const QUANTITY_MESSAGE = 'Escriba una cantidad de 1 botella o más. Para no pedir esta botella, use «Quitar».'
+const QUANTITY_MESSAGE = 'Escribe una cantidad de 1 botella o más. Para no pedir esta botella, usa «Quitar».'
 
 watch(tienda, (slug) => void cart.load(slug), { immediate: true })
 
@@ -145,7 +145,7 @@ async function placeOrder(): Promise<void> {
     <!-- Always in the page, so screen readers announce what was removed. -->
     <p class="results-summary" role="status">{{ notice }}</p>
 
-    <EmptyState v-if="lines.length === 0" message="Su carrito está vacío.">
+    <EmptyState v-if="lines.length === 0" message="Tu carrito está vacío.">
       <RouterLink :to="{ name: 'storefront', params: { tienda } }" class="action-link">Ver la vitrina</RouterLink>
     </EmptyState>
     <template v-else>
@@ -184,7 +184,7 @@ async function placeOrder(): Promise<void> {
       <div class="prose cart__note">
         <p>
           El subtotal y lo que se cobra ahora los calcula la tienda al crear el pedido, con los precios del momento.
-          Después tendrá un tiempo para pagarlo: la página del pedido le dice hasta cuándo.
+          Después tendrás un tiempo para pagarlo: la página del pedido te dice hasta cuándo.
         </p>
       </div>
       <ProblemNotice v-if="problem" :problem="problem">

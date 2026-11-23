@@ -49,13 +49,13 @@ function remove(index: number, line: CartLine): void {
   <SideDrawer
     v-model:open="open"
     class="cart-drawer"
-    :title="`Su carrito (${count})`"
+    :title="`Tu carrito (${count})`"
     heading-id="cart-drawer-title"
     close-label="Cerrar el carrito"
     v-bind="cartDrawerRequest?.trigger ? { trigger: cartDrawerRequest.trigger } : {}"
   >
     <p class="cart-drawer__notice" role="status">{{ notice }}</p>
-    <p v-if="!lines.length" class="cart-drawer__empty">Su carrito está vacío.</p>
+    <p v-if="!lines.length" class="cart-drawer__empty">Tu carrito está vacío.</p>
     <ul v-else class="cart-drawer__lines">
       <li v-for="(line, index) in lines" :key="index" class="cart-drawer__line">
         <PerfumeArt :id="line.perfumeId" :family="line.family ?? null" :photo="line.photo ?? null" class="cart-drawer__art" />

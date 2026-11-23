@@ -49,7 +49,7 @@ const dateTime = new Intl.DateTimeFormat('es-CR', { dateStyle: 'long', timeStyle
       Vea en la ayuda <RouterLink to="/ayuda#ayuda-pedidos">qué significan los montos y los estados de un pedido</RouterLink>.
     </p>
     <p v-if="order.estado === 'pendiente_de_pago' && order.vence_en" class="order-summary__deadline">
-      Si no se paga antes del {{ dateTime.format(new Date(order.vence_en)) }}, el pedido vence y sus decants vuelven a
+      Si no se paga antes del {{ dateTime.format(new Date(order.vence_en)) }}, el pedido vence y tus decants vuelven a
       quedar disponibles para otras personas.
     </p>
 

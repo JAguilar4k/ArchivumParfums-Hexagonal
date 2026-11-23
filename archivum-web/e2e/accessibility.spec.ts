@@ -32,7 +32,7 @@ async function openFilter(page: Page) {
 
 async function addBottle(page: Page) {
   await page.getByRole('button', { name: /^Agregar al carrito la botella/ }).click()
-  const dialog = page.getByRole('dialog', { name: /^Su carrito/ })
+  const dialog = page.getByRole('dialog', { name: /^Tu carrito/ })
   await expect(dialog).toBeVisible()
   return dialog
 }
@@ -61,7 +61,7 @@ for (const colorScheme of ['light', 'dark'] as const) {
 
       await page.goto(perfumePath())
       await expect(page.getByRole('heading', { level: 1, name: featuredPerfume.nombre })).toBeVisible()
-      await expect(page.getByRole('main').getByRole('heading', { name: 'Complete su selección' })).toBeVisible()
+      await expect(page.getByRole('main').getByRole('heading', { name: 'Completa tu selección' })).toBeVisible()
       await audit(page, 'Detalle con opciones y sugerencias')
       const drawer = await addBottle(page)
       await capture(page, info, `detalle-carrito-${colorScheme}-${width}`)

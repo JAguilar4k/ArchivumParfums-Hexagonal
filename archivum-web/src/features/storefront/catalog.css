@@ -150,3 +150,142 @@
     padding-inline: .5rem;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Identidad de la colección: portada editorial y tarjetas comerciales */
+/* ------------------------------------------------------------------ */
+
+.showcase__masthead {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-block: 0.5rem 1.25rem;
+  border-block-end: 1px solid var(--color-divider);
+}
+
+.showcase__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin: 0;
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.showcase__eyebrow::before {
+  content: '';
+  width: 2.25rem;
+  border-top: 2px solid var(--color-sand);
+}
+
+.perfume-card {
+  padding: 0.625rem 0.625rem 1rem;
+  border: 1px solid var(--color-divider);
+  border-radius: 1rem;
+  background: var(--color-surface);
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.perfume-card:hover,
+.perfume-card:focus-within {
+  border-color: var(--color-sand);
+  box-shadow: 0 2px 3px rgb(23 18 15 / 8%), 0 22px 34px -26px rgb(23 18 15 / 55%);
+  transform: translateY(-3px);
+}
+
+.perfume-card .perfume-art {
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.perfume-card__heading {
+  padding-inline: 0.25rem;
+}
+
+.perfume-card__price {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.005em;
+}
+
+.perfume-card__name {
+  font-family: Inter, system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 1.0625rem;
+  letter-spacing: -0.005em;
+}
+
+.perfume-card .perfume-card__add {
+  min-height: 2.75rem;
+  margin-inline: 0.25rem;
+  border: 1px solid var(--color-sand);
+  border-radius: 999px;
+  background: var(--color-sand);
+  color: var(--color-wine);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.perfume-card .perfume-card__add:hover,
+.perfume-card .perfume-card__add:focus-visible {
+  border-color: var(--color-wine);
+  background: var(--color-wine);
+  color: var(--color-light);
+  text-decoration: none;
+}
+
+.perfume-card .perfume-card__add:focus-visible {
+  outline-color: var(--color-wine);
+  outline-offset: 2px;
+}
+
+.showcase__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.showcase__chip {
+  padding: 0.375rem 0.875rem;
+  border: 1px solid var(--color-sand);
+  border-radius: 999px;
+  background: var(--color-sand);
+  color: var(--color-wine);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.showcase__chip:hover {
+  border-color: var(--color-wine);
+  background: var(--color-wine);
+  color: var(--color-light);
+}
+
+.showcase__clear {
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.showcase__tools {
+  padding-block: 0.25rem 0.5rem;
+}
+
+@media (max-width: 40rem) {
+  .perfume-card {
+    padding: 0.5rem 0.5rem 0.875rem;
+    border-radius: 0.875rem;
+  }
+
+  .perfume-card .perfume-card__add {
+    margin-inline: 0;
+  }
+}

@@ -37,7 +37,7 @@ const originLabel = computed(() =>
 
 const status = computed(() => {
   if (sending.value) {
-    return 'Buscando perfumes para usted. Puede tardar unos segundos…'
+    return 'Buscando perfumes para ti. Puede tardar unos segundos…'
   }
 
   if (!recommendation.value) {
@@ -47,10 +47,10 @@ const status = computed(() => {
   const count = recommendation.value.perfumes.length
 
   if (count === 0) {
-    return 'No encontramos perfumes para esa descripción. Pruebe con otras palabras.'
+    return 'No encontramos perfumes para esa descripción. Prueba con otras palabras.'
   }
 
-  return count === 1 ? 'Le recomendamos 1 perfume.' : `Le recomendamos ${count} perfumes.`
+  return count === 1 ? 'Te recomendamos 1 perfume.' : `Te recomendamos ${count} perfumes.`
 })
 
 async function recommend(): Promise<void> {
@@ -111,15 +111,15 @@ function localProblem(message: string): ApiProblem {
   <div class="page recommender">
     <h1>Pedir una recomendación</h1>
     <p class="form-intro">
-      Describa con sus palabras el perfume que busca. Le sugerimos hasta cinco perfumes de esta tienda y le decimos por
+      Cuéntanos con tus palabras el perfume que buscas. Te sugerimos hasta cinco perfumes de esta tienda y te decimos por
       qué.
     </p>
 
     <form ref="form" class="form" novalidate @submit.prevent="recommend">
       <div class="form-field">
-        <label for="texto-recomendacion">Describa lo que le gusta</label>
+        <label for="texto-recomendacion">Cuéntanos qué te gusta</label>
         <p id="pista-recomendacion" class="field-hint">
-          Puede hablar de notas, momento del día, clima, ocasión y cuánto quiere gastar, en hasta 1000 caracteres. Por
+          Puedes hablar de notas, momento del día, clima, ocasión y cuánto quieres gastar, en hasta 1000 caracteres. Por
           ejemplo: algo fresco y cítrico para el día, que no cueste más de ₡60 000.
         </p>
         <textarea
@@ -131,7 +131,7 @@ function localProblem(message: string): ApiProblem {
         ></textarea>
         <FieldError :problem="problem" field="texto" />
         <p id="aviso-ia" class="field-hint recommender__notice">
-          Lo que escriba se envía a un proveedor externo de inteligencia artificial. No incluya datos personales como su
+          Lo que escribas se envía a un proveedor externo de inteligencia artificial. No incluyas datos personales como tu
           nombre, correo o teléfono.
         </p>
       </div>

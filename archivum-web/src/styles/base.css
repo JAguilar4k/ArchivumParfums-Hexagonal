@@ -1129,6 +1129,209 @@ label {
   gap: 0.75rem;
 }
 
+/* =====================================================================
+   Revamp, fase 2: identidad compartida de cabecera, navegación y pie.
+   Solo presentación; los componentes, los datos y las rutas no cambian.
+   ===================================================================== */
+
+::selection {
+  background: var(--color-sand);
+  color: var(--color-wine);
+}
+
+/* Banner de anuncio: marquesina continua, una sola línea y sin scroll horizontal. */
+.app-marquee {
+  --marquee-height: 2.5rem;
+  display: flex;
+  align-items: center;
+  height: var(--marquee-height);
+  overflow: hidden;
+  border-block-end: 1px solid var(--color-divider);
+  background: var(--color-dark);
+  color: var(--color-sand);
+}
+
+.app-marquee__track {
+  display: flex;
+  flex: none;
+  width: max-content;
+  animation: app-marquee 34s linear infinite;
+}
+
+/* A visitor can stop the movement by pointing at it or reaching it with the keyboard. */
+.app-marquee__track:hover,
+.app-marquee__track:focus-within {
+  animation-play-state: paused;
+}
+
+.app-marquee__item {
+  flex: none;
+  max-width: none;
+  margin: 0;
+  padding-inline-end: clamp(2rem, 6vw, 5rem);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: var(--marquee-height);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Four identical copies: moving exactly one of them leaves the next in its place, with no gap at the seam. */
+@keyframes app-marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-25%);
+  }
+}
+
+/* Without motion the banner shows the first copy, still in one line and with the same height. */
+@media (prefers-reduced-motion: reduce) {
+  .app-marquee__track {
+    animation: none;
+  }
+}
+
+.app-header {
+  box-shadow: 0 1px 0 rgb(23 18 15 / 4%), 0 14px 28px -28px rgb(23 18 15 / 55%);
+}
+
+.app-header__monogram,
+.app-header__logo {
+  box-shadow: 0 0 0 2px var(--color-sand);
+}
+
+.app-header__name {
+  letter-spacing: 0.18em;
+}
+
+.app-header__categories {
+  position: relative;
+  isolation: isolate;
+  border-block-start: 0;
+  background: transparent;
+}
+
+.app-header__categories ul {
+  letter-spacing: 0.14em;
+}
+
+.store-categories a {
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.45em;
+}
+
+.store-categories a:hover {
+  text-decoration-color: var(--color-sand);
+}
+
+.store-categories a[aria-current='page'] {
+  color: var(--color-accent);
+  text-decoration-color: var(--color-accent);
+}
+
+.app-footer {
+  border-block-start: 2px solid var(--color-sand);
+}
+
+.app-footer__label {
+  color: var(--color-sand);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.button {
+  letter-spacing: 0.03em;
+}
+
+.icon-button:hover,
+.icon-button:focus-visible {
+  background: var(--color-surface-alt);
+  border-radius: 999px;
+}
+
+/* --- Revamp, fase 2: ficha del perfume y carrito con la misma identidad --- */
+
+.detail-offer {
+  border-radius: 999px;
+}
+
+.detail-price,
+.cart-drawer__subtotal {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.005em;
+}
+
+.detail-buy__add,
+.cart-drawer__checkout {
+  border-radius: 999px;
+  letter-spacing: 0.04em;
+}
+
+/* --- Revamp, fase 3: ancho real, tipografía sans y navegación única --- */
+
+html {
+  overflow-x: clip;
+}
+
+body {
+  --page-width: 84rem;
+  --page-gutter: clamp(1rem, 4vw, 3rem);
+}
+
+/* Las franjas del inicio ocupan la pantalla completa, con el contenido en su contenedor fluido. */
+.home-hero {
+  width: 100vw;
+  margin-inline: calc(50% - 50vw);
+}
+
+.home-benefits {
+  width: 100%;
+  margin-inline: 0;
+}
+
+.home-benefits__inner {
+  width: 100%;
+  max-width: var(--page-width);
+  margin-inline: auto;
+  padding-inline: var(--page-gutter);
+}
+
+/* Titulares y precios en Inter: la serif queda para la marca y los acentos. */
+h1,
+h2,
+h3,
+h4 {
+  font-family: Inter, system-ui, sans-serif;
+  font-weight: 600;
+  letter-spacing: -0.018em;
+}
+
+h1 {
+  letter-spacing: -0.024em;
+}
+
+/* El menú lateral repite la franja de categorías: en escritorio se oculta y la franja es la navegación. */
+@media (min-width: 64rem) {
+  .app-header__menu {
+    display: none;
+  }
+}
+
+/* Fotografías de producto: sin recortar la botella y con aire alrededor. */
+.catalog-grid .perfume-card .perfume-art img,
+.perfume-detail .detail-figure .perfume-art img {
+  padding: clamp(0.5rem, 2.4vw, 1.25rem);
+  background: var(--color-surface-alt);
+  object-fit: contain;
+}
+
 /* No motion when the system asks for less (2.3.3). */
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -1151,4 +1354,33 @@ label {
   .button {
     border-color: ButtonText;
   }
+}
+
+/* Encabezado más compacto verticalmente */
+
+/* Banner superior */
+.app-marquee {
+  --marquee-height: 1.875rem;
+}
+
+.app-marquee__item {
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+}
+
+/* Fila del logo y los botones */
+.app-header__row {
+  padding-block: 0.125rem;
+}
+
+/* Logo un poco más pequeño */
+.app-header__monogram,
+.app-header__logo {
+  width: 2.125rem;
+  height: 2.125rem;
+}
+
+/* Menú de categorías más compacto */
+.app-header__categories ul {
+  line-height: 1.2;
 }

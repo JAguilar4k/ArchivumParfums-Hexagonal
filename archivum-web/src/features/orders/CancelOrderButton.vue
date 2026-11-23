@@ -80,7 +80,7 @@ async function cancel(): Promise<void> {
     </button>
     <div v-else class="cancel-order__confirm" role="group" :aria-labelledby="`pregunta-cancelar-${order.id}`">
       <p :id="`pregunta-cancelar-${order.id}`">
-        ¿Seguro que quiere cancelar este pedido? Si ya pagó algo, se le devolverá todo lo pagado.
+        ¿Seguro que quieres cancelar este pedido? Si ya pagaste algo, se te devolverá todo lo pagado.
       </p>
       <div class="form-actions">
         <button type="button" :aria-disabled="sending ? 'true' : undefined" @click="cancel">Sí, cancelar el pedido</button>

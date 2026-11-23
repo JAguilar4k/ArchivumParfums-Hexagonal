@@ -103,7 +103,7 @@ describe('an order', () => {
     await wrapper.get('.pay-order > button').trigger('click')
     await flushPromises()
 
-    expect(plain(wrapper.get('.pay-order__foreign').text())).toContain('se le cobrarán USD 141,18 por ₡72 000')
+    expect(plain(wrapper.get('.pay-order__foreign').text())).toContain('se te cobrarán USD 141,18 por ₡72 000')
     expect(leaveTo).not.toHaveBeenCalled()
 
     await wrapper.get('.pay-order__foreign button').trigger('click')
@@ -179,7 +179,7 @@ describe('"Mis pedidos"', () => {
 
     await wrapper.get('.cancel-order button').trigger('click')
     await flushPromises()
-    expect(wrapper.get('.cancel-order p').text()).toContain('¿Seguro que quiere cancelar este pedido?')
+    expect(wrapper.get('.cancel-order p').text()).toContain('¿Seguro que quieres cancelar este pedido?')
     // The question takes the place of the button: the focus goes to the choice that changes nothing.
     expect(document.activeElement?.textContent?.trim()).toBe('No, mantener el pedido')
 
@@ -213,7 +213,7 @@ describe('"Mis pedidos"', () => {
 
     const { wrapper } = await open('/cuenta/pedidos', 'cliente')
 
-    expect(wrapper.get('.empty-state p').text()).toBe('Todavía no tiene pedidos.')
+    expect(wrapper.get('.empty-state p').text()).toBe('Todavía no tienes pedidos.')
   })
 
   it('sends a visitor to the sign-in and the staff to "Sin permiso"', async () => {

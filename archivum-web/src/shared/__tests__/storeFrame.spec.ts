@@ -75,19 +75,19 @@ describe('store frame', () => {
     const title = drawer.get('h2')
     expect(drawer.attributes('open')).toBeDefined()
     expect(document.activeElement).toBe(title.element)
-    expect(title.text()).toBe('Su carrito (1)')
+    expect(title.text()).toBe('Tu carrito (1)')
     expect(drawer.get('[role="status"]').text()).toContain('Se agregó Oud Nocturno, botella de 50 ml.')
 
     const reduce = drawer.get('button[aria-label^="Reducir cantidad"]')
     expect(reduce.attributes('aria-disabled')).toBe('true')
     await drawer.get('button[aria-label^="Aumentar cantidad"]').trigger('click')
-    expect(title.text()).toBe('Su carrito (2)')
+    expect(title.text()).toBe('Tu carrito (2)')
     expect(plain(drawer.get('.cart-drawer__subtotal').text())).toContain('₡19 000')
     await reduce.trigger('click')
-    expect(title.text()).toBe('Su carrito (1)')
+    expect(title.text()).toBe('Tu carrito (1)')
 
     await drawer.get('button[aria-label^="Quitar Oud Nocturno"]').trigger('click')
-    expect(drawer.text()).toContain('Su carrito está vacío.')
+    expect(drawer.text()).toContain('Tu carrito está vacío.')
     expect(drawer.get('[role="status"]').text()).toContain('Se quitó del carrito: Oud Nocturno')
     expect(document.activeElement).toBe(title.element)
 

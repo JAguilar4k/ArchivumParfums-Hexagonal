@@ -61,9 +61,9 @@ watch(page, (current, previous) => {
     <!-- Always in the page, so screen readers announce a cancellation or a new page. -->
     <p class="results-summary" role="status">{{ notice }}</p>
 
-    <LoadingState v-if="orders.loading.value" message="Cargando sus pedidos…" />
+    <LoadingState v-if="orders.loading.value" message="Cargando tus pedidos…" />
     <ErrorState v-else-if="orders.problem.value" :problem="orders.problem.value" @retry="orders.reload" />
-    <EmptyState v-else-if="orders.empty.value" message="Todavía no tiene pedidos.">
+    <EmptyState v-else-if="orders.empty.value" message="Todavía no tienes pedidos.">
       <RouterLink :to="{ name: 'storefront', params: { tienda } }" class="action-link">Ver la vitrina</RouterLink>
     </EmptyState>
     <template v-else-if="orders.data.value">
@@ -106,7 +106,7 @@ watch(page, (current, previous) => {
           />
         </li>
       </ul>
-      <nav v-if="meta && meta.last_page > 1" class="pagination" aria-label="Páginas de sus pedidos">
+      <nav v-if="meta && meta.last_page > 1" class="pagination" aria-label="Páginas de tus pedidos">
         <RouterLink
           v-if="meta.current_page > 1"
           :to="{ name: 'orders', query: { pagina: meta.current_page - 1 } }"

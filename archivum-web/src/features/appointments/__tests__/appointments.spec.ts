@@ -41,7 +41,7 @@ describe('my appointments', () => {
     expect(facts).toContain('TiendaArchivumParfums')
     expect(facts).toContain('EstadoConfirmada')
     expect(facts).toContain('HoraDe 9:00 a. m. a 9:45 a. m.')
-    expect(facts).toContain('Le atiendeLuis Mora')
+    expect(facts).toContain('Te atiendeLuis Mora')
     expect(facts).toContain('Perfumes para probarÁmbar Nocturno')
     expect(wrapper.get('.sub-nav a[aria-current="page"]').text()).toBe('Próximas')
   })
@@ -56,7 +56,7 @@ describe('my appointments', () => {
     })
     const { wrapper, router } = await open('/cuenta/citas', 'cliente')
 
-    expect(wrapper.get('.empty-state').text()).toContain('No tiene citas próximas.')
+    expect(wrapper.get('.empty-state').text()).toContain('No tienes citas próximas.')
 
     await router.push({ name: 'past-appointments' })
     await flushPromises()
@@ -156,7 +156,7 @@ describe('a new hour for an appointment', () => {
     })
     expect(wrapper.get('h1').text()).toBe('Cambiar la hora de la cita')
     expect(plain(wrapper.get('.reschedule .prose').text())).toContain(
-      'Su cita es el sábado, 23 de noviembre de 2030, de 9:00 a. m. a 9:45 a. m., con Luis Mora.',
+      'Tu cita es el sábado, 23 de noviembre de 2030, de 9:00 a. m. a 9:45 a. m., con Luis Mora.',
     )
     // The person is already chosen, so the options do not repeat it.
     expect(plain(wrapper.findAll('.slot-list .choice')[1]?.text() ?? '')).toBe('11:00 a. m. a 11:45 a. m.')
@@ -170,7 +170,7 @@ describe('a new hour for an appointment', () => {
 
     await vi.waitFor(() => expect(wrapper.find('.appointment-view .facts').exists()).toBe(true))
     expect(router.currentRoute.value.fullPath).toBe(DETAIL)
-    expect(wrapper.get('.appointment-view [role="status"]').text()).toBe('Se cambió la hora de su cita.')
+    expect(wrapper.get('.appointment-view [role="status"]').text()).toBe('Se cambió la hora de tu cita.')
     expect(plain(wrapper.get('h1').text())).toBe('Cita del sábado, 23 de noviembre de 2030, 11:00 a. m.')
   })
 
@@ -203,7 +203,7 @@ describe('a new hour for an appointment', () => {
     await wrapper.get('.reschedule form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.get('#error-inicia_en').text()).toBe('Elija una hora de la lista.')
+    expect(wrapper.get('#error-inicia_en').text()).toBe('Elige una hora de la lista.')
     expect(document.activeElement).toBe(wrapper.get('input[name="inicia_en"]').element)
     expect(requests.some((request) => request.method === 'PATCH')).toBe(false)
   })

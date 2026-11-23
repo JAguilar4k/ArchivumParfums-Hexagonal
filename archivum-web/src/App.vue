@@ -26,6 +26,9 @@ const cartLabel = computed(() => (count.value === 1 ? 'Carrito, 1 producto' : `C
 const shopLink = computed(() => ({ name: 'storefront', params: { tienda: tienda.value } }))
 const phone = storeWhatsApp()
 const whatsapp = phone ? `https://wa.me/${encodeURIComponent(phone)}` : ''
+const notice = computed(
+  () => `Decants para probar antes de comprar${store.value?.lugar_cita ? ` · Citas de prueba en ${store.value.lugar_cita}` : ''}`,
+)
 
 const menuOpen = ref(false)
 const searchOpen = ref(false)
@@ -65,15 +68,22 @@ function skipToContent(event: MouseEvent): void {
 
 <template>
   <a class="skip-link" :href="`#${MAIN_CONTENT_ID}`" @click="skipToContent">Saltar al contenido</a>
-  <aside aria-label="Aviso de la tienda">
-    <p class="app-announcement">
-      Decants para probar antes de comprar<span v-if="store?.lugar_cita"> · Citas de prueba en {{ store.lugar_cita }}</span>
-    </p>
+  <!-- The banner scrolls as a marquee: the first copy is the one a screen reader announces and the others repeat
+       it only for the loop, so the same notice is never read twice. -->
+  <aside class="app-marquee" aria-label="Aviso de la tienda">
+    <div class="app-marquee__track">
+      <p
+        v-for="copy in 4"
+        :key="copy"
+        class="app-marquee__item"
+        :aria-hidden="copy === 1 ? undefined : 'true'"
+      >{{ notice }}</p>
+    </div>
   </aside>
   <header class="app-header">
     <div class="frame-inner app-header__row">
       <div class="app-header__actions">
-        <button ref="menuTrigger" type="button" class="icon-button" aria-label="Abrir el menú" aria-haspopup="dialog" @click="menuOpen = true">
+        <button ref="menuTrigger" type="button" class="icon-button app-header__menu" aria-label="Abrir el menú" aria-haspopup="dialog" @click="menuOpen = true">
           <StoreIcon name="menu" />
         </button>
         <button ref="searchTrigger" type="button" class="icon-button" aria-label="Buscar perfumes" aria-haspopup="dialog" @click="openSearch">
