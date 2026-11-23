@@ -23,6 +23,7 @@ use Src\Payments\Payments\Infrastructure\Jobs\RequestRefundJob;
 use Src\Payments\Payments\Infrastructure\Persistence\Models\PaymentModel;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
+use Tests\Support\Payments\OnvoWebhook;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 use function Pest\Laravel\artisan;
@@ -87,11 +88,8 @@ function fakeOnvoForPacks(string $intentStatus = 'succeeded', string $sessionSta
  */
 function noticeOfPaidPack(StaffedBusiness $business, string $paymentId, string $secret = 'webhook_secret_fictitious'): TestResponse
 {
-    return postJson('/api/v1/webhooks/onvo', [
-        'type' => 'checkout-session.succeeded',
-        'data' => ['mode' => 'test', 'id' => 'session-'.$paymentId, 'status' => 'complete', 'paymentStatus' => 'paid', 'amountTotal' => 4_000_000,
-            'currency' => 'CRC', 'metadata' => ['businessId' => $business->business->id, 'paymentId' => $paymentId]],
-    ], ['X-Webhook-Secret' => $secret]);
+    return OnvoWebhook::post(OnvoWebhook::notice('checkout_session.succeeded', ['mode' => 'test', 'id' => 'session-'.$paymentId, 'status' => 'complete', 'paymentStatus' => 'paid', 'amountTotal' => 4_000_000,
+        'currency' => 'CRC', 'metadata' => ['businessId' => $business->business->id, 'paymentId' => $paymentId]]), $secret);
 }
 
 /**

@@ -22,6 +22,7 @@ use Src\Shared\Infrastructure\Http\Middleware\AssignRequestId;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
 use Tests\Support\Decants\StoredPacks;
+use Tests\Support\Payments\OnvoWebhook;
 use Tests\Support\Payments\StoredPayments;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Sales\StoredOrders;
@@ -104,11 +105,11 @@ function fakeLateOnvoCharge(PaymentModel $payment): void
  */
 function sendLateOnvoNotice(StaffedBusiness $business, PaymentModel $payment): TestResponse
 {
-    return postJson('/api/v1/webhooks/onvo', ['type' => 'checkout-session.succeeded', 'data' => [
+    return OnvoWebhook::post(OnvoWebhook::notice('checkout_session.succeeded', [
         'id' => $payment->provider_reference, 'mode' => 'test', 'status' => 'complete', 'paymentStatus' => 'paid',
         'amountTotal' => $payment->charged_amount * 100, 'currency' => 'CRC',
         'metadata' => ['businessId' => $business->business->id, 'paymentId' => $payment->id],
-    ]], ['X-Webhook-Secret' => 'webhook_secret_fictitious']);
+    ]), 'webhook_secret_fictitious');
 }
 
 /** The reconciliation of #96, once the stored payments waited long enough for their notice. */
@@ -197,7 +198,7 @@ it('R38, R39: leaves one refund when the late notice arrives twice and the recon
     $payment = StoredPayments::create($business, $order);
     cancelBeforeTheLateCharge($order->id);
     fakeLateOnvoCharge($payment);
-    $eventId = 'checkout-session.succeeded:'.$payment->provider_reference;
+    $eventId = 'checkout_session.succeeded:'.$payment->provider_reference;
 
     sendLateOnvoNotice($business, $payment)->assertOk()->assertExactJson(['data' => ['evento' => $eventId, 'estado' => 'recibido']]);
     sendLateOnvoNotice($business, $payment)->assertOk()->assertExactJson(['data' => ['evento' => $eventId, 'estado' => 'repetido']]);
@@ -351,7 +352,7 @@ it('R38, R39: leaves one refund when the late notice of an expired order arrives
     $payment = StoredPayments::create($business, $order);
     expireBeforeTheLateCharge($business, $order);
     fakeLateOnvoCharge($payment);
-    $eventId = 'checkout-session.succeeded:'.$payment->provider_reference;
+    $eventId = 'checkout_session.succeeded:'.$payment->provider_reference;
 
     sendLateOnvoNotice($business, $payment)->assertOk()->assertExactJson(['data' => ['evento' => $eventId, 'estado' => 'recibido']]);
     sendLateOnvoNotice($business, $payment)->assertOk()->assertExactJson(['data' => ['evento' => $eventId, 'estado' => 'repetido']]);
@@ -549,7 +550,7 @@ it('R38, R39: leaves one refund when the late notice of an expired pack arrives 
     $payment = StoredPayments::forPack($business, $pack);
     expirePackBeforeTheLateCharge($business, $pack);
     fakeLateOnvoCharge($payment);
-    $eventId = 'checkout-session.succeeded:'.$payment->provider_reference;
+    $eventId = 'checkout_session.succeeded:'.$payment->provider_reference;
 
     sendLateOnvoNotice($business, $payment)->assertOk()->assertExactJson(['data' => ['evento' => $eventId, 'estado' => 'recibido']]);
     sendLateOnvoNotice($business, $payment)->assertOk()->assertExactJson(['data' => ['evento' => $eventId, 'estado' => 'repetido']]);

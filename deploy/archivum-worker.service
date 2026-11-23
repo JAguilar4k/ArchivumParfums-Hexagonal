@@ -1,0 +1,15 @@
+# Worker de la cola database (#95, #97): procesa los avisos de pago y los reembolsos.
+[Unit]
+Description=ArchivumParfums queue worker
+After=network.target postgresql.service
+
+[Service]
+User=archivum
+Group=archivum
+WorkingDirectory=/srv/archivum/app/archivum-api-hexagonal
+ExecStart=/usr/bin/php artisan queue:work --sleep=3 --max-time=3600
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

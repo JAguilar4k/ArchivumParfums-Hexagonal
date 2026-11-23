@@ -16,6 +16,7 @@ use Src\Payments\Payments\Infrastructure\Persistence\Repositories\EloquentPaymen
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
 use Tests\Support\Payments\FailPaymentSave;
+use Tests\Support\Payments\OnvoWebhook;
 use Tests\Support\Payments\StoredPayments;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Sales\StoredOrders;
@@ -23,6 +24,7 @@ use Tests\Support\Sales\StoredOrders;
 use function Pest\Laravel\artisan;
 use function Pest\Laravel\assertDatabaseCount;
 use function Pest\Laravel\assertDatabaseHas;
+use function Pest\Laravel\call;
 use function Pest\Laravel\postJson;
 use function Pest\Laravel\travel;
 use function Pest\Laravel\travelTo;
@@ -42,14 +44,14 @@ beforeEach(function (): void {
 });
 
 /**
- * A notice as ONVO sends it: its type and the object it is about, in test mode.
+ * A notice as ONVO sends it: its identifier, its type and the object it is about, in test mode.
  *
- * @param  array<string, mixed>  $data
+ * @param  array<string, mixed>  $object
  * @return array<string, mixed>
  */
-function onvoNotice(string $type, array $data): array
+function onvoNotice(string $type, array $object): array
 {
-    return ['type' => $type, 'data' => ['mode' => 'test', 'currency' => 'CRC', ...$data]];
+    return OnvoWebhook::notice($type, $object);
 }
 
 /**
@@ -59,7 +61,7 @@ function onvoNotice(string $type, array $data): array
  */
 function paidOnvoCheckout(StaffedBusiness $business, PaymentModel $payment, int $amountTotal = 750_000, string $currency = 'CRC'): array
 {
-    return onvoNotice('checkout-session.succeeded', [
+    return onvoNotice('checkout_session.succeeded', [
         'id' => $payment->provider_reference, 'status' => 'complete', 'paymentStatus' => 'paid',
         'amountTotal' => $amountTotal, 'currency' => $currency,
         'metadata' => ['businessId' => $business->business->id, 'paymentId' => $payment->id],
@@ -67,14 +69,14 @@ function paidOnvoCheckout(StaffedBusiness $business, PaymentModel $payment, int 
 }
 
 /**
- * Send a notice to the ONVO webhook, with the secret ONVO would send or none.
+ * Send a notice to the ONVO webhook, signed as ONVO signs it with a secret, or unsigned.
  *
  * @param  array<string, mixed>  $notice
  * @return TestResponse<JsonResponse>
  */
-function postOnvoNotice(array $notice, ?string $secret = 'webhook_secret_fictitious'): TestResponse
+function postOnvoNotice(array $notice, ?string $secret = OnvoWebhook::SECRET): TestResponse
 {
-    return postJson('/api/v1/webhooks/onvo', $notice, $secret === null ? [] : ['X-Webhook-Secret' => $secret]);
+    return OnvoWebhook::post($notice, $secret);
 }
 
 /** ONVO answering the server's own query about the checkout of a stored payment. */
@@ -154,11 +156,26 @@ it('R38: rejects an ONVO notice whose origin is not verified and changes nothing
     expect(webhookState($business))->toEqual($before);
     Http::assertNothingSent();
 })->with([
-    'without the header' => [null, []],
+    'without the signature' => [null, []],
     'with another secret' => ['webhook_secret_other', []],
     'with no secret configured' => ['', ['payments.onvo.webhook_secret' => '']],
     'with no test key configured' => ['webhook_secret_fictitious', ['payments.onvo.secret_key' => '']],
 ]);
+
+it('R38: rejects an ONVO notice replayed more than five minutes after ONVO signed it and changes nothing', function (): void {
+    $business = StaffedBusiness::create();
+    $payment = StoredPayments::create($business, StoredOrders::create($business)['order']);
+    $before = webhookState($business);
+    $body = OnvoWebhook::body(paidOnvoCheckout($business, $payment));
+    $signed = OnvoWebhook::server($body);
+
+    travel(301)->seconds();
+
+    call('POST', '/api/v1/webhooks/onvo', [], [], [], $signed, $body)->assertUnauthorized()
+        ->assertJsonPath('detail', 'No se pudo verificar el origen del aviso.');
+    expect(webhookState($business))->toEqual($before);
+    Http::assertNothingSent();
+});
 
 it('R38: rejects a PayPal notice whose signature PayPal does not verify and changes nothing', function (array $answer, int $status): void {
     $business = StaffedBusiness::create();
@@ -216,14 +233,14 @@ it('R26: confirms the payment and its order with a verified ONVO notice of the p
     fakeOnvoCheckout($payment);
 
     postOnvoNotice(paidOnvoCheckout($business, $payment))->assertOk()
-        ->assertExactJson(['data' => ['evento' => 'checkout-session.succeeded:'.$payment->provider_reference, 'estado' => 'recibido']]);
+        ->assertExactJson(['data' => ['evento' => 'checkout_session.succeeded:'.$payment->provider_reference, 'estado' => 'recibido']]);
 
     app(BusinessTransaction::class)->scope($business->business->id);
     assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'succeeded']);
     assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'confirmed', 'paid' => 7500, 'balance' => 7500]);
-    assertDatabaseHas('webhook_events', ['gateway' => 'onvo', 'event_id' => 'checkout-session.succeeded:'.$payment->provider_reference, 'event_type' => 'checkout-session.succeeded', 'status' => 'processed', 'error' => null]);
+    assertDatabaseHas('webhook_events', ['gateway' => 'onvo', 'event_id' => 'checkout_session.succeeded:'.$payment->provider_reference, 'event_type' => 'checkout_session.succeeded', 'status' => 'processed', 'error' => null]);
     expect(DB::table('webhook_events')->value('processed_at'))->not->toBeNull()
-        ->and(json_decode((string) DB::table('webhook_events')->value('payload'), true)['data']['metadata']['paymentId'])->toBe($payment->id);
+        ->and(json_decode((string) DB::table('webhook_events')->value('payload'), true)['data']['object']['metadata']['paymentId'])->toBe($payment->id);
     // The notice only says something happened: the status comes from the server's own query.
     Http::assertSentCount(2);
 });
@@ -247,7 +264,7 @@ it('finds the business by the provider reference when the notice brings no metad
     $payment = StoredPayments::create($business, $order);
     fakeOnvoCheckout($payment);
 
-    postOnvoNotice(onvoNotice('payment-intent.succeeded', ['id' => $payment->capture_reference, 'status' => 'succeeded', 'amount' => 750_000, 'metadata' => []]))
+    postOnvoNotice(onvoNotice('payment_intent.succeeded', ['id' => $payment->capture_reference, 'status' => 'succeeded', 'amount' => 750_000, 'metadata' => []]))
         ->assertOk()->assertJsonPath('data.estado', 'recibido');
 
     app(BusinessTransaction::class)->scope($business->business->id);
@@ -261,7 +278,7 @@ it('leaves a failed or expired charge without confirming the order', function (s
     $payment = StoredPayments::create($business, $order);
     fakeOnvoCheckout($payment, $intentStatus, sessionStatus: 'expired');
 
-    postOnvoNotice(onvoNotice('payment-intent.failed', ['id' => $payment->capture_reference, 'status' => $intentStatus, 'amount' => 750_000]))
+    postOnvoNotice(onvoNotice('payment_intent.failed', ['id' => $payment->capture_reference, 'status' => $intentStatus, 'amount' => 750_000]))
         ->assertOk()->assertJsonPath('data.estado', 'recibido');
 
     app(BusinessTransaction::class)->scope($business->business->id);
@@ -287,15 +304,15 @@ it('R38: fails the charge with the notice ONVO documents for a failed intent, wh
             ->push($intent('requires_payment_method', ['code' => 'card_declined']))->push($intent('canceled', null)),
     ]);
 
-    // The example of payment-intent.failed in https://docs.onvopay.com/webhooks, with fictitious identifiers.
-    postOnvoNotice(['type' => 'payment-intent.failed', 'data' => [
+    // A payment_intent.failed event without mode or amount in its object, with fictitious identifiers.
+    postOnvoNotice(['id' => 'payment_intent.failed:'.$payment->capture_reference, 'object' => 'event', 'type' => 'payment_intent.failed', 'data' => ['object' => [
         'id' => $payment->capture_reference, 'accountId' => 'account-fictitious', 'currency' => 'CRC', 'capturableAmount' => 0, 'status' => 'requires_payment_method',
-    ]])->assertOk()->assertJsonPath('data.estado', 'recibido');
+    ]]])->assertOk()->assertJsonPath('data.estado', 'recibido');
 
     app(BusinessTransaction::class)->scope($business->business->id);
     assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'failed']);
     assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'pending_payment', 'paid' => 0]);
-    assertDatabaseHas('webhook_events', ['event_id' => 'payment-intent.failed:'.$payment->capture_reference, 'status' => 'processed', 'error' => null]);
+    assertDatabaseHas('webhook_events', ['event_id' => 'payment_intent.failed:'.$payment->capture_reference, 'status' => 'processed', 'error' => null]);
 });
 
 it('records a notice whose amount or currency differs from the payment as failed and confirms nothing', function (int $amountTotal, string $currency): void {
@@ -308,7 +325,7 @@ it('records a notice whose amount or currency differs from the payment as failed
     app(BusinessTransaction::class)->scope($business->business->id);
     assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'pending']);
     assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'pending_payment', 'paid' => 0]);
-    assertDatabaseHas('webhook_events', ['event_id' => 'checkout-session.succeeded:'.$payment->provider_reference, 'status' => 'failed', 'error' => 'payments.event_amount_mismatch', 'processed_at' => null]);
+    assertDatabaseHas('webhook_events', ['event_id' => 'checkout_session.succeeded:'.$payment->provider_reference, 'status' => 'failed', 'error' => 'payments.event_amount_mismatch', 'processed_at' => null]);
     Http::assertNothingSent();
 })->with([
     'a smaller amount' => [100, 'CRC'],
@@ -321,7 +338,7 @@ it('still asks a paid intent for its amount, and a failed one for its currency a
     $order = StoredOrders::create($business)['order'];
     $payment = StoredPayments::create($business, $order);
 
-    postOnvoNotice(['type' => $type, 'data' => ['id' => $payment->capture_reference, 'status' => 'requires_payment_method', ...$charge]])
+    postOnvoNotice(['id' => $type.':'.$payment->capture_reference, 'type' => $type, 'data' => ['object' => ['id' => $payment->capture_reference, 'status' => 'requires_payment_method', ...$charge]]])
         ->assertOk()->assertJsonPath('data.estado', 'recibido');
 
     app(BusinessTransaction::class)->scope($business->business->id);
@@ -330,10 +347,10 @@ it('still asks a paid intent for its amount, and a failed one for its currency a
     assertDatabaseHas('webhook_events', ['event_id' => $type.':'.$payment->capture_reference, 'status' => 'failed', 'error' => 'payments.event_amount_mismatch', 'processed_at' => null]);
     Http::assertNothingSent();
 })->with([
-    'a paid intent without amount' => ['payment-intent.succeeded', ['currency' => 'CRC', 'status' => 'succeeded']],
-    'a failed intent with another amount' => ['payment-intent.failed', ['currency' => 'CRC', 'amount' => 100_000]],
-    'a failed intent in another currency' => ['payment-intent.failed', ['currency' => 'USD']],
-    'a failed intent without currency' => ['payment-intent.failed', []],
+    'a paid intent without amount' => ['payment_intent.succeeded', ['currency' => 'CRC', 'status' => 'succeeded']],
+    'a failed intent with another amount' => ['payment_intent.failed', ['currency' => 'CRC', 'amount' => 100_000]],
+    'a failed intent in another currency' => ['payment_intent.failed', ['currency' => 'USD']],
+    'a failed intent without currency' => ['payment_intent.failed', []],
 ]);
 
 it('captures an approved PayPal order and confirms the payment once the capture completes', function (): void {
@@ -400,18 +417,25 @@ it('changes nothing when the notice names a payment that is no longer pending', 
 });
 
 it('records a notice that is not about a charge without asking the provider', function (): void {
-    postOnvoNotice(onvoNotice('subscription.renewal.succeeded', ['id' => 'subscription-fictitious-1']))->assertOk()
-        ->assertExactJson(['data' => ['evento' => 'subscription.renewal.succeeded:subscription-fictitious-1', 'estado' => 'recibido']]);
+    postOnvoNotice(onvoNotice('subscription_renewal.succeeded', ['id' => 'subscription-fictitious-1']))->assertOk()
+        ->assertExactJson(['data' => ['evento' => 'subscription_renewal.succeeded:subscription-fictitious-1', 'estado' => 'recibido']]);
 
-    assertDatabaseHas('webhook_events', ['gateway' => 'onvo', 'event_type' => 'subscription.renewal.succeeded', 'status' => 'processed']);
+    assertDatabaseHas('webhook_events', ['gateway' => 'onvo', 'event_type' => 'subscription_renewal.succeeded', 'status' => 'processed']);
+    Http::assertNothingSent();
+});
+
+it('answers the test that the ONVO dashboard sends with "Test connection" without asking the provider', function (): void {
+    postOnvoNotice(['id' => 'evt_fictitious_test', 'object' => 'event', 'mode' => 'test', 'type' => 'webhook_endpoint.test', 'data' => ['object' => ['id' => 'we_fictitious']]])
+        ->assertOk()->assertExactJson(['data' => ['evento' => 'evt_fictitious_test', 'estado' => 'recibido']]);
+
     Http::assertNothingSent();
 });
 
 it('records a notice about a charge no payment has as failed', function (): void {
-    postOnvoNotice(onvoNotice('payment-intent.succeeded', ['id' => 'intent-unknown', 'status' => 'succeeded', 'amount' => 750_000]))
+    postOnvoNotice(onvoNotice('payment_intent.succeeded', ['id' => 'intent-unknown', 'status' => 'succeeded', 'amount' => 750_000]))
         ->assertOk()->assertJsonPath('data.estado', 'recibido');
 
-    assertDatabaseHas('webhook_events', ['event_id' => 'payment-intent.succeeded:intent-unknown', 'status' => 'failed', 'error' => 'payments.not_found']);
+    assertDatabaseHas('webhook_events', ['event_id' => 'payment_intent.succeeded:intent-unknown', 'status' => 'failed', 'error' => 'payments.not_found']);
     Http::assertNothingSent();
 });
 
@@ -425,18 +449,18 @@ it('never applies a notice to a payment of another business', function (): void 
     $notice = paidOnvoCheckout($business, $payment);
 
     // The business of another store with this payment: the payment does not exist there.
-    $notice['data']['metadata']['businessId'] = $other->business->id;
+    $notice['data']['object']['metadata']['businessId'] = $other->business->id;
     postOnvoNotice($notice)->assertOk()->assertJsonPath('data.estado', 'recibido');
     // This payment with the checkout of a payment of another store.
-    postOnvoNotice(onvoNotice('checkout-session.succeeded', [
+    postOnvoNotice(onvoNotice('checkout_session.succeeded', [
         'id' => $otherPayment->provider_reference, 'amountTotal' => 750_000,
         'metadata' => ['businessId' => $business->business->id, 'paymentId' => $payment->id],
     ]))->assertOk()->assertJsonPath('data.estado', 'recibido');
 
     expect(webhookState($business)['payments'])->toEqual($before['payments'])
         ->and(webhookState($business)['orders'])->toEqual($before['orders']);
-    assertDatabaseHas('webhook_events', ['event_id' => 'checkout-session.succeeded:'.$payment->provider_reference, 'error' => 'payments.not_found']);
-    assertDatabaseHas('webhook_events', ['event_id' => 'checkout-session.succeeded:'.$otherPayment->provider_reference, 'error' => 'payments.event_reference_mismatch']);
+    assertDatabaseHas('webhook_events', ['event_id' => 'checkout_session.succeeded:'.$payment->provider_reference, 'error' => 'payments.not_found']);
+    assertDatabaseHas('webhook_events', ['event_id' => 'checkout_session.succeeded:'.$otherPayment->provider_reference, 'error' => 'payments.event_reference_mismatch']);
     Http::assertNothingSent();
 });
 
@@ -445,7 +469,7 @@ it('R38: applies an event sent twice only once and answers the repeated one with
     $order = StoredOrders::create($business)['order'];
     $payment = StoredPayments::create($business, $order);
     fakeOnvoCheckout($payment);
-    $eventId = 'checkout-session.succeeded:'.$payment->provider_reference;
+    $eventId = 'checkout_session.succeeded:'.$payment->provider_reference;
 
     postOnvoNotice(paidOnvoCheckout($business, $payment))->assertOk()->assertExactJson(['data' => ['evento' => $eventId, 'estado' => 'recibido']]);
     postOnvoNotice(paidOnvoCheckout($business, $payment))->assertOk()->assertExactJson(['data' => ['evento' => $eventId, 'estado' => 'repetido']]);
@@ -469,7 +493,7 @@ it('answers 503 and keeps nothing when the sync queue cannot ask the provider, a
             ->push(['id' => $payment->provider_reference, 'mode' => 'test', 'status' => 'complete', 'paymentIntentId' => $payment->capture_reference]),
         'api.onvopay.com/v1/payment-intents/'.$payment->capture_reference => Http::response(['id' => $payment->capture_reference, 'mode' => 'test', 'amount' => 750_000, 'currency' => 'CRC', 'status' => 'succeeded']),
     ]);
-    $eventId = 'checkout-session.succeeded:'.$payment->provider_reference;
+    $eventId = 'checkout_session.succeeded:'.$payment->provider_reference;
 
     // The job ran inside the request and failed, so the notice was not kept either: the provider sends it again.
     postOnvoNotice(paidOnvoCheckout($business, $payment))->assertServiceUnavailable()->assertHeader('Retry-After', '30')
@@ -499,7 +523,7 @@ it('R38: answers at once and leaves the kept notice to the queue, whose worker a
     $order = StoredOrders::create($business)['order'];
     $payment = StoredPayments::create($business, $order);
     fakeOnvoCheckout($payment);
-    $eventId = 'checkout-session.succeeded:'.$payment->provider_reference;
+    $eventId = 'checkout_session.succeeded:'.$payment->provider_reference;
 
     postOnvoNotice(paidOnvoCheckout($business, $payment))->assertOk()->assertJsonPath('data.estado', 'recibido');
 
@@ -582,7 +606,7 @@ it('marks the notice failed while the provider cannot be asked and applies it on
             ->push(['id' => $payment->provider_reference, 'mode' => 'test', 'status' => 'complete', 'paymentIntentId' => $payment->capture_reference]),
         'api.onvopay.com/v1/payment-intents/'.$payment->capture_reference => Http::response(['id' => $payment->capture_reference, 'mode' => 'test', 'amount' => 750_000, 'currency' => 'CRC', 'status' => 'succeeded']),
     ]);
-    $eventId = 'checkout-session.succeeded:'.$payment->provider_reference;
+    $eventId = 'checkout_session.succeeded:'.$payment->provider_reference;
 
     postOnvoNotice(paidOnvoCheckout($business, $payment))->assertOk()->assertJsonPath('data.estado', 'recibido');
     workOnePaymentEvent();
@@ -617,7 +641,7 @@ it('R46: keeps the job of a notice in failed_jobs while ONVO never answers, and 
         'api.onvopay.com/v1/checkout/sessions/'.$payment->provider_reference => $session,
         'api.onvopay.com/v1/payment-intents/'.$payment->capture_reference => Http::response(['id' => $payment->capture_reference, 'mode' => 'test', 'amount' => 750_000, 'currency' => 'CRC', 'status' => 'succeeded']),
     ]);
-    $eventId = 'checkout-session.succeeded:'.$payment->provider_reference;
+    $eventId = 'checkout_session.succeeded:'.$payment->provider_reference;
 
     postOnvoNotice(paidOnvoCheckout($business, $payment))->assertOk()->assertJsonPath('data.estado', 'recibido');
     foreach ([10, 60, 300, 300, 0] as $wait) {
@@ -653,7 +677,7 @@ it('leaves a notice with an error of its own failed, without trying again', func
     postOnvoNotice(paidOnvoCheckout($business, $payment, amountTotal: 100))->assertOk();
     workOnePaymentEvent();
 
-    assertDatabaseHas('webhook_events', ['event_id' => 'checkout-session.succeeded:'.$payment->provider_reference, 'status' => 'failed', 'error' => 'payments.event_amount_mismatch']);
+    assertDatabaseHas('webhook_events', ['event_id' => 'checkout_session.succeeded:'.$payment->provider_reference, 'status' => 'failed', 'error' => 'payments.event_amount_mismatch']);
     expect(DB::table('jobs')->count())->toBe(0)
         ->and(DB::table('failed_jobs')->count())->toBe(0);
     app(BusinessTransaction::class)->scope($business->business->id);
@@ -676,6 +700,6 @@ it('undoes everything when an unexpected error interrupts the notice, marks it f
     app(BusinessTransaction::class)->scope($business->business->id);
     assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'pending']);
     assertDatabaseHas('orders', ['id' => $order->id, 'status' => 'pending_payment', 'paid' => 0]);
-    assertDatabaseHas('webhook_events', ['event_id' => 'checkout-session.succeeded:'.$payment->provider_reference, 'status' => 'failed', 'error' => 'payments.event_not_processed']);
+    assertDatabaseHas('webhook_events', ['event_id' => 'checkout_session.succeeded:'.$payment->provider_reference, 'status' => 'failed', 'error' => 'payments.event_not_processed']);
     expect(DB::table('jobs')->value('attempts'))->toBe(1);
 });

@@ -156,7 +156,7 @@ Estas precisiones de R32–R35 fueron confirmadas por la persona responsable el 
 
 - **R36.** Dos pasarelas intercambiables por configuración, detrás de un mismo puerto: ONVO Pay (tarjeta y SINPE Móvil) y PayPal (tarjeta).
 - **R37.** Los precios están en colones. La API estándar de PayPal no acepta colones (CRC no está en su lista de monedas), así que con PayPal se cobra en USD con un tipo de cambio configurable y se guardan ambos montos. Se redondea al centavo más cercano, con medio centavo hacia arriba; la conversión vive en el adaptador.
-- **R38.** Un pago cambia de estado solo con un webhook cuyo origen se verificó (ONVO: encabezado `X-Webhook-Secret`; PayPal: verificación de firma) y que se procesa una sola vez (id de evento único por pasarela). Al volver del pago, el navegador solo muestra "procesando".
+- **R38.** Un pago cambia de estado solo con un webhook cuyo origen se verificó (ONVO: firma del encabezado `X-Onvo-Signature`; PayPal: verificación de firma) y que se procesa una sola vez (id de evento único por pasarela). Al volver del pago, el navegador solo muestra "procesando".
 - **R39.** Una tarea periódica concilia los pagos pendientes con la API de la pasarela, para que el estado del pedido siempre coincida con el del proveedor.
 - **R40.** Los reembolsos se registran ligados al pago original, se piden por la API de la pasarela en sandbox y se confirman por webhook o conciliación.
 

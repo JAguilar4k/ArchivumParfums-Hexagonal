@@ -12,6 +12,7 @@ use Src\Payments\Payments\Infrastructure\Jobs\RequestRefundJob;
 use Src\Sales\Orders\Domain\Contracts\OrderRepository;
 use Src\Sales\Orders\Infrastructure\Jobs\ExpireUnpaidOrderJob;
 use Src\Sales\Orders\Infrastructure\Persistence\Repositories\EloquentOrderRepository;
+use Tests\Support\Payments\OnvoWebhook;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Sales\HoldLockedOrderForCompetingOperation;
 
@@ -48,10 +49,10 @@ it('R25, R38: ends an expiry and the confirmation of its payment that arrive at 
         $owner->table('decant_movements')->insert(['business_id' => $businessId, 'decant_bottle_id' => $bottleId, 'type' => 'reservation', 'ml' => 5, 'order_line_id' => $lineId, 'user_id' => $userId, 'created_at' => $timestamps['created_at']]);
         $owner->table('payments')->insert(['id' => $paymentId, 'business_id' => $businessId, 'order_id' => $orderId, 'purpose' => 'full', 'amount' => 800, 'gateway' => 'onvo', 'status' => 'pending', 'charged_currency' => 'CRC', 'charged_amount' => 800, 'provider_reference' => $session, 'checkout_reference' => $session, 'capture_reference' => $intent, ...$timestamps]);
     });
-    $notice = json_encode(['type' => 'checkout-session.succeeded', 'data' => [
+    $notice = OnvoWebhook::body(OnvoWebhook::notice('checkout_session.succeeded', [
         'id' => $session, 'mode' => 'test', 'status' => 'complete', 'paymentStatus' => 'paid', 'amountTotal' => 80_000, 'currency' => 'CRC',
         'metadata' => ['businessId' => $businessId, 'paymentId' => $paymentId],
-    ]], JSON_THROW_ON_ERROR);
+    ]));
 
     // The job of the deadline, as the worker runs it: through its middleware, in a transaction of its business.
     $expire = function () use ($orderId, $businessId, $signal, $first): array {
@@ -82,7 +83,7 @@ it('R25, R38: ends an expiry and the confirmation of its payment that arrive at 
         }
         $kernel = app(Kernel::class);
         $request = Request::create('/api/v1/webhooks/onvo', 'POST', [], [], [],
-            ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json', 'HTTP_X_WEBHOOK_SECRET' => 'webhook_secret_fictitious'], $notice);
+            OnvoWebhook::server($notice), $notice);
         $response = $kernel->handle($request);
         $kernel->terminate($request, $response);
 

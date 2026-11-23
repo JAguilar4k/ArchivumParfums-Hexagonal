@@ -74,7 +74,7 @@ Si una regla del negocio no está en la especificación, preguntá antes de inve
 | Web | `archivum-web`: Vue 3 + TypeScript + Vite, Vue Router, Pinia, tipos generados desde `openapi/v1.json`, Laravel Echo |
 | IA | `laravel/ai`, el SDK oficial, con salida estructurada. Proveedor por definir |
 | CI | GitHub Actions con la forma del repo guía: PostgreSQL 18 de servicio, roles, lint, análisis, pruebas y auditoría; más un job para `archivum-web` |
-| Despliegue | Por definir: PHP 8.4, PostgreSQL 18, worker de colas, scheduler, websockets y HTTPS |
+| Despliegue | VPS de OVHcloud con Ubuntu 24.04: Caddy (HTTPS), PHP-FPM 8.4, PostgreSQL 18, worker de colas en systemd y scheduler con cron (ADR 0013, `docs/deployment.md`, `deploy/`) |
 
 ## Estructura
 
@@ -161,7 +161,7 @@ Si al crear el proyecto algún comando cambia, actualizá esta sección.
 
 ## Documentación de las integraciones
 
-- ONVO Pay: https://docs.onvopay.com (contexto para agentes en `/llms-full.txt`). Llaves de prueba con prefijo `onvo_test_`; el origen de los webhooks se verifica con el encabezado `X-Webhook-Secret`.
+- ONVO Pay: https://docs.onvopay.com (contexto para agentes en `/llms-full.txt`). Llaves de prueba con prefijo `onvo_test_`; el origen de los webhooks se verifica con la firma HMAC-SHA256 del encabezado `X-Onvo-Signature` (el formato anterior, con `X-Webhook-Secret`, ya no admite webhooks nuevos).
 - PayPal: https://developer.paypal.com (índice en `/llms.txt`). Su API estándar no acepta colones: con PayPal se cobra en USD.
 - Laravel AI SDK: https://laravel.com/docs/13.x/ai-sdk
 - Laravel MCP (extra): https://github.com/laravel/mcp

@@ -1,0 +1,2 @@
+# Programador de Laravel (#96, #156, #158, #159): como en el repo guía, cron llama a schedule:run cada minuto.
+* * * * * archivum cd /srv/archivum/app/archivum-api-hexagonal && /usr/bin/php artisan schedule:run >> /dev/null 2>&1

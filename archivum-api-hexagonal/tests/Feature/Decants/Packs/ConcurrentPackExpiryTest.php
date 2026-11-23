@@ -14,6 +14,7 @@ use Src\Decants\Packs\Infrastructure\Jobs\ExpireDecantPackJob;
 use Src\Decants\Packs\Infrastructure\Persistence\Repositories\EloquentDecantPackRepository;
 use Src\Payments\Payments\Infrastructure\Jobs\RequestRefundJob;
 use Tests\Support\Decants\HoldLockedPackForCompetingOperation;
+use Tests\Support\Payments\OnvoWebhook;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 pest()->use(RefreshDatabaseAsOwner::class);
@@ -45,10 +46,10 @@ it('R33, R38: ends the expiry of an unpaid pack and the confirmation of its paym
         $owner->table('payments')->insert(['id' => $paymentId, 'business_id' => $businessId, 'decant_pack_id' => $packId, 'purpose' => 'full', 'amount' => 40000, 'gateway' => 'onvo',
             'status' => 'pending', 'charged_currency' => 'CRC', 'charged_amount' => 40000, 'provider_reference' => $session, 'checkout_reference' => $session, 'capture_reference' => $intent, ...$timestamps]);
     });
-    $notice = json_encode(['type' => 'checkout-session.succeeded', 'data' => [
+    $notice = OnvoWebhook::body(OnvoWebhook::notice('checkout_session.succeeded', [
         'id' => $session, 'mode' => 'test', 'status' => 'complete', 'paymentStatus' => 'paid', 'amountTotal' => 4_000_000, 'currency' => 'CRC',
         'metadata' => ['businessId' => $businessId, 'paymentId' => $paymentId],
-    ]], JSON_THROW_ON_ERROR);
+    ]));
 
     // The job of the payment deadline, as the worker runs it: through its middleware, in a transaction of its business.
     $expire = function () use ($packId, $businessId, $signal, $first): array {
@@ -79,7 +80,7 @@ it('R33, R38: ends the expiry of an unpaid pack and the confirmation of its paym
         }
         $kernel = app(Kernel::class);
         $request = Request::create('/api/v1/webhooks/onvo', 'POST', [], [], [],
-            ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json', 'HTTP_X_WEBHOOK_SECRET' => 'webhook_secret_fictitious'], $notice);
+            OnvoWebhook::server($notice), $notice);
         $response = $kernel->handle($request);
         $kernel->terminate($request, $response);
 

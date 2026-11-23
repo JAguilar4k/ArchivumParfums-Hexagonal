@@ -740,7 +740,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Receive a notice of ONVO Pay, whose origin is the secret ONVO sends in `X-Webhook-Secret` */
+        /** Receive a notice of ONVO Pay, whose origin is the signature ONVO sends in `X-Onvo-Signature` */
         post: operations["payments.webhooks.onvo"];
         delete?: never;
         options?: never;

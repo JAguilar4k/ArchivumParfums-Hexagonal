@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Src\Payments\Payments\Application\Contracts\WebhookEventLog;
 use Src\Payments\Payments\Infrastructure\Persistence\Repositories\DatabaseWebhookEventLog;
 use Tests\Support\Payments\HoldKeptNoticeForCompetingNotice;
+use Tests\Support\Payments\OnvoWebhook;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 pest()->use(RefreshDatabaseAsOwner::class);
@@ -39,10 +40,10 @@ it('R38: applies the same notice sent twice at the same time only once', functio
         $owner->table('order_lines')->insert(['id' => (string) Str::uuid7(), 'business_id' => $businessId, 'order_id' => $orderId, 'kind' => 'bottle', 'perfume_variant_id' => $variantId, 'quantity' => 1, 'unit_price' => 15000, 'status' => 'pending', ...$timestamps]);
         $owner->table('payments')->insert(['id' => $paymentId, 'business_id' => $businessId, 'order_id' => $orderId, 'purpose' => 'deposit', 'amount' => 7500, 'gateway' => 'onvo', 'status' => 'pending', 'charged_currency' => 'CRC', 'charged_amount' => 7500, 'provider_reference' => $session, 'checkout_reference' => $session, 'capture_reference' => $intent, ...$timestamps]);
     });
-    $notice = json_encode(['type' => 'checkout-session.succeeded', 'data' => [
+    $notice = OnvoWebhook::body(OnvoWebhook::notice('checkout_session.succeeded', [
         'id' => $session, 'mode' => 'test', 'status' => 'complete', 'paymentStatus' => 'paid', 'amountTotal' => 750_000, 'currency' => 'CRC',
         'metadata' => ['businessId' => $businessId, 'paymentId' => $paymentId],
-    ]], JSON_THROW_ON_ERROR);
+    ]));
 
     $send = function () use ($notice, $session, $intent): array {
         config(['payments.onvo.secret_key' => 'onvo_test_fake', 'payments.onvo.webhook_secret' => 'webhook_secret_fictitious']);
@@ -55,7 +56,7 @@ it('R38: applies the same notice sent twice at the same time only once', functio
         app()->bind(WebhookEventLog::class, fn (): HoldKeptNoticeForCompetingNotice => app(HoldKeptNoticeForCompetingNotice::class));
         $kernel = app(Kernel::class);
         $request = Request::create('/api/v1/webhooks/onvo', 'POST', [], [], [],
-            ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json', 'HTTP_X_WEBHOOK_SECRET' => 'webhook_secret_fictitious'], $notice);
+            OnvoWebhook::server($notice), $notice);
         $response = $kernel->handle($request);
         $kernel->terminate($request, $response);
 

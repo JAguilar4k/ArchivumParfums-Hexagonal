@@ -18,6 +18,7 @@ use Src\Decants\Packs\Infrastructure\Persistence\Models\DecantPackPlanModel;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
 use Tests\Support\Catalog\StoredPerfumes;
+use Tests\Support\Payments\OnvoWebhook;
 use Tests\Support\RefreshDatabaseAsOwner;
 
 use function Pest\Laravel\artisan;
@@ -78,11 +79,8 @@ function buyAnExpiringPack(?int $expiryMinutes = null): array
  */
 function noticeOfThePaidExpiringPack(array $bought): TestResponse
 {
-    return postJson('/api/v1/webhooks/onvo', [
-        'type' => 'checkout-session.succeeded',
-        'data' => ['mode' => 'test', 'id' => 'session-'.$bought['payment'], 'status' => 'complete', 'paymentStatus' => 'paid', 'amountTotal' => 4_000_000,
-            'currency' => 'CRC', 'metadata' => ['businessId' => $bought['business']->business->id, 'paymentId' => $bought['payment']]],
-    ], ['X-Webhook-Secret' => 'webhook_secret_fictitious']);
+    return OnvoWebhook::post(OnvoWebhook::notice('checkout_session.succeeded', ['mode' => 'test', 'id' => 'session-'.$bought['payment'], 'status' => 'complete', 'paymentStatus' => 'paid', 'amountTotal' => 4_000_000,
+        'currency' => 'CRC', 'metadata' => ['businessId' => $bought['business']->business->id, 'paymentId' => $bought['payment']]]), 'webhook_secret_fictitious');
 }
 
 /** Run the next job of the database queue that is available at this moment, as the worker of production does. */

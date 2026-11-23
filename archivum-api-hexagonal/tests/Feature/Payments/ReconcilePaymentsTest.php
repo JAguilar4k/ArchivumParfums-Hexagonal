@@ -20,13 +20,13 @@ use Src\Shared\Domain\Exceptions\InvalidValueException;
 use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
 use Tests\Support\Payments\FailPaymentSave;
+use Tests\Support\Payments\OnvoWebhook;
 use Tests\Support\Payments\StoredPayments;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Sales\StoredOrders;
 
 use function Pest\Laravel\artisan;
 use function Pest\Laravel\assertDatabaseHas;
-use function Pest\Laravel\postJson;
 use function Pest\Laravel\travelTo;
 
 pest()->use(RefreshDatabaseAsOwner::class);
@@ -77,11 +77,11 @@ function fakeOnvoStatusFor(PaymentModel $payment, string $intentStatus = 'succee
  */
 function postPaidOnvoNoticeOf(StaffedBusiness $business, PaymentModel $payment): TestResponse
 {
-    return postJson('/api/v1/webhooks/onvo', ['type' => 'checkout-session.succeeded', 'data' => [
+    return OnvoWebhook::post(OnvoWebhook::notice('checkout_session.succeeded', [
         'id' => $payment->provider_reference, 'mode' => 'test', 'status' => 'complete', 'paymentStatus' => 'paid',
         'amountTotal' => 750_000, 'currency' => 'CRC',
         'metadata' => ['businessId' => $business->business->id, 'paymentId' => $payment->id],
-    ]], ['X-Webhook-Secret' => 'webhook_secret_fictitious']);
+    ]), 'webhook_secret_fictitious');
 }
 
 /**
