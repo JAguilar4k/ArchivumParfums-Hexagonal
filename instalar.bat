@@ -110,6 +110,11 @@ pushd "%LARAVEL%"
 call php -r "$present = []; foreach (file('.env', FILE_IGNORE_NEW_LINES) as $line) { if (preg_match('/\A\s*([A-Z][A-Z0-9_]*)=/', $line, $m)) { $present[$m[1]] = true; } } $added = []; foreach (file('.env.example', FILE_IGNORE_NEW_LINES) as $line) { if (preg_match('/\A([A-Z][A-Z0-9_]*)=/', $line, $m) && ! isset($present[$m[1]])) { $added[$m[1]] = $line; } } if ($added === []) { echo '  [listo] .env tiene todas las variables de .env.example.', PHP_EOL; exit(0); } file_put_contents('.env', PHP_EOL.'# Added by instalar.bat from .env.example'.PHP_EOL.implode(PHP_EOL, $added).PHP_EOL, FILE_APPEND); echo '  [hecho] Se agregaron a .env, con su valor de ejemplo: ', implode(', ', array_keys($added)), PHP_EOL;"
 if errorlevel 1 goto :failed_in_folder
 popd
+rem Uploaded photos get their address from APP_URL, so it must include the port of composer run dev.
+call php -r "foreach (file('%ENV_FILE%', FILE_IGNORE_NEW_LINES) as $line) { if (in_array(trim($line), ['APP_URL=http://localhost', 'APP_URL=http://localhost/'], true)) { exit(1); } }"
+if errorlevel 1 (
+    echo   Aviso: APP_URL=http://localhost no lleva el puerto de la API y las fotos subidas no cargan. Cámbielo a APP_URL=http://localhost:8000 en .env.
+)
 for %%F in (.env .env.local) do if exist "%WEB_DIR%\%%F" (
     echo   Aviso: el cliente web ya no usa %WEB_DIR%\%%F; pase sus variables VITE_ al .env de la API y bórrelo.
 )
