@@ -11,6 +11,7 @@ return [
     'existing_role_password' => 'El rol de PostgreSQL ya existe. Escriba su contraseña actual en :variable de .env; el instalador no cambia las contraseñas de otras instalaciones.',
     'migrations_missing' => 'No se encontraron migraciones. Ejecute git submodule update --init --recursive desde la raíz del repositorio y vuelva a ejecutar archivum:install.',
     'migration_failed' => 'Las migraciones fallaron. Corrija el error y ejecute de nuevo archivum:install.',
+    'postgres_version' => 'El servidor es PostgreSQL :found y el proyecto necesita PostgreSQL :required o superior. Instale PostgreSQL :required, apunte DB_HOST y DB_PORT de .env a ese servidor y ejecute de nuevo la instalación.',
     'query_failed' => 'Falló una operación de PostgreSQL. Revise los permisos del rol y los datos DB_ de .env.',
     'query_failed_with_state' => 'Falló una operación de PostgreSQL (SQLSTATE :sqlstate). Revise los permisos del rol y los datos DB_ de .env.',
     'ready' => 'El entorno quedó listo para trabajar.',

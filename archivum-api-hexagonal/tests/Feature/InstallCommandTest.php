@@ -140,6 +140,25 @@ it('rolls back a failed seed and completes it on the next installation', functio
     });
 });
 
+it('stops before migrating when the server is older than the PostgreSQL of the project', function () {
+    $migrated = false;
+    Artisan::command('migrate {--database=} {--force}', function () use (&$migrated): int {
+        $migrated = true;
+
+        return 0;
+    });
+
+    withLocalInstaller(function () use (&$migrated): void {
+        $found = intdiv((int) DB::connection('pgsql_admin')->scalar('show server_version_num'), 10000);
+        config(['archivum.installer.postgres_major_version' => $found + 1]);
+
+        expect(Artisan::call('archivum:install'))->toBe(1);
+        expect(Artisan::output())->toContain(__('install.postgres_version', ['required' => $found + 1, 'found' => $found]));
+        expect($migrated)->toBeFalse();
+        assertDatabaseCount('users', 0);
+    });
+});
+
 it('reports a failed migration without seeding or announcing success', function () {
     Artisan::command('migrate {--database=} {--force}', fn (): int => 1);
 

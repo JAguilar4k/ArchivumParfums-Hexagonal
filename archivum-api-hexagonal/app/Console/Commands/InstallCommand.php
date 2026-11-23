@@ -75,7 +75,11 @@ final class InstallCommand extends Command
                     return self::FAILURE;
                 }
 
-                $this->createRolesAndDatabases($this->superuserConnection($password));
+                $superuser = $this->superuserConnection($password);
+                $this->ensureRequiredPostgresVersion($superuser);
+                $this->createRolesAndDatabases($superuser);
+            } else {
+                $this->ensureRequiredPostgresVersion(DB::connection('pgsql_admin'));
             }
 
             $this->migrateAndSeed();
@@ -140,6 +144,17 @@ final class InstallCommand extends Command
         }
 
         $this->call('key:generate', ['--force' => true]);
+    }
+
+    /** Stop before creating roles or migrating when the server is older than the PostgreSQL of the project. */
+    private function ensureRequiredPostgresVersion(Connection $connection): void
+    {
+        $required = (int) config('archivum.installer.postgres_major_version');
+        $found = intdiv((int) $connection->scalar('show server_version_num'), 10000);
+
+        if ($found < $required) {
+            throw new RuntimeException(__('install.postgres_version', ['required' => $required, 'found' => $found]));
+        }
     }
 
     /** Both roles log in with the passwords of .env and the testing database exists. */

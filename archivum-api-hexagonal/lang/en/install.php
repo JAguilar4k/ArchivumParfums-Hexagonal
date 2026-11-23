@@ -11,6 +11,7 @@ return [
     'existing_role_password' => 'The PostgreSQL role already exists. Set its current password in :variable in .env; the installer does not change credentials used by another installation.',
     'migrations_missing' => 'No migrations were found. Run git submodule update --init --recursive from the repository root, then run archivum:install again.',
     'migration_failed' => 'Migrations failed. Fix the error and run archivum:install again.',
+    'postgres_version' => 'The server runs PostgreSQL :found and the project needs PostgreSQL :required or later. Install PostgreSQL :required, point DB_HOST and DB_PORT of .env to that server and run the installation again.',
     'query_failed' => 'A PostgreSQL operation failed. Check the role permissions and the DB_ values in .env.',
     'query_failed_with_state' => 'A PostgreSQL operation failed (SQLSTATE :sqlstate). Check the role permissions and the DB_ values in .env.',
     'ready' => 'The environment is ready to work.',
