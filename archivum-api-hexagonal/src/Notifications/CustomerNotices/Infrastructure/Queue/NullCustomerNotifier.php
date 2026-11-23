@@ -13,6 +13,6 @@ final readonly class NullCustomerNotifier implements CustomerNotifier
 {
     public function schedule(CustomerNotice $notice, string $businessId, string $customerId, string $reference, array $details = []): void
     {
-        DB::afterCommit(fn () => Log::info('WhatsApp notice skipped: Twilio Sandbox is not configured.'));
+        DB::afterCommit(fn () => Log::info('WhatsApp notice skipped: Twilio is not configured.'));
     }
 }

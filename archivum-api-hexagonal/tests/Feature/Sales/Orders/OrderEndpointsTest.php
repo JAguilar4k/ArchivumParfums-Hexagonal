@@ -448,7 +448,7 @@ it('sends the order confirmation using the customer phone of the store', functio
     $sender->shouldReceive('supports')->with(CustomerNotice::OrderPlaced)->andReturnTrue();
     $sender->shouldReceive('send')->once()->with(CustomerNotice::OrderPlaced, '+50688880001', Mockery::on(
         fn (string $message): bool => str_starts_with($message, 'Recibimos tu pedido '),
-    ));
+    ), Mockery::on(fn (array $variables): bool => array_keys($variables) === ['reference']));
 
     $response = postJson('/api/v1/tiendas/'.$business->business->slug.'/pedidos', ['lineas' => [
         ['presentacion_id' => $perfume->variants[0]->id->value, 'cantidad' => 1],

@@ -12,7 +12,7 @@ final class TwilioSandbox
 
     public const string RECIPIENT = '+50688880001';
 
-    public const string TRIAL_FROM = '+15005550006';
+    public const string BUSINESS_FROM = '+15005550006';
 
     public const string ORDER_CONTENT_SID = 'HX11111111111111111111111111111111';
 
@@ -31,13 +31,13 @@ final class TwilioSandbox
         ]);
     }
 
-    public static function configureTrial(string $orderContentSid = '', string $appointmentContentSid = ''): void
+    public static function configureBusiness(string $orderContentSid = '', string $appointmentContentSid = ''): void
     {
         self::configure();
 
         config([
-            'archivum.whatsapp.mode' => 'trial',
-            'archivum.whatsapp.from' => self::TRIAL_FROM,
+            'archivum.whatsapp.mode' => 'business',
+            'archivum.whatsapp.from' => self::BUSINESS_FROM,
             'archivum.whatsapp.order_content_sid' => $orderContentSid,
             'archivum.whatsapp.appointment_content_sid' => $appointmentContentSid,
         ]);

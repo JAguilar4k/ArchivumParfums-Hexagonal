@@ -16,8 +16,8 @@ final readonly class NullWhatsAppSender implements WhatsAppSender
     }
 
     /** The configuration may have changed after the notice was queued. */
-    public function send(CustomerNotice $notice, string $phone, string $message): void
+    public function send(CustomerNotice $notice, string $phone, string $message, array $variables): void
     {
-        Log::info('WhatsApp notice skipped: Twilio Sandbox is not configured.');
+        Log::info('WhatsApp notice skipped: Twilio is not configured.');
     }
 }

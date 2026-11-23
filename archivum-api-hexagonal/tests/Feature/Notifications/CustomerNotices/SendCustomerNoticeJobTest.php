@@ -40,7 +40,7 @@ it('discards the queued notice when the transaction rolls back', function () {
 
 it('logs a skipped notice after commit without queueing it when the sandbox is disabled', function () {
     config(['queue.default' => 'database', 'archivum.whatsapp.sid' => '']);
-    Log::shouldReceive('info')->once()->with('WhatsApp notice skipped: Twilio Sandbox is not configured.');
+    Log::shouldReceive('info')->once()->with('WhatsApp notice skipped: Twilio is not configured.');
 
     DB::transaction(fn () => app(CustomerNotifier::class)->schedule(
         CustomerNotice::OrderPlaced,
@@ -88,8 +88,8 @@ it('sends a notice at most once when the same job is replayed', function () {
     $job->handle($transaction, app(NoticeRecipients::class), app(WhatsAppSender::class));
 });
 
-it('skips a trial notice without a configured template before claiming an attempt', function () {
-    TwilioSandbox::configureTrial(orderContentSid: TwilioSandbox::ORDER_CONTENT_SID);
+it('skips a business notice without an approved template before claiming an attempt', function () {
+    TwilioSandbox::configureBusiness(orderContentSid: TwilioSandbox::ORDER_CONTENT_SID);
     Http::preventStrayRequests();
     Log::shouldReceive('info')->once()->with('WhatsApp notice skipped: this notice is not enabled.', ['notice_type' => 'appointment_booked']);
     $business = StaffedBusiness::create();

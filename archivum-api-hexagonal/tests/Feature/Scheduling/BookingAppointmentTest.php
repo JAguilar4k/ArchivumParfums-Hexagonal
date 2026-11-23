@@ -378,7 +378,7 @@ it('sends a booking confirmation with the appointment time in the store timezone
     $sender->shouldReceive('supports')->with(CustomerNotice::AppointmentBooked)->andReturnTrue();
     $sender->shouldReceive('send')->once()->with(CustomerNotice::AppointmentBooked, '+50688880001', Mockery::on(
         fn (string $message): bool => str_starts_with($message, 'Reservamos tu cita de prueba para el '.$startsAt->format('d/m/Y H:i')),
-    ));
+    ), Mockery::on(fn (array $variables): bool => $variables['starts_at'] === $startsAt->format('d/m/Y H:i') && isset($variables['reference'])));
 
     postJson(bookingUrl($scenario), bookingBody($scenario))->assertCreated();
 });

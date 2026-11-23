@@ -445,13 +445,20 @@ tests/       Pruebas unitarias, de funcionalidad y de arquitectura
 
 La arquitectura se describe en [docs/architecture.md](../docs/architecture.md).
 
-## Confirmaciones por WhatsApp en pruebas
+## Confirmaciones por WhatsApp
 
-En el archivo local `.env` de la API, configura `TWILIO_SID` con el Account SID, `TWILIO_TOKEN` con el Auth Token y `TWILIO_WHATSAPP_FROM` con el remitente que muestra el flujo de prueba de Twilio. En `TWILIO_WHATSAPP_TEST_NUMBERS`, indica los números de prueba autorizados en formato internacional E.164, separados por comas. Conserva las credenciales y los teléfonos de prueba fuera de Git.
+En el archivo local `.env` de la API, configura `TWILIO_SID` con el Account SID, `TWILIO_TOKEN` con el Auth Token y `TWILIO_WHATSAPP_FROM` con el remitente de WhatsApp. Conserva las credenciales y los teléfonos fuera de Git.
 
-- **Sandbox clásico.** Deja `TWILIO_WHATSAPP_MODE` vacío o usa `sandbox`. Usa el remitente compartido y une el número de prueba al sandbox. Las confirmaciones en español de este modo son mensajes de texto y requieren la ventana de 24 horas que abre el destinatario al enviar un mensaje. [Guía del sandbox clásico](https://www.twilio.com/docs/whatsapp/sandbox)
-- **Trial con Try out WhatsApp.** Usa `TWILIO_WHATSAPP_MODE=trial`. Copia el remitente del ejemplo de la consola y autoriza los destinatarios verificados para ese remitente. Configura `TWILIO_WHATSAPP_ORDER_CONTENT_SID` para un pedido nuevo y `TWILIO_WHATSAPP_APPOINTMENT_CONTENT_SID` para una cita reservada solo si Twilio ofrece una plantilla apropiada para cada evento. Copia el identificador `HX…` que muestra el ejemplo. La solicitud de Trial contiene `From`, `To` y `ContentSid`. Deja vacía la variable de un evento que no tenga plantilla adecuada. [Guía de Try out WhatsApp](https://www.twilio.com/docs/usage/trials/try-out-whatsapp)
+- **Sandbox.** Deja `TWILIO_WHATSAPP_MODE` vacío o usa `sandbox`. Usa el remitente compartido `+14155238886` y une cada número de prueba al sandbox. En `TWILIO_WHATSAPP_TEST_NUMBERS`, indica esos números en formato E.164, separados por comas. Las confirmaciones viajan como texto en español y requieren la ventana de 24 horas que abre el destinatario al escribir. [Guía del sandbox](https://www.twilio.com/docs/whatsapp/sandbox)
+- **Cuenta de pago.** Usa `TWILIO_WHATSAPP_MODE=business` y el número propio registrado como remitente de WhatsApp. Las confirmaciones abren la conversación, así que viajan como plantillas aprobadas por Meta y llegan a cualquier cliente con teléfono en E.164. Crea en el Content Template Builder dos plantillas de categoría *Utility* en español y copia su identificador `HX…` en `TWILIO_WHATSAPP_ORDER_CONTENT_SID` y `TWILIO_WHATSAPP_APPOINTMENT_CONTENT_SID`. Un evento sin plantilla aprobada se omite. [Plantillas de WhatsApp](https://www.twilio.com/docs/content)
 
-Aplica la migración con `php artisan migrate --database=pgsql_admin`. Después de cambiar la configuración, ejecuta `php artisan config:clear` y reinicia el worker de la cola. Para comprobar el flujo, usa un cliente de demostración con el número de prueba guardado en su perfil de la tienda. El formulario de registro no recoge el teléfono.
+| Variable | Texto de la plantilla |
+| --- | --- |
+| `TWILIO_WHATSAPP_ORDER_CONTENT_SID` | `Recibimos tu pedido {{1}}. Consulta su estado y el saldo en Mis pedidos.` |
+| `TWILIO_WHATSAPP_APPOINTMENT_CONTENT_SID` | `Reservamos tu cita de prueba para el {{1}} (hora de la tienda). Referencia: {{2}}. Consulta los detalles en Mis citas.` |
+
+Los textos son los de `lang/es/notices.php`. El adaptador envía `{{1}}` y `{{2}}` en `ContentVariables`: la referencia del pedido, y la fecha y la referencia de la cita.
+
+Aplica las migraciones con `php artisan migrate --database=pgsql_admin`. Después de cambiar la configuración, ejecuta `php artisan config:clear` y reinicia el worker de la cola. Para comprobar el flujo, usa un cliente de demostración con su teléfono guardado en el perfil de la tienda. El formulario de registro no recoge el teléfono.
 
 Los avisos se encolan después de confirmar la operación. PostgreSQL registra un solo intento por aviso habilitado. Una plantilla ausente o inválida omite el evento correspondiente antes de registrar el intento. El adaptador nulo registra la omisión si falta la configuración del envío. Los errores de Twilio se registran sin credenciales ni datos del destinatario. El número público del botón se configura en la SPA con `VITE_STORE_WHATSAPP`.

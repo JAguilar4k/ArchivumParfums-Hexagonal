@@ -10,5 +10,10 @@ interface WhatsAppSender
 {
     public function supports(CustomerNotice $notice): bool;
 
-    public function send(CustomerNotice $notice, string $phone, string $message): void;
+    /**
+     * The message is the Spanish text of lang/es/notices.php; the variables fill an approved template.
+     *
+     * @param  array<string, string>  $variables
+     */
+    public function send(CustomerNotice $notice, string $phone, string $message, array $variables): void;
 }

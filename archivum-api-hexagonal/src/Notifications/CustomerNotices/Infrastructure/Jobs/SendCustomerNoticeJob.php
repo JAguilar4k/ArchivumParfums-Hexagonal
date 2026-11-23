@@ -66,6 +66,8 @@ final class SendCustomerNoticeJob extends IdempotentJob
             return;
         }
 
-        $sender->send($this->notice, $phone, (string) __('notices.'.$this->notice->value, $this->details + ['reference' => $this->reference], 'es'));
+        $variables = $this->details + ['reference' => $this->reference];
+
+        $sender->send($this->notice, $phone, (string) __('notices.'.$this->notice->value, $variables, 'es'), $variables);
     }
 }
