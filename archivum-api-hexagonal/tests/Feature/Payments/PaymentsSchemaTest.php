@@ -180,7 +180,7 @@ it('enforces read and write tenant barriers using the non-owner application role
 })->with(['payments', 'refunds']);
 
 it('records each webhook event identity only once per provider', function (): void {
-    $event = ['gateway' => 'onvo', 'event_id' => 'fictitious-event-1', 'event_type' => 'payment-intent.succeeded', 'payload' => '{}', 'status' => 'failed', 'error' => 'payments.not_found'];
+    $event = ['gateway' => 'onvo', 'event_id' => 'fictitious-event-1', 'event_type' => 'payment_intent.succeeded', 'payload' => '{}', 'status' => 'failed', 'error' => 'payments.not_found'];
     DB::table('webhook_events')->insert(['id' => (string) Str::uuid7(), ...$event]);
     DB::table('webhook_events')->insert(['id' => (string) Str::uuid7(), ...$event, 'gateway' => 'paypal']);
 
@@ -190,7 +190,7 @@ it('records each webhook event identity only once per provider', function (): vo
 
 it('keeps the outcome of each webhook event with the named PostgreSQL checks', function (array $outcome, string $constraint): void {
     expect(fn () => DB::transaction(fn (): bool => DB::table('webhook_events')->insert([
-        'id' => (string) Str::uuid7(), 'gateway' => 'onvo', 'event_id' => 'fictitious-event-1', 'event_type' => 'checkout-session.succeeded', 'payload' => '{}', ...$outcome,
+        'id' => (string) Str::uuid7(), 'gateway' => 'onvo', 'event_id' => 'fictitious-event-1', 'event_type' => 'checkout_session.succeeded', 'payload' => '{}', ...$outcome,
     ])))->toThrow(QueryException::class, $constraint);
 })->with([
     'an unknown status' => [['status' => 'ignored'], 'webhook_events_status_check'],
@@ -204,7 +204,7 @@ it('keeps the outcome of each webhook event with the named PostgreSQL checks', f
 
 it('keeps a new webhook event pending until it is processed', function (): void {
     $id = (string) Str::uuid7();
-    DB::table('webhook_events')->insert(['id' => $id, 'gateway' => 'onvo', 'event_id' => 'fictitious-event-1', 'event_type' => 'checkout-session.succeeded', 'payload' => '{}']);
+    DB::table('webhook_events')->insert(['id' => $id, 'gateway' => 'onvo', 'event_id' => 'fictitious-event-1', 'event_type' => 'checkout_session.succeeded', 'payload' => '{}']);
 
     expect(DB::table('webhook_events')->where('id', $id)->first(['status', 'error', 'processed_at']))
         ->toEqual((object) ['status' => 'pending', 'error' => null, 'processed_at' => null]);

@@ -14,6 +14,7 @@ use Src\Accounts\Users\Infrastructure\Persistence\Models\UserModel;
 use Src\Payments\Payments\Infrastructure\Jobs\RequestRefundJob;
 use Src\Sales\Orders\Domain\Contracts\OrderRepository;
 use Src\Sales\Orders\Infrastructure\Persistence\Repositories\EloquentOrderRepository;
+use Tests\Support\Payments\OnvoWebhook;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Sales\HoldLockedOrderForCompetingOperation;
 
@@ -50,10 +51,10 @@ it('R38, R40: ends a charge confirmed while the customer cancels in a cancelled 
             'abilities' => json_encode(Ability::namesGrantedTo(AccountRole::Customer), JSON_THROW_ON_ERROR), ...$timestamps]);
     });
     $token = $tokenId.'|'.$plainToken;
-    $notice = json_encode(['type' => 'checkout-session.succeeded', 'data' => [
+    $notice = OnvoWebhook::body(OnvoWebhook::notice('checkout_session.succeeded', [
         'id' => $session, 'mode' => 'test', 'status' => 'complete', 'paymentStatus' => 'paid', 'amountTotal' => 750_000, 'currency' => 'CRC',
         'metadata' => ['businessId' => $businessId, 'paymentId' => $paymentId],
-    ]], JSON_THROW_ON_ERROR);
+    ]));
 
     // ONVO's notice of the paid checkout, applied by the sync queue inside its request.
     $notify = function () use ($notice, $session, $intent, $signal, $first): array {
@@ -71,7 +72,7 @@ it('R38, R40: ends a charge confirmed while the customer cancels in a cancelled 
         }
         $kernel = app(Kernel::class);
         $request = Request::create('/api/v1/webhooks/onvo', 'POST', [], [], [],
-            ['CONTENT_TYPE' => 'application/json', 'HTTP_ACCEPT' => 'application/json', 'HTTP_X_WEBHOOK_SECRET' => 'webhook_secret_fictitious'], $notice);
+            OnvoWebhook::server($notice), $notice);
         $response = $kernel->handle($request);
         $kernel->terminate($request, $response);
 
@@ -127,7 +128,7 @@ it('R38, R40: ends a charge confirmed while the customer cancels in a cancelled 
         expect($owner->table('orders')->where('id', $orderId)->first(['status', 'paid']))->toEqual((object) ['status' => 'cancelled', 'paid' => 7500])
             ->and($owner->table('payments')->where('id', $paymentId)->first(['status', 'refunded_amount']))->toEqual((object) ['status' => 'succeeded', 'refunded_amount' => 0])
             ->and($owner->table('refunds')->get(['payment_id', 'amount', 'status'])->all())->toEqual([(object) ['payment_id' => $paymentId, 'amount' => 7500, 'status' => 'pending']])
-            ->and($owner->table('webhook_events')->where('event_id', 'checkout-session.succeeded:'.$session)->pluck('status')->all())->toBe(['processed'])
+            ->and($owner->table('webhook_events')->where('event_id', 'checkout_session.succeeded:'.$session)->pluck('status')->all())->toBe(['processed'])
             // The customer's cancellation asked for the refund of a confirmed order; the system, for a late charge.
             ->and($owner->table('audit_logs')->where('action', 'refund.requested')->pluck('actor_user_id')->all())->toBe([$first === 'notice' ? $userId : null]);
     });

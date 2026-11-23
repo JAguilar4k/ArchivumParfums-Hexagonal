@@ -13,7 +13,7 @@ use Symfony\Component\HttpKernel\Exception\ServiceUnavailableHttpException;
 
 final readonly class PaymentWebhookController
 {
-    /** Receive a notice of ONVO Pay, whose origin is the secret ONVO sends in `X-Webhook-Secret`. */
+    /** Receive a notice of ONVO Pay, whose origin is the signature ONVO sends in `X-Onvo-Signature`. */
     #[Response(200, 'Aviso verificado. El primero se guarda y se procesa en la cola; uno repetido no cambia nada.', type: PaymentNoticeResource::class)]
     public function onvo(Request $request, ReceivePaymentEvent $receive): PaymentNoticeResource
     {

@@ -8,6 +8,7 @@ use Closure;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Src\Payments\Payments\Domain\Contracts\PaymentGateway;
@@ -28,7 +29,10 @@ use Src\Shared\Domain\ValueObjects\BusinessId;
 final readonly class OnvoGateway implements PaymentGateway
 {
     /** Notices about the charge of a checkout session; the rest, such as subscription renewals, change no payment. */
-    private const array CHARGE_EVENTS = ['checkout-session.succeeded', 'payment-intent.succeeded', 'payment-intent.failed', 'payment-intent.deferred'];
+    private const array CHARGE_EVENTS = ['checkout_session.succeeded', 'payment_intent.succeeded', 'payment_intent.failed', 'payment_intent.processing'];
+
+    /** How many seconds the time of a signature may be away from the server's clock, as ONVO documents. */
+    private const int SIGNATURE_TOLERANCE = 300;
 
     public function __construct(
         private string $secretKey,
@@ -242,40 +246,84 @@ final readonly class OnvoGateway implements PaymentGateway
         return false;
     }
 
+    /**
+     * ONVO signs each attempt in `X-Onvo-Signature` as `t=<unix seconds>,v1=<hex HMAC-SHA256 of "t.body">` with the
+     * endpoint's signing secret. While a secret is being rotated the header carries one `v1` per valid secret, so any
+     * of them may match. A signature older or newer than five minutes is refused, so a captured notice cannot be
+     * replayed later.
+     */
     public function verifyWebhook(string $body, array $headers): bool
     {
         $headers = array_change_key_case($headers, CASE_LOWER);
+        $header = $headers['x-onvo-signature'] ?? '';
 
-        return $this->webhookSecret !== '' && isset($headers['x-webhook-secret']) && hash_equals($this->webhookSecret, $headers['x-webhook-secret']);
+        if ($this->webhookSecret === '' || $header === '') {
+            return false;
+        }
+
+        $time = null;
+        $signatures = [];
+
+        foreach (explode(',', $header) as $part) {
+            [$key, $value] = array_pad(explode('=', trim($part), 2), 2, '');
+
+            if ($key === 't') {
+                $time = $value;
+            } elseif ($key === 'v1') {
+                $signatures[] = strtolower($value);
+            }
+        }
+
+        if ($time === null || ! ctype_digit($time) || abs(Carbon::now()->getTimestamp() - (int) $time) > self::SIGNATURE_TOLERANCE) {
+            return false;
+        }
+
+        $expected = hash_hmac('sha256', $time.'.'.$body, $this->webhookSecret);
+
+        foreach ($signatures as $signature) {
+            if (hash_equals($expected, $signature)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
-     * ONVO sends `type` and the object it is about in `data`, with no identifier of the notice, so the notice is its
-     * type and its object. A checkout session brings back the metadata Archivum sent and its total; a payment intent
-     * carries its own amount, except in the notice of a failed one, which ONVO documents without `amount` or `mode`.
-     * Amounts arrive in céntimos and the payment keeps whole colones.
+     * ONVO sends an event with its own identifier, `id`, its `type` and, in `data.object`, the object it is about. The
+     * identifier is the same in every attempt of the event, so it is the notice. A checkout session brings back the
+     * metadata Archivum sent and its total; a payment intent carries its own amount, except in the notice of a failed
+     * one, which may come without `amount`. Amounts arrive in céntimos and the payment keeps whole colones. A notice
+     * that is not about a charge, such as the test that "Test connection" sends from the dashboard, only needs its
+     * identifier and type.
      */
     public function parseWebhook(string $body): PaymentEvent
     {
         $event = json_decode($body, true);
+        $id = is_array($event) ? ($event['id'] ?? null) : null;
         $type = is_array($event) ? ($event['type'] ?? null) : null;
         $data = is_array($event) ? ($event['data'] ?? null) : null;
+        $object = is_array($data) && is_array($data['object'] ?? null) ? $data['object'] : [];
 
-        if (! is_string($type) || ! is_array($data) || ! is_string($data['id'] ?? null) || ($data['mode'] ?? 'test') !== 'test') {
+        if (! is_string($id) || ! is_string($type) || ($event['mode'] ?? 'test') !== 'test' || ($object['mode'] ?? 'test') !== 'test') {
             throw new InvalidValueException('payments.invalid_webhook');
         }
 
         if (! in_array($type, self::CHARGE_EVENTS, true)) {
-            return new PaymentEvent('onvo', $type.':'.$data['id'], $type);
+            return new PaymentEvent('onvo', $id, $type);
         }
 
-        $metadata = is_array($data['metadata'] ?? null) ? $data['metadata'] : [];
-        [$businessId, $paymentId] = $this->ownReferences($metadata['businessId'] ?? null, $metadata['paymentId'] ?? null);
-        $amount = $type === 'checkout-session.succeeded' ? ($data['amountTotal'] ?? null) : ($data['amount'] ?? null);
+        if (! is_string($object['id'] ?? null)) {
+            throw new InvalidValueException('payments.invalid_webhook');
+        }
 
-        return new PaymentEvent('onvo', $type.':'.$data['id'], $type, $data['id'], $businessId, $paymentId,
-            is_string($data['currency'] ?? null) ? $data['currency'] : null, is_int($amount) && $amount > 0 && $amount % 100 === 0 ? intdiv($amount, 100) : null,
-            reportsFailure: $type === 'payment-intent.failed');
+        $metadata = is_array($object['metadata'] ?? null) ? $object['metadata'] : [];
+        [$businessId, $paymentId] = $this->ownReferences($metadata['businessId'] ?? null, $metadata['paymentId'] ?? null);
+        $amount = $type === 'checkout_session.succeeded' ? ($object['amountTotal'] ?? null) : ($object['amount'] ?? null);
+
+        return new PaymentEvent('onvo', $id, $type, $object['id'], $businessId, $paymentId,
+            is_string($object['currency'] ?? null) ? $object['currency'] : null, is_int($amount) && $amount > 0 && $amount % 100 === 0 ? intdiv($amount, 100) : null,
+            reportsFailure: $type === 'payment_intent.failed');
     }
 
     /**

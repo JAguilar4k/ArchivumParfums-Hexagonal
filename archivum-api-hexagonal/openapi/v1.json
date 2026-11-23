@@ -5354,7 +5354,7 @@
         "/webhooks/onvo": {
             "post": {
                 "operationId": "payments.webhooks.onvo",
-                "summary": "Receive a notice of ONVO Pay, whose origin is the secret ONVO sends in `X-Webhook-Secret`",
+                "summary": "Receive a notice of ONVO Pay, whose origin is the signature ONVO sends in `X-Onvo-Signature`",
                 "tags": [
                     "PaymentWebhook"
                 ],

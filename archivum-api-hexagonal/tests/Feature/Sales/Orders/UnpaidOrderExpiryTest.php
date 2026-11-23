@@ -20,6 +20,7 @@ use Src\Shared\Infrastructure\Tenancy\BusinessTransaction;
 use Tests\Support\Businesses\StaffedBusiness;
 use Tests\Support\Catalog\FixedBusinessContext;
 use Tests\Support\Catalog\StoredPerfumes;
+use Tests\Support\Payments\OnvoWebhook;
 use Tests\Support\Payments\StoredPayments;
 use Tests\Support\RefreshDatabaseAsOwner;
 use Tests\Support\Sales\StoredOrders;
@@ -154,10 +155,10 @@ it('R25: leaves an order paid at 29 minutes as it is when its deadline arrives',
 
     // ONVO confirms the payment at 12:29, and the worker applies its notice before the deadline.
     travelTo('2026-11-07 12:29:00');
-    postJson('/api/v1/webhooks/onvo', ['type' => 'checkout-session.succeeded', 'data' => [
+    OnvoWebhook::post(OnvoWebhook::notice('checkout_session.succeeded', [
         'id' => $payment->provider_reference, 'mode' => 'test', 'status' => 'complete', 'paymentStatus' => 'paid', 'amountTotal' => 80_000, 'currency' => 'CRC',
         'metadata' => ['businessId' => $placed['business']->business->id, 'paymentId' => $payment->id],
-    ]], ['X-Webhook-Secret' => 'webhook_secret_fictitious'])->assertOk();
+    ]), 'webhook_secret_fictitious')->assertOk();
     workTheNextAvailableJob();
 
     travelTo('2026-11-07 12:30:00');

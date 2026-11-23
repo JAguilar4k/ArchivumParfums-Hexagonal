@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Src\Payments\Payments\Domain\Exceptions\GatewayUnavailableException;
@@ -402,24 +403,46 @@ it('never sends a refund whose answer was lost again, because ONVO documents no 
     expect((new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->resendsRefunds())->toBeFalse();
 });
 
-it('accepts only the configured webhook secret regardless of header casing', function (): void {
-    $gateway = new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c', 'webhook_secret_fake');
+it('accepts only a notice signed with the configured secret within five minutes, regardless of header casing', function (): void {
+    $gateway = new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c', 'whsec_fake');
+    $body = '{"id":"evt_1","type":"payment_intent.succeeded"}';
+    $now = Carbon::now()->getTimestamp();
+    $sign = fn (string $secret, int $time, string $signed = ''): string => hash_hmac('sha256', $time.'.'.($signed === '' ? $body : $signed), $secret);
 
-    expect($gateway->verifyWebhook('{}', ['X-Webhook-Secret' => 'webhook_secret_fake']))->toBeTrue();
-    expect($gateway->verifyWebhook('{}', ['x-webhook-secret' => 'wrong']))->toBeFalse();
-    expect($gateway->verifyWebhook('{}', []))->toBeFalse();
+    expect($gateway->verifyWebhook($body, ['X-Onvo-Signature' => 't='.$now.',v1='.$sign('whsec_fake', $now)]))->toBeTrue()
+        ->and($gateway->verifyWebhook($body, ['x-onvo-signature' => 't='.$now.', v1='.strtoupper($sign('whsec_fake', $now))]))->toBeTrue()
+        ->and($gateway->verifyWebhook($body, ['x-onvo-signature' => 't='.($now - 300).',v1='.$sign('whsec_fake', $now - 300)]))->toBeTrue()
+        ->and($gateway->verifyWebhook($body, ['x-onvo-signature' => 't='.$now.',v1='.$sign('whsec_old', $now).',v1='.$sign('whsec_fake', $now)]))->toBeTrue()
+        ->and($gateway->verifyWebhook($body, ['x-onvo-signature' => 't='.$now.',v1='.$sign('whsec_other', $now)]))->toBeFalse()
+        ->and($gateway->verifyWebhook($body.' ', ['x-onvo-signature' => 't='.$now.',v1='.$sign('whsec_fake', $now)]))->toBeFalse()
+        ->and($gateway->verifyWebhook($body, ['x-onvo-signature' => 't='.($now + 1).',v1='.$sign('whsec_fake', $now)]))->toBeFalse()
+        ->and($gateway->verifyWebhook($body, ['x-onvo-signature' => 't='.($now - 301).',v1='.$sign('whsec_fake', $now - 301)]))->toBeFalse()
+        ->and($gateway->verifyWebhook($body, ['x-onvo-signature' => 't='.($now + 301).',v1='.$sign('whsec_fake', $now + 301)]))->toBeFalse()
+        ->and($gateway->verifyWebhook($body, ['x-onvo-signature' => 'v1='.$sign('whsec_fake', $now)]))->toBeFalse()
+        ->and($gateway->verifyWebhook($body, ['x-onvo-signature' => 't=soon,v1='.$sign('whsec_fake', $now)]))->toBeFalse()
+        ->and($gateway->verifyWebhook($body, ['x-onvo-signature' => 't='.$now]))->toBeFalse()
+        ->and($gateway->verifyWebhook($body, ['x-webhook-secret' => 'whsec_fake']))->toBeFalse()
+        ->and($gateway->verifyWebhook($body, []))->toBeFalse();
     Http::assertNothingSent();
 });
 
-it('reads a paid checkout notice with the identifiers Archivum sent and the total in whole colones', function (): void {
+it('verifies nothing while no signing secret is configured', function (): void {
+    $gateway = new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c');
+    $now = Carbon::now()->getTimestamp();
+
+    expect($gateway->verifyWebhook('{}', ['x-onvo-signature' => 't='.$now.',v1='.hash_hmac('sha256', $now.'.{}', '')]))->toBeFalse();
+});
+
+it('reads a paid checkout notice by its event identifier, with the identifiers Archivum sent and the total in whole colones', function (): void {
     $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
-        'type' => 'checkout-session.succeeded',
-        'data' => ['id' => 'session-1', 'mode' => 'test', 'status' => 'complete', 'currency' => 'CRC', 'amountTotal' => 750_000,
-            'metadata' => ['businessId' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'paymentId' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a61']],
+        'id' => 'evt_1', 'object' => 'event', 'mode' => 'test', 'type' => 'checkout_session.succeeded',
+        'data' => ['object' => ['object' => 'checkout_session', 'id' => 'session-1', 'status' => 'complete', 'currency' => 'CRC', 'amountTotal' => 750_000,
+            'metadata' => ['businessId' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62', 'paymentId' => '0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a61']]],
     ]));
 
     expect($event->gateway)->toBe('onvo')
-        ->and($event->eventId)->toBe('checkout-session.succeeded:session-1')
+        ->and($event->eventId)->toBe('evt_1')
+        ->and($event->type)->toBe('checkout_session.succeeded')
         ->and($event->aboutCharge())->toBeTrue()
         ->and($event->reference)->toBe('session-1')
         ->and($event->businessId?->value)->toBe('0190a1b2-c3d4-7e5f-8a6b-1c2d3e4f5a62')
@@ -430,13 +453,13 @@ it('reads a paid checkout notice with the identifiers Archivum sent and the tota
     Http::assertNothingSent();
 });
 
-it('reads the notice ONVO documents for a failed intent as a failure without amount', function (): void {
+it('reads the notice of a failed intent as a failure without amount', function (): void {
     $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
-        'type' => 'payment-intent.failed',
-        'data' => ['id' => 'intent-1', 'accountId' => 'account-fictitious', 'currency' => 'CRC', 'capturableAmount' => 0, 'status' => 'requires_payment_method', 'metadata' => ['orderId' => 'order-fictitious']],
+        'id' => 'evt_2', 'type' => 'payment_intent.failed',
+        'data' => ['object' => ['id' => 'intent-1', 'accountId' => 'account-fictitious', 'currency' => 'CRC', 'capturableAmount' => 0, 'status' => 'requires_payment_method', 'metadata' => ['orderId' => 'order-fictitious']]],
     ]));
 
-    expect($event->eventId)->toBe('payment-intent.failed:intent-1')
+    expect($event->eventId)->toBe('evt_2')
         ->and($event->reference)->toBe('intent-1')
         ->and($event->currency)->toBe('CRC')
         ->and($event->amount)->toBeNull()
@@ -446,7 +469,7 @@ it('reads the notice ONVO documents for a failed intent as a failure without amo
 
 it('reads an intent notice by its own amount and ignores metadata that is not Archivum\'s', function (mixed $metadata, mixed $amount, ?int $colones): void {
     $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook((string) json_encode([
-        'type' => 'payment-intent.failed', 'data' => ['id' => 'intent-1', 'mode' => 'test', 'currency' => 'CRC', 'amount' => $amount, 'metadata' => $metadata],
+        'id' => 'evt_3', 'type' => 'payment_intent.failed', 'data' => ['object' => ['id' => 'intent-1', 'mode' => 'test', 'currency' => 'CRC', 'amount' => $amount, 'metadata' => $metadata]],
     ]));
 
     expect($event->reference)->toBe('intent-1')
@@ -461,21 +484,29 @@ it('reads an intent notice by its own amount and ignores metadata that is not Ar
     'a decimal amount' => [null, 7500.5, null],
 ]);
 
-it('reads a notice that is not about a charge by its type and object only', function (): void {
-    $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook('{"type":"subscription.renewal.succeeded","data":{"id":"subscription-1","mode":"test","amount":1}}');
+it('reads a notice that is not about a charge by its identifier and type only', function (string $body, string $id, string $type): void {
+    $event = (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook($body);
 
-    expect($event->eventId)->toBe('subscription.renewal.succeeded:subscription-1')
+    expect($event->eventId)->toBe($id)
+        ->and($event->type)->toBe($type)
         ->and($event->aboutCharge())->toBeFalse()
         ->and($event->amount)->toBeNull();
-});
+})->with([
+    'a subscription renewal' => ['{"id":"evt_4","type":"subscription_renewal.succeeded","data":{"object":{"id":"subscription-1","mode":"test","amount":1}}}', 'evt_4', 'subscription_renewal.succeeded'],
+    'the test of the dashboard' => ['{"id":"evt_5","object":"event","mode":"test","type":"webhook_endpoint.test","data":{"object":{}}}', 'evt_5', 'webhook_endpoint.test'],
+    'a notice in the previous format' => ['{"id":"evt_6","type":"payment-intent.succeeded","data":{"id":"intent-1","mode":"test","amount":750000}}', 'evt_6', 'payment-intent.succeeded'],
+]);
 
 it('refuses a body that is not a test notice of ONVO', function (string $body): void {
     expect(fn () => (new OnvoGateway('onvo_test_fake', 'https://example.test/r', 'https://example.test/c'))->parseWebhook($body))
         ->toThrow(InvalidValueException::class, 'payments.invalid_webhook');
 })->with([
     'not JSON' => ['not-json'],
-    'without type' => ['{"data":{"id":"session-1"}}'],
-    'without object' => ['{"type":"checkout-session.succeeded"}'],
-    'an object without id' => ['{"type":"checkout-session.succeeded","data":{"amountTotal":750000}}'],
-    'live mode' => ['{"type":"checkout-session.succeeded","data":{"id":"session-1","mode":"live"}}'],
+    'without identifier' => ['{"type":"checkout_session.succeeded","data":{"object":{"id":"session-1"}}}'],
+    'without type' => ['{"id":"evt_1","data":{"object":{"id":"session-1"}}}'],
+    'a charge without object' => ['{"id":"evt_1","type":"checkout_session.succeeded"}'],
+    'a charge in the previous format' => ['{"id":"evt_1","type":"checkout_session.succeeded","data":{"id":"session-1","amountTotal":750000}}'],
+    'an object without id' => ['{"id":"evt_1","type":"checkout_session.succeeded","data":{"object":{"amountTotal":750000}}}'],
+    'a live event' => ['{"id":"evt_1","mode":"live","type":"subscription_renewal.succeeded","data":{"object":{"id":"subscription-1"}}}'],
+    'a live object' => ['{"id":"evt_1","type":"checkout_session.succeeded","data":{"object":{"id":"session-1","mode":"live"}}}'],
 ]);

@@ -161,7 +161,7 @@ Si al crear el proyecto algún comando cambia, actualizá esta sección.
 
 ## Documentación de las integraciones
 
-- ONVO Pay: https://docs.onvopay.com (contexto para agentes en `/llms-full.txt`). Llaves de prueba con prefijo `onvo_test_`; el origen de los webhooks se verifica con el encabezado `X-Webhook-Secret`.
+- ONVO Pay: https://docs.onvopay.com (contexto para agentes en `/llms-full.txt`). Llaves de prueba con prefijo `onvo_test_`; el origen de los webhooks se verifica con la firma HMAC-SHA256 del encabezado `X-Onvo-Signature` (el formato anterior, con `X-Webhook-Secret`, ya no admite webhooks nuevos).
 - PayPal: https://developer.paypal.com (índice en `/llms.txt`). Su API estándar no acepta colones: con PayPal se cobra en USD.
 - Laravel AI SDK: https://laravel.com/docs/13.x/ai-sdk
 - Laravel MCP (extra): https://github.com/laravel/mcp
