@@ -19,6 +19,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $name
  * @property string $email
  * @property string $password
+ * @property bool $is_platform_admin
  */
 #[Table('users')]
 #[Fillable(['id', 'name', 'email', 'password'])]
