@@ -81,7 +81,7 @@ ArchivumParfums-Hexagonal/                          API
 ArchivumParfums-Web/                                cliente web
 ```
 
-En orden: revisa las herramientas, clona lo que falta, crea `.env` desde `.env.example` si no existe, instala las dependencias de la API, ejecuta `php artisan archivum:install` (clave, roles, bases, migraciones y datos de demostración; ahí pide la contraseña de `postgres`), instala las del cliente web y comprueba la conexión con PostgreSQL 18. Al final lista por nombre las integraciones sin llave y ofrece abrir la API, la cola y el cliente web.
+En orden: revisa las herramientas, incluido PostgreSQL 18, clona lo que falta, crea `.env` desde `.env.example` si no existe, comprueba que el servidor de `DB_HOST` y `DB_PORT` responda (si no, se detiene antes de instalar nada), instala las dependencias de la API, ejecuta `php artisan archivum:install` (clave, roles, bases, migraciones y datos de demostración; ahí pide la contraseña de `postgres`), instala las del cliente web y comprueba la conexión con PostgreSQL 18. Al final lista por nombre las integraciones sin llave y ofrece abrir la API, la cola y el cliente web.
 
 Se puede ejecutar las veces que haga falta. Detecta lo que ya está hecho y no lo repite: no vuelve a clonar, no reemplaza `.env` ni la clave, reutiliza los roles y las bases, migra solo lo pendiente y no siembra si ya hay usuarios, así que no duplica datos.
 
