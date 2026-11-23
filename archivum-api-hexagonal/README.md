@@ -4,7 +4,7 @@ API REST de ArchivumParfums. Laravel 13, PHP 8.4 y PostgreSQL 18.
 
 ## Alcance integrado
 
-La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Avance 2 suma la confirmación de pagos por aviso verificado de ONVO y PayPal (#94), procesado una sola vez en la cola (#95), la conciliación de los pagos pendientes cuyo aviso no llegó (#96), los reembolsos pedidos en la cola a ONVO y a PayPal (#97) y el registro del saldo pagado en la entrega (#98); desde #96, la consulta del cliente solo lee el pago guardado. Los servicios y horarios, la disponibilidad, las citas y el cliente Vue siguen pendientes de integración. Los escenarios externos ONVO y PayPal ya tienen [evidencia sandbox](../docs/evidencia-investigacion-1/README.md); el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
+La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, perfumes y presentaciones, fotos, cálculo de precio de venta y vitrina pública, con aislamiento por tienda y contrato OpenAPI. Investigación 1 incorpora botellas y movimientos de ml, pedidos, cobros sandbox con ONVO y PayPal confirmados por consulta del servidor y reembolsos ONVO. Avance 2 suma la confirmación de pagos por aviso verificado de ONVO y PayPal (#94), procesado una sola vez en la cola (#95), la conciliación de los pagos pendientes cuyo aviso no llegó (#96), los reembolsos pedidos en la cola a ONVO y a PayPal (#97) y el registro del saldo pagado en la entrega (#98); desde #96, la consulta del cliente solo lee el pago guardado. La SPA Vue que consume la API se mantiene en [ArchivumParfums-Web](https://github.com/JAguilar4k/ArchivumParfums-Web). Los escenarios externos ONVO y PayPal ya tienen [evidencia sandbox](../docs/evidencia-investigacion-1/README.md); el #76 depende del trabajo de citas del equipo. Las pruebas de lo que existe y el avance de las capacidades previstas se consultan por separado en [el plan](../docs/plan.md) y [el tablero](https://github.com/users/JAguilar4k/projects/4).
 
 ## Requisitos
 
@@ -24,9 +24,11 @@ Los comandos de Composer y Artisan sirven en PowerShell, en Git Bash y en una te
 1. Clonar el repositorio y entrar al proyecto:
 
    ```bash
-   git clone https://github.com/JAguilar4k/ArchivumParfums-Hexagonal.git
+   git clone --recurse-submodules https://github.com/JAguilar4k/ArchivumParfums-Hexagonal.git
    cd ArchivumParfums-Hexagonal/archivum-api-hexagonal
    ```
+
+   En un clon existente o al cambiar de rama, ejecuta `git submodule update --init --recursive` desde la raíz antes de instalar o migrar. `database/migrations` apunta a la revisión del esquema que usa la API.
 
 2. Preparar la configuración local. Este comando copia el ejemplo solo si todavía no existe `.env`:
 
@@ -54,7 +56,7 @@ Los comandos de Composer y Artisan sirven en PowerShell, en Git Bash y en una te
    composer install
    ```
 
-   Al terminar de instalar, Composer ejecuta `php artisan archivum:install`, que deja todo listo en este orden: crea `.env` a partir de `.env.example`, genera la clave de la aplicación, crea los roles `archivum_owner` y `archivum_app` y las bases de desarrollo y de pruebas igual que `database/roles.sql`, migra con el rol dueño y carga los datos de demostración. Las contraseñas se generan solo para los roles nuevos y quedan en `.env`. Si los roles ya existen en este servidor, se deben escribir sus contraseñas actuales en `DB_ADMIN_PASSWORD` y `DB_PASSWORD`; el instalador nunca las cambia, de modo que otra copia del proyecto sigue conectándose.
+   Al terminar de instalar, Composer ejecuta `php artisan archivum:install`, que deja todo listo en este orden: crea `.env` a partir de `.env.example`, genera la clave de la aplicación, crea los roles `archivum_owner` y `archivum_app` y las bases de desarrollo y de pruebas igual que `database/migrations/roles.sql`, migra con el rol dueño y carga los datos de demostración. Las contraseñas se generan solo para los roles nuevos y quedan en `.env`. Si los roles ya existen en este servidor, se deben escribir sus contraseñas actuales en `DB_ADMIN_PASSWORD` y `DB_PASSWORD`; el instalador nunca las cambia, de modo que otra copia del proyecto sigue conectándose.
 
 4. La primera vez hace falta la contraseña del superusuario `postgres` para crear los roles y las bases. Se pide sin mostrarla y no se guarda. Si el script de Composer no dispone de una terminal interactiva, como puede ocurrir en Windows, completa la preparación ejecutando:
 
@@ -150,7 +152,7 @@ git diff -- openapi/v1.json
 
 Para comprobar que el contrato versionado ya coincide con el generador, usa `git diff --exit-code -- openapi/v1.json` después de exportarlo. Un diff requiere revisar y actualizar el contrato; no significa que se haya ejecutado el comportamiento HTTP.
 
-`archivum-web` genera sus tipos desde este contrato: después de exportarlo, se ejecuta `npm run api:types` en `archivum-web/` y el pull request incluye los dos archivos ([README del cliente](../archivum-web/README.md#tipos-de-la-api)).
+El check `Web` regenera los tipos del cliente con el contrato propuesto y ejecuta sus pruebas y su compilación. Para actualizar el contrato de la SPA, sigue los pasos del [README de Web](https://github.com/JAguilar4k/ArchivumParfums-Web#tipos-de-la-api) con el SHA del backend que lo publica.
 
 Los avisos de las pasarelas se procesan en la cola (#95): con `QUEUE_CONNECTION=database`, el worker local corre en otra terminal con `php artisan queue:work`, y cada aviso guardado espera en la tabla `jobs` hasta que el worker lo aplica. La cola escribe cada trabajo cuando se confirma la transacción que lo despachó, y mientras una copia espera no se encola otra con la misma clave, como el mismo aviso o el mismo reembolso (#156). Cada trabajo toma sus reintentos de `config/archivum.php` (cinco intentos, con esperas de 10, 60 y 300 segundos, y la última se repite), y uno que los agota queda en `failed_jobs`, desde donde `php artisan queue:retry` lo vuelve a encolar. Las claves de los trabajos son bloqueos de la caché en `cache_locks`, por la conexión `pgsql_locks`, que usa la misma base y el mismo rol que la aplicación: no hace falta configurar nada más. Los reembolsos también salen por la cola (#97): la cancelación, la línea no disponible y el cobro que llega con el pedido ya cerrado o con el paquete ya vencido solo registran el reembolso y su trabajo, y el worker lo pide a la pasarela. Si PayPal no responde, los reintentos del trabajo lo piden otra vez con el mismo `PayPal-Request-Id`; con ONVO, que no documenta una llave de idempotencia, un reembolso sin respuesta no se reenvía y se revisa en su panel. Cada pedido que espera su pago deja su vencimiento en la cola, disponible a los 30 minutos o a los que fije la tienda (#158): si para entonces nadie lo pagó, el worker lo vence, devuelve los ml de sus decants y a su paquete cada decant canjeado, y cierra su pago pendiente. Cada paquete de decants comprado también deja su vencimiento en la cola, disponible a los 30 minutos o a los que fije la tienda, y al confirmarse su pago deja otro para el fin de su vigencia, meses después (#159): a esa hora, si el paquete sigue sin pagar o activo, el worker lo vence, aunque le queden decants, y si no se pagó cierra su pago pendiente; vencer un paquete nunca lo reembolsa, pero un cobro que la pasarela confirme después de que venció sin pago se devuelve completo (#192). El scheduler usa `php artisan schedule:work` y concilia cada cinco minutos los pagos pendientes cuyo aviso no llegó (#96) y los reembolsos que la pasarela todavía procesa (#97). Son procesos separados de `composer run dev`. El cobro y su consulta desde la API no necesitan el worker. En local, sin dirección pública, los avisos no llegan: ahí confirma los pagos la conciliación. Los recordatorios y websockets siguen pendientes.
 
@@ -451,7 +453,7 @@ Los ajustes de cada tienda no son variables de entorno: se guardan en `businesse
 app/         Arranque del framework
 bootstrap/   Rutas, middleware y proveedores de la aplicación
 config/      Configuración: aplicación, autenticación (auth.php, sanctum.php), base de datos y colas
-database/    Roles (roles.sql), migraciones, factories y seeders
+database/    Submódulo migrations/ con esquema y roles.sql, factories y seeders
 lang/        Mensajes al usuario en español, con el inglés como respaldo
 routes/      Punto de entrada de las rutas de cada módulo
 src/         Código del producto por contexto y módulo: Domain, Application e Infrastructure

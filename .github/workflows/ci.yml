@@ -44,6 +44,8 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@v7
+        with:
+          submodules: true
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -81,7 +83,7 @@ jobs:
         run: >-
           psql -h 127.0.0.1 -U postgres -v ON_ERROR_STOP=1
           -v owner_password="$DB_ADMIN_PASSWORD" -v app_password="$DB_PASSWORD"
-          -f database/roles.sql
+          -f database/migrations/roles.sql
 
       - name: Run the migrations as the schema owner
         run: php artisan migrate --database=pgsql_admin --force
@@ -108,8 +110,19 @@ jobs:
         working-directory: archivum-web
 
     steps:
-      - name: Check out the repository
+      - name: Check out the candidate API
         uses: actions/checkout@v7
+        with:
+          path: backend
+          persist-credentials: false
+
+      - name: Check out the current Web client
+        uses: actions/checkout@v7
+        with:
+          repository: JAguilar4k/ArchivumParfums-Web
+          ref: main
+          path: archivum-web
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -121,38 +134,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Check the API types against openapi/v1.json
-        run: npm run api:check
+      - name: Generate client types from the candidate API
+        run: |
+          cp ../backend/archivum-api-hexagonal/openapi/v1.json openapi/v1.json
+          npm run api:types
 
-      - name: Check the code style
-        run: npm run lint
-
-      - name: Check the types
-        run: npm run type-check
-
-      - name: Run the test suite
+      - name: Run the Web tests
         run: npm run test
 
-      - name: Build for production
+      - name: Check types and build the Web client
         run: npm run build
-
-      - name: Install the Playwright browser
-        run: npx playwright install --with-deps chromium
-
-      - name: Run the browser tests
-        # Journeys, axe audit (WCAG 2.2 AAA) and navigation times, against a mocked API.
-        run: npm run test:e2e
-
-      - name: Keep the screenshots and traces of the browser tests
-        if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: playwright
-          path: archivum-web/test-results/
-          retention-days: 14
-
-      - name: Audit dependencies
-        # Temporary (#335): picomatch <= 4.0.7 (GHSA-fc5q-39xc-vjpf, high) has no fixed release yet,
-        # and Vite, Vitest, vue-tsc, the ESLint plugins and Vue Router depend on it.
-        # Go back to --audit-level=high once package-lock.json has a fixed picomatch.
-        run: npm audit --audit-level=critical
