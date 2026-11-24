@@ -10,7 +10,7 @@ La API incluye sesiones, cuenta actual, perfil y ajustes de la tienda, logo, per
 
 | Herramienta | Versión |
 |---|---|
-| PHP | 8.4 o superior, con las extensiones `pdo_pgsql`, `intl` y `mbstring` |
+| PHP | 8.4 o superior, con las extensiones `pdo_pgsql`, `intl`, `mbstring`, `openssl`, `fileinfo`, `curl`, `ctype` y `tokenizer`. `instalar.bat` las revisa antes de instalar |
 | Composer | 2.x |
 | PostgreSQL | 18 o superior, con la extensión `btree_gist` del paquete `contrib` |
 | Git | Cualquier versión reciente |
