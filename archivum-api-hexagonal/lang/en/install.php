@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 return [
 
+    'catalog_loaded' => 'ArchivumParfums catalog: :created new perfumes and :photos photos assigned. The perfumes already there are kept.',
+    'catalog_without_photos' => 'R2_PUBLIC_URL is empty in .env, so the perfumes have no photo. Set it and run instalar.bat again to complete them.',
     'database_failed' => 'The database could not be prepared: :message',
     'database_hint' => 'Check that PostgreSQL 18 is installed and running and the DB_ values in .env, then run composer install again.',
     'description' => 'Prepare the local environment: .env, application key, PostgreSQL roles and databases, migrations and demo data.',

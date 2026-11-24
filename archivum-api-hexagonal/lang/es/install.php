@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 return [
 
+    'catalog_loaded' => 'Catálogo de ArchivumParfums: :created perfumes nuevos y :photos fotos asignadas. Los perfumes que ya estaban se conservan.',
+    'catalog_without_photos' => 'R2_PUBLIC_URL está vacío en .env, así que los perfumes quedaron sin foto. Configúrelo y ejecute de nuevo instalar.bat para completarlas.',
     'database_failed' => 'No se pudo preparar la base de datos: :message',
     'database_hint' => 'Revise que PostgreSQL 18 esté instalado y encendido y los datos DB_ de .env; luego ejecute de nuevo composer install.',
     'description' => 'Deja listo el entorno local: .env, clave de la aplicación, roles y bases de PostgreSQL, migraciones y datos de demostración.',
